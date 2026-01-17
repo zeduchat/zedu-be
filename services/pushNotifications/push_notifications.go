@@ -183,10 +183,7 @@ func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gor
 		return nil
 	}
 
-	title := req.Title
-	body := req.Message
-
-	err = onesignal.OptionalSendNotification(logger, subscriptionID, title, body)
+	err = onesignal.OptionalSendNotification(logger, subscriptionID, req)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send OneSignal notification: %s", err.Error()))
 		return nil // Non-critical error, don't fail the notification flow
@@ -235,10 +232,10 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 		return nil
 	}
 
-	title := fmt.Sprintf("#%s ", req.ChannelName)
-	body := fmt.Sprintf("(@%s): %s", req.Username, req.Message)
+	req.Title = fmt.Sprintf("#%s ", req.ChannelName)
+	req.Message = fmt.Sprintf("(@%s): %s", req.Username, req.Message)
 
-	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, title, body)
+	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send batch OneSignal notification: %s", err.Error()))
 		return nil // Non-critical error, don't fail the notification flow

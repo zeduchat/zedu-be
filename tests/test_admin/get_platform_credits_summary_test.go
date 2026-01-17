@@ -18,13 +18,23 @@ func TestGetPlatformCreditsSummary_Success(t *testing.T) {
 	db := storage.Connection()
 
 	r, _, _, _ := SetupAdminTestRouter()
-	token := CreateSuperAdminAndGetToken(t, r, db)
+
+	// Create admin with unique email for this test
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	// Track all created org IDs for cleanup
+	var createdOrgIDs []string
 
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	createdOrgIDs = append(createdOrgIDs, org1ID)
 	org2ID := CreateOrganizationWithCredit(t, db.Postgresql, 200.00)
+	createdOrgIDs = append(createdOrgIDs, org2ID)
 	org3ID := CreateOrganizationWithCredit(t, db.Postgresql, 300.00)
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org3ID)
+	org4ID := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org4ID)
 	org5ID := CreateOrganizationWithCredit(t, db.Postgresql, 500.00)
+	createdOrgIDs = append(createdOrgIDs, org5ID)
 
 	CreateCreditTransaction(t, db.Postgresql, org1ID, 100.00)
 	CreateCreditTransaction(t, db.Postgresql, org2ID, 200.00)
@@ -36,23 +46,38 @@ func TestGetPlatformCreditsSummary_Success(t *testing.T) {
 	CreateCreditUsage(t, db.Postgresql, org3ID, 100.00)
 	CreateCreditUsage(t, db.Postgresql, org5ID, 150.00)
 
+	// Setup cleanup to run AFTER test, cleaning only OUR data
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
+
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
-	})
+	// Log response body for debugging if test fails
+	if rr.Code != http.StatusOK {
+		t.Logf("Response body: %s", rr.Body.String())
+	}
 
-	assert.Equal(t, http.StatusOK, rr.Code)
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.FailNow()
+	}
 
 	data := tst.ParseResponse(rr)
-	assert.Equal(t, "success", data["status"])
-	assert.NotNil(t, data["data"])
+	if !assert.Equal(t, "success", data["status"]) {
+		t.FailNow()
+	}
+	if !assert.NotNil(t, data["data"]) {
+		t.FailNow()
+	}
 
-	metrics := data["data"].(map[string]any)
+	metrics, ok := data["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data['data'] is not a map, got: %T", data["data"])
+	}
 
 	_, hasTotalCredited := metrics["total_credited"]
 	_, hasTotalUsed := metrics["total_used"]
@@ -128,11 +153,19 @@ func TestGetPlatformCreditsSummary_ZeroCredits(t *testing.T) {
 	db := storage.Connection()
 
 	r, _, _, _ := SetupAdminTestRouter()
-	token := CreateSuperAdminAndGetToken(t, r, db)
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	var createdOrgIDs []string
+	org1 := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org1)
+	org2 := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org2)
+	org3 := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org3)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -140,14 +173,15 @@ func TestGetPlatformCreditsSummary_ZeroCredits(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
-	})
-
-	assert.Equal(t, http.StatusOK, rr.Code)
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.FailNow()
+	}
 
 	data := tst.ParseResponse(rr)
-	metrics := data["data"].(map[string]any)
+	metrics, ok := data["data"].(map[string]any)
+	if !ok {
+		t.FailNow()
+	}
 
 	totalUsed := metrics["total_used"].(float64)
 	totalCredited := metrics["total_credited"].(float64)
@@ -168,13 +202,19 @@ func TestGetPlatformCreditsSummary_MultipleOrganizations(t *testing.T) {
 	db := storage.Connection()
 
 	r, _, _, _ := SetupAdminTestRouter()
-	token := CreateSuperAdminAndGetToken(t, r, db)
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
+	var createdOrgIDs []string
 	for i := 0; i < 20; i++ {
 		orgID := CreateOrganizationWithCredit(t, db.Postgresql, float64(i*10))
+		createdOrgIDs = append(createdOrgIDs, orgID)
 		CreateCreditTransaction(t, db.Postgresql, orgID, float64(i*10))
 		CreateCreditUsage(t, db.Postgresql, orgID, float64(i*2))
 	}
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -182,14 +222,15 @@ func TestGetPlatformCreditsSummary_MultipleOrganizations(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
-	})
-
-	assert.Equal(t, http.StatusOK, rr.Code)
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.FailNow()
+	}
 
 	data := tst.ParseResponse(rr)
-	metrics := data["data"].(map[string]any)
+	metrics, ok := data["data"].(map[string]any)
+	if !ok {
+		t.FailNow()
+	}
 
 	totalCredited := float64(0)
 	for i := 0; i < 20; i++ {
@@ -213,11 +254,15 @@ func TestGetPlatformCreditsSummary_ActiveOrganizationsCount(t *testing.T) {
 	db := storage.Connection()
 
 	r, _, _, _ := SetupAdminTestRouter()
-	token := CreateSuperAdminAndGetToken(t, r, db)
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
+	var createdOrgIDs []string
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	createdOrgIDs = append(createdOrgIDs, org1ID)
 	org2ID := CreateOrganizationWithCredit(t, db.Postgresql, 200.00)
+	createdOrgIDs = append(createdOrgIDs, org2ID)
 	org3ID := CreateOrganizationWithCredit(t, db.Postgresql, 300.00)
+	createdOrgIDs = append(createdOrgIDs, org3ID)
 
 	CreateCreditTransaction(t, db.Postgresql, org1ID, 100.00)
 	CreateCreditTransaction(t, db.Postgresql, org2ID, 200.00)
@@ -225,9 +270,16 @@ func TestGetPlatformCreditsSummary_ActiveOrganizationsCount(t *testing.T) {
 
 	CreateCreditUsage(t, db.Postgresql, org1ID, 50.00)
 
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
-	_ = CreateOrganizationWithCredit(t, db.Postgresql, -10.00)
+	org4ID := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org4ID)
+	org5ID := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
+	createdOrgIDs = append(createdOrgIDs, org5ID)
+	org6ID := CreateOrganizationWithCredit(t, db.Postgresql, -10.00)
+	createdOrgIDs = append(createdOrgIDs, org6ID)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/credits-summary", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -235,14 +287,15 @@ func TestGetPlatformCreditsSummary_ActiveOrganizationsCount(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	t.Cleanup(func() {
-		CleanupTestData(t, db.Postgresql)
-	})
-
-	assert.Equal(t, http.StatusOK, rr.Code)
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.FailNow()
+	}
 
 	data := tst.ParseResponse(rr)
-	metrics := data["data"].(map[string]any)
+	metrics, ok := data["data"].(map[string]any)
+	if !ok {
+		t.FailNow()
+	}
 
 	assert.GreaterOrEqual(t, int64(metrics["total_organizations"].(float64)), int64(6))
 	assert.GreaterOrEqual(t, int64(metrics["active_organizations"].(float64)), int64(2))

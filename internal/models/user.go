@@ -323,3 +323,26 @@ func (user *User) ActivateUser(db *gorm.DB, userId string) error {
 func (u *User) CheckUserExists(db *gorm.DB, userID string) bool {
 	return postgresql.CheckExists(db, &u, "id = ?", userID)
 }
+
+func ValidateUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, []string, error) {
+	var validIDs []string
+	if err := db.Table("users").
+		Where("id IN ?", userIDs).
+		Pluck("id", &validIDs).Error; err != nil {
+		return nil, nil, fmt.Errorf("error validating users: %w", err)
+	}
+
+	validMap := make(map[string]bool)
+	for _, id := range validIDs {
+		validMap[id] = true
+	}
+
+	var invalid []string
+	for _, id := range userIDs {
+		if !validMap[id] {
+			invalid = append(invalid, id)
+		}
+	}
+
+	return validIDs, invalid, nil
+}

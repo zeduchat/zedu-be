@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -90,7 +91,12 @@ func TestOptionalSendNotification(t *testing.T) {
 		tst.Cleanup(db)
 	})
 
-	err := onesignal.OptionalSendNotification(logger, "test-sub-id", "Test Title", "Test Body")
+	req := models.PushRequest{
+		Title:   "Test Title",
+		Message: "Test Body",
+	}
+
+	err := onesignal.OptionalSendNotification(logger, "test-sub-id", req)
 
 	assert.NoError(t, err)
 }
@@ -103,7 +109,12 @@ func TestOptionalSendBatchNotifications(t *testing.T) {
 		tst.Cleanup(db)
 	})
 
-	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, "Test Title", "Test Body")
+	req := models.PushRequest{
+		Title:   "Test Title",
+		Message: "Test Body",
+	}
+
+	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, req)
 
 	assert.NoError(t, err)
 }
@@ -116,7 +127,12 @@ func TestSendNotificationNoClient(t *testing.T) {
 		tst.Cleanup(db)
 	})
 
-	err := onesignal.SendNotification(logger, "test-sub-id", "Test Title", "Test Body")
+	req := models.PushRequest{
+		Title:   "Test Title",
+		Message: "Test Body",
+	}
+
+	err := onesignal.SendNotification(logger, "test-sub-id", req)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "OneSignal client not initialized")
@@ -133,7 +149,12 @@ func TestSendBatchNotificationsEmpty(t *testing.T) {
 	onesignal.Client.AppID = "test-app"
 	onesignal.Client.ApiKey = "test-key"
 
-	err := onesignal.SendBatchNotifications(logger, []string{}, "Test Title", "Test Body")
+	req := models.PushRequest{
+		Title:   "Test Title",
+		Message: "Test Body",
+	}
+
+	err := onesignal.SendBatchNotifications(logger, []string{}, req)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no subscription IDs provided")

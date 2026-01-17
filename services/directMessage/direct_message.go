@@ -66,20 +66,30 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 		return nil, pagResp, http.StatusInternalServerError, err
 	}
 
+	favouriteChannelIds, _ := models.GetUserFavouriteChannelIds(db, req.UserId, req.OrgId)
+	favouriteMap := make(map[string]bool)
+	for _, id := range favouriteChannelIds {
+		favouriteMap[id] = true
+	}
+
+	for i := range resp {
+		resp[i].IsFavourite = favouriteMap[resp[i].ID]
+	}
+
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (gin.H, int, error) {
+func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (models.DmParticipantsResponse, int, error) {
 	var (
-		user         models.User
-		is_agent     bool = false
-		orgAgent     models.OrganisationIntegrations
-		dmchannel    models.DmChannels
-		participants []gin.H
+		user      models.User
+		is_agent  bool = false
+		orgAgent  models.OrganisationIntegrations
+		dmchannel models.DmChannels
 	)
 
-	resp := gin.H{
-		"participants": []gin.H{},
+	resp := models.DmParticipantsResponse{
+		Participants: []models.Participant{},
+		PreviewMedia: []models.File{},
 	}
 
 	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
@@ -103,43 +113,64 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		if appName == "" {
 			return resp, http.StatusInternalServerError, errors.New("missing required agent details (app_name, app_logo)")
 		}
-		participants = append(participants, gin.H{
-			"avatar_url": appLogo,
-			"username":   appName,
-			"email":      appName,
-			"name":       appName,
-			"user_type":  "bot",
-			"user_id":    dmchannel.ParticipantId,
+		resp.Type = "bot"
+		resp.Participants = append(resp.Participants, models.Participant{
+			AvatarUrl: appLogo,
+			Username:  appName,
+			Email:     appName,
+			UserType:  "bot",
+			UserId:    *dmchannel.ParticipantId,
 		})
-		resp["participants"] = participants
 		return resp, http.StatusOK, nil
 	}
 
 	switch dmchannel.ChannelType {
 	case "group_dm":
+		resp.Type = "groupdm"
+		resp.GroupDescription = dmchannel.GroupDescription
 
-		var (
-			chanPart []models.ChannelParticipant
-		)
+		// Custom struct to hold the joined query results
+		type ParticipantWithProfile struct {
+			UserId    string
+			Title     string
+			AvatarURL string
+			UserName  string
+			Email     string
+		}
 
-		_ = postgresql.SelectAllFromDb(db.Postgresql, "", &chanPart, "channel_id = ?", dmchannel.ChannelId)
+		var participantsWithProfile []ParticipantWithProfile
 
-		for _, part := range chanPart {
-			userDetails, _ := user.GetUserByID(db.Postgresql, part.UserId)
+		// Custom SQL query joining channel_participants with profiles and users
+		err := db.Postgresql.Table("channel_participants cp").
+			Select(`
+				cp.user_id,
+				COALESCE(p.title, '') as title,
+				COALESCE(p.avatar_url, '') as avatar_url,
+				COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
+				u.email
+			`).
+			Joins("JOIN users u ON u.id = cp.user_id").
+			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchannel.ChannelId).
+			Scan(&participantsWithProfile).Error
 
-			if userDetails.Profile.UserName == "" {
-				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-			}
+		if err != nil {
+			return resp, http.StatusInternalServerError, fmt.Errorf("failed to fetch group DM participants: %w", err)
+		}
 
-			participants = append(participants, gin.H{
-				"avatar_url": userDetails.Profile.AvatarURL,
-				"username":   userDetails.Profile.UserName,
-				"email":      userDetails.Email,
-				"user_type":  "user",
-				"user_id":    part.UserId,
+		for _, part := range participantsWithProfile {
+			resp.Participants = append(resp.Participants, models.Participant{
+				AvatarUrl: part.AvatarURL,
+				Username:  part.UserName,
+				Email:     part.Email,
+				UserType:  "user",
+				UserId:    part.UserId,
+				IsAdmin:   part.UserId == dmchannel.UserId,
+				Title:     part.Title,
 			})
 		}
 	case "dm":
+		resp.Type = "dm"
 
 		userDetails, _ := user.GetUserByID(db.Postgresql, *dmchannel.ParticipantId)
 
@@ -147,25 +178,26 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		participants = append(participants, gin.H{
-			"avatar_url": userDetails.Profile.AvatarURL,
-			"username":   userDetails.Profile.UserName,
-			"email":      userDetails.Email,
-			"user_type":  "user",
-			"user_id":    dmchannel.ParticipantId,
+		resp.Participants = append(resp.Participants, models.Participant{
+			AvatarUrl: userDetails.Profile.AvatarURL,
+			Username:  userDetails.Profile.UserName,
+			Email:     userDetails.Email,
+			UserType:  "user",
+			UserId:    *dmchannel.ParticipantId,
+			Title:     userDetails.Profile.Title,
 		})
 
 	}
-
-	resp["participants"] = participants
 
 	if includeMedia && db != nil {
 		dmchannel.ChannelId = req.ChannelId
 		previewMedia, _, err := dmchannel.GetPreviewMedia(db, 10)
 		if err == nil {
-			resp["preview_media"] = previewMedia
+			resp.PreviewMedia = previewMedia
 		}
 	}
+
+	resp.CreatedAt = dmchannel.CreatedAt
 
 	return resp, http.StatusOK, nil
 }
@@ -204,4 +236,72 @@ func GetDmChannelMedia(req models.DmChannelMediaRequest, db *storage.Database, c
 	}
 
 	return media, pagResp, http.StatusOK, nil
+}
+
+func UpsertGroupDescription(req models.GroupDescriptionRequest, db *gorm.DB) (int, error) {
+	var dmchan models.DmChannels
+
+	err := dmchan.UpsertGroupDescription(db, req)
+	if err != nil {
+		return http.StatusBadRequest, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func AddToFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
+	var dmFav models.DmFavourite
+	dmFav.ID = utility.GenerateUUID()
+
+	err := dmFav.AddToFavourites(db, req)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func RemoveFromFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
+	var dmFav models.DmFavourite
+
+	err := dmFav.RemoveFromFavourites(db, req)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]models.DmChannelsResponse, int, error) {
+	favouriteChannelIds, err := models.GetUserFavouriteChannelIds(db.Postgresql, req.UserId, req.OrgId)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if len(favouriteChannelIds) == 0 {
+		return []models.DmChannelsResponse{}, http.StatusOK, nil
+	}
+
+	// Get DM channels that match the favourite channel IDs
+	var dmChannels []models.DmChannels
+	err = db.Postgresql.Where("user_id = ? AND org_id = ? AND channel_id IN ?", req.UserId, req.OrgId, favouriteChannelIds).
+		Find(&dmChannels).Error
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	// Convert to DmChannelsResponse
+	var response []models.DmChannelsResponse
+	for _, dm := range dmChannels {
+		resp := models.DmChannelsResponse{
+			ID:          dm.ChannelId,
+			ChannelType: dm.ChannelType,
+			CreatedAt:   dm.CreatedAt,
+			IsFavourite: true,
+		}
+		response = append(response, resp)
+	}
+
+	return response, http.StatusOK, nil
 }

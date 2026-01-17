@@ -169,3 +169,104 @@ func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(statusCode, "User left Group DM channel successfully", nil)
 	c.JSON(statusCode, rd)
 }
+
+func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
+	var (
+		req models.DmChannelsRequest
+	)
+
+	req.ChannelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, statusCode, err := dm.JoinGroupDMChannel(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("User joined Group DM channel successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "User joined Group DM channel successfully", respData)
+	c.JSON(statusCode, rd)
+}
+
+func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
+	var (
+		req models.AddParticipantsRequest
+	)
+
+	req.ChannelId = c.Param("channel_id")
+
+	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+
+	req.OrgId = userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Info("error parsing request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Info("validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	respData, statusCode, err := dm.AddParticipantsToGroupDM(req, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
+		return
+	}
+
+	base.Logger.Info("Participants added to Group DM channel successfully")
+	rd := utility.BuildSuccessResponse(statusCode, "Participants added to Group DM channel successfully", respData)
+	c.JSON(statusCode, rd)
+}

@@ -60,6 +60,13 @@ func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 }
 
 func CreateSuperAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Database) string {
+	_, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+	return token
+}
+
+// CreateSuperAdminAndGetTokenWithID creates a super admin and returns both the admin ID and token
+// for test-specific cleanup
+func CreateSuperAdminAndGetTokenWithID(t *testing.T, r *gin.Engine, db *storage.Database) (string, string) {
 	password, _ := utility.HashPassword("password")
 
 	superAdmin := models.Admin{
@@ -99,7 +106,7 @@ func CreateSuperAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Databa
 		t.Fatalf("Failed to save access token: %v", tokenSaveErr)
 	}
 
-	return tokenData.AccessToken
+	return superAdmin.ID, tokenData.AccessToken
 }
 
 func CreateAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Database, role string) string {
@@ -209,29 +216,7 @@ func CreateTestCreditPackage(t *testing.T, db *gorm.DB, credits int, price float
 	return pkg.ID
 }
 
-func CleanupTestData(t *testing.T, db *gorm.DB) {
-	// Get all test organisation IDs
-	var orgIDs []string
-	db.Raw("SELECT id FROM organisations WHERE email LIKE ?", "%@qa.team%").Scan(&orgIDs)
-
-	// Delete child records for each org
-	for _, orgID := range orgIDs {
-		db.Exec("DELETE FROM invitations WHERE organisation_id = ?", orgID)
-		db.Exec("DELETE FROM user_organisations WHERE organisation_id = ?", orgID)
-		db.Exec("DELETE FROM org_roles WHERE organisation_id = ?", orgID)
-		db.Exec("DELETE FROM organisation_integrations WHERE org_id = ?", orgID)
-		db.Exec("DELETE FROM channels WHERE organisation_id = ?", orgID)
-		db.Exec("DELETE FROM integration_bills WHERE org_id = ?", orgID)
-		db.Exec("DELETE FROM credit_usages WHERE organisation_id = ?", orgID)
-		db.Exec("DELETE FROM credit_transactions WHERE organisation_id = ?", orgID)
-	}
-
-	// Delete organisations
-	db.Exec("DELETE FROM organisations WHERE email LIKE ?", "%@qa.team%")
-
-	// Delete credit packages
-	db.Exec("DELETE FROM credit_packages WHERE name LIKE ?", "%")
-
+func cleanupAdmins(db *gorm.DB) {
 	// Get all test admin IDs
 	var adminIDs []string
 	db.Raw("SELECT id FROM admins WHERE email LIKE ?", "%@qa.team%").Scan(&adminIDs)
@@ -243,4 +228,41 @@ func CleanupTestData(t *testing.T, db *gorm.DB) {
 
 	// Delete admins
 	db.Exec("DELETE FROM admins WHERE email LIKE ?", "%@qa.team%")
+}
+
+
+func CleanupSpecificTestData(db *gorm.DB, adminID string, orgIDs []string) {
+	// Delete child records for each org
+	childTables := []struct {
+		table  string
+		column string
+	}{
+		{"invitations", "organisation_id"},
+		{"credit_usages", "organisation_id"},
+		{"credit_transactions", "organisation_id"},
+		{"integration_bills", "org_id"},
+		{"organisation_integrations", "org_id"},
+		{"channels", "organisation_id"},
+		{"dm_channels", "org_id"},
+		{"channel_participants", "org_id"},
+		{"dm_favourites", "org_id"},
+		{"org_user_managements", "organisation_id"},
+		{"user_organisations", "organisation_id"},
+		{"organisation_plans", "organisation_id"},
+		{"org_roles", "organisation_id"},
+	}
+
+	for _, orgID := range orgIDs {
+		for _, child := range childTables {
+			db.Exec(fmt.Sprintf("DELETE FROM %s WHERE %s = ?", child.table, child.column), orgID)
+		}
+		// Delete the organisation
+		db.Exec("DELETE FROM organisations WHERE id = ?", orgID)
+	}
+
+	// Delete access tokens for this specific admin
+	if adminID != "" {
+		db.Exec("DELETE FROM access_tokens WHERE owner_id = ?", adminID)
+		db.Exec("DELETE FROM admins WHERE id = ?", adminID)
+	}
 }

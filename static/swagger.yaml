@@ -1402,7 +1402,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/organizationGSuccessResponse"
+                $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -2349,7 +2349,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/organizationGSuccessResponse"
+                  $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -3293,7 +3293,11 @@ paths:
                           type: array
                           items:
                             type: string
-                          example: ["https://example.com/avatar1.jpg", "https://example.com/avatar2.jpg"]
+                          example:
+                            [
+                              "https://example.com/avatar1.jpg",
+                              "https://example.com/avatar2.jpg",
+                            ]
                         members_count:
                           type: integer
                           example: 10
@@ -6422,7 +6426,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/organizationGSuccessResponse"
+                  $ref: "#/components/schemas/organizationSuccessResponse"
         "400":
           description: Bad request
           content:
@@ -9692,6 +9696,9 @@ paths:
                           type: string
                           enum: [dm, group_dm]
                           description: The type of channel (dm or group_dm)
+                        is_favourite:
+                          type: boolean
+                          description: Whether this channel is in the user's favourites
                         thread_count:
                           type: integer
                           description: The number of unread threads in the channel
@@ -9915,7 +9922,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
-      description: Retrieves participant information for a DM channel. Optionally includes the 10 most recent media files when include_media=true.
+      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Optionally includes the 10 most recent media files when include_media=true.
       security:
         - bearerAuth: []
       parameters:
@@ -9961,6 +9968,13 @@ paths:
                   data:
                     type: object
                     properties:
+                      type:
+                        type: string
+                        enum: [bot, dm, groupdm]
+                        description: The type of DM channel
+                      group_description:
+                        type: string
+                        description: The group description (only present for group DMs with a description set)
                       participants:
                         type: array
                         items:
@@ -9978,6 +9992,12 @@ paths:
                             user_type:
                               type: string
                               enum: [user, bot]
+                            title:
+                              type: string
+                              description: The user's title from their profile
+                            is_admin:
+                              type: boolean
+                              description: Whether the user is the admin/creator of the group DM (only for group DMs)
                       preview_media:
                         type: array
                         description: The 10 most recent media files (only present when include_media=true)
@@ -10003,6 +10023,10 @@ paths:
                               type: string
                               format: date-time
                               description: When the file was uploaded
+                      created_at:
+                        type: string
+                        format: date-time
+                        description: When the DM channel was created
 
         "400":
           description: Bad request
@@ -10022,6 +10046,245 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /organisations/{org_id}/dms/{channel_id}/description:
+    put:
+      tags:
+        - Direct Message
+      summary: Update group description for a group DM
+      description: Sets or updates the group description for a group DM channel. Only works for group_dm channel types, and the user must be a participant in the group DM.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the group DM channel
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  maxLength: 500
+                  description: The group description (max 500 characters)
+              required:
+                - description
+      responses:
+        "200":
+          description: Group description updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Group description updated successfully
+        "400":
+          description: Bad request (channel not found, not a group DM, or user not a participant)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation failed (empty description or exceeds max length)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorSchema"
+
+  /organisations/{org_id}/dms/{channel_id}/favourite:
+    post:
+      tags:
+        - Direct Message
+      summary: Add DM channel to favourites
+      description: Adds a DM or Group DM channel to the user's favourites list. Operation is idempotent - adding an already favourited channel returns success.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the DM channel to add to favourites
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Added to favourites successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Added to favourites
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    delete:
+      tags:
+        - Direct Message
+      summary: Remove DM channel from favourites
+      description: Removes a DM or Group DM channel from the user's favourites list. Operation is idempotent - removing a non-favourited channel returns success.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the DM channel to remove from favourites
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Removed from favourites successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Removed from favourites
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /organisations/{org_id}/dms/favourites:
+    get:
+      tags:
+        - Direct Message
+      summary: Get user's favourite DMs
+      description: Retrieves all DM and Group DM channels that the user has added to favourites.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: The ID of the organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Favourite DMs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Favourite DMs retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        channel_id:
+                          type: string
+                          format: uuid
+                        channel_type:
+                          type: string
+                          enum: [dm, group_dm]
+                        is_favourite:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}/media:
     get:
@@ -17679,6 +17942,321 @@ paths:
                 status_code: 404
                 message: "Group DM channel not found"
 
+  /organisations/group-dms/{channel_id}/join:
+    post:
+      tags:
+        - Group Direct Message
+      summary: Join a Group DM Channel
+      security:
+        - bearerAuth: []
+      description: Allows an authenticated user to join an existing Group DM channel. The organisation ID is extracted from the user's JWT claims. Returns the updated list of participants after joining.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel to join.
+      responses:
+        "200":
+          description: User joined Group DM channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      channel_id:
+                        type: string
+                        description: Unique identifier for the Group DM channel.
+                      channel_type:
+                        type: string
+                        description: Type of channel (group_dm).
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              description: Unique identifier of the participant.
+                            username:
+                              type: string
+                              description: Username of the participant.
+                            avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
+                            email:
+                              type: string
+                              format: email
+                              description: Email of the participant.
+              example:
+                status: "success"
+                status_code: 200
+                message: "User joined Group DM channel successfully"
+                data:
+                  channel_id: "0195c046-c8fa-7341-b9ea-f463de6a82d5"
+                  channel_type: "group_dm"
+                  participants:
+                    - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      username: "micahshallom"
+                      avatar_url: ""
+                      email: "micahshallom@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                      username: "user1"
+                      avatar_url: ""
+                      email: "user1@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                      username: "newuser"
+                      avatar_url: ""
+                      email: "newuser@gmail.com"
+        "400":
+          description: Invalid request or channel at maximum capacity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "group DM channel has reached maximum capacity of 10 participants"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 401
+                message: "unable to get user claims"
+        "404":
+          description: Group DM channel or user not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "group DM channel does not exist"
+        "409":
+          description: User is already a participant in the channel.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 409
+                message: "user is already a participant in the group DM channel"
+
+  /organisations/group-dms/{channel_id}/participants:
+    post:
+      tags:
+        - Group Direct Message
+      summary: Add Multiple Participants to Group DM Channel
+      security:
+        - bearerAuth: []
+      description: Allows adding multiple participants to an existing Group DM channel. The organisation ID is extracted from the user's JWT claims. Duplicate participants are automatically skipped. Maximum total capacity is 10 participants.
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: List of user IDs to add to the Group DM channel.
+              required:
+                - user_ids
+            example:
+              user_ids:
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                - "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
+      responses:
+        "200":
+          description: Participants added to Group DM channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      channel_id:
+                        type: string
+                        description: Unique identifier for the Group DM channel.
+                      channel_type:
+                        type: string
+                        description: Type of channel (group_dm).
+                      participants:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              description: Unique identifier of the participant.
+                            username:
+                              type: string
+                              description: Username of the participant.
+                            avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
+                            email:
+                              type: string
+                              format: email
+                              description: Email of the participant.
+              example:
+                status: "success"
+                status_code: 200
+                message: "Participants added to Group DM channel successfully"
+                data:
+                  channel_id: "0195c046-c8fa-7341-b9ea-f463de6a82d5"
+                  channel_type: "group_dm"
+                  participants:
+                    - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
+                      username: "micahshallom"
+                      avatar_url: ""
+                      email: "micahshallom@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
+                      username: "user1"
+                      avatar_url: ""
+                      email: "user1@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
+                      username: "user2"
+                      avatar_url: ""
+                      email: "user2@gmail.com"
+                    - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
+                      username: "user3"
+                      avatar_url: ""
+                      email: "user3@gmail.com"
+        "400":
+          description: Invalid request or would exceed maximum capacity.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "adding 3 participants would exceed maximum capacity of 10 (current: 8)"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 401
+                message: "unable to get user claims"
+        "404":
+          description: Group DM channel not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "group DM channel does not exist"
+        "422":
+          description: Validation failed - Invalid user IDs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 422
+                message: "Validation failed"
+
   /organisations/{organisation_id}/group-dms/{user_id}:
     get:
       tags:
@@ -24611,7 +25189,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  components:
+components:
   schemas:
     PartialStatusUpdateRequest:
       type: object

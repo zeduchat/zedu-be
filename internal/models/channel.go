@@ -823,7 +823,7 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUserChannelResp, error) {
 
 	var (
-		db             = base.Postgresql
+		db = base.Postgresql
 	)
 	chanResp := make(GetUserChannelResp, 0)
 
@@ -940,6 +940,9 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		previewMessage := ""
 		if len(previewThread) > 0 {
 			previewMessage = previewThread[0].Content
+			if previewMessage == "" && len(previewThread[0].Media) > 0 {
+				previewMessage = previewThread[0].Media[0].FileType
+			}
 		}
 		chanResp[i].PreviewMessage = previewMessage
 		parts := strings.Split(chanResp[i].ID, "-")
