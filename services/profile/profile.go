@@ -207,7 +207,7 @@ func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) e
 	urlParts := strings.Split(avatarURL, "/")
 	objectName := urlParts[len(urlParts)-1]
 
-	exists, err := minio.ImageExists(logger, objectName)
+	exists, err := minio.ProfileImageExists(logger, objectName)
 	if err != nil {
 		logger.Error("Failed to check if profile picture exists in MinIO", "error", err)
 		return err
