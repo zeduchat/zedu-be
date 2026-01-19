@@ -35,4 +35,11 @@ ALTER TABLE IF EXISTS public.buzzes
 DROP CONSTRAINT IF EXISTS fk_buzzes_channel;
 
 -- Document the column
-COMMENT ON COLUMN public.buzzes.channel_type IS 'Type: channel, dm_channel, or group_dm_channel';
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables 
+               WHERE table_schema = 'public' 
+               AND table_name = 'buzzes') THEN
+        COMMENT ON COLUMN public.buzzes.channel_type IS 'Type: channel, dm_channel, or group_dm_channel';
+    END IF;
+END $$;
