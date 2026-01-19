@@ -98,7 +98,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	return newchannel, http.StatusOK, nil
 }
 
-func GetChannel(db *gorm.DB, ids models.IDS) (models.GetChannelResp, int, error) {
+func GetChannel(db *storage.Database, ids models.IDS) (models.GetChannelResp, int, error) {
 	var (
 		channel models.Channels
 		chanReq models.ChannelInfo
@@ -112,7 +112,7 @@ func GetChannel(db *gorm.DB, ids models.IDS) (models.GetChannelResp, int, error)
 		return chanresp, http.StatusBadRequest, err
 	}
 
-	err = models.UpdateUserChannelLastRead(db, ids.ChannelID, ids.UserID)
+	err = models.UpdateUserChannelLastRead(db.Postgresql, ids.ChannelID, ids.UserID)
 	if err != nil {
 		return chanresp, http.StatusBadRequest, err
 	}
@@ -182,7 +182,7 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 		ChannelID: channels_id,
 	}
 
-	chanResp, _, err := GetChannel(db.Postgresql, ids)
+	chanResp, _, err := GetChannel(db, ids)
 	if err != nil {
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
@@ -225,7 +225,7 @@ func UpdateUsername(req models.UpdateChannelsUserNameReq, db *gorm.DB, channelId
 	return http.StatusOK, nil
 }
 
-func DeleteChannel(db *gorm.DB, channelId, userId string) (int, error) {
+func DeleteChannel(db *storage.Database, channelId, userId string) (int, error) {
 	var (
 		r       models.Channels
 		chanReq models.ChannelInfo
@@ -247,7 +247,7 @@ func DeleteChannel(db *gorm.DB, channelId, userId string) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	err = channel.Delete(db)
+	err = channel.Delete(db.Postgresql)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

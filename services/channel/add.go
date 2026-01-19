@@ -416,7 +416,7 @@ func ReplyThreadMessage(req models.CreateMessageRequest, db *storage.Database,
 		// UserID: req.UserId,
 	}
 
-	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)
+	channel_info, err := channel.GetChannelByID(db, chanReq)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
 		return &models.MessageDocument{}, http.StatusBadRequest, fmt.Errorf("failed fetching orgid, error: %v", err)
