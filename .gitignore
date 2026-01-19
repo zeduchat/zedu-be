@@ -54,3 +54,6 @@ config.json
 .vscode/
 
 firebase_service.json
+telexbe
+telexbe_staging
+
