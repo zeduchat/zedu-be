@@ -305,4 +305,120 @@ func TestDmFavourites(t *testing.T) {
 
 		t.Log("✅ Successfully re-added to favourites via toggle")
 	})
+
+	t.Run("GetDmChannels reflects favourite status", func(t *testing.T) {
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms", middleware.Authorize(db.Postgresql), controller.GetDmChannels)
+
+		checkFavStatus := func(expectFav bool) {
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms", org.ID), nil)
+			req.Header.Set("Authorization", "Bearer "+token1)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			}
+
+			var response map[string]interface{}
+			json.Unmarshal(rr.Body.Bytes(), &response)
+
+			data, ok := response["data"].([]interface{})
+			if !ok {
+				t.Fatalf("Expected data array in response")
+			}
+
+			found := false
+			for _, item := range data {
+				channel := item.(map[string]interface{})
+				if channel["channel_id"] == dmChannelID {
+					found = true
+					isFav, _ := channel["is_favourite"].(bool)
+					if isFav != expectFav {
+						t.Errorf("For channel %s, expected is_favourite=%v, got %v", dmChannelID, expectFav, isFav)
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Channel %s not found in GetDmChannels response", dmChannelID)
+			}
+		}
+
+		t.Log("Checking if is_favourite=true after adding to favourites...")
+		checkFavStatus(true)
+
+		t.Log("Removing from favourites...")
+		rPost := gin.Default()
+		rPost.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
+		reqPost, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
+		reqPost.Header.Set("Authorization", "Bearer "+token1)
+		rrPost := httptest.NewRecorder()
+		rPost.ServeHTTP(rrPost, reqPost)
+		if rrPost.Code != http.StatusOK {
+			t.Fatalf("Failed to remove from favourites: %v", rrPost.Body.String())
+		}
+	})
+
+	t.Run("GetDmParticipants reflects favourite status", func(t *testing.T) {
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		// Helper to check favourite status in GetDmParticipants response
+		checkParticipantsFavStatus := func(expectFav bool) {
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
+			req.Header.Set("Authorization", "Bearer "+token1)
+
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusOK {
+				t.Fatalf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			}
+
+			var response map[string]interface{}
+			json.Unmarshal(rr.Body.Bytes(), &response)
+
+			data, ok := response["data"].(map[string]interface{})
+			if !ok {
+				t.Fatalf("Expected data object in response")
+			}
+
+			isFav, ok := data["is_favourite"].(bool)
+			if !ok {
+				t.Fatalf("is_favourite field missing in response")
+			}
+
+			if isFav != expectFav {
+				t.Errorf("Expected is_favourite=%v in GetDmParticipants, got %v", expectFav, isFav)
+			}
+		}
+
+		t.Log("Adding to favourites to test GetDmParticipants...")
+		rPost := gin.Default()
+		rPost.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
+		reqPost, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
+		reqPost.Header.Set("Authorization", "Bearer "+token1)
+		rrPost := httptest.NewRecorder()
+		rPost.ServeHTTP(rrPost, reqPost)
+		if rrPost.Code != http.StatusOK {
+			t.Fatalf("Failed to add to favourites: %v", rrPost.Body.String())
+		}
+
+		t.Log("Checking if is_favourite=true in GetDmParticipants...")
+		checkParticipantsFavStatus(true)
+
+		t.Log("Removing from favourites to test GetDmParticipants...")
+		reqPostRemove, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
+		reqPostRemove.Header.Set("Authorization", "Bearer "+token1)
+		rrPostRemove := httptest.NewRecorder()
+		rPost.ServeHTTP(rrPostRemove, reqPostRemove)
+		if rrPostRemove.Code != http.StatusOK {
+			t.Fatalf("Failed to remove from favourites: %v", rrPostRemove.Body.String())
+		}
+
+		t.Log("Checking if is_favourite=false in GetDmParticipants...")
+		checkParticipantsFavStatus(false)
+	})
 }
