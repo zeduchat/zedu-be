@@ -39,6 +39,11 @@ type CreateAdminResponse struct {
 	Role  string `json:"role"`
 }
 
+type ChangeAdminRoleRequest struct {
+	NewRole     string `json:"new_role" validate:"required,oneof=admin superadmin"`
+	IsConfirmed *bool  `json:"confirm"`
+}
+
 const (
 	RoleAdmin      = "admin"
 	RoleSuperAdmin = "superadmin"
@@ -89,7 +94,7 @@ func (user *Admin) ActivateAdmin(db *gorm.DB, is_active bool, adminId string) er
 }
 
 func (user *Admin) ChangeRole(db *gorm.DB, role string, adminId string) error {
-	if role != "admin" && role != "superadmin" {
+	if role != RoleAdmin && role != RoleSuperAdmin {
 		return fmt.Errorf("invalid role: %s", role)
 	}
 
@@ -125,4 +130,12 @@ func GetAllAdmins(db *gorm.DB) ([]CreateAdminResponse, error) {
 	}
 
 	return response, nil
+}
+
+func GetAdminById(db *gorm.DB, adminId string) (*Admin, error) {
+	var admin Admin
+	if err := db.First(&admin, "id = ?", adminId).Error; err != nil {
+		return nil, err
+	}
+	return &admin, nil
 }

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -146,6 +147,76 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 	}
 
 	return responseData, nil
+}
+
+func ChangeAdminRole(db *storage.Database, targetAdminId, newRole, requesterId string) error {
+
+	var (
+		admin       models.Admin
+		targetAdmin *models.Admin
+		err         error
+	)
+
+	targetAdmin, err = models.GetAdminById(db.Postgresql, targetAdminId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("admin with ID %s not found", targetAdminId)
+		}
+		return fmt.Errorf("failed to fetch admin: %w", err)
+	}
+
+	oldRole := targetAdmin.Role
+
+	if oldRole == newRole {
+		return errors.New("admin already has this role")
+	}
+
+	if oldRole == models.RoleSuperAdmin && newRole == models.RoleAdmin {
+		var superadminCount int64
+		if err := db.Postgresql.Model(&models.Admin{}).
+			Where("role = ? AND is_active = ? AND id != ?", models.RoleSuperAdmin, true, targetAdminId).
+			Count(&superadminCount).Error; err != nil {
+			return fmt.Errorf("failed to verify superadmin count: %w", err)
+		}
+
+		if superadminCount == 0 {
+			return errors.New("cannot downgrade the last active superadmin")
+		}
+	}
+
+	err = admin.ChangeRole(db.Postgresql, newRole, targetAdminId)
+	if err != nil {
+		return fmt.Errorf("failed to change role: %w", err)
+	}
+
+	// TODO: verify this part
+	// Invalidate all active sessions for security
+	// Force re-authentication with new role
+	var accessToken models.AccessToken
+	if err := db.Postgresql.Model(&accessToken).
+		Where("owner_id = ? AND is_live = ?", targetAdminId, true).
+		Updates(map[string]interface{}{"is_live": false}).Error; err != nil {
+		// Log error but don't fail - role change already succeeded
+		// TODO: log this
+	}
+
+	// TODO: Create audit log entry
+	// auditLog := models.AuditLog{
+	// 	ID:          utility.GenerateUUID(),
+	// 	AdminID:     requesterID,
+	// 	Action:      "CHANGE_ADMIN_ROLE",
+	// 	TargetID:    targetAdminID,
+	// 	TargetType:  "admin",
+	// 	OldValue:    oldRole,
+	// 	NewValue:    newRole,
+	// 	Timestamp:   time.Now(),
+	// 	IPAddress:   c.ClientIP(), // Pass from controller
+	// }
+	// if err := auditLog.Create(db.Postgresql); err != nil {
+	// 	// Log but don't fail
+	// }
+
+	return nil
 }
 
 func GenerateStrongPassword(length int) (string, error) {
