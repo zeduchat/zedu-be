@@ -1,5 +1,5 @@
 -- Add updated_at column to buzz_participants table
-ALTER TABLE public.buzz_participants
+ALTER TABLE IF EXISTS public.buzz_participants
 ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 
 -- Add comment to explain the column

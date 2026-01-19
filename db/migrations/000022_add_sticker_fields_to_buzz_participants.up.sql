@@ -1,5 +1,5 @@
 -- Add status_sticker and sticker_set_at columns to buzz_participants table
-ALTER TABLE public.buzz_participants
+ALTER TABLE IF EXISTS public.buzz_participants
 ADD COLUMN IF NOT EXISTS status_sticker VARCHAR(50),
 ADD COLUMN IF NOT EXISTS sticker_set_at TIMESTAMPTZ;
 
