@@ -129,7 +129,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 				ChatType:      "user",
 			}
 
-			dmResp, code, err := dm.CreateDmChannel(dmReq, db.Postgresql, request.ExternalRequest{Logger: logger, Test: false}, db.Redis)
+			dmResp, code, err := dm.CreateDmChannel(dmReq, request.ExternalRequest{Logger: logger, Test: false}, db, logger)
 			if err != nil {
 				logger.Error("failed to create DM channel: %v", err)
 				return resp, code, errors.New("failed to create DM channel for buzz")
