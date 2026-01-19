@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - staging
-      - testing
+      - main 
 
 jobs:
   update_and_restart_app:
