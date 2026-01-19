@@ -3,11 +3,11 @@
 
 DROP INDEX IF EXISTS idx_buzzes_channel_type;
 
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 DROP CONSTRAINT IF EXISTS check_buzz_channel_type;
 
 -- Drop column (will fail if DM buzzes exist - prevents data loss)
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 DROP COLUMN IF EXISTS channel_type;
 
 -- Restore FK constraint (only works if all channel_ids reference channels table)
@@ -19,7 +19,7 @@ BEGIN
         WHERE constraint_name = 'fk_huddles_channel' 
         AND table_name = 'buzzes'
     ) THEN
-        ALTER TABLE public.buzzes
+        ALTER TABLE IF EXISTS public.buzzes
         ADD CONSTRAINT fk_huddles_channel FOREIGN KEY (channel_id) 
         REFERENCES public.channels (id) ON DELETE CASCADE;
     END IF;
