@@ -39,8 +39,9 @@ func (f *DmFavourite) AddToFavourites(db *gorm.DB, req DmFavouriteRequest) error
 }
 
 func (f *DmFavourite) RemoveFromFavourites(db *gorm.DB, req DmFavouriteRequest) error {
-	return db.Where("user_id = ? AND channel_id = ? AND org_id = ?", req.UserId, req.ChannelId, req.OrgId).Delete(&DmFavourite{}).Error
+	return postgresql.HardDeleteSpecificRecord(db, &DmFavourite{}, "user_id = ? AND channel_id = ? AND org_id = ?", req.UserId, req.ChannelId, req.OrgId)
 }
+
 func IsFavourite(db *gorm.DB, userId, channelId string) bool {
 	var fav DmFavourite
 	return postgresql.CheckExists(db, &fav, "user_id = ? AND channel_id = ?", userId, channelId)
@@ -60,4 +61,8 @@ func GetUserFavouriteChannelIds(db *gorm.DB, userId, orgId string) ([]string, er
 	}
 
 	return channelIds, nil
+}
+
+func (f *DmFavourite) IsFavouriteChannel(db *gorm.DB, req DmFavouriteRequest) bool {
+	return postgresql.CheckExists(db, &DmFavourite{}, "user_id = ? AND channel_id = ? AND org_id = ?", req.UserId, req.ChannelId, req.OrgId)
 }

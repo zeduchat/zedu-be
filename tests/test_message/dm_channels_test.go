@@ -1145,7 +1145,7 @@ func TestGetDmChannelMedia(t *testing.T) {
 	})
 }
 
-// TestGetDmParticipantsWithPreviewMedia tests the include_media query param
+// TestGetDmParticipantsWithPreviewMedia tests that preview media is always returned
 func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
@@ -1208,7 +1208,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		t.Fatalf("Failed to get organization: %v", err)
 	}
 
-	t.Run("Get Participants with include_media=true", func(t *testing.T) {
+	t.Run("Get Participants with preview media", func(t *testing.T) {
 		dmChannelID := utility.GenerateUUID()
 		participantID := user2.ID
 
@@ -1288,7 +1288,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		for i := 0; i < maxRetries; i++ {
 			time.Sleep(1 * time.Second) // Wait before each attempt
 
-			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, dmChannelID), nil)
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
 			req.Header.Set("Authorization", "Bearer "+token1)
 
 			rr := httptest.NewRecorder()
@@ -1340,7 +1340,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		}
 	})
 
-	t.Run("Get Participants without include_media", func(t *testing.T) {
+	t.Run("Get Participants - preview_media is always present", func(t *testing.T) {
 		dmChannelID := utility.GenerateUUID()
 		participantID := user2.ID
 
@@ -1377,7 +1377,6 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		r := gin.Default()
 		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
 
-		// Request WITHOUT include_media
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 
@@ -1408,14 +1407,423 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		}
 		t.Logf("✅ Found %d participants", len(participants))
 
-		// preview_media should be null/omitted when include_media is not set
-		if data["preview_media"] == nil {
-			t.Logf("✅ preview_media is omitted as expected when include_media is not set")
+		// preview_media should always be present now (may be empty array)
+		if _, exists := data["preview_media"]; !exists {
+			t.Error("preview_media field should always be present")
 		} else {
-			previewMedia, ok := data["preview_media"].([]interface{})
-			if ok && len(previewMedia) == 0 {
-				t.Logf("✅ preview_media is empty array when include_media is not set")
+			t.Logf("✅ preview_media field is present as expected")
+		}
+	})
+}
+
+// TestGetDmParticipants_GroupsInCommon tests the groups_in_common feature for DM channels
+func TestGetDmParticipants_GroupsInCommon(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	defer tst.Cleanup(db)
+
+	// Create 3 users
+	user1SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("gic_user1_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "GroupInCommon",
+		LastName:    "User1",
+		Password:    "password",
+		UserName:    fmt.Sprintf("gic_user1_%v", currUUID),
+	}
+
+	user2SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("gic_user2_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "GroupInCommon",
+		LastName:    "User2",
+		Password:    "password",
+		UserName:    fmt.Sprintf("gic_user2_%v", currUUID),
+	}
+
+	user3SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("gic_user3_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "GroupInCommon",
+		LastName:    "User3",
+		Password:    "password",
+		UserName:    fmt.Sprintf("gic_user3_%v", currUUID),
+	}
+
+	loginData1 := models.LoginRequestModel{
+		Email:    user1SignUpData.Email,
+		Password: user1SignUpData.Password,
+	}
+
+	authController := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authController, user1SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user2SignUpData, false)
+	tst.SignupUser(t, gin.Default(), authController, user3SignUpData, false)
+	token1 := tst.GetLoginToken(t, r, authController, loginData1)
+
+	var user1, user2, user3 models.User
+	if err := db.Postgresql.Where("email = ?", user1SignUpData.Email).First(&user1).Error; err != nil {
+		t.Fatalf("Failed to get user1: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user2SignUpData.Email).First(&user2).Error; err != nil {
+		t.Fatalf("Failed to get user2: %v", err)
+	}
+	if err := db.Postgresql.Where("email = ?", user3SignUpData.Email).First(&user3).Error; err != nil {
+		t.Fatalf("Failed to get user3: %v", err)
+	}
+
+	var org models.Organisation
+	if err := db.Postgresql.Where("owner_id = ?", user1.ID).First(&org).Error; err != nil {
+		t.Fatalf("Failed to get organization: %v", err)
+	}
+
+	t.Run("DM Participants - Groups In Common Returned", func(t *testing.T) {
+		// Create a GroupDM with user1, user2, and user3
+		groupDMChannelID := utility.GenerateUUID()
+		participantHash := utility.GenerateUUID()
+
+		groupDMChannel := models.DmChannels{
+			ID:              utility.GenerateUUID(),
+			UserId:          user1.ID,
+			ChannelId:       groupDMChannelID,
+			OrgId:           org.ID,
+			ParticipantHash: participantHash,
+			ChatType:        "user",
+			ChannelType:     "group_dm",
+		}
+		if err := db.Postgresql.Create(&groupDMChannel).Error; err != nil {
+			t.Fatalf("Failed to create group DM channel: %v", err)
+		}
+
+		// Add all 3 users as participants
+		for _, user := range []models.User{user1, user2, user3} {
+			participant := models.ChannelParticipant{
+				ID:        utility.GenerateUUID(),
+				ChannelId: groupDMChannelID,
+				UserId:    user.ID,
+				OrgId:     org.ID,
 			}
+			if err := db.Postgresql.Create(&participant).Error; err != nil {
+				t.Fatalf("Failed to create channel participant: %v", err)
+			}
+		}
+
+		// Create a DM between user1 and user2
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Response data is not an object")
+		}
+
+		// Check type is dm
+		if data["type"] != "dm" {
+			t.Errorf("Expected type 'dm', got '%v'", data["type"])
+		}
+
+		participants, ok := data["participants"].([]interface{})
+		if !ok || len(participants) == 0 {
+			t.Fatal("Missing participants array in response")
+		}
+
+		// Check groups_in_common exists on the response (not on participant)
+		groupsInCommon, ok := data["groups_in_common"].([]interface{})
+		if !ok {
+			t.Fatal("groups_in_common field missing or not an array")
+		}
+
+		if len(groupsInCommon) != 1 {
+			t.Errorf("Expected 1 group in common, got %d", len(groupsInCommon))
+		} else {
+			group := groupsInCommon[0].(map[string]interface{})
+			t.Logf("✅ Found group in common: channel_id=%v", group["channel_id"])
+
+			// Verify the group has correct channel_id
+			if group["channel_id"] != groupDMChannelID {
+				t.Errorf("Expected channel_id '%s', got '%v'", groupDMChannelID, group["channel_id"])
+			}
+
+			// Verify participants array exists
+			if groupParticipants, ok := group["participants"].([]interface{}); ok {
+				t.Logf("✅ Group has %d participant names", len(groupParticipants))
+			}
+		}
+	})
+
+	t.Run("DM Participants - No Common Groups", func(t *testing.T) {
+		// Create user4 who is NOT in any GroupDM with user1
+		user4SignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("gic_user4_%v@qa.team", currUUID),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "GroupInCommon",
+			LastName:    "User4",
+			Password:    "password",
+			UserName:    fmt.Sprintf("gic_user4_%v", currUUID),
+		}
+		tst.SignupUser(t, gin.Default(), authController, user4SignUpData, false)
+
+		var user4 models.User
+		if err := db.Postgresql.Where("email = ?", user4SignUpData.Email).First(&user4).Error; err != nil {
+			t.Fatalf("Failed to get user4: %v", err)
+		}
+
+		// Create a DM between user1 and user4 (no common groups)
+		dmChannelID := utility.GenerateUUID()
+		participantID := user4.ID
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data := response["data"].(map[string]interface{})
+
+		// groups_in_common should be empty or not present (omitempty) on the response
+		groupsInCommon, exists := data["groups_in_common"]
+		if exists {
+			groups := groupsInCommon.([]interface{})
+			if len(groups) != 0 {
+				t.Errorf("Expected 0 groups in common, got %d", len(groups))
+			} else {
+				t.Logf("✅ groups_in_common is empty as expected")
+			}
+		} else {
+			t.Logf("✅ groups_in_common field not present (omitempty working)")
+		}
+	})
+
+	t.Run("GroupDM Participants - No Groups In Common Field", func(t *testing.T) {
+		// Create a GroupDM
+		groupDMChannelID := utility.GenerateUUID()
+		participantHash := utility.GenerateUUID()
+
+		groupDMChannel := models.DmChannels{
+			ID:              utility.GenerateUUID(),
+			UserId:          user1.ID,
+			ChannelId:       groupDMChannelID,
+			OrgId:           org.ID,
+			ParticipantHash: participantHash,
+			ChatType:        "user",
+			ChannelType:     "group_dm",
+		}
+		if err := db.Postgresql.Create(&groupDMChannel).Error; err != nil {
+			t.Fatalf("Failed to create group DM channel: %v", err)
+		}
+
+		for _, user := range []models.User{user1, user2} {
+			participant := models.ChannelParticipant{
+				ID:        utility.GenerateUUID(),
+				ChannelId: groupDMChannelID,
+				UserId:    user.ID,
+				OrgId:     org.ID,
+			}
+			if err := db.Postgresql.Create(&participant).Error; err != nil {
+				t.Fatalf("Failed to create channel participant: %v", err)
+			}
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, groupDMChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data := response["data"].(map[string]interface{})
+
+		// Check type is groupdm
+		if data["type"] != "groupdm" {
+			t.Errorf("Expected type 'groupdm', got '%v'", data["type"])
+		}
+
+		// groups_in_common should NOT be present for GroupDM (omitempty)
+		if _, exists := data["groups_in_common"]; exists {
+			// If it exists, it should be empty
+			groups := data["groups_in_common"].([]interface{})
+			if len(groups) != 0 {
+				t.Errorf("GroupDM should NOT have groups_in_common populated")
+			} else {
+				t.Logf("✅ GroupDM correctly has empty groups_in_common")
+			}
+		} else {
+			t.Logf("✅ GroupDM correctly does not have groups_in_common field (omitempty)")
+		}
+	})
+
+	t.Run("DM Participants - Multiple Common Groups", func(t *testing.T) {
+		// Create a second GroupDM with user1 and user2
+		groupDMChannelID2 := utility.GenerateUUID()
+		participantHash2 := utility.GenerateUUID()
+
+		groupDMChannel2 := models.DmChannels{
+			ID:              utility.GenerateUUID(),
+			UserId:          user1.ID,
+			ChannelId:       groupDMChannelID2,
+			OrgId:           org.ID,
+			ParticipantHash: participantHash2,
+			ChatType:        "user",
+			ChannelType:     "group_dm",
+		}
+		if err := db.Postgresql.Create(&groupDMChannel2).Error; err != nil {
+			t.Fatalf("Failed to create second group DM channel: %v", err)
+		}
+
+		for _, user := range []models.User{user1, user2} {
+			participant := models.ChannelParticipant{
+				ID:        utility.GenerateUUID(),
+				ChannelId: groupDMChannelID2,
+				UserId:    user.ID,
+				OrgId:     org.ID,
+			}
+			if err := db.Postgresql.Create(&participant).Error; err != nil {
+				t.Fatalf("Failed to create channel participant: %v", err)
+			}
+		}
+
+		// Create a new DM for this test
+		dmChannelID := utility.GenerateUUID()
+		participantID := user2.ID
+		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			UserId:        user1.ID,
+			ChannelId:     dmChannelID,
+			OrgId:         org.ID,
+			ParticipantId: &participantID,
+			ChatType:      "user",
+			ChannelType:   "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		extReq := request.ExternalRequest{Logger: logger, Test: true}
+		controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
+
+		r := gin.Default()
+		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+			return
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data := response["data"].(map[string]interface{})
+
+		groupsInCommon, ok := data["groups_in_common"].([]interface{})
+		if !ok {
+			t.Fatal("groups_in_common field missing or not an array")
+		}
+
+		// Should have at least 2 common groups now (from first test + this one)
+		if len(groupsInCommon) < 2 {
+			t.Errorf("Expected at least 2 groups in common, got %d", len(groupsInCommon))
+		} else {
+			t.Logf("✅ Found %d groups in common as expected", len(groupsInCommon))
 		}
 	})
 }

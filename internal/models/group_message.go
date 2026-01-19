@@ -470,9 +470,8 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
         )
     `
 
-	// Use SelectAllFromDbOrderByPaginated with the modified query
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db, // No JOIN needed since we're using a subquery
+		db,
 		"created_at",
 		"desc",
 		pagination,
@@ -526,4 +525,63 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 	}
 
 	return gpDMChansResp, paginationResp, nil
+}
+
+func GetGroupsInCommon(db *gorm.DB, loggedInUserId, participantId, orgId string) ([]GroupInCommon, error) {
+	var commonGroups []GroupInCommon
+
+	query := `
+        SELECT DISTINCT dc.channel_id
+        FROM dm_channels dc
+        INNER JOIN channel_participants cp1 ON cp1.channel_id = dc.channel_id
+        INNER JOIN channel_participants cp2 ON cp2.channel_id = dc.channel_id
+        WHERE dc.org_id = ?
+          AND dc.channel_type = 'group_dm'
+          AND dc.deleted_at IS NULL
+          AND cp1.user_id = ? AND cp1.deleted_at IS NULL
+          AND cp2.user_id = ? AND cp2.deleted_at IS NULL
+    `
+
+	var channelIds []string
+	if err := db.Raw(query, orgId, loggedInUserId, participantId).Scan(&channelIds).Error; err != nil {
+		return nil, err
+	}
+
+	var user User
+
+	for _, channelId := range channelIds {
+		var chanParts []ChannelParticipant
+		if err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ? AND deleted_at IS NULL", channelId); err != nil {
+			continue
+		}
+
+		var participantNames []string
+		var avatarUrl string
+
+		for _, part := range chanParts {
+			userDetails, err := user.GetUserByID(db, part.UserId)
+			if err != nil {
+				continue
+			}
+
+			username := userDetails.Profile.UserName
+			if username == "" {
+				username = strings.Split(userDetails.Email, "@")[0]
+			}
+			participantNames = append(participantNames, username)
+
+			if avatarUrl == "" {
+				avatarUrl = userDetails.Profile.AvatarURL
+			}
+		}
+
+		commonGroups = append(commonGroups, GroupInCommon{
+			ChannelID:    channelId,
+			Name:         strings.Join(participantNames, ", "),
+			AvatarURL:    avatarUrl,
+			Participants: participantNames,
+		})
+	}
+
+	return commonGroups, nil
 }

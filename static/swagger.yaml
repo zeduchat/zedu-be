@@ -102,6 +102,8 @@ tags:
     description: API endpoints for handling message forwarding
   - name: Super Admin
     description: API endpoints for superadmin dashboard and operations
+  - name: Avatars
+    description: API for shared avatar gallery management
 paths:
   # Super Admin Dashboard paths
   /backoffice/dashboard/credits-summary:
@@ -6793,6 +6795,124 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  # Avatar endpoints
+  /avatars:
+    post:
+      tags:
+        - Avatars
+      summary: Upload an avatar image
+      description: Upload a new avatar to the shared avatar gallery. Avatars are stored in a dedicated MinIO bucket.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Avatar image file (png, jpg, jpeg, gif, webp). Max 5MB.
+              required:
+                - avatar
+      responses:
+        "201":
+          description: Avatar uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Avatar uploaded successfully"
+                  status_code:
+                    type: integer
+                    example: 201
+                  data:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                        example: "https://minio.example.com/telex-avatars/public/avatars/abc123.png"
+        "400":
+          description: Bad request - No file provided or invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    get:
+      tags:
+        - Avatars
+      summary: List all avatars
+      description: Retrieve all avatars from the shared avatar gallery.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Avatars retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Avatars retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "abc123def456.png"
+                        url:
+                          type: string
+                          example: "https://minio.example.com/telex-avatars/public/avatars/abc123def456.png"
+                        size:
+                          type: integer
+                          example: 15234
+                        last_modified:
+                          type: string
+                          format: date-time
+                          example: "2026-01-17T20:00:00Z"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /profile/change-status:
     post:
       tags:
@@ -9745,7 +9865,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
-      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Optionally includes the 10 most recent media files when include_media=true.
+      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Always includes the 10 most recent media files.
       security:
         - bearerAuth: []
       parameters:
@@ -9763,13 +9883,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: include_media
-          in: query
-          required: false
-          description: Include the 10 most recent media files in the response
-          schema:
-            type: boolean
-            default: false
 
       responses:
         "200":
@@ -9823,7 +9936,7 @@ paths:
                               description: Whether the user is the admin/creator of the group DM (only for group DMs)
                       preview_media:
                         type: array
-                        description: The 10 most recent media files (only present when include_media=true)
+                        description: The 10 most recent media files
                         items:
                           type: object
                           properties:
@@ -9846,6 +9959,10 @@ paths:
                               type: string
                               format: date-time
                               description: When the file was uploaded
+                            updated_at:
+                              type: string
+                              format: date-time
+                              description: When the file was last updated
                       created_at:
                         type: string
                         format: date-time

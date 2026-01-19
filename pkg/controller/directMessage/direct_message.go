@@ -147,9 +147,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	includeMedia := c.Query("include_media") == "true"
-
-	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis, includeMedia)
+	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		base.Logger.Error("error getting dm participants", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -318,7 +316,7 @@ func (base *Controller) UpsertGroupDescription(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-func (base *Controller) AddToFavourites(c *gin.Context) {
+func (base *Controller) ToggleFavourite(c *gin.Context) {
 	var req models.DmFavouriteRequest
 
 	claims, exists := c.Get("userClaims")
@@ -348,59 +346,21 @@ func (base *Controller) AddToFavourites(c *gin.Context) {
 		return
 	}
 
-	code, err := dm.AddToFavourites(req, base.Db.Postgresql)
+	isFavourite, code, err := dm.ToggleFavourite(req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("failed to add to favourites", err)
+		base.Logger.Error("failed to toggle favourite", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	base.Logger.Info("Added to favourites successfully")
-	rd := utility.BuildSuccessResponse(code, "Added to favourites", nil)
-	c.JSON(code, rd)
-}
-
-func (base *Controller) RemoveFromFavourites(c *gin.Context) {
-	var req models.DmFavouriteRequest
-
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		base.Logger.Error("unable to get user claims")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-	userClaims := claims.(jwt.MapClaims)
-
-	req.UserId = userClaims["user_id"].(string)
-	req.OrgId = c.Param("org_id")
-	req.ChannelId = c.Param("channel_id")
-
-	if _, err := uuid.Parse(req.OrgId); err != nil {
-		base.Logger.Error("invalid organization id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
+	message := "Removed from favourites"
+	if isFavourite {
+		message = "Added to favourites"
 	}
 
-	if _, err := uuid.Parse(req.ChannelId); err != nil {
-		base.Logger.Error("invalid channel id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	code, err := dm.RemoveFromFavourites(req, base.Db.Postgresql)
-	if err != nil {
-		base.Logger.Error("failed to remove from favourites", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(code, rd)
-		return
-	}
-
-	base.Logger.Info("Removed from favourites successfully")
-	rd := utility.BuildSuccessResponse(code, "Removed from favourites", nil)
+	base.Logger.Info(message)
+	rd := utility.BuildSuccessResponse(code, message, map[string]bool{"is_favourite": isFavourite})
 	c.JSON(code, rd)
 }
 

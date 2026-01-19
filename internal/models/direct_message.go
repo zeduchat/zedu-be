@@ -83,12 +83,21 @@ type Participant struct {
 	Title     string `json:"title"`
 }
 
+type GroupInCommon struct {
+	Name         string   `json:"id"`
+	AvatarURL    string   `json:"avatar_url"`
+	ChannelID    string   `json:"channel_id"`
+	Participants []string `json:"participants"`
+}
+
 type DmParticipantsResponse struct {
-	Type             string        `json:"type"` // bot, dm, or groupdm
-	GroupDescription string        `json:"group_description,omitempty"`
-	Participants     []Participant `json:"participants"`
-	PreviewMedia     []File        `json:"preview_media"`
-	CreatedAt        time.Time     `json:"created_at"`
+	Type             string              `json:"type"` // bot, dm, or groupdm
+	GroupDescription string              `json:"group_description"`
+	Participants     []Participant       `json:"participants"`
+	PreviewMedia     []FileMediaResponse `json:"preview_media"`
+	CreatedAt        time.Time           `json:"created_at"`
+	IsFavourite      bool                `json:"is_favourite"`
+	GroupsInCommon   []GroupInCommon     `json:"groups_in_common,omitempty"`
 }
 
 type GroupDescriptionRequest struct {
@@ -415,11 +424,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				CreatedAt:        dmchan.CreatedAt,
 			})
 		case "group_dm":
-
-			// err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
-			// if err != nil {
-			// 	return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
-			// }
 
 			type ParticipantWithProfile struct {
 				UserId    string
@@ -1264,7 +1268,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 }
 
 // GetPreviewMedia fetches the N most recent media files from threads in a DM channel
-func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, int, error) {
+func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMediaResponse, int, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -1307,20 +1311,20 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, 
 
 	threadDataMap, ok := threadData.(map[string]any)
 	if !ok {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
 	hits, ok := threadDataMap["hits"].(map[string]any)
 	if !ok {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
 	hitsArray, ok := hits["hits"].([]any)
 	if !ok || len(hitsArray) == 0 {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
-	var allMedia []File
+	var allMedia []FileMediaResponse
 	for _, hit := range hitsArray {
 		if len(allMedia) >= limit {
 			break
@@ -1359,7 +1363,7 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, 
 				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
 			}
 
-			file := File{
+			file := FileMediaResponse{
 				ID:        utility.GetString(mediaMap, "id"),
 				FileName:  utility.GetString(mediaMap, "file_name"),
 				FileType:  utility.GetString(mediaMap, "file_type"),
@@ -1376,7 +1380,6 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, 
 	return allMedia, len(allMedia), nil
 }
 
-// matchesMediaType checks if a mime type matches the requested media type filter
 func matchesMediaType(mimeType, mediaType string) bool {
 	switch mediaType {
 	case "images":
