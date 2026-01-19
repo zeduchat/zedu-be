@@ -207,7 +207,7 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		UserID:    req.UserId,
 	}
 
-	channel_info, err := channel.GetChannelByID(db.Postgresql, chanReq)
+	channel_info, err := channel.GetChannelByID(db, chanReq)
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error checking for organization id: %v", err.Error()))
