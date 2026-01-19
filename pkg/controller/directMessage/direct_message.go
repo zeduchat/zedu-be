@@ -147,9 +147,7 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	includeMedia := c.Query("include_media") == "true"
-
-	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis, includeMedia)
+	resp, code, err := dm.GetDmParticipants(req, base.Db, c, base.ExtReq, base.Db.Redis)
 	if err != nil {
 		base.Logger.Error("error getting dm participants", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

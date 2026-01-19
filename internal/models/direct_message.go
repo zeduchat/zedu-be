@@ -85,7 +85,7 @@ type Participant struct {
 
 type DmParticipantsResponse struct {
 	Type             string        `json:"type"` // bot, dm, or groupdm
-	GroupDescription string        `json:"group_description,omitempty"`
+	GroupDescription string        `json:"group_description"`
 	Participants     []Participant `json:"participants"`
 	PreviewMedia     []File        `json:"preview_media"`
 	CreatedAt        time.Time     `json:"created_at"`
@@ -415,11 +415,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				CreatedAt:        dmchan.CreatedAt,
 			})
 		case "group_dm":
-
-			// err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
-			// if err != nil {
-			// 	return nil, paginationResp, fmt.Errorf("failed to get participants for group DM channel %s", dmchan.ChannelId)
-			// }
 
 			type ParticipantWithProfile struct {
 				UserId    string

@@ -9865,7 +9865,7 @@ paths:
       tags:
         - Direct Message
       summary: Retrieve dm participants info
-      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Optionally includes the 10 most recent media files when include_media=true.
+      description: Retrieves participant information for a DM channel. For group DMs, includes group description and admin status. Always includes the 10 most recent media files.
       security:
         - bearerAuth: []
       parameters:
@@ -9883,13 +9883,6 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: include_media
-          in: query
-          required: false
-          description: Include the 10 most recent media files in the response
-          schema:
-            type: boolean
-            default: false
 
       responses:
         "200":
@@ -9943,7 +9936,7 @@ paths:
                               description: Whether the user is the admin/creator of the group DM (only for group DMs)
                       preview_media:
                         type: array
-                        description: The 10 most recent media files (only present when include_media=true)
+                        description: The 10 most recent media files
                         items:
                           type: object
                           properties:
