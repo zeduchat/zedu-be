@@ -1576,10 +1576,8 @@ func TestGetDmParticipants_GroupsInCommon(t *testing.T) {
 			t.Fatal("Missing participants array in response")
 		}
 
-		participant := participants[0].(map[string]interface{})
-
-		// Check groups_in_common exists and has the common group
-		groupsInCommon, ok := participant["groups_in_common"].([]interface{})
+		// Check groups_in_common exists on the response (not on participant)
+		groupsInCommon, ok := data["groups_in_common"].([]interface{})
 		if !ok {
 			t.Fatal("groups_in_common field missing or not an array")
 		}
@@ -1658,11 +1656,9 @@ func TestGetDmParticipants_GroupsInCommon(t *testing.T) {
 		}
 
 		data := response["data"].(map[string]interface{})
-		participants := data["participants"].([]interface{})
-		participant := participants[0].(map[string]interface{})
 
-		// groups_in_common should be empty or not present (omitempty)
-		groupsInCommon, exists := participant["groups_in_common"]
+		// groups_in_common should be empty or not present (omitempty) on the response
+		groupsInCommon, exists := data["groups_in_common"]
 		if exists {
 			groups := groupsInCommon.([]interface{})
 			if len(groups) != 0 {
@@ -1734,16 +1730,17 @@ func TestGetDmParticipants_GroupsInCommon(t *testing.T) {
 			t.Errorf("Expected type 'groupdm', got '%v'", data["type"])
 		}
 
-		participants := data["participants"].([]interface{})
-		for i, p := range participants {
-			participant := p.(map[string]interface{})
-
-			// groups_in_common should NOT be present for GroupDM participants (omitempty)
-			if _, exists := participant["groups_in_common"]; exists {
-				t.Errorf("Participant %d should NOT have groups_in_common field in GroupDM", i)
+		// groups_in_common should NOT be present for GroupDM (omitempty)
+		if _, exists := data["groups_in_common"]; exists {
+			// If it exists, it should be empty
+			groups := data["groups_in_common"].([]interface{})
+			if len(groups) != 0 {
+				t.Errorf("GroupDM should NOT have groups_in_common populated")
 			} else {
-				t.Logf("✅ Participant %d correctly does not have groups_in_common field", i)
+				t.Logf("✅ GroupDM correctly has empty groups_in_common")
 			}
+		} else {
+			t.Logf("✅ GroupDM correctly does not have groups_in_common field (omitempty)")
 		}
 	})
 
@@ -1816,10 +1813,8 @@ func TestGetDmParticipants_GroupsInCommon(t *testing.T) {
 		}
 
 		data := response["data"].(map[string]interface{})
-		participants := data["participants"].([]interface{})
-		participant := participants[0].(map[string]interface{})
 
-		groupsInCommon, ok := participant["groups_in_common"].([]interface{})
+		groupsInCommon, ok := data["groups_in_common"].([]interface{})
 		if !ok {
 			t.Fatal("groups_in_common field missing or not an array")
 		}

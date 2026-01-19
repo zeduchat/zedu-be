@@ -85,17 +85,26 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		is_agent  bool = false
 		orgAgent  models.OrganisationIntegrations
 		dmchannel models.DmChannels
+		favourite models.DmFavourite
 	)
 
 	resp := models.DmParticipantsResponse{
-		Participants: []models.Participant{},
-		PreviewMedia: []models.FileMediaResponse{},
+		Participants:   []models.Participant{},
+		PreviewMedia:   []models.FileMediaResponse{},
+		GroupsInCommon: []models.GroupInCommon{},
 	}
 
 	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
 	if err != nil {
 		return resp, http.StatusBadRequest, err
 	}
+
+	IsFavourite := favourite.IsFavouriteChannel(db.Postgresql, models.DmFavouriteRequest{
+		UserId:    req.UserId,
+		OrgId:     req.OrgId,
+		ChannelId: dmchannel.ChannelId,
+	})
+	resp.IsFavourite = IsFavourite
 
 	if dmchannel.ChatType == "bot" {
 		//check if user is a bot
@@ -185,14 +194,15 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			req.OrgId,
 		)
 
+		resp.GroupsInCommon = groupsInCommon
+
 		resp.Participants = append(resp.Participants, models.Participant{
-			AvatarUrl:      userDetails.Profile.AvatarURL,
-			Username:       userDetails.Profile.UserName,
-			Email:          userDetails.Email,
-			UserType:       "user",
-			UserId:         *dmchannel.ParticipantId,
-			Title:          userDetails.Profile.Title,
-			GroupsInCommon: groupsInCommon,
+			AvatarUrl: userDetails.Profile.AvatarURL,
+			Username:  userDetails.Profile.UserName,
+			Email:     userDetails.Email,
+			UserType:  "user",
+			UserId:    *dmchannel.ParticipantId,
+			Title:     userDetails.Profile.Title,
 		})
 
 	}
@@ -257,27 +267,25 @@ func UpsertGroupDescription(req models.GroupDescriptionRequest, db *gorm.DB) (in
 	return http.StatusOK, nil
 }
 
-func AddToFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
+func ToggleFavourite(req models.DmFavouriteRequest, db *gorm.DB) (bool, int, error) {
 	var dmFav models.DmFavourite
-	dmFav.ID = utility.GenerateUUID()
 
+	isFavourite := dmFav.IsFavouriteChannel(db, req)
+
+	if isFavourite {
+		err := dmFav.RemoveFromFavourites(db, req)
+		if err != nil {
+			return false, http.StatusInternalServerError, err
+		}
+		return false, http.StatusOK, nil
+	}
+
+	dmFav.ID = utility.GenerateUUID()
 	err := dmFav.AddToFavourites(db, req)
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return false, http.StatusInternalServerError, err
 	}
-
-	return http.StatusOK, nil
-}
-
-func RemoveFromFavourites(req models.DmFavouriteRequest, db *gorm.DB) (int, error) {
-	var dmFav models.DmFavourite
-
-	err := dmFav.RemoveFromFavourites(db, req)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	return http.StatusOK, nil
+	return true, http.StatusOK, nil
 }
 
 func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]models.DmChannelsResponse, int, error) {

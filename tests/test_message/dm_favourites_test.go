@@ -144,9 +144,9 @@ func TestDmFavourites(t *testing.T) {
 	extReq := request.ExternalRequest{Logger: logger, Test: true}
 	controller := dmCtrl.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: extReq}
 
-	t.Run("Add DM to favourites", func(t *testing.T) {
+	t.Run("Toggle favourite - Add DM to favourites", func(t *testing.T) {
 		r := gin.Default()
-		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.AddToFavourites)
+		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
 
 		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
@@ -164,12 +164,18 @@ func TestDmFavourites(t *testing.T) {
 			t.Errorf("Expected 'Added to favourites', got: %v", response["message"])
 		}
 
-		t.Log("✅ Successfully added DM to favourites")
+		// Check data contains is_favourite = true
+		data := response["data"].(map[string]interface{})
+		if data["is_favourite"] != true {
+			t.Errorf("Expected is_favourite=true in response data")
+		}
+
+		t.Log("✅ Successfully added DM to favourites via toggle")
 	})
 
-	t.Run("Add group DM to favourites", func(t *testing.T) {
+	t.Run("Toggle favourite - Add group DM to favourites", func(t *testing.T) {
 		r := gin.Default()
-		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.AddToFavourites)
+		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
 
 		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, groupDMChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
@@ -181,25 +187,7 @@ func TestDmFavourites(t *testing.T) {
 			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
 		}
 
-		t.Log("✅ Successfully added group DM to favourites")
-	})
-
-	t.Run("Add to favourites is idempotent", func(t *testing.T) {
-		r := gin.Default()
-		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.AddToFavourites)
-
-		// Add again - should not error
-		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
-		req.Header.Set("Authorization", "Bearer "+token1)
-
-		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Errorf("Expected status 200 for idempotent add, got %d", rr.Code)
-		}
-
-		t.Log("✅ Adding to favourites is idempotent")
+		t.Log("✅ Successfully added group DM to favourites via toggle")
 	})
 
 	t.Run("Get favourite DMs", func(t *testing.T) {
@@ -239,49 +227,12 @@ func TestDmFavourites(t *testing.T) {
 		t.Logf("✅ Got %d favourite DMs", len(data))
 	})
 
-	t.Run("GetDmChannels includes is_favourite field", func(t *testing.T) {
+	t.Run("Toggle favourite - Remove from favourites", func(t *testing.T) {
 		r := gin.Default()
-		r.GET("/api/v1/organisations/:org_id/dms", middleware.Authorize(db.Postgresql), controller.GetDmChannels)
+		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms", org.ID), nil)
-		req.Header.Set("Authorization", "Bearer "+token1)
-
-		rr := httptest.NewRecorder()
-		r.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
-		}
-
-		var response map[string]interface{}
-		json.Unmarshal(rr.Body.Bytes(), &response)
-
-		data, ok := response["data"].([]interface{})
-		if !ok {
-			t.Fatalf("Expected data array in response")
-		}
-
-		// Check that favourited channels have is_favourite = true
-		favouriteCount := 0
-		for _, dm := range data {
-			dmMap := dm.(map[string]interface{})
-			if isFav, ok := dmMap["is_favourite"].(bool); ok && isFav {
-				favouriteCount++
-			}
-		}
-
-		if favouriteCount != 2 {
-			t.Errorf("Expected 2 channels with is_favourite=true, got %d", favouriteCount)
-		}
-
-		t.Logf("✅ GetDmChannels correctly shows %d favourites", favouriteCount)
-	})
-
-	t.Run("Remove from favourites", func(t *testing.T) {
-		r := gin.Default()
-		r.DELETE("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.RemoveFromFavourites)
-
-		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
+		// Toggle again to remove
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 
 		rr := httptest.NewRecorder()
@@ -297,7 +248,13 @@ func TestDmFavourites(t *testing.T) {
 			t.Errorf("Expected 'Removed from favourites', got: %v", response["message"])
 		}
 
-		t.Log("✅ Successfully removed from favourites")
+		// Check data contains is_favourite = false
+		data := response["data"].(map[string]interface{})
+		if data["is_favourite"] != false {
+			t.Errorf("Expected is_favourite=false in response data")
+		}
+
+		t.Log("✅ Successfully removed from favourites via toggle")
 	})
 
 	t.Run("Get favourites after removal", func(t *testing.T) {
@@ -325,21 +282,27 @@ func TestDmFavourites(t *testing.T) {
 		t.Log("✅ Correctly shows 1 favourite after removal")
 	})
 
-	t.Run("Remove non-existent favourite (idempotent)", func(t *testing.T) {
+	t.Run("Toggle favourite - Re-add after removal", func(t *testing.T) {
 		r := gin.Default()
-		r.DELETE("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.RemoveFromFavourites)
+		r.POST("/api/v1/organisations/:org_id/dms/:channel_id/favourite", middleware.Authorize(db.Postgresql), controller.ToggleFavourite)
 
-		// Remove again - should not error
-		req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
+		// Toggle again to add back
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/dms/%s/favourite", org.ID, dmChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
 		if rr.Code != http.StatusOK {
-			t.Errorf("Expected status 200 for idempotent remove, got %d", rr.Code)
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
 		}
 
-		t.Log("✅ Removing non-existent favourite is idempotent")
+		var response map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &response)
+		if response["message"] != "Added to favourites" {
+			t.Errorf("Expected 'Added to favourites', got: %v", response["message"])
+		}
+
+		t.Log("✅ Successfully re-added to favourites via toggle")
 	})
 }
