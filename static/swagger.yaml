@@ -10063,8 +10063,8 @@ paths:
     post:
       tags:
         - Direct Message
-      summary: Add DM channel to favourites
-      description: Adds a DM or Group DM channel to the user's favourites list. Operation is idempotent - adding an already favourited channel returns success.
+      summary: Toggle DM channel favourite
+      description: Toggles the favourite status of a DM or Group DM channel. If it is currently favourited, it will be removed. If not, it will be added.
       security:
         - bearerAuth: []
       parameters:
@@ -10078,13 +10078,13 @@ paths:
         - name: channel_id
           in: path
           required: true
-          description: The ID of the DM channel to add to favourites
+          description: The ID of the DM channel to toggle favourite
           schema:
             type: string
             format: uuid
       responses:
         "200":
-          description: Added to favourites successfully
+          description: Toggled favourite successfully
           content:
             application/json:
               schema:
@@ -10098,58 +10098,13 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: Added to favourites
-        "400":
-          description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UnauthorizedErrorSchema"
-    delete:
-      tags:
-        - Direct Message
-      summary: Remove DM channel from favourites
-      description: Removes a DM or Group DM channel from the user's favourites list. Operation is idempotent - removing a non-favourited channel returns success.
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: org_id
-          in: path
-          required: true
-          description: The ID of the organization
-          schema:
-            type: string
-            format: uuid
-        - name: channel_id
-          in: path
-          required: true
-          description: The ID of the DM channel to remove from favourites
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Removed from favourites successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: Removed from favourites
+                    example: Added to favourites / Removed from favourites
+                  data:
+                    type: object
+                    properties:
+                      is_favourite:
+                        type: boolean
+                        example: true
         "400":
           description: Bad request
           content:
