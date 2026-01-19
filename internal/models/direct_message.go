@@ -74,13 +74,21 @@ type DmChannelMediaRequest struct {
 }
 
 type Participant struct {
-	AvatarUrl string `json:"avatar_url"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	UserType  string `json:"user_type"`
-	UserId    string `json:"user_id"`
-	IsAdmin   bool   `json:"is_admin"`
-	Title     string `json:"title"`
+	AvatarUrl      string          `json:"avatar_url"`
+	Username       string          `json:"username"`
+	Email          string          `json:"email"`
+	UserType       string          `json:"user_type"`
+	UserId         string          `json:"user_id"`
+	IsAdmin        bool            `json:"is_admin"`
+	Title          string          `json:"title"`
+	GroupsInCommon []GroupInCommon `json:"groups_in_common,omitempty"`
+}
+
+type GroupInCommon struct {
+	Name         string   `json:"id"`
+	AvatarURL    string   `json:"avatar_url"`
+	ChannelID    string   `json:"channel_id"`
+	Participants []string `json:"participants"`
 }
 
 type DmParticipantsResponse struct {
@@ -1371,7 +1379,6 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMe
 	return allMedia, len(allMedia), nil
 }
 
-// matchesMediaType checks if a mime type matches the requested media type filter
 func matchesMediaType(mimeType, mediaType string) bool {
 	switch mediaType {
 	case "images":
