@@ -1,12 +1,6 @@
--- Rollback: Remove channel_type column from buzzs table
+-- This migration is a no-op
+-- The table 'buzzs' does not exist in the database (the actual table is 'buzzes')
+-- Migration 000024 already handles the channel_type column for the 'buzzes' table
+-- This migration file is kept for version consistency but performs no operations
 
--- Drop index
-DROP INDEX IF EXISTS public.idx_buzzs_channel_type;
-
--- Drop check constraint
-ALTER TABLE IF EXISTS public.buzzs
-DROP CONSTRAINT IF EXISTS check_buzzs_channel_type;
-
--- Drop column
-ALTER TABLE IF EXISTS public.buzzs
-DROP COLUMN IF EXISTS channel_type;
+SELECT 1;

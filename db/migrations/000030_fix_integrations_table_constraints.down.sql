@@ -2,13 +2,43 @@
 -- Note: This doesn't remove columns, only the constraints we added
 
 -- Remove unique constraint on name
-ALTER TABLE "integrations" DROP CONSTRAINT IF EXISTS "uni_integrations_name";
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints 
+               WHERE constraint_name = 'uni_integrations_name' 
+               AND table_name = 'integrations'
+               AND table_schema = 'public') THEN
+        ALTER TABLE "integrations" DROP CONSTRAINT "uni_integrations_name";
+    END IF;
+END $$;
 
 -- Remove NOT NULL constraint on name
-ALTER TABLE "integrations" ALTER COLUMN "name" DROP NOT NULL;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' 
+               AND table_name = 'integrations')
+       AND EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'integrations' 
+                   AND column_name = 'name') THEN
+        ALTER TABLE "integrations" ALTER COLUMN "name" DROP NOT NULL;
+    END IF;
+END $$;
 
 -- Remove NOT NULL constraint on created_at
-ALTER TABLE "integrations" ALTER COLUMN "created_at" DROP NOT NULL;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables 
+               WHERE table_schema = 'public' 
+               AND table_name = 'integrations')
+       AND EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'integrations' 
+                   AND column_name = 'created_at') THEN
+        ALTER TABLE "integrations" ALTER COLUMN "created_at" DROP NOT NULL;
+    END IF;
+END $$;
 
 -- Remove unique index on pre_shared_key
 DROP INDEX IF EXISTS "idx_integrations_pre_shared_key";
