@@ -52,3 +52,5 @@ config.json
 
 # IDE
 .vscode/
+
+firebase_service.json
