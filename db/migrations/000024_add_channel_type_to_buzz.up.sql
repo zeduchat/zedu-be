@@ -21,8 +21,18 @@ ALTER TABLE IF EXISTS public.buzzes
 ADD COLUMN IF NOT EXISTS channel_type VARCHAR(20) NOT NULL DEFAULT 'channel';
 
 -- Add check constraint for valid types
-ALTER TABLE IF EXISTS public.buzzes
-ADD CONSTRAINT check_buzz_channel_type CHECK (channel_type IN ('channel', 'dm_channel', 'group_dm_channel'));
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'check_buzz_channel_type' 
+        AND table_name = 'buzzes'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE IF EXISTS public.buzzes
+        ADD CONSTRAINT check_buzz_channel_type CHECK (channel_type IN ('channel', 'dm_channel', 'group_dm_channel'));
+    END IF;
+END $$;
 
 -- Add index for filtering by channel type
 CREATE INDEX IF NOT EXISTS idx_buzzes_channel_type ON public.buzzes (channel_type);
