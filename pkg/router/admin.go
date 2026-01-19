@@ -29,7 +29,8 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	// Super admin only endpoints
 	superAdminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql), middleware.RequireSuperAdmin())
 	{
-		superAdminAuthUrl.POST("/admins", admin.CreateAdmin) // Only super admins can create admins
+		superAdminAuthUrl.POST("/admins", admin.CreateAdmin)                     // Only super admins can create admins
+		superAdminAuthUrl.PATCH("/admins/:admin_id/role", admin.ChangeAdminRole) // Only super admins can change admin roles
 
 	}
 

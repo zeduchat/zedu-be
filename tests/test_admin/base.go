@@ -48,7 +48,7 @@ func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *st
 
 func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 	adminUrl := r.Group("/api/v1/backoffice",
-		middleware.SuperAdminAuthorize(adminController.Db.Postgresql))
+		middleware.AdminAuthorize(adminController.Db.Postgresql))
 	{
 		adminUrl.GET("/dashboard/credits-summary", adminController.GetPlatformCreditsSummary)
 	}
@@ -229,7 +229,6 @@ func cleanupAdmins(db *gorm.DB) {
 	// Delete admins
 	db.Exec("DELETE FROM admins WHERE email LIKE ?", "%@qa.team%")
 }
-
 
 func CleanupSpecificTestData(db *gorm.DB, adminID string, orgIDs []string) {
 	// Delete child records for each org

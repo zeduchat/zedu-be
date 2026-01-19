@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -200,5 +201,115 @@ func (base *Controller) InviteLeaderboard(c *gin.Context) {
 
 	base.Logger.Info("invite leaderboard retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "invite leaderboard retrieved successfully", users)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) ChangeAdminRole(c *gin.Context) {
+
+	targetAdminID := c.Param("admin_id")
+
+	if _, err := uuid.Parse(targetAdminID); err != nil {
+		base.Logger.Error("invalid admin id format", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusBadRequest,
+			"Invalid request",
+			"invalid admin id format",
+			err.Error(),
+			nil,
+		)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.ChangeAdminRoleRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusBadRequest,
+			"Invalid request",
+			"Failed to parse request body",
+			err.Error(),
+			nil,
+		)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusBadRequest,
+			"Invalid request",
+			"Validation failed",
+			utility.ValidationResponse(err, base.Validator),
+			nil,
+		)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if req.NewRole == models.RoleSuperAdmin {
+		confirmed := false
+		if req.IsConfirmed != nil {
+			confirmed = *req.IsConfirmed
+		}
+
+		if !confirmed {
+			base.Logger.Info("Superadmin promotion attempted without confirmation")
+			rd := utility.BuildErrorResponse(
+				http.StatusPreconditionRequired,
+				"Confirmation Required",
+				"Promoting to superadmin requires explicit confirmation. Set 'confirm: true' in your request",
+				"missing confirmation",
+				nil,
+			)
+			c.JSON(http.StatusPreconditionRequired, rd)
+			return
+		}
+	}
+
+	claims := c.MustGet("adminClaims").(jwt.MapClaims)
+
+	requesterID, ok := claims["admin_id"].(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(
+			http.StatusUnauthorized,
+			"Unauthorized",
+			"Invalid token claims",
+			"admin_id not found in token",
+			nil,
+		)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	err := admin.ChangeAdminRole(
+		base.Db,
+		targetAdminID,
+		req.NewRole,
+		requesterID,
+	)
+
+	if err != nil {
+		base.Logger.Error("Failed to change admin role", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusBadRequest,
+			"Error",
+			"Failed to change admin role",
+			err.Error(),
+			nil,
+		)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Admin role changed successfully")
+
+	rd := utility.BuildSuccessResponse(
+		http.StatusOK,
+		"Admin role changed successfully",
+		nil,
+	)
 	c.JSON(http.StatusOK, rd)
 }
