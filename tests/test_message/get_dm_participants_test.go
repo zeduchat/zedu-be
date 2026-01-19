@@ -403,8 +403,7 @@ func TestGetDmParticipantsNewFields(t *testing.T) {
 		r := gin.Default()
 		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
 
-		// Request with include_media=true
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, groupDMChannelID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, groupDMChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 
 		rr := httptest.NewRecorder()

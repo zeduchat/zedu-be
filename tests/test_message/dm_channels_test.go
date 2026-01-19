@@ -1145,7 +1145,7 @@ func TestGetDmChannelMedia(t *testing.T) {
 	})
 }
 
-// TestGetDmParticipantsWithPreviewMedia tests the include_media query param
+// TestGetDmParticipantsWithPreviewMedia tests that preview media is always returned
 func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
@@ -1208,7 +1208,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		t.Fatalf("Failed to get organization: %v", err)
 	}
 
-	t.Run("Get Participants with include_media=true", func(t *testing.T) {
+	t.Run("Get Participants with preview media", func(t *testing.T) {
 		dmChannelID := utility.GenerateUUID()
 		participantID := user2.ID
 
@@ -1288,7 +1288,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		for i := 0; i < maxRetries; i++ {
 			time.Sleep(1 * time.Second) // Wait before each attempt
 
-			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s?include_media=true", org.ID, dmChannelID), nil)
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
 			req.Header.Set("Authorization", "Bearer "+token1)
 
 			rr := httptest.NewRecorder()
@@ -1340,7 +1340,7 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		}
 	})
 
-	t.Run("Get Participants without include_media", func(t *testing.T) {
+	t.Run("Get Participants - preview_media is always present", func(t *testing.T) {
 		dmChannelID := utility.GenerateUUID()
 		participantID := user2.ID
 
@@ -1377,7 +1377,6 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		r := gin.Default()
 		r.GET("/api/v1/organisations/:org_id/dms/participants/:channel_id", middleware.Authorize(db.Postgresql), controller.GetDmParticipants)
 
-		// Request WITHOUT include_media
 		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms/participants/%s", org.ID, dmChannelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 
@@ -1408,14 +1407,11 @@ func TestGetDmParticipantsWithPreviewMedia(t *testing.T) {
 		}
 		t.Logf("✅ Found %d participants", len(participants))
 
-		// preview_media should be null/omitted when include_media is not set
-		if data["preview_media"] == nil {
-			t.Logf("✅ preview_media is omitted as expected when include_media is not set")
+		// preview_media should always be present now (may be empty array)
+		if _, exists := data["preview_media"]; !exists {
+			t.Error("preview_media field should always be present")
 		} else {
-			previewMedia, ok := data["preview_media"].([]interface{})
-			if ok && len(previewMedia) == 0 {
-				t.Logf("✅ preview_media is empty array when include_media is not set")
-			}
+			t.Logf("✅ preview_media field is present as expected")
 		}
 	})
 }

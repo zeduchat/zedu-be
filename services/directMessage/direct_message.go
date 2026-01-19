@@ -79,7 +79,7 @@ func GetDmChannels(req models.DmChannelsRequest, db *gorm.DB, c *gin.Context) ([
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client, includeMedia bool) (models.DmParticipantsResponse, int, error) {
+func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gin.Context, extReq request.ExternalRequest, rds *redis.Client) (models.DmParticipantsResponse, int, error) {
 	var (
 		user      models.User
 		is_agent  bool = false
@@ -189,7 +189,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 	}
 
-	if includeMedia && db != nil {
+	if db != nil {
 		dmchannel.ChannelId = req.ChannelId
 		previewMedia, _, err := dmchannel.GetPreviewMedia(db, 10)
 		if err == nil {
