@@ -17,22 +17,29 @@ BEGIN
 END $$;
 
 -- Add column with default value (existing rows get 'channel')
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 ADD COLUMN IF NOT EXISTS channel_type VARCHAR(20) NOT NULL DEFAULT 'channel';
 
 -- Add check constraint for valid types
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 DROP CONSTRAINT IF EXISTS check_buzzs_channel_type;
 
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 ADD CONSTRAINT check_buzzs_channel_type CHECK (channel_type IN ('channel', 'dm_channel', 'group_dm_channel'));
 
 -- Add index for filtering by channel type
 CREATE INDEX IF NOT EXISTS idx_buzzs_channel_type ON public.buzzs (channel_type);
 
 -- Drop FK constraint to allow DM channel references (if exists)
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 DROP CONSTRAINT IF EXISTS fk_buzzs_channel;
 
 -- Document the column
-COMMENT ON COLUMN public.buzzs.channel_type IS 'Type: channel, dm_channel, or group_dm_channel';
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables 
+               WHERE table_schema = 'public' 
+               AND table_name = 'buzzs') THEN
+        COMMENT ON COLUMN public.buzzs.channel_type IS 'Type: channel, dm_channel, or group_dm_channel';
+    END IF;
+END $$;
