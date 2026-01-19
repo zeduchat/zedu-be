@@ -115,7 +115,7 @@ func (base *Controller) CreateGroupDMChannel(c *gin.Context) {
 		return
 	}
 
-	respData, statusCode, err := dm.CreateGroupDMChannel(req, base.Db.Postgresql)
+	respData, statusCode, err := dm.CreateGroupDMChannel(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
@@ -158,7 +158,7 @@ func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	statusCode, err := dm.LeaveGroupDMChannel(req, base.Db.Postgresql)
+	statusCode, err := dm.LeaveGroupDMChannel(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -201,7 +201,7 @@ func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
 		return
 	}
 
-	respData, statusCode, err := dm.JoinGroupDMChannel(req, base.Db.Postgresql)
+	respData, statusCode, err := dm.JoinGroupDMChannel(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)
@@ -259,7 +259,7 @@ func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
 		return
 	}
 
-	respData, statusCode, err := dm.AddParticipantsToGroupDM(req, base.Db.Postgresql)
+	respData, statusCode, err := dm.AddParticipantsToGroupDM(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)

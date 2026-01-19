@@ -14,17 +14,18 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.ExternalRequest, rds *redis.Client) (*models.DmChannelsResponse, int, error) {
+func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalRequest, base *storage.Database, logger *utility.Logger) (*models.DmChannelsResponse, int, error) {
 
 	var (
 		dmchans models.DmChannels
 		dmfetch models.DmChannels
 	)
 
-	exists := postgresql.CheckExists(db, &dmfetch, "user_id = ? AND participant_id = ? AND org_id = ?", req.UserId, req.ParticipantId, req.OrgId)
+	exists := postgresql.CheckExists(base.Postgresql, &dmfetch, "user_id = ? AND participant_id = ? AND org_id = ?", req.UserId, req.ParticipantId, req.OrgId)
 
 	if !exists {
 		dmchans.ChannelId = utility.GenerateUUID()
@@ -43,12 +44,68 @@ func CreateDmChannel(req models.DmChannelsRequest, db *gorm.DB, extReq request.E
 	var err error
 
 	if req.ChatType == "bot" {
-		resp, err = dmchans.CreateAgentDMChannel(db)
+		resp, err = dmchans.CreateAgentDMChannel(base.Postgresql)
 	} else {
-		resp, err = dmchans.CreateDmChannel(db)
+		resp, err = dmchans.CreateDmChannel(base.Postgresql)
 	}
 	if err != nil {
 		return nil, http.StatusInternalServerError, err
+	}
+
+	if !exists {
+		if req.ChatType == "bot" {
+			var orgAgent models.OrganisationIntegrations
+			agentExists := postgresql.CheckExists(base.Postgresql, &orgAgent, "integration_id = ? AND org_id = ?", req.ParticipantId, req.OrgId)
+			if agentExists {
+				agentDetails, err := models.FetchDetailsFromAgentJSON(orgAgent)
+				if err == nil {
+					appName := utility.GetString(agentDetails, "app_name")
+					if appName != "" {
+						systemMsg := models.CreateThreadMsgReq{
+							Content:    fmt.Sprintf("started a conversation with @%s", appName),
+							Type:       "system",
+							UserId:     "",
+							AgentId:    req.ParticipantId,
+							AgentName:  appName,
+							ChannelsID: resp.ID,
+							OrgId:      req.OrgId,
+							ThreadId:   utility.GenerateUUID(),
+						}
+
+						_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+						if saveErr != nil {
+							logger.Error("failed to save system message for bot DM channel %s", resp.ID)
+						} else {
+							logger.Info("Added system message for bot DM channel creation")
+						}
+					}
+				}
+			}
+		} else {
+			var user models.User
+			userDetails, userErr := user.GetUserByID(base.Postgresql, req.ParticipantId)
+			if userErr == nil {
+				if userDetails.Profile.UserName == "" {
+					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+				}
+
+				systemMsg := models.CreateThreadMsgReq{
+					Content:    fmt.Sprintf("started a conversation with @%s", userDetails.Profile.UserName),
+					Type:       "system",
+					UserId:     req.UserId,
+					ChannelsID: resp.ID,
+					OrgId:      req.OrgId,
+					ThreadId:   utility.GenerateUUID(),
+				}
+
+				_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+				if saveErr != nil {
+					logger.Error("failed to save system message for DM channel %s", resp.ID)
+				} else {
+					logger.Info("Added system message for DM channel creation")
+				}
+			}
+		}
 	}
 
 	return &resp, http.StatusCreated, nil
