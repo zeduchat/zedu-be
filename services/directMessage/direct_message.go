@@ -178,13 +178,21 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
+		groupsInCommon, _ := models.GetGroupsInCommon(
+			db.Postgresql,
+			req.UserId,
+			*dmchannel.ParticipantId,
+			req.OrgId,
+		)
+
 		resp.Participants = append(resp.Participants, models.Participant{
-			AvatarUrl: userDetails.Profile.AvatarURL,
-			Username:  userDetails.Profile.UserName,
-			Email:     userDetails.Email,
-			UserType:  "user",
-			UserId:    *dmchannel.ParticipantId,
-			Title:     userDetails.Profile.Title,
+			AvatarUrl:      userDetails.Profile.AvatarURL,
+			Username:       userDetails.Profile.UserName,
+			Email:          userDetails.Email,
+			UserType:       "user",
+			UserId:         *dmchannel.ParticipantId,
+			Title:          userDetails.Profile.Title,
+			GroupsInCommon: groupsInCommon,
 		})
 
 	}
