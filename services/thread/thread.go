@@ -133,6 +133,12 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 
 	timeRange, check := GetGroupByDate(c)
 
+	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID)
+
+	if !exists {
+		return nil, nil, http.StatusBadRequest, errors.New("user is not a member of this channel")
+	}
+
 	if check {
 		accessResp, paginationResponse, code, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
 	} else {
@@ -189,7 +195,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 		},
 	}
 
-	exists := postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
+	exists = postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
 	if exists {
 
 		ch, err := channel.CheckChannelExists(db, channelID)
@@ -215,6 +221,7 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 	var (
 		accessData models.Threads
 		accessResp []models.Threads
+		uc         models.UserChannels
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -225,6 +232,12 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 	userID, ok := userId.(string)
 	if !ok {
 		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID)
+
+	if !exists {
+		return nil, nil, http.StatusBadRequest, errors.New("user is not a member of this channel")
 	}
 
 	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
