@@ -74,14 +74,13 @@ type DmChannelMediaRequest struct {
 }
 
 type Participant struct {
-	AvatarUrl      string          `json:"avatar_url"`
-	Username       string          `json:"username"`
-	Email          string          `json:"email"`
-	UserType       string          `json:"user_type"`
-	UserId         string          `json:"user_id"`
-	IsAdmin        bool            `json:"is_admin"`
-	Title          string          `json:"title"`
-	GroupsInCommon []GroupInCommon `json:"groups_in_common,omitempty"`
+	AvatarUrl string `json:"avatar_url"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	UserType  string `json:"user_type"`
+	UserId    string `json:"user_id"`
+	IsAdmin   bool   `json:"is_admin"`
+	Title     string `json:"title"`
 }
 
 type GroupInCommon struct {
@@ -97,6 +96,8 @@ type DmParticipantsResponse struct {
 	Participants     []Participant       `json:"participants"`
 	PreviewMedia     []FileMediaResponse `json:"preview_media"`
 	CreatedAt        time.Time           `json:"created_at"`
+	IsFavourite      bool                `json:"is_favourite"`
+	GroupsInCommon   []GroupInCommon     `json:"groups_in_common,omitempty"`
 }
 
 type GroupDescriptionRequest struct {

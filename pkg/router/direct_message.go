@@ -56,8 +56,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.PUT("/:org_id/dms/:channel_id/description", dmCtrl.UpsertGroupDescription)
 
 		// Favourites endpoints
-		organisationUrls.POST("/:org_id/dms/:channel_id/favourite", dmCtrl.AddToFavourites)
-		organisationUrls.DELETE("/:org_id/dms/:channel_id/favourite", dmCtrl.RemoveFromFavourites)
+		organisationUrls.POST("/:org_id/dms/:channel_id/favourite", dmCtrl.ToggleFavourite)
 		organisationUrls.GET("/:org_id/dms/favourites", dmCtrl.GetFavouriteDms)
 	}
 
