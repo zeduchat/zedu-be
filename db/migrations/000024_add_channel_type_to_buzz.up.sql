@@ -17,21 +17,21 @@ BEGIN
 END $$;
 
 -- Add column with default value (existing rows get 'channel')
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 ADD COLUMN IF NOT EXISTS channel_type VARCHAR(20) NOT NULL DEFAULT 'channel';
 
 -- Add check constraint for valid types
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 ADD CONSTRAINT check_buzz_channel_type CHECK (channel_type IN ('channel', 'dm_channel', 'group_dm_channel'));
 
 -- Add index for filtering by channel type
 CREATE INDEX IF NOT EXISTS idx_buzzes_channel_type ON public.buzzes (channel_type);
 
 -- Drop FK constraint to allow DM channel references
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 DROP CONSTRAINT IF EXISTS fk_huddles_channel;
 
-ALTER TABLE public.buzzes
+ALTER TABLE IF EXISTS public.buzzes
 DROP CONSTRAINT IF EXISTS fk_buzzes_channel;
 
 -- Document the column
