@@ -4,9 +4,9 @@
 DROP INDEX IF EXISTS public.idx_buzzs_channel_type;
 
 -- Drop check constraint
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 DROP CONSTRAINT IF EXISTS check_buzzs_channel_type;
 
 -- Drop column
-ALTER TABLE public.buzzs
+ALTER TABLE IF EXISTS public.buzzs
 DROP COLUMN IF EXISTS channel_type;
