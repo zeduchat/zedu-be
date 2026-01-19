@@ -1,5 +1,15 @@
-ALTER TABLE public.profiles 
-ADD CONSTRAINT IF NOT EXISTS uq_profiles_userid UNIQUE (userid);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'uq_profiles_userid' 
+        AND table_name = 'profiles'
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE IF EXISTS public.profiles 
+        ADD CONSTRAINT uq_profiles_userid UNIQUE (userid);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.buzz_invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
