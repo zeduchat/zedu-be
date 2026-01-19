@@ -307,15 +307,80 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 		return nil, http.StatusInternalServerError, err
 	}
 
-	// Convert to DmChannelsResponse
 	var response []models.DmChannelsResponse
+	var user models.User
+
 	for _, dm := range dmChannels {
 		resp := models.DmChannelsResponse{
-			ID:          dm.ChannelId,
-			ChannelType: dm.ChannelType,
-			CreatedAt:   dm.CreatedAt,
-			IsFavourite: true,
+			ID:           dm.ChannelId,
+			ChannelType:  dm.ChannelType,
+			CreatedAt:    dm.CreatedAt,
+			IsFavourite:  true,
+			ThreadCount:  dm.ThreadCount,
+			LastThreadId: dm.LastThreadId,
+			LastReadAt:   dm.LastReadAt,
 		}
+
+		switch dm.ChannelType {
+		case "dm", "":
+			// For regular DMs, fetch the participant's user details
+			if dm.ParticipantId != nil {
+				userDetails, err := user.GetUserByID(db.Postgresql, *dm.ParticipantId)
+				if err == nil {
+					userName := userDetails.Profile.UserName
+					if userName == "" {
+						userName = strings.Split(userDetails.Email, "@")[0]
+					}
+
+					resp.Name = userName
+					resp.AvatarUrl = userDetails.Profile.AvatarURL
+					resp.ParticipantId = *dm.ParticipantId
+					resp.ParticipantEmail = userDetails.Email
+				}
+			}
+		case "group_dm":
+			// For group DMs, fetch all participants
+			type ParticipantWithProfile struct {
+				UserId    string
+				AvatarURL string
+				UserName  string
+				Email     string
+			}
+
+			var participantsWithProfile []ParticipantWithProfile
+			err := db.Postgresql.Table("channel_participants cp").
+				Select(`
+					cp.user_id,
+					COALESCE(p.avatar_url, '') as avatar_url,
+					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
+					u.email
+				`).
+				Joins("JOIN users u ON u.id = cp.user_id").
+				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+				Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dm.ChannelId).
+				Scan(&participantsWithProfile).Error
+
+			if err == nil {
+				usernames := []string{}
+				profilePic := ""
+				email := ""
+
+				for _, part := range participantsWithProfile {
+					usernames = append(usernames, part.UserName)
+					if profilePic == "" {
+						profilePic = part.AvatarURL
+					}
+					if email == "" {
+						email = part.Email
+					}
+				}
+
+				resp.Name = strings.Join(usernames, ", ")
+				resp.AvatarUrl = profilePic
+				resp.ParticipantEmail = email
+			}
+		}
+
 		response = append(response, resp)
 	}
 
