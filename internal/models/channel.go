@@ -83,11 +83,13 @@ type ActiveBuzzInfo struct {
 
 type GetChannelResp struct {
 	Channels
-	OwnerName  string          `json:"owner_name"`
-	OwnerEmail string          `json:"owner_email"`
-	WebhookUrl string          `json:"webhook_url"`
-	Access     bool            `json:"access"`
-	ActiveBuzz *ActiveBuzzInfo `json:"active_buzz,omitempty"`
+	OwnerName    string              `json:"owner_name"`
+	OwnerEmail   string              `json:"owner_email"`
+	WebhookUrl   string              `json:"webhook_url"`
+	Access       bool                `json:"access"`
+	ActiveBuzz   *ActiveBuzzInfo     `json:"active_buzz,omitempty"`
+	PreviewMedia []FileMediaResponse `json:"preview_media"`
+	CreatedAt    time.Time           `json:"created_at"`
 }
 
 type GetUserChannelResp []struct {
@@ -296,7 +298,7 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
-func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelResp, error) {
+func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
 		channel  Channels
 		chanResp GetChannelResp
@@ -305,26 +307,26 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		owner    User
 	)
 
-	access := postgresql.CheckExists(db, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
+	access := postgresql.CheckExists(db.Postgresql, &ur, "channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID)
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
+	err, _ := postgresql.SelectOneFromDb(db.Postgresql.Preload("Users.Profile"), &channel, "id = ?", chanReq.ChannelID)
 	if err != nil {
 		return chanResp, fmt.Errorf("could not get channel by id: %v", err)
 	}
 
-	count, err := ur.CountChannelsUsers(db, chanReq.ChannelID)
+	count, err := ur.CountChannelsUsers(db.Postgresql, chanReq.ChannelID)
 	if err != nil {
 		return chanResp, errors.New("could not get channel users count")
 	}
 
 	channel.UserCount = count
-	webhook, err = webhook.GetChannelWebhook(db, chanReq)
+	webhook, err = webhook.GetChannelWebhook(db.Postgresql, chanReq)
 	if err != nil {
 		return chanResp, errors.New("could not get channel webhook")
 	}
 
 	// get owner name and email
-	err, _ = postgresql.SelectOneFromDb(db, &owner, "id = ?", channel.OwnerId)
+	err, _ = postgresql.SelectOneFromDb(db.Postgresql, &owner, "id = ?", channel.OwnerId)
 	if err != nil {
 		return chanResp, errors.New("could not get channel owner")
 	}
@@ -339,7 +341,7 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		StartedAt        time.Time
 	}
 
-	err = db.Raw(`
+	err = db.Postgresql.Raw(`
 		SELECT b.id as buzz_id, b.host_id, u.name as host_name, 
 		       b.buzz_start_time as started_at,
 		       COUNT(bp.id) as participant_count
@@ -361,13 +363,23 @@ func (r *Channels) GetChannelByID(db *gorm.DB, chanReq ChannelInfo) (GetChannelR
 		}
 	}
 
+	var previewMedia []FileMediaResponse
+	if db != nil {
+		pm, _, err := channel.GetPreviewMedia(db, 10)
+		if err == nil {
+			previewMedia = pm
+		}
+	}
+
 	chanResp = GetChannelResp{
-		Channels:   channel,
-		OwnerName:  owner.Name,
-		OwnerEmail: owner.Email,
-		WebhookUrl: webhook.WebhookUrl,
-		Access:     access,
-		ActiveBuzz: activeBuzzInfo,
+		Channels:     channel,
+		OwnerName:    owner.Name,
+		OwnerEmail:   owner.Email,
+		WebhookUrl:   webhook.WebhookUrl,
+		Access:       access,
+		ActiveBuzz:   activeBuzzInfo,
+		PreviewMedia: previewMedia,
+		CreatedAt:    channel.CreatedAt,
 	}
 
 	return chanResp, nil
@@ -1367,4 +1379,117 @@ func UpdateUserChannelLastRead(db *gorm.DB, channelID, userID string) error {
 	return db.Model(&UserChannels{}).
 		Where("channels_id = ? AND user_id = ?", channelID, userID).
 		Update("last_read_at", time.Now()).Error
+}
+
+// GetPreviewMedia fetches the N most recent media files from threads in a channel
+func (c *Channels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMediaResponse, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"channels_id.keyword": c.ID,
+						},
+					},
+				},
+				"filter": []map[string]any{
+					{
+						"exists": map[string]any{
+							"field": "media",
+						},
+					},
+				},
+			},
+		},
+		"_source": []string{"media", "user_id", "created_at"},
+		"size":    limit,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData any
+	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &threadData)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch preview media: %w", err)
+	}
+
+	threadDataMap, ok := threadData.(map[string]any)
+	if !ok {
+		return []FileMediaResponse{}, 0, nil
+	}
+
+	hits, ok := threadDataMap["hits"].(map[string]any)
+	if !ok {
+		return []FileMediaResponse{}, 0, nil
+	}
+
+	hitsArray, ok := hits["hits"].([]any)
+	if !ok || len(hitsArray) == 0 {
+		return []FileMediaResponse{}, 0, nil
+	}
+
+	var allMedia []FileMediaResponse
+	for _, hit := range hitsArray {
+		if len(allMedia) >= limit {
+			break
+		}
+
+		hitMap, ok := hit.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		source, ok := hitMap["_source"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		threadUserID := utility.GetString(source, "user_id")
+		threadCreatedAt := utility.GetString(source, "created_at")
+
+		mediaArray, ok := source["media"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, m := range mediaArray {
+			if len(allMedia) >= limit {
+				break
+			}
+
+			mediaMap, ok := m.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			var createdAt time.Time
+			if threadCreatedAt != "" {
+				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
+			}
+
+			file := FileMediaResponse{
+				ID:        utility.GetString(mediaMap, "id"),
+				FileName:  utility.GetString(mediaMap, "file_name"),
+				FileType:  utility.GetString(mediaMap, "file_type"),
+				MimeType:  utility.GetString(mediaMap, "mime_type"),
+				FileLink:  utility.GetString(mediaMap, "file_link"),
+				UserID:    threadUserID,
+				CreatedAt: createdAt,
+			}
+
+			allMedia = append(allMedia, file)
+		}
+	}
+
+	return allMedia, len(allMedia), nil
 }

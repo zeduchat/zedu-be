@@ -108,7 +108,7 @@ func (base *Controller) GetChannel(c *gin.Context) {
 		ChannelID: channels_id,
 	}
 
-	respData, code, err := channel.GetChannel(base.Db.Postgresql, ids)
+	respData, code, err := channel.GetChannel(base.Db, ids)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -321,7 +321,7 @@ func (base *Controller) DeleteChannel(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	UserId := userClaims["user_id"].(string)
 
-	code, err := channel.DeleteChannel(base.Db.Postgresql, ChannelsId, UserId)
+	code, err := channel.DeleteChannel(base.Db, ChannelsId, UserId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
