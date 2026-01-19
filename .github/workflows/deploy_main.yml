@@ -1,4 +1,4 @@
-name: Deploy Telex Backend - staging
+name: Deploy Telex Backend - main
 
 on:
   workflow_dispatch:
