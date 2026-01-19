@@ -89,7 +89,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 	resp := models.DmParticipantsResponse{
 		Participants: []models.Participant{},
-		PreviewMedia: []models.File{},
+		PreviewMedia: []models.FileMediaResponse{},
 	}
 
 	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
