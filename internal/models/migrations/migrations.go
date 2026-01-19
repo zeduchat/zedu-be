@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.DmChannels{},
 		models.DmFavourite{},
 		models.Group{},
 		models.BuzzInvitation{},
@@ -37,7 +38,6 @@ func AuthMigrationModels() []any {
 		models.ChannelParticipant{},
 		models.ContactUs{},
 		models.CustomIntegrationsSetting{},
-		models.DmChannels{},
 		models.GeneralInvitation{},
 		models.HelpCenterArticle{},
 		models.HelpCenterCategory{},
