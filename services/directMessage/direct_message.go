@@ -14,7 +14,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -72,7 +71,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 							ThreadId:   utility.GenerateUUID(),
 						}
 
-						_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+						_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 						if saveErr != nil {
 							logger.Error("failed to save system message for bot DM channel %s", resp.ID)
 						} else {
@@ -98,9 +97,9 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 					ThreadId:   utility.GenerateUUID(),
 				}
 
-				_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+				_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 				if saveErr != nil {
-					logger.Error("failed to save system message for DM channel %s", resp.ID)
+					logger.Error("failed to save system message for DM channel %s, err: %v", resp.ID, saveErr)
 				} else {
 					logger.Info("Added system message for DM channel creation")
 				}

@@ -9,7 +9,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
@@ -69,7 +68,7 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, base *storage.Datab
 				ThreadId:   utility.GenerateUUID(),
 			}
 
-			_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+			_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 			if saveErr != nil {
 				logger.Error("failed to save system message for group DM channel %s", resp.ChannelId)
 			} else {
@@ -108,7 +107,7 @@ func LeaveGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, l
 			ThreadId:   utility.GenerateUUID(),
 		}
 
-		_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+		_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 		if saveErr != nil {
 			logger.Error("failed to save system message for group DM channel %s", req.ChannelId)
 		} else {
@@ -147,7 +146,7 @@ func JoinGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, lo
 			ThreadId:   utility.GenerateUUID(),
 		}
 
-		_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+		_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 		if saveErr != nil {
 			logger.Error("failed to save system message for group DM channel %s", req.ChannelId)
 		} else {
@@ -202,7 +201,7 @@ func AddParticipantsToGroupDM(req models.AddParticipantsRequest, base *storage.D
 				ThreadId:   utility.GenerateUUID(),
 			}
 
-			_, saveErr := thread.SaveThreadMessage(systemMsg, base, logger)
+			_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
 			if saveErr != nil {
 				logger.Error("failed to save system message for group DM channel %s", req.ChannelId)
 			} else {

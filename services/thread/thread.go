@@ -227,11 +227,6 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	_, code, err := user.GetUser(userID, db)
-	if err != nil {
-		return nil, nil, code, err
-	}
-
 	accessResp, paginationResponse, err := accessData.GetThreadsByChannelID(c, db, userID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
