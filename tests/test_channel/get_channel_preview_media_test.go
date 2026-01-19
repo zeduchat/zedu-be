@@ -165,5 +165,25 @@ func TestGetChannelPreviewMedia(t *testing.T) {
 		if _, exists := responseData["created_at"]; !exists {
 			t.Errorf("Expected created_at field in response")
 		}
+
+		// Assert Participants exists
+		participants, exists := responseData["participants"]
+		if !exists {
+			t.Fatal("Expected participants field in response")
+		}
+
+		participantsArray, ok := participants.([]interface{})
+		if !ok {
+			t.Fatal("Expected participants to be an array")
+		}
+
+		if len(participantsArray) == 0 {
+			t.Fatal("Expected at least one participant")
+		}
+
+		firstParticipant := participantsArray[0].(map[string]interface{})
+		if _, ok := firstParticipant["user_id"]; !ok {
+			t.Errorf("Expected user_id in participant")
+		}
 	})
 }

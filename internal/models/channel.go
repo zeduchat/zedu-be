@@ -90,6 +90,7 @@ type GetChannelResp struct {
 	ActiveBuzz   *ActiveBuzzInfo     `json:"active_buzz,omitempty"`
 	PreviewMedia []FileMediaResponse `json:"preview_media"`
 	CreatedAt    time.Time           `json:"created_at"`
+	Participants []Participant       `json:"participants"`
 }
 
 type GetUserChannelResp []struct {
@@ -371,6 +372,39 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 		}
 	}
 
+	var participants []Participant
+	if db != nil {
+		var channelUsers []User
+		err := db.Postgresql.Joins("JOIN user_channels ON user_channels.user_id = users.id").
+			Where("user_channels.channels_id = ?", channel.ID).
+			Preload("Profile").
+			Find(&channelUsers).Error
+
+		if err == nil {
+			for _, u := range channelUsers {
+				isAdmin := false
+				if u.ID == channel.OwnerId {
+					isAdmin = true
+				}
+
+				username := u.Profile.UserName
+				if username == "" {
+					username = u.Name
+				}
+
+				participants = append(participants, Participant{
+					UserId:    u.ID,
+					Username:  username,
+					Email:     u.Email,
+					AvatarUrl: u.Profile.AvatarURL,
+					Title:     u.Profile.Title,
+					UserType:  "user", // Default to user
+					IsAdmin:   isAdmin,
+				})
+			}
+		}
+	}
+
 	chanResp = GetChannelResp{
 		Channels:     channel,
 		OwnerName:    owner.Name,
@@ -380,6 +414,7 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 		ActiveBuzz:   activeBuzzInfo,
 		PreviewMedia: previewMedia,
 		CreatedAt:    channel.CreatedAt,
+		Participants: participants,
 	}
 
 	return chanResp, nil
