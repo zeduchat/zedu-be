@@ -84,7 +84,7 @@ type Participant struct {
 }
 
 type GroupInCommon struct {
-	Name         string   `json:"id"`
+	Name         string   `json:"name"`
 	AvatarURL    string   `json:"avatar_url"`
 	ChannelID    string   `json:"channel_id"`
 	Participants []string `json:"participants"`

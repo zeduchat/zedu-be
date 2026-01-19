@@ -323,7 +323,6 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 		switch dm.ChannelType {
 		case "dm", "":
-			// For regular DMs, fetch the participant's user details
 			if dm.ParticipantId != nil {
 				userDetails, err := user.GetUserByID(db.Postgresql, *dm.ParticipantId)
 				if err == nil {
@@ -339,7 +338,6 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 				}
 			}
 		case "group_dm":
-			// For group DMs, fetch all participants
 			type ParticipantWithProfile struct {
 				UserId    string
 				AvatarURL string

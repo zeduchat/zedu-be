@@ -212,6 +212,8 @@ func TestDmFavourites(t *testing.T) {
 			t.Fatalf("Expected data array in response")
 		}
 
+		fmt.Println("data", data)
+
 		if len(data) != 2 {
 			t.Errorf("Expected 2 favourite DMs, got %d", len(data))
 		}
