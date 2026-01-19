@@ -9959,6 +9959,10 @@ paths:
                               type: string
                               format: date-time
                               description: When the file was uploaded
+                            updated_at:
+                              type: string
+                              format: date-time
+                              description: When the file was last updated
                       created_at:
                         type: string
                         format: date-time

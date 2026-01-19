@@ -84,11 +84,11 @@ type Participant struct {
 }
 
 type DmParticipantsResponse struct {
-	Type             string        `json:"type"` // bot, dm, or groupdm
-	GroupDescription string        `json:"group_description"`
-	Participants     []Participant `json:"participants"`
-	PreviewMedia     []File        `json:"preview_media"`
-	CreatedAt        time.Time     `json:"created_at"`
+	Type             string              `json:"type"` // bot, dm, or groupdm
+	GroupDescription string              `json:"group_description"`
+	Participants     []Participant       `json:"participants"`
+	PreviewMedia     []FileMediaResponse `json:"preview_media"`
+	CreatedAt        time.Time           `json:"created_at"`
 }
 
 type GroupDescriptionRequest struct {
@@ -1259,7 +1259,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 }
 
 // GetPreviewMedia fetches the N most recent media files from threads in a DM channel
-func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, int, error) {
+func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMediaResponse, int, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -1302,20 +1302,20 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, 
 
 	threadDataMap, ok := threadData.(map[string]any)
 	if !ok {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
 	hits, ok := threadDataMap["hits"].(map[string]any)
 	if !ok {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
 	hitsArray, ok := hits["hits"].([]any)
 	if !ok || len(hitsArray) == 0 {
-		return []File{}, 0, nil
+		return []FileMediaResponse{}, 0, nil
 	}
 
-	var allMedia []File
+	var allMedia []FileMediaResponse
 	for _, hit := range hitsArray {
 		if len(allMedia) >= limit {
 			break
@@ -1354,7 +1354,7 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]File, 
 				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
 			}
 
-			file := File{
+			file := FileMediaResponse{
 				ID:        utility.GetString(mediaMap, "id"),
 				FileName:  utility.GetString(mediaMap, "file_name"),
 				FileType:  utility.GetString(mediaMap, "file_type"),
