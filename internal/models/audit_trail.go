@@ -26,7 +26,7 @@ type LoginActivity struct {
 	IsLive         bool           `gorm:"column:is_live" json:"is_live"`
 }
 
-type SuperadminRoleChangeAuditLog struct {
+type AuditLog struct {
 	ID        string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	AdminID   string    `gorm:"type:uuid;not null;index" json:"admin_id"` // The one who performed the action
 	Action    string    `gorm:"type:varchar(100);not null" json:"action"`
@@ -92,4 +92,51 @@ func (la *LoginActivity) GetLoginActivityByIDsAdmin(db *gorm.DB, c *gin.Context,
 	}
 
 	return loginActivities, paginationResponse, nil
+}
+
+func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, postgresql.PaginationResponse, error) {
+	var (
+		logs       []AuditLog
+		conditions []string
+		values     []any
+	)
+
+	conditions = append(conditions, "action = ?")
+	values = append(values, "ROLE_CHANGE_CONFIRMED")
+
+	if targetID := c.Query("target_id"); targetID != "" {
+		conditions = append(conditions, "target_id = ?")
+		values = append(values, targetID)
+	}
+
+	if date := c.Query("date"); date != "" {
+		conditions = append(conditions, "DATE(created_at) = ?")
+		values = append(values, date)
+	}
+
+	queryStr := ""
+	if len(conditions) > 0 {
+		queryStr = conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			queryStr += " AND " + conditions[i]
+		}
+	}
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db,
+		"created_at",
+		"desc",
+		pagination,
+		&logs,
+		queryStr,
+		values...,
+	)
+
+	if err != nil {
+		return nil, paginationResponse, err
+	}
+
+	return logs, paginationResponse, nil
 }

@@ -217,7 +217,7 @@ func ConfirmRoleChange(db *storage.Database, logger *utility.Logger, token, requ
 
 	db.Postgresql.Model(&models.AccessToken{}).Where("owner_id = ?", conf.TargetAdminID).Update("is_live", false)
 
-	audit := models.SuperadminRoleChangeAuditLog{
+	audit := models.AuditLog{
 		ID:        utility.GenerateUUID(),
 		AdminID:   requesterID,
 		Action:    "ROLE_CHANGE_CONFIRMED",
