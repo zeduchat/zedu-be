@@ -26,6 +26,17 @@ type LoginActivity struct {
 	IsLive         bool           `gorm:"column:is_live" json:"is_live"`
 }
 
+type SuperadminRoleChangeAuditLog struct {
+	ID        string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	AdminID   string    `gorm:"type:uuid;not null;index" json:"admin_id"` // The one who performed the action
+	Action    string    `gorm:"type:varchar(100);not null" json:"action"`
+	TargetID  string    `gorm:"type:uuid;not null;index" json:"target_id"` // The admin whose role was changed
+	OldValue  string    `gorm:"type:varchar(50)" json:"old_value"`
+	NewValue  string    `gorm:"type:varchar(50)" json:"new_value"`
+	IPAddress string    `gorm:"type:varchar(45)" json:"ip_address"`
+	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+}
+
 func (l *LoginActivity) Create(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, &l)
 

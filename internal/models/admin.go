@@ -40,8 +40,30 @@ type CreateAdminResponse struct {
 }
 
 type ChangeAdminRoleRequest struct {
-	NewRole     string `json:"new_role" validate:"required,oneof=admin superadmin"`
-	IsConfirmed *bool  `json:"confirm"`
+	NewRole           string `json:"new_role" validate:"required,oneof=admin superadmin"`
+	ConfirmSuperAdmin *bool  `json:"confirm_superadmin,omitempty"`
+}
+
+type ConfirmRoleChangeRequest struct {
+	ConfirmationToken string `json:"confirmation_token" validate:"required"`
+}
+
+type RoleChangeConfirmation struct {
+	ID                string     `gorm:"primary_key;type:uuid" json:"id"`
+	TargetAdminID     string     `gorm:"type:uuid;not null;index" json:"target_admin_id"`
+	TargetAdminEmail  string     `gorm:"type:varchar(255);not null" json:"target_admin_email"`
+	TargetAdminName   string     `gorm:"type:varchar(255);not null" json:"target_admin_name"`
+	RequesterID       string     `gorm:"type:uuid;not null;index" json:"requester_id"`
+	RequesterEmail    string     `gorm:"type:varchar(255);not null" json:"requester_email"`
+	NewRole           string     `gorm:"type:varchar(50);not null" json:"new_role"`
+	OldRole           string     `gorm:"type:varchar(50);not null" json:"old_role"`
+	ConfirmationToken string     `gorm:"type:varchar(255);unique;not null;index" json:"-"`
+	ExpiresAt         time.Time  `gorm:"not null;index" json:"expires_at"`
+	IsUsed            bool       `gorm:"default:false;not null;index" json:"is_used"`
+	UsedAt            *time.Time `gorm:"type:timestamp" json:"used_at,omitempty"`
+	IPAddress         string     `gorm:"type:varchar(45)" json:"ip_address"`
+	CreatedAt         time.Time  `gorm:"not null" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"not null" json:"updated_at"`
 }
 
 const (
