@@ -210,16 +210,13 @@ func ConfirmRoleChange(db *storage.Database, logger *utility.Logger, token, requ
 		return errors.New("unauthorized requester")
 	}
 
-	// Perform Role Change
 	var adminModel models.Admin
 	if err := adminModel.ChangeRole(db.Postgresql, conf.NewRole, conf.TargetAdminID); err != nil {
 		return err
 	}
 
-	// 1. Invalidate sessions
 	db.Postgresql.Model(&models.AccessToken{}).Where("owner_id = ?", conf.TargetAdminID).Update("is_live", false)
 
-	// 2. Internal Audit Log
 	audit := models.SuperadminRoleChangeAuditLog{
 		ID:        utility.GenerateUUID(),
 		AdminID:   requesterID,
@@ -231,10 +228,8 @@ func ConfirmRoleChange(db *storage.Database, logger *utility.Logger, token, requ
 	}
 	db.Postgresql.Create(&audit)
 
-	// 3. Telex Audit
 	telexaudit.RoleChangeAudit(db, logger, conf.RequesterEmail, conf.TargetAdminEmail, conf.OldRole, conf.NewRole)
 
-	// Mark token as used
 	db.Postgresql.Model(&conf).Updates(map[string]any{"is_used": true, "used_at": time.Now()})
 
 	return nil
