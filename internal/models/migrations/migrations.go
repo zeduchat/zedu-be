@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.AuditLog{},
 		models.DmChannels{},
 		models.DmFavourite{},
 		models.Group{},
@@ -73,7 +74,6 @@ func AuthMigrationModels() []any {
 		models.SlackTelex{},
 		models.SlackToken{},
 		models.SlashCommand{},
-		models.SuperadminRoleChangeAuditLog{},
 		models.TelexAIUsageLog{},
 		models.TelexSlackChannelMapping{},
 		models.Testimonial{},

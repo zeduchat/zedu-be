@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -13,7 +12,6 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	admin "github.com/hngprojects/telex_be/services/admin"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -265,49 +263,31 @@ func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
 }
 
 func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
-	var (
-		logs       []models.SuperadminRoleChangeAuditLog
-		conditions []string
-		values     []any
-	)
+	var auditModel models.AuditLog
 
-	conditions = append(conditions, "action = ?")
-	values = append(values, "ROLE_CHANGE_CONFIRMED")
-
-	if targetID := c.Query("target_id"); targetID != "" {
-		conditions = append(conditions, "target_id = ?")
-		values = append(values, targetID)
-	}
-
-	if date := c.Query("date"); date != "" {
-		conditions = append(conditions, "DATE(created_at) = ?")
-		values = append(values, date)
-	}
-
-	queryStr := strings.Join(conditions, " AND ")
-
-	pagination := postgresql.GetPagination(c)
-
-	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		base.Db.Postgresql,
-		"created_at",
-		"desc",
-		pagination,
-		&logs,
-		queryStr,
-		values...,
-	)
+	logs, pagination, err := auditModel.GetAuditHistory(base.Db.Postgresql, c)
 
 	if err != nil {
-		base.Logger.Error("Failed to fetch audit logs", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch logs", err.Error(), nil)
+		base.Logger.Error("Failed to retrieve audit history", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusInternalServerError,
+			"error",
+			"Failed to fetch audit logs",
+			err.Error(),
+			nil,
+		)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Audit logs retrieved successfully", map[string]any{
-		"logs":       logs,
-		"pagination": paginationResponse,
-	})
+	// Return the standardized success response
+	rd := utility.BuildSuccessResponse(
+		http.StatusOK,
+		"Audit logs retrieved successfully",
+		map[string]any{
+			"logs":       logs,
+			"pagination": pagination,
+		},
+	)
 	c.JSON(http.StatusOK, rd)
 }
