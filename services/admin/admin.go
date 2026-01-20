@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"strings"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -18,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -149,72 +152,90 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 	return responseData, nil
 }
 
-func ChangeAdminRole(db *storage.Database, targetAdminId, newRole, requesterId string) error {
-
-	var (
-		admin       models.Admin
-		targetAdmin *models.Admin
-		err         error
-	)
-
-	targetAdmin, err = models.GetAdminById(db.Postgresql, targetAdminId)
+func InitiateRoleChange(db *storage.Database, targetID, newRole, requesterID, ip string) (map[string]any, error) {
+	target, err := models.GetAdminById(db.Postgresql, targetID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("admin with ID %s not found", targetAdminId)
-		}
-		return fmt.Errorf("failed to fetch admin: %w", err)
+		return nil, err
 	}
 
-	oldRole := targetAdmin.Role
-
-	if oldRole == newRole {
-		return errors.New("admin already has this role")
-	}
-
-	if oldRole == models.RoleSuperAdmin && newRole == models.RoleAdmin {
-		var superadminCount int64
-		if err := db.Postgresql.Model(&models.Admin{}).
-			Where("role = ? AND is_active = ? AND id != ?", models.RoleSuperAdmin, true, targetAdminId).
-			Count(&superadminCount).Error; err != nil {
-			return fmt.Errorf("failed to verify superadmin count: %w", err)
-		}
-
-		if superadminCount == 0 {
-			return errors.New("cannot downgrade the last active superadmin")
-		}
-	}
-
-	err = admin.ChangeRole(db.Postgresql, newRole, targetAdminId)
+	requester, err := models.GetAdminById(db.Postgresql, requesterID)
 	if err != nil {
-		return fmt.Errorf("failed to change role: %w", err)
+		return nil, err
 	}
 
-	// TODO: verify this part
-	// Invalidate all active sessions for security
-	// Force re-authentication with new role
-	var accessToken models.AccessToken
-	if err := db.Postgresql.Model(&accessToken).
-		Where("owner_id = ? AND is_live = ?", targetAdminId, true).
-		Updates(map[string]interface{}{"is_live": false}).Error; err != nil {
-		// Log error but don't fail - role change already succeeded
-		// TODO: log this
+	if target.Role == newRole {
+		return nil, errors.New("admin already has this role")
 	}
 
-	// TODO: Create audit log entry
-	// auditLog := models.AuditLog{
-	// 	ID:          utility.GenerateUUID(),
-	// 	AdminID:     requesterID,
-	// 	Action:      "CHANGE_ADMIN_ROLE",
-	// 	TargetID:    targetAdminID,
-	// 	TargetType:  "admin",
-	// 	OldValue:    oldRole,
-	// 	NewValue:    newRole,
-	// 	Timestamp:   time.Now(),
-	// 	IPAddress:   c.ClientIP(), // Pass from controller
-	// }
-	// if err := auditLog.Create(db.Postgresql); err != nil {
-	// 	// Log but don't fail
-	// }
+	// Generate 32-byte secure token
+	b := make([]byte, 32)
+	rand.Read(b)
+	token := hex.EncodeToString(b)
+
+	confirmation := models.RoleChangeConfirmation{
+		ID:                utility.GenerateUUID(),
+		TargetAdminID:     target.ID,
+		TargetAdminEmail:  target.Email,
+		TargetAdminName:   target.Name,
+		RequesterID:       requester.ID,
+		RequesterEmail:    requester.Email,
+		NewRole:           newRole,
+		OldRole:           target.Role,
+		ConfirmationToken: token,
+		ExpiresAt:         time.Now().Add(15 * time.Minute),
+		IPAddress:         ip,
+	}
+
+	if err := db.Postgresql.Create(&confirmation).Error; err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"token":      token,
+		"expires_at": confirmation.ExpiresAt,
+		"target":     target.Email,
+	}, nil
+}
+
+func ConfirmRoleChange(db *storage.Database, logger *utility.Logger, token, requesterID string) error {
+	var conf models.RoleChangeConfirmation
+	if err := db.Postgresql.Where("confirmation_token = ? AND is_used = ?", token, false).First(&conf).Error; err != nil {
+		return errors.New("invalid or expired token")
+	}
+
+	if time.Now().After(conf.ExpiresAt) {
+		return errors.New("token expired")
+	}
+	if conf.RequesterID != requesterID {
+		return errors.New("unauthorized requester")
+	}
+
+	// Perform Role Change
+	var adminModel models.Admin
+	if err := adminModel.ChangeRole(db.Postgresql, conf.NewRole, conf.TargetAdminID); err != nil {
+		return err
+	}
+
+	// 1. Invalidate sessions
+	db.Postgresql.Model(&models.AccessToken{}).Where("owner_id = ?", conf.TargetAdminID).Update("is_live", false)
+
+	// 2. Internal Audit Log
+	audit := models.SuperadminRoleChangeAuditLog{
+		ID:        utility.GenerateUUID(),
+		AdminID:   requesterID,
+		Action:    "ROLE_CHANGE_CONFIRMED",
+		TargetID:  conf.TargetAdminID,
+		OldValue:  conf.OldRole,
+		NewValue:  conf.NewRole,
+		IPAddress: conf.IPAddress,
+	}
+	db.Postgresql.Create(&audit)
+
+	// 3. Telex Audit
+	telexaudit.RoleChangeAudit(db, logger, conf.RequesterEmail, conf.TargetAdminEmail, conf.OldRole, conf.NewRole)
+
+	// Mark token as used
+	db.Postgresql.Model(&conf).Updates(map[string]any{"is_used": true, "used_at": time.Now()})
 
 	return nil
 }

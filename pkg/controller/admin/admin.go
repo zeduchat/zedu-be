@@ -204,112 +204,90 @@ func (base *Controller) InviteLeaderboard(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) ChangeAdminRole(c *gin.Context) {
-
+// InitiateChangeAdminRole starts the two-step process for role elevation
+func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 	targetAdminID := c.Param("admin_id")
 
 	if _, err := uuid.Parse(targetAdminID); err != nil {
-		base.Logger.Error("invalid admin id format", err)
-		rd := utility.BuildErrorResponse(
-			http.StatusBadRequest,
-			"Invalid request",
-			"invalid admin id format",
-			err.Error(),
-			nil,
-		)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid admin id format", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	var req models.ChangeAdminRoleRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		base.Logger.Error("Failed to parse request body", err)
-		rd := utility.BuildErrorResponse(
-			http.StatusBadRequest,
-			"Invalid request",
-			"Failed to parse request body",
-			err.Error(),
-			nil,
-		)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	if err := base.Validator.Struct(&req); err != nil {
-		base.Logger.Error("Validation failed", err)
-		rd := utility.BuildErrorResponse(
-			http.StatusBadRequest,
-			"Invalid request",
-			"Validation failed",
-			utility.ValidationResponse(err, base.Validator),
-			nil,
-		)
-		c.JSON(http.StatusBadRequest, rd)
+	// Validate confirmation flag for superadmin promotion
+	if req.NewRole == models.RoleSuperAdmin && (req.ConfirmSuperAdmin == nil || !*req.ConfirmSuperAdmin) {
+		rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "Explicit confirmation required for superadmin promotion", nil, nil)
+		c.JSON(http.StatusPreconditionRequired, rd)
 		return
-	}
-
-	if req.NewRole == models.RoleSuperAdmin {
-		confirmed := false
-		if req.IsConfirmed != nil {
-			confirmed = *req.IsConfirmed
-		}
-
-		if !confirmed {
-			base.Logger.Info("Superadmin promotion attempted without confirmation")
-			rd := utility.BuildErrorResponse(
-				http.StatusPreconditionRequired,
-				"Confirmation Required",
-				"Promoting to superadmin requires explicit confirmation. Set 'confirm: true' in your request",
-				"missing confirmation",
-				nil,
-			)
-			c.JSON(http.StatusPreconditionRequired, rd)
-			return
-		}
 	}
 
 	claims := c.MustGet("adminClaims").(jwt.MapClaims)
+	requesterID := claims["admin_id"].(string)
 
-	requesterID, ok := claims["admin_id"].(string)
-	if !ok {
-		rd := utility.BuildErrorResponse(
-			http.StatusUnauthorized,
-			"Unauthorized",
-			"Invalid token claims",
-			"admin_id not found in token",
-			nil,
-		)
-		c.JSON(http.StatusUnauthorized, rd)
-		return
-	}
-
-	err := admin.ChangeAdminRole(
-		base.Db,
-		targetAdminID,
-		req.NewRole,
-		requesterID,
-	)
-
+	resp, err := admin.InitiateRoleChange(base.Db, targetAdminID, req.NewRole, requesterID, c.ClientIP())
 	if err != nil {
-		base.Logger.Error("Failed to change admin role", err)
-		rd := utility.BuildErrorResponse(
-			http.StatusBadRequest,
-			"Error",
-			"Failed to change admin role",
-			err.Error(),
-			nil,
-		)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	base.Logger.Info("Admin role changed successfully")
+	rd := utility.BuildSuccessResponse(http.StatusAccepted, "Role change initiated. Use the token to confirm.", resp)
+	c.JSON(http.StatusAccepted, rd)
+}
 
-	rd := utility.BuildSuccessResponse(
-		http.StatusOK,
-		"Admin role changed successfully",
-		nil,
-	)
+// ConfirmChangeAdminRole finalizes the role change using the token
+func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
+	var req models.ConfirmRoleChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims := c.MustGet("adminClaims").(jwt.MapClaims)
+	requesterID := claims["admin_id"].(string)
+
+	err := admin.ConfirmRoleChange(base.Db, base.Logger, req.ConfirmationToken, requesterID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin role updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+// GetRoleAuditHistory provides filterable logs for superadmins
+func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
+	var logs []models.SuperadminRoleChangeAuditLog
+	db := base.Db.Postgresql
+
+	query := db.Model(&models.SuperadminRoleChangeAuditLog{}).Where("action = ?", "ROLE_CHANGE_CONFIRMED")
+
+	// Filtering by User ID
+	if targetID := c.Query("target_id"); targetID != "" {
+		query = query.Where("target_id = ?", targetID)
+	}
+
+	// Filtering by Date (Format: YYYY-MM-DD)
+	if date := c.Query("date"); date != "" {
+		query = query.Where("DATE(created_at) = ?", date)
+	}
+
+	if err := query.Order("created_at desc").Find(&logs).Error; err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch logs", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Audit logs retrieved successfully", logs)
 	c.JSON(http.StatusOK, rd)
 }
