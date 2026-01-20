@@ -206,7 +206,6 @@ func (base *Controller) InviteLeaderboard(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-// InitiateChangeAdminRole starts the two-step process for role elevation
 func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 	targetAdminID := c.Param("admin_id")
 
@@ -223,7 +222,6 @@ func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 		return
 	}
 
-	// Validate confirmation flag for superadmin promotion
 	if req.NewRole == models.RoleSuperAdmin && (req.ConfirmSuperAdmin == nil || !*req.ConfirmSuperAdmin) {
 		rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "Explicit confirmation required for superadmin promotion", nil, nil)
 		c.JSON(http.StatusPreconditionRequired, rd)
@@ -244,7 +242,6 @@ func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 	c.JSON(http.StatusAccepted, rd)
 }
 
-// ConfirmChangeAdminRole finalizes the role change using the token
 func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
 	var req models.ConfirmRoleChangeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
