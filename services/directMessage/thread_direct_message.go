@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -165,12 +166,11 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	return &threadDoc, http.StatusCreated, nil
 }
 
-func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
+func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest) (*models.ThreadDocument, int, error) {
 	var (
-		profile     models.Profile
-		user        models.User
-		channel     models.DmChannels
-		routing_key = "direct_message"
+		profile models.Profile
+		user    models.User
+		channel models.DmChannels
 	)
 
 	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
@@ -253,62 +253,34 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 
 	// validate credit here
 	if !models.OrgHasValidCreditBalance(db.Postgresql, channel.OrgId, creditUsed) {
-		logger.Error("Organisation has insufficient credit balance!!")
+		logger.Error("Organisation has insufficient credit balance!!, orgId: %s", channel.OrgId)
 		return nil, http.StatusBadRequest, fmt.Errorf("organisation has insufficient credit balance")
 	}
 
-	returnUrl := fmt.Sprintf("%s/api/v1/dms/bot-dm-response", config.Config.App.Url)
-	feed := models.FeedQueue{
-		ChannelsId: req.ChannelsID,
-		Content:    req.Content,
-		ThreadId:   threadDoc.ID,
-		ReturnUrl:  returnUrl,
-		Type:       "message/thread",
-		UserId:     req.UserId,
-		OrgId:      req.OrgId,
-		Mentions:   req.Mentions,
-		Media:      req.Media,
+	sendToBot := models.BotRequest{
+		ChannelID: req.ChannelsID,
+		Content:   req.Content,
+		ThreadId:  utility.GenerateUUID(),
+		Type:      models.NewBotMessage,
+		UserId:    req.UserId,
+		OrgId:     req.OrgId,
+		Mentions:  req.Mentions,
+		Media:     req.Media,
 	}
 
-	payload := map[string]any{
-		"message_content": map[string]any{
-			"channel_id":              feed.ChannelsId,
-			"message":                 feed.Content,
-			"thread_id":               feed.ThreadId,
-			"is_channel_conversation": false,
-			"type":                    feed.Type,
-			"user_id":                 feed.UserId,
-			"org_id":                  feed.OrgId,
-			"media":                   feed.Media,
-			"mentions":                feed.Mentions,
-		},
-		"channel_id": feed.ChannelsId,
-		"org_id":     feed.OrgId,
-		"return_url": feed.ReturnUrl,
-		"agent_id":   channel.ParticipantId,
-	}
-
-	task := "telex_queue_processor.handle_direct_message"
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error marshaling payload for integration: %v", err.Error()))
-		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal payload, error: %v", err)
-	}
-
-	err = rabbitmq.PushToRabbitQueue(logger, db.Postgresql, string(payloadBytes), routing_key, task)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Error pushing to RabbitMQ for integration: %v", err.Error()))
-		return &models.ThreadDocument{}, http.StatusInternalServerError, fmt.Errorf("failed to push to RabbitMQ, error: %v", err)
-	}
-
-	logger.Info(fmt.Sprintf("Pushed to RabbitMQ for integration: %s", routing_key))
+	go func() {
+		// Use the injected external request
+		_, statusCode, err := BotResponse(sendToBot, db, logger, extReq)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error publishing to bot response: %v, statusCode: %d", err, statusCode))
+		}
+	}()
 
 	return &threadDoc, http.StatusCreated, nil
 }
 
 // Direct Message thread
-func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
+func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest) (*models.ThreadDocument, int, error) {
 
 	dmchannel := models.DmChannels{}
 
@@ -316,7 +288,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 	req.OrgId = dmchannel.OrgId
 
 	if exists {
-		return sendDMMessageToBot(req, db, logger)
+		return sendDMMessageToBot(req, db, logger, extReq)
 	}
 
 	// Create pair room if first message and not a bot
@@ -395,7 +367,7 @@ func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]mo
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, int, error) {
+func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest) (*models.ThreadDocument, int, error) {
 	var (
 		channel  models.DmChannels
 		orgAgent models.OrganisationIntegrations
@@ -449,6 +421,16 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist in org, with integration_id = ?, %v", *channel.ParticipantId)
 	}
 
+	if req.Type == models.NewBotMessage {
+		fullMessage, err := ProcessBotStreamingResponse(req, orgAgent, channel, extReq, logger)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to process bot streaming response: %v", err))
+			return nil, http.StatusInternalServerError, fmt.Errorf("failed to process bot streaming response: %v", err)
+		}
+
+		req.Content = fullMessage
+	}
+
 	threadDoc := models.ThreadDocument{
 		ID:             req.ThreadId,
 		Username:       orgAgent.AppName,
@@ -485,7 +467,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		AvatarURL: orgAgent.AppLogo,
 		Type:      "message",
 		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
+		ThreadId:  req.ThreadId,
 		Email:     "agent",
 		FullName:  orgAgent.AppName,
 		UserId:    *channel.ParticipantId,
@@ -507,6 +489,7 @@ func BotResponse(req models.BotReturnRequest, db *storage.Database, logger *util
 		logger.Error(fmt.Sprintf("Error Publishing to with destination id: %s error: %v", req.ChannelID, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data")
 	}
+	logger.Info("Published complete stream payload channel [%s] for agent: [%s]", req.ChannelID, req.AgentId)
 
 	dmChan := models.DmChannels{}
 	dmChan.ChannelId = req.ChannelID

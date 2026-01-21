@@ -283,17 +283,27 @@ type CreateThreadMsgReq2 struct {
 	UserIdentifier string `json:"user_identifier"`
 }
 
-type BotReturnRequest struct {
-	ChannelID      string    `json:"channel_id" validate:"required"`
-	Content        string    `json:"message"  validate:"required"`
-	Media          []File    `json:"media"`
-	State          string    `json:"state"`
-	Mentions       []Mention `json:"mentions"`
-	ThreadId       string    `json:"thread_id" validate:"required"`
-	OperationPrice *float64  `json:"operation_price"`
-	UserId         string    `json:"user_id"`
-	OrgId          string    `json:"org_id"`
-	AgentId        string    `json:"agent_id"`
+type BotMessageType string
+
+var (
+	NewBotMessage   BotMessageType = "new_bot_message"
+	BotResponse     BotMessageType = "bot_response"
+	TemplateMessage BotMessageType = "template_message"
+)
+
+type BotRequest struct {
+	ChannelID       string           `json:"channel_id" validate:"required"`
+	Content         string           `json:"message"  validate:"required"`
+	Media           []File           `json:"media"`
+	State           string           `json:"state"`
+	Mentions        []Mention        `json:"mentions"`
+	ThreadId        string           `json:"thread_id" validate:"required"`
+	OperationPrice  *float64         `json:"operation_price"`
+	UserId          string           `json:"user_id"`
+	OrgId           string           `json:"org_id"`
+	AgentId         string           `json:"agent_id"`
+	Type            BotMessageType   `json:"type"`
+	BotNotification NotificationType `json:"bot_notification"`
 }
 
 type FeedMessageRequest struct {
