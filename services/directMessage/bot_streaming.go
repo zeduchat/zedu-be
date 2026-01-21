@@ -31,19 +31,16 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 
 	tools := InitializeTools()
 
-	// Strip HTML tags
 	re := regexp.MustCompile("<[^>]*>")
 	strippedContent := re.ReplaceAllString(req.Content, "")
 
 	var messages []external_models.TelexAIOpenRouterMessage
 
-	// Add system message
 	messages = append(messages, external_models.TelexAIOpenRouterMessage{
 		Role:    "system",
 		Content: fmt.Sprintf("You are %s. %s", orgAgent.AppName, orgAgent.AppDescription),
 	})
 
-	// Prepare user content
 	var userContent any
 	if len(req.Media) > 0 {
 		var contentParts []map[string]any
