@@ -216,7 +216,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	query := db.Postgresql.Table("channels").
 		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
 			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
-			channels.created_at, uc.last_thread_id, 'true' AS access`).
+			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
@@ -310,7 +310,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	query = db.Postgresql.Table("channels").
 		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
 			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
-			channels.created_at, uc.last_thread_id, 'true' AS access`).
+			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
