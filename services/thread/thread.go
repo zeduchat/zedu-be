@@ -133,12 +133,6 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 
 	timeRange, check := GetGroupByDate(c)
 
-	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID, userID)
-
-	if !exists {
-		return nil, nil, http.StatusBadRequest, errors.New("user is not a member of this channel")
-	}
-
 	if check {
 		accessResp, paginationResponse, code, err = accessData.GetAllGroupThreadsByChannelID(c, db, channelID, timeRange)
 	} else {
@@ -195,7 +189,7 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 		},
 	}
 
-	exists = postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
+	exists := postgresql.CheckExists(db, &uc, "channels_id = ?", channelID)
 	if exists {
 
 		ch, err := channel.CheckChannelExists(db, channelID)
