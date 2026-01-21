@@ -168,23 +168,23 @@ type UserListItem struct {
 	ID                 string  `json:"id"`
 	Email              string  `json:"email"`
 	Name               string  `json:"name"`
-	AvatarUrl          *string `json:"avatar_url"`
+	AvatarUrl          string  `json:"avatar_url"`
 	CreatedAt          string  `json:"created_at"`
-	LastLogInAt        *string `json:"last_log_in_at"`
-	LastActivityAt     *string `json:"last_activity_at"`
-	ActivityLength     *string `json:"activity_length"`
+	LastLogInAt        string  `json:"last_log_in_at"`
+	LastActivityAt     string  `json:"last_activity_at"`
+	ActivityLength     string  `json:"activity_length"`
 	Referrals          int64   `json:"referrals"`
-	CreditUsed         int64   `json:"credit_used"`         //TODO
-	AmountSpent        int64   `json:"amount_spent"`        //TODO
-	SubscriptionStatus string  `json:"subscription_status"` //TODO
+	CreditUsed         float64 `json:"credit_used"`
+	AmountSpent        float64 `json:"amount_spent"`
+	SubscriptionStatus string  `json:"subscription_status"`
 }
 
-func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.PaginationResponse, int, error) {
+func ListUsers(db *gorm.DB, c *gin.Context) ([]UserListItem, postgresql.PaginationResponse, int, error) {
 	var users []models.User
 	pagination := postgresql.GetPagination(c)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db,
+		db.Preload("Profile"),
 		"created_at",
 		"desc",
 		pagination,
@@ -199,8 +199,10 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	}
 
 	if len(users) == 0 {
-		return []map[string]any{}, paginationResponse, http.StatusOK, nil
+		return []UserListItem{}, paginationResponse, http.StatusOK, nil
 	}
+
+	userIDs := getUserIDs(users)
 
 	type referralCount struct {
 		UserID string
@@ -209,7 +211,7 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 	var referralCounts []referralCount
 	if err := db.Model(&models.Invitation{}).
 		Select("invited_by as user_id, COUNT(*) as count").
-		Where("invited_by IN ?", getUserIDs(users)).
+		Where("invited_by IN ?", userIDs).
 		Group("invited_by").
 		Scan(&referralCounts).Error; err != nil {
 		referralCounts = []referralCount{}
@@ -220,39 +222,99 @@ func ListUsers(db *gorm.DB, c *gin.Context) ([]map[string]any, postgresql.Pagina
 		referralMap[rc.UserID] = rc.Count
 	}
 
-	resp := make([]map[string]any, 0, len(users))
+	type creditUsageSum struct {
+		UserID string
+		Total  float64
+	}
+	var creditUsages []creditUsageSum
+	if err := db.Model(&models.CreditUsage{}).
+		Select("user_id, COALESCE(SUM(amount), 0) as total").
+		Where("user_id IN ?", userIDs).
+		Group("user_id").
+		Scan(&creditUsages).Error; err != nil {
+		creditUsages = []creditUsageSum{}
+	}
+
+	creditUsageMap := make(map[string]float64)
+	for _, cu := range creditUsages {
+		creditUsageMap[cu.UserID] = cu.Total
+	}
+
+	type userSubscription struct {
+		UserID             string
+		SubscriptionPlanId string
+	}
+	var userSubscriptions []userSubscription
+	if err := db.Table("organisations").
+		Select("owner_id as user_id, subscription_plan_id").
+		Where("owner_id IN ?", userIDs).
+		Where("subscription_plan_id != 'free' AND subscription_plan_id != ''").
+		Scan(&userSubscriptions).Error; err != nil {
+		userSubscriptions = []userSubscription{}
+	}
+
+	subscriptionMap := make(map[string]string)
+	for _, us := range userSubscriptions {
+		// If user has any paid subscription, mark as "Paid"
+		subscriptionMap[us.UserID] = "Paid"
+	}
+
+	type amountSpentSum struct {
+		UserID string
+		Total  float64
+	}
+	var amountSpents []amountSpentSum
+	if err := db.Table("credit_transactions").
+		Select("organisations.owner_id as user_id, COALESCE(SUM(credit_transactions.amount), 0) as total").
+		Joins("JOIN organisations ON organisations.id = credit_transactions.organisation_id").
+		Where("organisations.owner_id IN ?", userIDs).
+		Group("organisations.owner_id").
+		Scan(&amountSpents).Error; err != nil {
+		amountSpents = []amountSpentSum{}
+	}
+
+	amountSpentMap := make(map[string]float64)
+	for _, as := range amountSpents {
+		amountSpentMap[as.UserID] = as.Total
+	}
+
+	resp := make([]UserListItem, 0, len(users))
 	for _, u := range users {
-		var lastLogInAt *string
+		var lastLogInAt string
 		if u.LastLogInAt != nil {
-			formatted := u.LastLogInAt.Format("2006-01-02T15:04:05Z07:00")
-			lastLogInAt = &formatted
+			lastLogInAt = u.LastLogInAt.Format("2006-01-02T15:04:05Z07:00")
 		}
 
-		var lastActivityAt *string
+		var lastActivityAt string
 		if u.LastActivityAt != nil {
-			formatted := u.LastActivityAt.Format("2006-01-02T15:04:05Z07:00")
-			lastActivityAt = &formatted
+			lastActivityAt = u.LastActivityAt.Format("2006-01-02T15:04:05Z07:00")
 		}
 
-		var avatarUrl *string
-		if u.Profile.AvatarURL != "" {
-			avatarUrl = &u.Profile.AvatarURL
+		avatarUrl := u.Profile.AvatarURL
+
+		var activityLength string
+		if al := user.GetActivityLength(u); al != nil {
+			activityLength = *al
 		}
 
-		activityLength := user.GetActivityLength(u)
+		subscriptionStatus := "Free"
+		if status, ok := subscriptionMap[u.ID]; ok {
+			subscriptionStatus = status
+		}
 
-		referrals := referralMap[u.ID]
-
-		resp = append(resp, map[string]any{
-			"id":               u.ID,
-			"email":            u.Email,
-			"name":             u.Name,
-			"avatar_url":       avatarUrl,
-			"created_at":       u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			"last_log_in_at":   lastLogInAt,
-			"last_activity_at": lastActivityAt,
-			"activity_length":  activityLength,
-			"referrals":        referrals,
+		resp = append(resp, UserListItem{
+			ID:                 u.ID,
+			Email:              u.Email,
+			Name:               u.Name,
+			AvatarUrl:          avatarUrl,
+			CreatedAt:          u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			LastLogInAt:        lastLogInAt,
+			LastActivityAt:     lastActivityAt,
+			ActivityLength:     activityLength,
+			Referrals:          referralMap[u.ID],
+			CreditUsed:         creditUsageMap[u.ID],
+			AmountSpent:        amountSpentMap[u.ID],
+			SubscriptionStatus: subscriptionStatus,
 		})
 	}
 
