@@ -20,6 +20,11 @@ type ChannelType string
 var (
 	Updated                     NotificationType = "updated"
 	AgentUpdate                 NotificationType = "agent_update"
+	AgentProcessingStarted      NotificationType = "agent_processing_started"
+	AgentProcessingFinished     NotificationType = "agent_processing_finished"
+	AgentErrorOccured           NotificationType = "agent_error_occured"
+	AgentToolCallStarted        NotificationType = "agent_tool_call_started"
+	AgentToolCallCompleted      NotificationType = "agent_tool_call_completed"
 	Deleted                     NotificationType = "deleted"
 	UpdatedMedia                NotificationType = "updated_media"
 	NewMessage                  NotificationType = "new_message"
@@ -73,6 +78,14 @@ type ModificationDetails struct {
 	OrgId     string `json:"org_id,omitempty"`
 }
 
+type ToolCallNotification struct {
+	ToolName  string                 `json:"tool_name"`
+	Arguments map[string]interface{} `json:"arguments"`
+	Status    string                 `json:"status"`
+	Result    interface{}            `json:"result"`
+	Error     *string                `json:"error"`
+}
+
 var Notification = map[NotificationType]Content{
 
 	Updated: Content{
@@ -82,6 +95,31 @@ var Notification = map[NotificationType]Content{
 
 	AgentUpdate: Content{
 		NotificationType: AgentUpdate,
+		Content:          ModificationDetails{},
+	},
+
+	AgentProcessingStarted: Content{
+		NotificationType: AgentProcessingStarted,
+		Content:          ModificationDetails{},
+	},
+
+	AgentProcessingFinished: Content{
+		NotificationType: AgentProcessingFinished,
+		Content:          ModificationDetails{},
+	},
+
+	AgentErrorOccured: Content{
+		NotificationType: AgentErrorOccured,
+		Content:          ModificationDetails{},
+	},
+
+	AgentToolCallStarted: Content{
+		NotificationType: AgentToolCallStarted,
+		Content:          ModificationDetails{},
+	},
+
+	AgentToolCallCompleted: Content{
+		NotificationType: AgentToolCallCompleted,
 		Content:          ModificationDetails{},
 	},
 

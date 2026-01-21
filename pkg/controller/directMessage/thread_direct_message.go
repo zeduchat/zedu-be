@@ -54,7 +54,7 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	threadData, statusCode, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger)
+	threadData, statusCode, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger, base.ExtReq)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
@@ -94,7 +94,7 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 }
 
 func (base *Controller) BotDMResponse(c *gin.Context) {
-	var req models.BotReturnRequest
+	var req models.BotRequest
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -110,7 +110,7 @@ func (base *Controller) BotDMResponse(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.BotResponse(req, base.Db, base.Logger)
+	respData, code, err := dm.BotResponse(req, base.Db, base.Logger, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to post message", err, nil)
