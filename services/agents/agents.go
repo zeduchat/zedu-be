@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -1124,7 +1125,7 @@ func GenerateAgentInfo(c *gin.Context, reqs models.GenerateInfoRequest, agent_id
 		return models.GenerateInfoResponse{}, code, fmt.Errorf("error generating agent info: %w", err)
 	}
 
-	content, err := telexai.ExtractChatContent(response)
+	content, err := openrouter.ExtractChatContent(response)
 	if err != nil {
 		logger.Error("Error extracting chat content: ", err)
 	}

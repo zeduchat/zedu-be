@@ -71,7 +71,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 							ThreadId:   utility.GenerateUUID(),
 						}
 
-						_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
+						_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
 						if saveErr != nil {
 							logger.Error("failed to save system message for bot DM channel %s", resp.ID)
 						} else {
@@ -97,7 +97,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 					ThreadId:   utility.GenerateUUID(),
 				}
 
-				_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger)
+				_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
 				if saveErr != nil {
 					logger.Error("failed to save system message for DM channel %s, err: %v", resp.ID, saveErr)
 				} else {

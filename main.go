@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
@@ -55,8 +56,8 @@ func main() {
 	onesignal.ConnectOneSignal(logger, configuration.OneSignal)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 	webpush.NewPushClient(logger, configuration.WebPush)
-
 	db := storage.Connection()
+	openrouter.NewOpenRouterClient(logger, configuration.OpenRouter, storage.DB.Redis)
 
 	// start river
 	ctx := context.Background()
