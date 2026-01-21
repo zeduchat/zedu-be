@@ -41,7 +41,7 @@ func GroupDMs(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		organisationUrls.POST("/:org_id/group-dms", dmCtrl.CreateGroupDMChannel)
 		organisationUrls.POST("/group-dms/:channel_id/join", dmCtrl.JoinGroupDMChannel)
 		organisationUrls.POST("/group-dms/:channel_id/participants", dmCtrl.AddParticipantsToGroupDMChannel)
-		organisationUrls.DELETE("/:org_id/group-dms/:channel_id", dmCtrl.LeaveGroupDMChannel)
+		organisationUrls.DELETE("/:org_id/group-dms/:channel_id/leave", dmCtrl.LeaveGroupDMChannel)
 		organisationUrls.GET("/:org_id/group-dms", dmCtrl.GetGroupDMChannels)
 		organisationUrls.GET("/:org_id/group-dms/:user_id", dmCtrl.GetUserGroupDMs)
 	}
