@@ -174,7 +174,6 @@ func (c *Client) StreamChatCompletionsChannel(ctx context.Context, req models.Te
 	}
 
 	c.Logger.Info(fmt.Sprintf("Starting stream for model: %s", req.GetModel()))
-	extReq.Test = false
 
 	streamChan, err := extReq.SendStreamingExternalRequest(request.GetChatCompletions, openRouterPayload, ctx)
 	if err != nil {
