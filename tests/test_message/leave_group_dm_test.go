@@ -234,7 +234,7 @@ func TestLeaveGroupDMChannel(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusBadRequest {
+		if rr.Code != http.StatusForbidden {
 			t.Errorf("Expected status 403, got %d. Response: %s", rr.Code, rr.Body.String())
 		}
 
@@ -270,7 +270,7 @@ func TestLeaveGroupDMChannel(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusBadRequest {
+		if rr.Code != http.StatusNotFound {
 			t.Errorf("Expected status 404, got %d. Response: %s", rr.Code, rr.Body.String())
 		}
 

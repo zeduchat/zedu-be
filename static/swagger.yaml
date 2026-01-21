@@ -18901,6 +18901,114 @@ paths:
                 status_code: 409
                 message: "user is already a participant in the group DM channel"
 
+  /organisations/{organisation_id}/group-dms/{channel_id}/leave:
+    delete:
+      tags:
+        - Group Direct Message
+      summary: Leave a Group DM Channel
+      security:
+        - bearerAuth: []
+      description: Allows an authenticated user to leave a Group DM channel. If the user is the last participant, the channel will be deleted. The participant hash is recalculated after leaving.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel to leave.
+      responses:
+        "200":
+          description: User left Group DM channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "success"
+                status_code: 200
+                message: "User left Group DM channel successfully"
+        "400":
+          description: Invalid request parameters (invalid UUID format).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "invalid channel id format"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 401
+                message: "unable to get user claims"
+        "403":
+          description: User is not a participant in the channel.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 403
+                message: "user is not a participant in the group DM channel"
+        "404":
+          description: Group DM channel or user not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "group DM channel does not exist"
+
   /organisations/group-dms/{channel_id}/participants:
     post:
       tags:
