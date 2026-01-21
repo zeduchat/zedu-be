@@ -9,6 +9,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -17,7 +18,7 @@ var ColorMapping = map[string]string{
 	"error":   "#800000",
 }
 
-func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *utility.Logger) error {
+func BuildSlackRequest(feed models.FeedWebHookRequest, db *storage.Database, logger *utility.Logger) error {
 	var (
 		channel    models.Channels
 		slackentry models.SlackTelex
@@ -34,7 +35,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		return errors.New("failed to fetch channel")
 	}
 
-	err = slackentry.GetSlackWebhookUrl(db, chanresp.OrganisationID)
+	err = slackentry.GetSlackWebhookUrl(db.Postgresql, chanresp.OrganisationID)
 
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil
@@ -44,7 +45,7 @@ func BuildSlackRequest(feed models.FeedWebHookRequest, db *gorm.DB, logger *util
 		return errors.New("failed to fetch slack integration")
 	}
 
-	org, err = org.GetOrgByID(db, chanresp.OrganisationID)
+	org, err = org.GetOrgByID(db.Postgresql, chanresp.OrganisationID)
 
 	if err != nil {
 		return errors.New("failed to fetch channel organisation")

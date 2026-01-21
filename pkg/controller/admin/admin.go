@@ -60,6 +60,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 
 	err := c.ShouldBind(&req)
 	if err != nil {
+		base.Logger.Error("Failed to parse request body", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -67,6 +68,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 
 	err = base.Validator.Struct(&req)
 	if err != nil {
+		base.Logger.Error("Validation failed", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -74,6 +76,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 
 	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, c)
 	if err != nil {
+		base.Logger.Error("Failed to login admin", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
