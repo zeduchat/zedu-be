@@ -43,7 +43,7 @@ type CreateAdminResponse struct {
 
 type ChangeAdminRoleRequest struct {
 	NewRole           string `json:"new_role" validate:"required,oneof=admin superadmin"`
-	ConfirmSuperAdmin *bool  `json:"confirm_superadmin,omitempty"`
+	ConfirmSuperAdmin *bool  `json:"confirm_superadmin"`
 }
 
 type ConfirmRoleChangeRequest struct {
