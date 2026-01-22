@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -220,10 +221,26 @@ func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 		return
 	}
 
-	if req.NewRole == models.RoleSuperAdmin && (req.ConfirmSuperAdmin == nil || !*req.ConfirmSuperAdmin) {
-		rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "Explicit confirmation required for superadmin promotion", nil, nil)
-		c.JSON(http.StatusPreconditionRequired, rd)
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed for role change", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
+	}
+
+	if req.NewRole == models.RoleSuperAdmin {
+		if req.ConfirmSuperAdmin == nil {
+			base.Logger.Error("Promotion to superadmin attempted without confirmation flag", nil)
+			rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "Explicit confirmation required for superadmin promotion. Set confirm_superadmin to true.", nil, nil)
+			c.JSON(http.StatusPreconditionRequired, rd)
+			return
+		}
+		if !*req.ConfirmSuperAdmin {
+			base.Logger.Error("Promotion to superadmin attempted with confirmation=false", nil)
+			rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "You must explicitly confirm superadmin promotion by setting confirm_superadmin to true.", nil, nil)
+			c.JSON(http.StatusPreconditionRequired, rd)
+			return
+		}
 	}
 
 	claims := c.MustGet("adminClaims").(jwt.MapClaims)
@@ -263,6 +280,24 @@ func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
 }
 
 func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
+	dateStr := c.Query("date")
+
+	if dateStr != "" {
+		_, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			base.Logger.Error("Invalid date format provided", err)
+			rd := utility.BuildErrorResponse(
+				http.StatusBadRequest,
+				"error",
+				"Invalid date format. Use YYYY-MM-DD",
+				err.Error(),
+				nil,
+			)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	}
+
 	var auditModel models.AuditLog
 
 	logs, pagination, err := auditModel.GetAuditHistory(base.Db.Postgresql, c)
