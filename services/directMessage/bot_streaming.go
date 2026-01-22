@@ -69,7 +69,7 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 	})
 
 	chatReq := models.TelexAIChatCompletionsReq{
-		Model:    "google/gemini-2.0-flash-exp:free",
+		Model:     "google/gemini-2.5-flash",
 		Messages: messages,
 		Tools:    &tools,
 	}
@@ -121,6 +121,30 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 												req.BotNotification = models.AgentProcessingFinished
 												SendAgentNotification(req, logger)
 												processingFinishedSent = true
+												feed := models.FeedMessageRequest{
+													ChannelID:   req.ChannelID,
+													UserName:    orgAgent.AppName,
+													CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+													AvatarURL:   orgAgent.AppLogo,
+													Type:        "message",
+													Content:     fullContent.String(),
+													ThreadId:    req.ThreadId,
+													Email:       "agent",
+													FullName:    orgAgent.AppName,
+													UserId:      *channel.ParticipantId,
+													Media:       req.Media,
+													UserType:    "bot",
+													State:       req.State,
+													ChannelType: "DM",
+													OrgId:       req.OrgId,
+													ChannelName: orgAgent.AppName,
+												}
+
+												err = centrifuge.PublishChannel(logger, req.ChannelID, feed)
+												logger.Info("Published temp message chunk to channel [%s] for agent: [%s]", req.ChannelID, req.AgentId)
+												if err != nil {
+													logger.Error(fmt.Sprintf("Error Publishing temp message chunk to channel %s: %v", req.ChannelID, err.Error()))
+												}
 											}
 
 											fullContent.WriteString(content)

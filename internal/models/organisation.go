@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -234,6 +235,23 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 			avatars      []string
 			totalMembers int64
 		)
+
+		previewThread := []Threads{}
+
+		threadCtx := &gin.Context{
+			Request: &http.Request{
+				URL: &url.URL{
+					RawQuery: "page=1&limit=50",
+				},
+			},
+		}
+
+		var thread Threads
+		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db.Postgresql, ids.UserID, chanResp[i].ID)
+		if threadErr == nil && len(threads) > 0 {
+			previewThread = threads
+		}
+
 		if err := db.Postgresql.Table("user_channels").
 			Select("profiles.avatar_url").
 			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
@@ -305,6 +323,21 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		parts := strings.Split(chanResp[i].ID, "-")
 		lastPart := parts[len(parts)-1]
 		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
+
+				chanResp[i].MemberAvatars = avatars
+		chanResp[i].MembersCount = membersLeft
+		if previewThread != nil {
+			chanResp[i].PreviewThread = previewThread
+		} else {
+			chanResp[i].PreviewThread = []Threads{}
+		}
+		previewMessage := ""
+		if len(previewThread) > 0 {
+			previewMessage = previewThread[0].Content
+			if previewMessage == "" && len(previewThread[0].Media) > 0 {
+				previewMessage = previewThread[0].Media[0].FileType
+			}
+		}
 
 	}
 	query = db.Postgresql.Table("channels").
