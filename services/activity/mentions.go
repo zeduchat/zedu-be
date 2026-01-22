@@ -22,10 +22,16 @@ func GetUserMentionsActivity(userID, orgID string, db *storage.Database, c *gin.
 		return nil, nil, http.StatusNotFound, errors.New("organisation not found")
 	}
 
+	// build query to match mentions across threads and messages
 	query := buildMentionsQuery(userID, orgID)
 
 	var mentionsData []activity.MentionActivityItem
 
+	/*
+		perform search across both "threads" and "messages"
+		indices to capture mentions in parent threads (channels, dms, group dms)
+		and reply messages
+	*/
 	paginationResp, err := elastic.PerformSearchWithMultipleIndicesPagination(
 		db.Elastic,
 		query,
