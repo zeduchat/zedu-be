@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -281,7 +282,7 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 }
 
 // SendFileToUsersDM sends file to multiple users via DM
-func SendFileToUsersDM(db *storage.Database, logger *utility.Logger,
+func SendFileToUsersDM(db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest,
 	fileID string,
 	recipientIDs []string,
 	senderID, orgID string,
@@ -358,7 +359,7 @@ func SendFileToUsersDM(db *storage.Database, logger *utility.Logger,
 			Type:       "file_share",
 		}
 
-		threadDoc, _, err := dm.CreateThreadDmMessage(threadReq, db, logger)
+		threadDoc, _, err := dm.CreateThreadDmMessage(threadReq, db, logger, extReq)
 		if err != nil {
 			recipients = append(recipients, models.DMRecipientInfo{
 				UserID:   recipientID,
@@ -429,7 +430,7 @@ func publishFileShareNotification(logger *utility.Logger, senderID, orgID, fileI
 }
 
 // ShareFileWithUsers combines share creation and DM sending
-func ShareFileWithUsers(db *storage.Database, logger *utility.Logger,
+func ShareFileWithUsers(db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest,
 	req models.ShareFileRequest,
 	senderID, orgID string) (*models.ShareFileResponse, error) {
 
@@ -472,6 +473,7 @@ func ShareFileWithUsers(db *storage.Database, logger *utility.Logger,
 		recipients, err := SendFileToUsersDM(
 			db,
 			logger,
+			extReq,
 			req.FileID,
 			req.RecipientIDs,
 			senderID,

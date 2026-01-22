@@ -931,7 +931,7 @@ func (base *Controller) ShareFile(c *gin.Context) {
 		}
 	}
 
-	response, err := services.ShareFileWithUsers(base.Db, base.Logger, req, userID, orgID)
+	response, err := services.ShareFileWithUsers(base.Db, base.Logger, base.ExtReq, req, userID, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to share file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -1255,6 +1255,7 @@ func (base *Controller) SendFileToDM(c *gin.Context) {
 	recipients, err := services.SendFileToUsersDM(
 		base.Db,
 		base.Logger,
+		base.ExtReq,
 		fileID,
 		req.RecipientIDs,
 		userID,
