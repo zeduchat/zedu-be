@@ -874,3 +874,418 @@ func (base *Controller) GetPinnedFiles(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Pinned files fetched successfully", files)
 	c.JSON(http.StatusOK, rd)
 }
+
+// ShareFile creates a file share and optionally sends it to users via DM
+func (base *Controller) ShareFile(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.ShareFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	req.FileID = fileID
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	var file models.File
+	if err := base.Db.Postgresql.Where("id = ? AND organisation_id = ?", fileID, orgID).First(&file).Error; err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "File does not exist or you don't have access", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	if file.UserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "You don't have permission to share this file", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	if req.ExpiresAt != nil {
+		if err := models.ValidateShareExpiration(req.ExpiresAt); err != nil {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid expiration date", err.Error(), nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	}
+
+	response, err := services.ShareFileWithUsers(base.Db, base.Logger, base.ExtReq, req, userID, orgID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to share file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("File shared successfully", "file_id", fileID, "share_id", response.FileShareID)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "File shared successfully", response)
+	c.JSON(http.StatusCreated, rd)
+}
+
+// UpdateFileShare updates an existing file share
+func (base *Controller) UpdateFileShare(c *gin.Context) {
+	shareID := c.Param("id")
+	if !utility.IsValidUUID(shareID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid share ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	_, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	var req models.UpdateFileShareRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	fileShare, err := services.UpdateFileShare(base.Db.Postgresql, base.Logger, shareID, req)
+	if err != nil {
+		if errors.Is(err, services.ErrFileShareNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File share not found", err.Error(), nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update file share", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("File share updated successfully", "share_id", shareID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File share updated successfully", fileShare)
+	c.JSON(http.StatusOK, rd)
+}
+
+// RevokeFileShare revokes/deletes a file share
+func (base *Controller) RevokeFileShare(c *gin.Context) {
+	shareID := c.Param("id")
+	if !utility.IsValidUUID(shareID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid share ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	if err := services.RevokeFileShare(base.Db.Postgresql, base.Logger, shareID, userID); err != nil {
+		if errors.Is(err, services.ErrFileShareNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File share not found", err.Error(), nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		if errors.Is(err, services.ErrAccessDenied) {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "You don't have permission to revoke this share", nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to revoke file share", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("File share revoked successfully", "share_id", shareID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File share revoked successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+// GetFileShares retrieves all shares for a file
+func (base *Controller) GetFileShares(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	var file models.File
+	if err := base.Db.Postgresql.Where("id = ? AND user_id = ?", fileID, userID).First(&file).Error; err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "File does not exist or you don't have access", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	activeOnly := c.Query("active_only") == "true"
+
+	shares, err := services.GetFileSharesForFile(base.Db.Postgresql, fileID, activeOnly)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch file shares", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	var enrichedShares []models.FileShareListResponse
+	for _, share := range shares {
+		detail, err := services.GetFileShareWithDetails(base.Db.Postgresql, share.ID)
+		if err == nil {
+			enrichedShares = append(enrichedShares, *detail)
+		}
+	}
+
+	base.Logger.Info("File shares retrieved successfully", "file_id", fileID, "count", len(enrichedShares))
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File shares retrieved successfully", enrichedShares)
+	c.JSON(http.StatusOK, rd)
+}
+
+// AccessSharedFile allows a user to access a file via share link
+func (base *Controller) AccessSharedFile(c *gin.Context) {
+	var req models.AccessSharedFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	fileShare, err := services.GetFileShareByLink(base.Db.Postgresql, req.ShareLink)
+	if err != nil {
+		if errors.Is(err, services.ErrFileShareNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File share not found", "Invalid share link", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		if errors.Is(err, services.ErrShareExpired) {
+			rd := utility.BuildErrorResponse(http.StatusGone, "error", "Share expired", "This file share has expired", nil)
+			c.JSON(http.StatusGone, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to access shared file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	var userID, orgID string
+	if exists {
+		userClaims := claims.(jwt.MapClaims)
+		userID = userClaims["user_id"].(string)
+		orgID = userClaims["org_id"].(string)
+	}
+
+	if userID != "" && orgID != "" {
+		if fileShare.OrganisationID != orgID {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "This file is not shared with your organization", nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
+	}
+
+	if err := services.IncrementShareAccess(base.Db.Postgresql, base.Logger, fileShare.ID); err != nil {
+		base.Logger.Error("Failed to increment share access count", "error", err)
+	}
+
+	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileShare.FileID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch file", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	go services.UpdateFileLastAccessedAt(base.Db.Postgresql, fileShare.FileID)
+
+	response := map[string]interface{}{
+		"file":        file,
+		"permission":  fileShare.PermissionType,
+		"access_type": fileShare.AccessType,
+		"note":        fileShare.Note,
+		"expires_at":  fileShare.ExpiresAt,
+		"share_link":  fileShare.ShareLink,
+	}
+
+	base.Logger.Info("Shared file accessed successfully", "share_id", fileShare.ID, "file_id", fileShare.FileID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Shared file accessed successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+// UpdateFileAccessSettings updates file-level access settings
+func (base *Controller) UpdateFileAccessSettings(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	var req models.UpdateFileAccessSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	file, err := services.UpdateFileAccessSettings(base.Db.Postgresql, base.Logger, fileID, userID, orgID, req)
+	if err != nil {
+		if errors.Is(err, services.ErrAccessDenied) {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "You don't have permission to update file settings", nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update file access settings", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("File access settings updated successfully", "file_id", fileID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File access settings updated successfully", file)
+	c.JSON(http.StatusOK, rd)
+}
+
+// SendFileToDM sends file to specific users via DM
+func (base *Controller) SendFileToDM(c *gin.Context) {
+	fileID := c.Param("id")
+	if !utility.IsValidUUID(fileID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid file ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	var req struct {
+		RecipientIDs []string `json:"recipient_ids" validate:"required,min=1,dive,uuid"`
+		Note         string   `json:"note" validate:"omitempty,max=500"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	validationErr := base.Validator.Struct(&req)
+	if validationErr != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(validationErr, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	var file models.File
+	if err := base.Db.Postgresql.Where("id = ? AND organisation_id = ?", fileID, orgID).First(&file).Error; err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "File does not exist or you don't have access", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	if file.UserID != userID {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "You can only send files you own", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	recipients, err := services.SendFileToUsersDM(
+		base.Db,
+		base.Logger,
+		base.ExtReq,
+		fileID,
+		req.RecipientIDs,
+		userID,
+		orgID,
+		req.Note,
+		"view",
+		"private",
+		"",
+	)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send file to DM", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	successCount := 0
+	for _, r := range recipients {
+		if r.Success {
+			successCount++
+		}
+	}
+
+	response := map[string]interface{}{
+		"recipients":       recipients,
+		"total_sent":       len(recipients),
+		"successful_sends": successCount,
+		"failed_sends":     len(recipients) - successCount,
+	}
+
+	base.Logger.Info("File sent to DM successfully", "file_id", fileID, "recipients", len(req.RecipientIDs))
+	rd := utility.BuildSuccessResponse(http.StatusOK, "File sent to DM successfully", response)
+	c.JSON(http.StatusOK, rd)
+}

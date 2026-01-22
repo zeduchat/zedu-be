@@ -75,5 +75,13 @@ func SetupFileManagementRoutes(r *gin.Engine, fileController *fileManagement.Con
 		fileUrl.POST("/file/:id/pin", fileController.PinFile)
 		fileUrl.DELETE("/file/:id/pin", fileController.UnpinFile)
 		fileUrl.GET("/favorites", fileController.GetPinnedFiles)
+
+		fileUrl.POST("/:id/share", fileController.ShareFile)
+		fileUrl.PUT("/shares/:id", fileController.UpdateFileShare)
+		fileUrl.DELETE("/shares/:id", fileController.RevokeFileShare)
+		fileUrl.GET("/:id/shares", fileController.GetFileShares)
+		fileUrl.POST("/access", fileController.AccessSharedFile)
+		fileUrl.PUT("/:id/access-settings", fileController.UpdateFileAccessSettings)
+		fileUrl.POST("/:id/send-dm", fileController.SendFileToDM)
 	}
 }
