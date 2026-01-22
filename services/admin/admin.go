@@ -29,23 +29,15 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
-		envEmail     = config.GetConfig().Admin.SUPER_ADMIN_EMAIL
-		envName      = config.GetConfig().Admin.SUPER_ADMIN_NAME
-		envPassword  = config.GetConfig().Admin.SUPER_ADMIN_PASSWORD
-		envRole      = config.GetConfig().Admin.SUPER_ADMIN_ROLE
+		cfg          = config.GetConfig().Admin
 	)
 
-	if req.Email == envEmail && req.Password == envPassword {
-		// Construct a pseudo-admin
-		admin = models.Admin{
-			ID:       utility.GenerateUUID(),
-			Email:    envEmail,
-			Name:     envName,
-			IsActive: true,
-			Role:     envRole,
+	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {
+		err := admin.GetOrCreateSuperAdmin(db, cfg)
+		if err != nil {
+			return responseData, http.StatusInternalServerError, fmt.Errorf("failed to sync superadmin: %w", err)
 		}
 	} else {
-		// Proceed with DB check
 		exists := postgresql.CheckExists(db, &admin, "email = ?", req.Email)
 		if !exists {
 			return responseData, 400, fmt.Errorf("invalid credentials")
@@ -67,7 +59,6 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	}
 
 	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: admin.ID}
-
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)

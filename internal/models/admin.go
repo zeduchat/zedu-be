@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -164,4 +166,27 @@ func GetAdminById(db *gorm.DB, adminId string) (*Admin, error) {
 		return nil, err
 	}
 	return &admin, nil
+}
+
+// GetOrCreateSuperAdmin checks if the superadmin exists by email.
+// If not, it seeds the DB with the credentials provided in config.
+func (a *Admin) GetOrCreateSuperAdmin(db *gorm.DB, cfg config.Admin) error {
+	err := db.Where("email = ?", cfg.SUPER_ADMIN_EMAIL).First(a).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			hashedPassword, _ := utility.HashPassword(cfg.SUPER_ADMIN_PASSWORD)
+
+			a.ID = utility.GenerateUUID()
+			a.Email = cfg.SUPER_ADMIN_EMAIL
+			a.Name = cfg.SUPER_ADMIN_NAME
+			a.Password = hashedPassword
+			a.Role = RoleSuperAdmin
+			a.IsActive = true
+
+			return db.Create(a).Error
+		}
+		return err
+	}
+	return nil
 }
