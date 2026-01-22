@@ -11,7 +11,6 @@ require (
 	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0
 	github.com/OneSignal/onesignal-go-api/v5 v5.3.0-beta1
 	github.com/SherClockHolmes/webpush-go v1.4.0
-	github.com/anthonycorbacho/slack-webhook v1.0.1
 	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/didip/tollbooth v4.0.2+incompatible

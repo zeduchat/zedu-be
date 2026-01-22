@@ -89,6 +89,19 @@ func TestListUsersEndpoint(t *testing.T) {
 		t.Fatalf("expected at least 2 users, got %d", len(arr))
 	}
 
+	for i, item := range arr {
+		m := item.(map[string]any)
+		if _, ok := m["subscription_status"]; !ok {
+			t.Errorf("user %d missing 'subscription_status' field", i)
+		}
+		if _, ok := m["credit_used"]; !ok {
+			t.Errorf("user %d missing 'credit_used' field", i)
+		}
+		if _, ok := m["amount_spent"]; !ok {
+			t.Errorf("user %d missing 'amount_spent' field", i)
+		}
+	}
+
 	pagArr, ok := data["pagination"].([]any)
 	if !ok || len(pagArr) == 0 {
 		t.Logf("response headers: %v", rr.Header())
