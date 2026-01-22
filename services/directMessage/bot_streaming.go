@@ -69,7 +69,7 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 	})
 
 	chatReq := models.TelexAIChatCompletionsReq{
-		Model:    "google/gemini-2.0-flash-exp:free",
+		Model:     "google/gemini-2.5-flash",
 		Messages: messages,
 		Tools:    &tools,
 	}
