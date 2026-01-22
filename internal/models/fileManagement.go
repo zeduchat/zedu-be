@@ -118,6 +118,10 @@ type File struct {
 	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
 	LastAccessedAt *time.Time     `gorm:"column:last_accessed_at" json:"last_accessed_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+
+	// New fields for sharing
+	AccessType  string `gorm:"column:access_type;type:varchar(20);default:'private';index" json:"access_type"`
+	IsShareable bool   `gorm:"column:is_shareable;default:false" json:"is_shareable"`
 }
 
 type FileMediaResponse struct {
@@ -285,4 +289,174 @@ func GetDateRangeFilter(filter string) (start, end *time.Time) {
 	}
 
 	return nil, nil
+}
+
+// FileShare represents a shared file with specific permissions
+type FileShare struct {
+	ID             string         `gorm:"type:uuid;primary_key" json:"id"`
+	FileID         string         `gorm:"column:file_id;type:uuid;not null;index" json:"file_id"`
+	SharedByUserID string         `gorm:"column:shared_by_user_id;type:uuid;not null;index" json:"shared_by_user_id"`
+	OrganisationID string         `gorm:"column:organisation_id;type:uuid;not null;index" json:"organisation_id"`
+	AccessType     string         `gorm:"column:access_type;type:varchar(20);not null;default:'private';index" json:"access_type"`
+	PermissionType string         `gorm:"column:permission_type;type:varchar(20);not null;default:'view'" json:"permission_type"`
+	Note           string         `gorm:"column:note;type:text" json:"note"`
+	ShareLink      string         `gorm:"column:share_link;type:varchar(255);unique;index" json:"share_link"`
+	ExpiresAt      *time.Time     `gorm:"column:expires_at;index" json:"expires_at"`
+	AccessCount    int            `gorm:"column:access_count;default:0" json:"access_count"`
+	LastAccessedAt *time.Time     `gorm:"column:last_accessed_at" json:"last_accessed_at"`
+	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+
+	// Relationships
+	File     *File    `gorm:"foreignKey:FileID" json:"file,omitempty"`
+	SharedBy *Profile `gorm:"foreignKey:SharedByUserID" json:"shared_by,omitempty"`
+}
+
+func (fs *FileShare) TableName() string {
+	return "file_shares"
+}
+
+func (fs *FileShare) BeforeCreate(tx *gorm.DB) error {
+	if fs.ID == "" {
+		fs.ID = utility.GenerateUUID()
+	}
+	return nil
+}
+
+// Update existing File struct to include new fields
+type FileWithSharing struct {
+	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
+	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`
+	FileType       string         `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
+	MimeType       string         `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
+	FileLink       string         `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	Size           int64          `gorm:"column:size" json:"size"`
+	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
+	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
+	FolderID       *string        `gorm:"column:folder_id; type:uuid" json:"folder_id"`
+	ChannelID      *string        `gorm:"column:channel_id; type:uuid" json:"channel_id"`
+	MessageID      *string        `gorm:"column:message_id; type:uuid" json:"message_id"`
+	CreatedAt      time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
+	LastAccessedAt *time.Time     `gorm:"column:last_accessed_at" json:"last_accessed_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+
+	// New fields for sharing
+	AccessType  string `gorm:"column:access_type;type:varchar(20);default:'private';index" json:"access_type"`
+	IsShareable bool   `gorm:"column:is_shareable;default:false" json:"is_shareable"`
+}
+
+// Request/Response Models
+
+type ShareFileRequest struct {
+	FileID         string     `json:"file_id" validate:"required,uuid"`
+	AccessType     string     `json:"access_type" validate:"required,oneof=private public"`
+	PermissionType string     `json:"permission_type" validate:"required,oneof=view edit"`
+	Note           string     `json:"note" validate:"omitempty,max=500"`
+	ExpiresAt      *time.Time `json:"expires_at"`
+	ShareViaDM     bool       `json:"share_via_dm"`
+	RecipientIDs   []string   `json:"recipient_ids" validate:"omitempty,dive,uuid"`
+}
+
+type ShareFileResponse struct {
+	FileShareID    string            `json:"file_share_id"`
+	FileID         string            `json:"file_id"`
+	ShareLink      string            `json:"share_link"`
+	AccessType     string            `json:"access_type"`
+	PermissionType string            `json:"permission_type"`
+	Note           string            `json:"note"`
+	ExpiresAt      *time.Time        `json:"expires_at"`
+	DMsSent        []string          `json:"dms_sent"`
+	RecipientsInfo []DMRecipientInfo `json:"recipients_info,omitempty"`
+}
+
+type DMRecipientInfo struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Success  bool   `json:"success"`
+	Error    string `json:"error,omitempty"`
+}
+
+type UpdateFileShareRequest struct {
+	AccessType     *string    `json:"access_type" validate:"omitempty,oneof=private public"`
+	PermissionType *string    `json:"permission_type" validate:"omitempty,oneof=view edit"`
+	Note           *string    `json:"note" validate:"omitempty,max=500"`
+	ExpiresAt      *time.Time `json:"expires_at"`
+}
+
+type AccessSharedFileRequest struct {
+	ShareLink string `json:"share_link" validate:"required,url"`
+}
+
+type FileShareListResponse struct {
+	FileShare *FileShare   `json:"file_share"`
+	FileInfo  *File        `json:"file_info,omitempty"`
+	SharedBy  *ShareByUser `json:"shared_by,omitempty"`
+}
+
+type ShareByUser struct {
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+type UpdateFileAccessSettingsRequest struct {
+	AccessType  *string `json:"access_type" validate:"omitempty,oneof=private public"`
+	IsShareable *bool   `json:"is_shareable"`
+}
+
+type GetFileSharesRequest struct {
+	FileID     string `json:"file_id" validate:"required,uuid"`
+	ActiveOnly bool   `json:"active_only"`
+}
+
+type FileSharedEvent struct {
+	FileID     string `json:"file_id"`
+	SharedBy   string `json:"shared_by"`
+	Event      string `json:"event"`
+	Permission string `json:"permission"`
+	AccessType string `json:"access_type"`
+}
+
+// Helper functions for validation
+
+func ValidateAccessType(accessType string) error {
+	validTypes := map[string]bool{
+		"private": true,
+		"public":  true,
+	}
+	if !validTypes[accessType] {
+		return fmt.Errorf("invalid access_type: %s, must be 'private' or 'public'", accessType)
+	}
+	return nil
+}
+
+func ValidatePermissionType(permissionType string) error {
+	validTypes := map[string]bool{
+		"view": true,
+		"edit": true,
+	}
+	if !validTypes[permissionType] {
+		return fmt.Errorf("invalid permission_type: %s, must be 'view' or 'edit'", permissionType)
+	}
+	return nil
+}
+
+func ValidateShareExpiration(expiresAt *time.Time) error {
+	if expiresAt == nil {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	if expiresAt.Before(now) {
+		return fmt.Errorf("expiration date cannot be in the past")
+	}
+
+	maxFuture := now.AddDate(1, 0, 0)
+	if expiresAt.After(maxFuture) {
+		return fmt.Errorf("expiration date cannot be more than 1 year in the future")
+	}
+
+	return nil
 }

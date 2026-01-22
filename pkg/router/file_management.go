@@ -42,6 +42,15 @@ func FileManagement(r *gin.Engine, ApiVersion string, validator *validator.Valid
 		fileManagementUrl.DELETE("/file/:id/pin", fileManagement.UnpinFile)
 		fileManagementUrl.GET("/favorites", fileManagement.GetPinnedFiles)
 		fileManagementUrl.GET("/recent", fileManagement.GetRecentFiles)
+
+		// NEW ROUTES - File Sharing
+		fileManagementUrl.POST("/:id/share", fileManagement.ShareFile)
+		fileManagementUrl.PUT("/shares/:id", fileManagement.UpdateFileShare)
+		fileManagementUrl.DELETE("/shares/:id", fileManagement.RevokeFileShare)
+		fileManagementUrl.GET("/:id/shares", fileManagement.GetFileShares)
+		fileManagementUrl.POST("/access", fileManagement.AccessSharedFile)
+		fileManagementUrl.PUT("/:id/access-settings", fileManagement.UpdateFileAccessSettings)
+		fileManagementUrl.POST("/:id/send-dm", fileManagement.SendFileToDM)
 	}
 
 	return r

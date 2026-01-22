@@ -45,6 +45,8 @@ func TestGetFileInfo(t *testing.T) {
 	if len(user.Organisations) == 0 {
 		t.Fatal("User has no organisations")
 	}
+
+	// Create a test file directly in the database (no MinIO required for info endpoint test)
 	testFile := models.File{
 		ID:             uuid.New().String(),
 		FileName:       "test_info_file.txt",

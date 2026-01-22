@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -30,15 +31,47 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 
 	tools := InitializeTools()
 
+	re := regexp.MustCompile("<[^>]*>")
+	strippedContent := re.ReplaceAllString(req.Content, "")
+
+	var messages []external_models.TelexAIOpenRouterMessage
+
+	messages = append(messages, external_models.TelexAIOpenRouterMessage{
+		Role:    "system",
+		Content: fmt.Sprintf("You are %s. %s", orgAgent.AppName, orgAgent.AppDescription),
+	})
+
+	var userContent any
+	if len(req.Media) > 0 {
+		var contentParts []map[string]any
+		if strippedContent != "" {
+			contentParts = append(contentParts, map[string]any{
+				"type": "text",
+				"text": strippedContent,
+			})
+		}
+		for _, media := range req.Media {
+			contentParts = append(contentParts, map[string]any{
+				"type": "image_url",
+				"image_url": map[string]string{
+					"url": media.FileLink,
+				},
+			})
+		}
+		userContent = contentParts
+	} else {
+		userContent = strippedContent
+	}
+
+	messages = append(messages, external_models.TelexAIOpenRouterMessage{
+		Role:    "user",
+		Content: userContent,
+	})
+
 	chatReq := models.TelexAIChatCompletionsReq{
-		Model: "google/gemini-2.5-flash",
-		Messages: []external_models.TelexAIOpenRouterMessage{
-			{
-				Role:    "user",
-				Content: req.Content,
-			},
-		},
-		Tools: &tools,
+		Model:    "google/gemini-2.0-flash-exp:free",
+		Messages: messages,
+		Tools:    &tools,
 	}
 
 	ctx := context.Background()
