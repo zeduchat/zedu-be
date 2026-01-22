@@ -156,7 +156,11 @@ func GetAllAdmins(db *gorm.DB) ([]CreateAdminResponse, error) {
 
 func GetAdminById(db *gorm.DB, adminId string) (*Admin, error) {
 	var admin Admin
-	if err := db.First(&admin, "id = ?", adminId).Error; err != nil {
+	err := db.Where("id = ? AND is_deleted = ?", adminId, false).First(&admin).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("admin not found")
+		}
 		return nil, err
 	}
 	return &admin, nil
