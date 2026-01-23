@@ -25660,7 +25660,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: Creates a new buzz in a channel with a default duration of 60 minutes. The creator becomes a host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**
+      description: Creates a new buzz in a channel with a default duration of 60 minutes. The creator becomes a host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.** A system message is generated in the channel to indicate the buzz started.
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -26165,7 +26165,7 @@ paths:
       tags:
         - buzz
       summary: End a buzz (call)
-      description: Allows the host to explicitly end the buzz for all participants
+      description: Allows the host to explicitly end the buzz for all participants. A system message is generated in the channel to indicate the buzz ended.
       operationId: endBuzz
       security:
         - bearerAuth: []
@@ -26687,6 +26687,17 @@ paths:
 
 components:
   schemas:
+    MessageType:
+      type: string
+      enum:
+        - user
+        - system
+        - bot
+      description: |
+        Type of message:
+        - `user`: Regular user message
+        - `system`: Automated system message (e.g., user joined/left, buzz started/ended)
+        - `bot`: Bot or agent response
     MentionActivityItem:
       type: object
       properties:
@@ -30132,12 +30143,22 @@ components:
         userId:
           type: string
           format: uuid
+        type:
+          $ref: "#/components/schemas/MessageType"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        content: "@john started a buzz (3 participants)"
+        channel_id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        userId: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        type: "system"
+        created_at: "2024-07-30T21:11:21.9538358+01:00"
+        updated_at: "2024-07-30T21:11:21.9538358+01:00"
 
     ChannelJoinResponseSchema:
       type: object
