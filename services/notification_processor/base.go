@@ -33,6 +33,11 @@ func stripHTMLTags(content string) string {
 		content = strings.ReplaceAll(content, entity, replacement)
 	}
 
+	content = strings.ReplaceAll(content, "</p>", "\n")
+	content = strings.ReplaceAll(content, "<br>", "\n")
+	content = strings.ReplaceAll(content, "<br/>", "\n")
+	content = strings.ReplaceAll(content, "<br />", "\n")
+
 	re := regexp.MustCompile(`<[^>]*>?`)
 	content = re.ReplaceAllString(content, "")
 
