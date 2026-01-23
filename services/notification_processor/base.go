@@ -16,8 +16,34 @@ import (
 )
 
 func stripHTMLTags(content string) string {
+	htmlEntities := map[string]string{
+		"&nbsp;":   " ",
+		"&amp;":    "&",
+		"&lt;":     "<",
+		"&gt;":     ">",
+		"&quot;":   "\"",
+		"&#39;":    "'",
+		"&apos;":   "'",
+		"&ndash;":  "-",
+		"&mdash;":  "—",
+		"&hellip;": "...",
+	}
+
+	for entity, replacement := range htmlEntities {
+		content = strings.ReplaceAll(content, entity, replacement)
+	}
+
 	re := regexp.MustCompile(`<[^>]*>?`)
-	return re.ReplaceAllString(content, "")
+	content = re.ReplaceAllString(content, "")
+
+	content = strings.TrimSpace(content)
+
+	maxLength := 100
+	if len(content) > maxLength {
+		content = content[:maxLength] + "..."
+	}
+
+	return content
 }
 
 func ProcessNotification(req Job, logger *utility.Logger) error {
