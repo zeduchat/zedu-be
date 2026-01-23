@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	errorAgoraNotInitialized = "agora service not initialized"
+	errorAgoraNotInitialized   = "agora service not initialized"
+	DefaultBuzzDurationMinutes = 60
 )
 
 // mapPermissionError maps permission errors to HTTP status codes and user-friendly messages
@@ -91,6 +92,7 @@ func buildBuzzMetadataResponse(buzz *models.Buzz, participantMetadata []models.P
 		Status:       buzz.Status,
 		CreatedAt:    buzz.CreatedAt,
 		StartedAt:    buzz.BuzzStartTime,
+		EndedAt:      buzz.BuzzEndTime,
 		Participants: participantMetadata,
 	}
 }
@@ -173,6 +175,8 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	// Only the host auto-joins on creation; others must explicitly join via /join endpoint
 	participants := []string{hostID}
 
+	endTime := now.Add(time.Duration(DefaultBuzzDurationMinutes) * time.Minute)
+
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
 		ChannelID:      channelID,
@@ -180,6 +184,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		HostID:         hostID,
 		ParticipantIDs: participants,
 		BuzzStartTime:  now,
+		BuzzEndTime:    &endTime,
 		IsLiveStatus:   true,
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
@@ -246,6 +251,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		Status:         metadataResp.Status,
 		CreatedAt:      metadataResp.CreatedAt,
 		StartedAt:      metadataResp.StartedAt,
+		EndedAt:        metadataResp.EndedAt,
 		ParticipantIDs: buzz.ParticipantIDs,
 		Participants:   metadataResp.Participants,
 		AgoraToken:     &agoraToken,
@@ -348,6 +354,8 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		UserID:       userID,
 		Status:       metadataResp.Status,
 		CreatedAt:    metadataResp.CreatedAt,
+		StartedAt:    metadataResp.StartedAt,
+		EndedAt:      metadataResp.EndedAt,
 		JoinedAt:     timestamp,
 		Participants: metadataResp.Participants,
 		AgoraToken:   &agoraToken,
@@ -751,6 +759,7 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 		BuzzID:                buzz.ID,
 		HostID:                buzz.HostID,
 		Status:                buzz.Status,
+		EndedAt:               buzz.BuzzEndTime,
 		ParticipantCount:      len(participantMetadata),
 		ParticipantPreview:    participantPreview,
 		RemainingParticipants: remainingCount,
