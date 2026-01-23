@@ -116,7 +116,6 @@ tags:
     description: API endpoints for buzz (audio/video calls) feature
   - name: shares
     description: API endpoints for buying and tracking shares
-
 paths:
   # Super Admin Dashboard paths
   /backoffice/dashboard/credits-summary:
@@ -14599,7 +14598,7 @@ paths:
                     description: A message describing the result.
                   data:
                     type: object
-                    properties:
+                    
 
         400:
           description: Invalid agent_idor request.
@@ -26206,8 +26205,8 @@ paths:
           description: Not found - channel does not exist
           content:
             application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error
           content:
@@ -26710,11 +26709,11 @@ components:
           format: uri
           nullable: true
           example: "https://example.com/avatar.jpg"
-          is_in_buzz:
+        is_in_buzz:
             type: boolean
             description: Whether the user is currently an active participant in the buzz (excludes users who have left)
             example: false
-          is_invited:
+        is_invited:
             type: boolean
             description: Whether the user has a pending invitation
             example: false
@@ -26858,30 +26857,30 @@ components:
           type: string
           enum: [active, ended]
           description: Current status of the buzz
-          created_at:
+        created_at:
            type: string
            format: date-time
            description: When the buzz was created
-          started_at:
+        started_at:
            type: string
            format: date-time
            description: When the buzz started
-          ended_at:
+        ended_at:
            type: string
            format: date-time
            nullable: true
-           description: When buzz is scheduled to end (default: 60 minutes after creation)
-          participants:
+           description: When buzz is scheduled to end default is 60 minutes after creation
+        participants:
            type: array
            items:
              $ref: "#/components/schemas/ParticipantMetadata"
            description: Array of participant metadata (initially contains only the host)
-          agora_token:
+        agora_token:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
-          description: Agora RTC token and connection details (valid for 4 hours - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
-       example:
+      description: Agora RTC token and connection details (valid for 1 hour - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
+      example:
          buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
          host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
          channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -26925,20 +26924,20 @@ components:
           type: string
           enum: [active]
           description: Buzz status
-         created_at:
-           type: string
-           format: date-time
-           description: When the buzz was created
-         started_at:
-           type: string
-           format: date-time
-           description: When the buzz started
-         ended_at:
-           type: string
-           format: date-time
-           nullable: true
-           description: When buzz is scheduled to end
-         joined_at:
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end
+        joined_at:
           type: string
           format: date-time
           description: When the user joined the buzz
@@ -26957,12 +26956,12 @@ components:
         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
-         status: "active"
-         created_at: "2025-11-28T12:00:00Z"
-         started_at: "2025-11-28T12:00:00Z"
-         ended_at: "2025-11-28T13:00:00Z"
-         joined_at: "2025-11-28T12:05:00Z"
-         participants:
+        status: "active"
+        created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        ended_at: "2025-11-28T13:00:00Z"
+        joined_at: "2025-11-28T12:05:00Z"
+        participants:
           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
             username: "hostuser"
             full_name: "Host User"
@@ -27097,10 +27096,10 @@ components:
         host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         channel_id: "019acc68-ae2c-721e-b4f9-e91gdccb8f04"
         status: "active"
-         created_at: "2025-11-28T10:00:00Z"
-         started_at: "2025-11-28T10:00:00Z"
-         ended_at: "2025-11-28T11:00:00Z"
-         participants:
+        created_at: "2025-11-28T10:00:00Z"
+        started_at: "2025-11-28T10:00:00Z"
+        ended_at: "2025-11-28T11:00:00Z"
+        participants:
           - user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
             username: "tolu"
             full_name: "Tolu Adebayo"
@@ -27158,34 +27157,34 @@ components:
           type: integer
           description: Number of remaining participants not shown in preview (0 if all shown)
           minimum: 0
-         is_user_in_buzz:
-           type: boolean
-           description: Whether the requesting user is currently an active participant in the buzz
-           nullable: true
-         ended_at:
-           type: string
-           format: date-time
-           nullable: true
-           description: When buzz is scheduled to end (default: 60 minutes)
-         example:
-           is_active: true
-           buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
-           host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
-           status: "active"
-           participant_count: 11
-           participant_preview: ["tolu", "kemi"]
-           remaining_participants: 9
-           is_user_in_buzz: true
-           ended_at: "2025-11-28T11:00:00Z"
-         example_no_active:
-           is_active: false
-           buzz_id: null
-           host_id: null
-           status: null
-           participant_count: 0
-           participant_preview: []
-           remaining_participants: 0
-           ended_at: null
+        is_user_in_buzz:
+          type: boolean
+          description: Whether the requesting user is currently an active participant in the buzz
+          nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end default is 60 minutes
+        example:
+          is_active: true
+          buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+          host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+          status: "active"
+          participant_count: 11
+          participant_preview: ["tolu", "kemi"]
+          remaining_participants: 9
+          is_user_in_buzz: true
+          ended_at: "2025-11-28T11:00:00Z"
+        example_no_active:
+          is_active: false
+          buzz_id: null
+          host_id: null
+          status: null
+          participant_count: 0
+          participant_preview: []
+          remaining_participants: 0
+          ended_at: null
 
     ErrorResponse:
       type: object
