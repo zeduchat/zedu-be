@@ -193,7 +193,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	rcp := []string{}
 
 	for _, chap := range remainingChannelParticipants {
-		rcp = append(rcp, chap.ID)
+		rcp = append(rcp, chap.UserId)
 	}
 
 	allParticipants, participantHash := utility.GenerateParticipantHash(rcp)

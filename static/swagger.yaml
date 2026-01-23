@@ -104,6 +104,17 @@ tags:
     description: API endpoints for superadmin dashboard and operations
   - name: Avatars
     description: API for shared avatar gallery management
+  - name: Skills
+    description: API endpoints for agents skills
+  - name: Tasks
+    description: API endpoints for agents tasks
+  - name: Translator
+    description: API endpoints for telex markdown to json formatting engine
+  - name: buzz
+    description: API endpoints for buzz (audio/video calls) feature
+  - name: shares
+    description: API endpoints for buying and tracking shares
+
 paths:
   # Super Admin Dashboard paths
   /backoffice/dashboard/credits-summary:
@@ -4765,6 +4776,183 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # Shares endpoints
+  /shares:
+    post:
+      tags:
+        - shares
+      summary: Buy shares
+      description: Purchase shares on Telex
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                number_of_shares:
+                  type: integer
+                  minimum: 1
+                  example: 10
+                price_purchased:
+                  type: number
+                  format: float
+                  example: 1.50
+              required:
+                - number_of_shares
+                - price_purchased
+      responses:
+        "201":
+          description: Share purchased successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share created successfully"
+                  data:
+                    $ref: "#/components/schemas/ShareSchema"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+    get:
+      tags:
+        - shares
+      summary: Get my shares
+      description: Retrieve all share purchases for the authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageLimitParam"
+        - $ref: "#/components/parameters/LimitParam"
+      responses:
+        "200":
+          description: Shares retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "shares retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ShareSchema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /shares/performance:
+    get:
+      tags:
+        - shares
+      summary: Get share performance
+      description: Get portfolio performance with profit/loss calculations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Performance retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share performance retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/SharePerformanceSchema"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /shares/{id}:
+    get:
+      tags:
+        - shares
+      summary: Get a specific share
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Share retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/ShareSchema"
+        "404":
+          description: Share not found
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    delete:
+      tags:
+        - shares
+      summary: Delete/sell a share
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Share deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "share deleted successfully"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /contact:
     post:
@@ -17559,6 +17747,736 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedSchema"
 
+  /files/{id}/share:
+    post:
+      tags:
+        - File Management
+      summary: Share a file
+      description: Creates a share link for a file and optionally sends it to users via DM
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: File ID to share
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_type:
+                  type: string
+                  enum: [private, public]
+                  description: Whether the share is private or public
+                  example: private
+                permission_type:
+                  type: string
+                  enum: [view, edit]
+                  description: Permission level for the share
+                  example: view
+                note:
+                  type: string
+                  description: Optional note to include with the share
+                  maxLength: 500
+                  example: "Please review this document"
+                expires_at:
+                  type: string
+                  format: date-time
+                  description: Optional expiration date for the share
+                  example: "2025-02-01T12:00:00Z"
+                share_via_dm:
+                  type: boolean
+                  description: Whether to send the file via DM to recipients
+                  example: false
+                recipient_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: List of user IDs to send DM to (required if share_via_dm is true)
+                  example: ["550e8400-e29b-41d4-a716-446655440000"]
+              required:
+                - access_type
+                - permission_type
+      responses:
+        "201":
+          description: File shared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "File shared successfully"
+                  data:
+                    type: object
+                    properties:
+                      file_share_id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                      file_id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440001"
+                      share_link:
+                        type: string
+                        format: uri
+                        example: "https://telex.im/share/abc123def456"
+                      access_type:
+                        type: string
+                        example: private
+                      permission_type:
+                        type: string
+                        example: view
+                      note:
+                        type: string
+                        example: "Please review this document"
+                      expires_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2025-02-01T12:00:00Z"
+                      dms_sent:
+                        type: array
+                        items:
+                          type: string
+                        example: ["550e8400-e29b-41d4-a716-446655440000"]
+                      recipients_info:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              format: uuid
+                            username:
+                              type: string
+                            success:
+                              type: boolean
+                            error:
+                              type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /files/shares/{id}:
+    put:
+      tags:
+        - File Management
+      summary: Update a file share
+      description: Updates an existing file share (access type, permissions, note, expiration)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Share ID to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_type:
+                  type: string
+                  enum: [private, public]
+                  description: Whether the share is private or public
+                  example: public
+                permission_type:
+                  type: string
+                  enum: [view, edit]
+                  description: Permission level for the share
+                  example: edit
+                note:
+                  type: string
+                  description: Updated note for the share
+                  maxLength: 500
+                  example: "Updated note"
+                expires_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  description: Updated expiration date (null for no expiration)
+                  example: "2025-03-01T12:00:00Z"
+      responses:
+        "200":
+          description: File share updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File share updated successfully"
+                  data:
+                    $ref: "#/components/schemas/FileShareSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Share not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "file share not found"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+    delete:
+      tags:
+        - File Management
+      summary: Revoke a file share
+      description: Revokes/deletes an existing file share
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Share ID to revoke
+      responses:
+        "200":
+          description: File share revoked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File share revoked successfully"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "You don't have permission to revoke this share"
+        "404":
+          description: Share not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "file share not found"
+
+  /files/{id}/shares:
+    get:
+      tags:
+        - File Management
+      summary: Get file shares
+      description: Retrieves all shares for a specific file
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: File ID
+        - name: active_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to only return active (non-expired) shares
+      responses:
+        "200":
+          description: File shares retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File shares retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        file_share:
+                          $ref: "#/components/schemas/FileShareSchema"
+                        file_info:
+                          $ref: "#/components/schemas/FileSchema"
+                        shared_by:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              format: uuid
+                            username:
+                              type: string
+                            avatar_url:
+                              type: string
+                              format: uri
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+  /files/access:
+    post:
+      tags:
+        - File Management
+      summary: Access shared file
+      description: Access a file via a share link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                share_link:
+                  type: string
+                  format: uri
+                  description: The share link for the file
+                  example: "https://telex.im/share/abc123def456"
+              required:
+                - share_link
+      responses:
+        "200":
+          description: Shared file accessed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Shared file accessed successfully"
+                  data:
+                    type: object
+                    properties:
+                      file:
+                        $ref: "#/components/schemas/FileSchema"
+                      permission:
+                        type: string
+                        enum: [view, edit]
+                        example: view
+                      access_type:
+                        type: string
+                        enum: [private, public]
+                        example: private
+                      note:
+                        type: string
+                        example: "Please review this document"
+                      expires_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2025-02-01T12:00:00Z"
+                      share_link:
+                        type: string
+                        format: uri
+                        example: "https://telex.im/share/abc123def456"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "403":
+          description: Access denied (organization mismatch)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "This file is not shared with your organization"
+        "404":
+          description: Share not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 404
+                  message:
+                    type: string
+                    example: "Invalid share link"
+        "410":
+          description: Share expired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 410
+                  message:
+                    type: string
+                    example: "This file share has expired"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /files/{id}/access-settings:
+    put:
+      tags:
+        - File Management
+      summary: Update file access settings
+      description: Updates file-level access settings (access type and shareability)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: File ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_type:
+                  type: string
+                  enum: [private, public]
+                  description: Whether the file is private or public
+                  example: public
+                is_shareable:
+                  type: boolean
+                  description: Whether the file can be shared
+                  example: true
+      responses:
+        "200":
+          description: File access settings updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File access settings updated successfully"
+                  data:
+                    $ref: "#/components/schemas/FileSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "You don't have permission to update file settings"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /files/{id}/send-dm:
+    post:
+      tags:
+        - File Management
+      summary: Send file to DM
+      description: Sends a file to specific users via direct message
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: File ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: List of user IDs to send the file to
+                  example: ["550e8400-e29b-41d4-a716-446655440000", "550e8400-e29b-41d4-a716-446655440001"]
+                note:
+                  type: string
+                  description: Optional note to include with the file
+                  maxLength: 500
+                  example: "Please review this document"
+              required:
+                - recipient_ids
+      responses:
+        "200":
+          description: File sent to DM successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "File sent to DM successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user_id:
+                          type: string
+                          format: uuid
+                        username:
+                          type: string
+                        success:
+                          type: boolean
+                        error:
+                          type: string
+                          nullable: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: "You can only send files you own"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
   /organisations/{organisation_id}/group-dms:
     get:
       tags:
@@ -17982,6 +18900,114 @@ paths:
                 status: "error"
                 status_code: 409
                 message: "user is already a participant in the group DM channel"
+
+  /organisations/{organisation_id}/group-dms/{channel_id}/leave:
+    delete:
+      tags:
+        - Group Direct Message
+      summary: Leave a Group DM Channel
+      security:
+        - bearerAuth: []
+      description: Allows an authenticated user to leave a Group DM channel. If the user is the last participant, the channel will be deleted. The participant hash is recalculated after leaving.
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the organisation.
+        - name: channel_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the Group DM channel to leave.
+      responses:
+        "200":
+          description: User left Group DM channel successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "success"
+                status_code: 200
+                message: "User left Group DM channel successfully"
+        "400":
+          description: Invalid request parameters (invalid UUID format).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 400
+                message: "invalid channel id format"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 401
+                message: "unable to get user claims"
+        "403":
+          description: User is not a participant in the channel.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 403
+                message: "user is not a participant in the group DM channel"
+        "404":
+          description: Group DM channel or user not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+              example:
+                status: "error"
+                status_code: 404
+                message: "group DM channel does not exist"
 
   /organisations/group-dms/{channel_id}/participants:
     post:
@@ -25112,6 +26138,58 @@ components:
           description: Status visibility level
           example: "public"
 
+    ShareSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        user_id:
+          type: string
+          format: uuid
+          example: "0b89cd08-57fc-40b0-aa17-ed6d95f43cfe"
+        number_of_shares:
+          type: integer
+          example: 10
+        price_purchased:
+          type: number
+          format: float
+          example: 1.50
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SharePerformanceSchema:
+      type: object
+      properties:
+        total_shares:
+          type: integer
+          example: 100
+        total_invested:
+          type: number
+          format: float
+          example: 150.00
+        current_price_per_share:
+          type: number
+          format: float
+          example: 2.00
+        current_value:
+          type: number
+          format: float
+          example: 200.00
+        profit_loss:
+          type: number
+          format: float
+          example: 50.00
+        performance_percent:
+          type: number
+          format: float
+          example: 33.33
+
     UserStatusResponse:
       type: object
       properties:
@@ -25169,6 +26247,13 @@ components:
         last_accessed_at:
           type: string
           format: date-time
+        access_type:
+          type: string
+          enum: [private, public]
+          description: Whether the file is private or public
+        is_shareable:
+          type: boolean
+          description: Whether the file can be shared
 
     FolderSchema:
       type: object
@@ -25193,6 +26278,92 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    FileShareSchema:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the file share
+        file_id:
+          type: string
+          format: uuid
+          description: ID of the shared file
+        shared_by_user_id:
+          type: string
+          format: uuid
+          description: ID of the user who shared the file
+        organisation_id:
+          type: string
+          format: uuid
+          description: ID of the organization
+        access_type:
+          type: string
+          enum: [private, public]
+          description: Whether the share is private or public
+        permission_type:
+          type: string
+          enum: [view, edit]
+          description: Permission level for the share
+        note:
+          type: string
+          description: Optional note included with the share
+        share_link:
+          type: string
+          format: uri
+          description: The share link
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Expiration date for the share (null if no expiration)
+        access_count:
+          type: integer
+          description: Number of times the share has been accessed
+        last_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Last time the share was accessed
+        created_at:
+          type: string
+          format: date-time
+          description: When the share was created
+        updated_at:
+          type: string
+          format: date-time
+          description: When the share was last updated
+        file:
+          type: object
+          description: The shared file details
+          properties:
+            id:
+              type: string
+              format: uuid
+            file_name:
+              type: string
+            file_type:
+              type: string
+            mime_type:
+              type: string
+            file_link:
+              type: string
+            size:
+              type: integer
+        shared_by:
+          type: object
+          description: User who shared the file
+          properties:
+            user_id:
+              type: string
+              format: uuid
+            username:
+              type: string
+            avatar_url:
+              type: string
+              format: uri
+
     OptInSchema:
       type: object
       required:

@@ -12,6 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
 	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -315,7 +316,7 @@ func LLMCall(logger *utility.Logger, extReq request.ExternalRequest, systemPromp
 		return "", code, fmt.Errorf("error generating translator completions: %v", err)
 	}
 
-	response, err := telexai.ExtractChatContent(ai_response)
+	response, err := openrouter.ExtractChatContent(ai_response)
 	if err != nil {
 		logger.Error(fmt.Sprintf("LLMCall: Error extracting chat content: %v", err))
 		return "", http.StatusInternalServerError, err

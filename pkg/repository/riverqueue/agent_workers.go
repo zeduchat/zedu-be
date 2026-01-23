@@ -5,6 +5,7 @@ import (
 
 	"github.com/riverqueue/river"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
@@ -45,16 +46,18 @@ func (w *AgentJobWorker) Work(ctx context.Context, job *river.Job[models.AgentJo
 
 		channel_id := resp.ID
 
-		req := models.BotReturnRequest{
+		req := models.BotRequest{
 			ThreadId:  utility.GenerateUUID(),
 			Content:   agentJobs.Messages[agentId],
 			UserId:    agentJobs.UserId,
 			OrgId:     agentJobs.OrgId,
 			AgentId:   agentId,
 			ChannelID: channel_id,
+			Type:      models.TemplateMessage,
 		}
 
-		_, code, err := dm.BotResponse(req, storage.DB, logger)
+		extReq := request.ExternalRequest{Logger: logger}
+		_, code, err := dm.BotResponse(req, storage.DB, logger, extReq)
 
 		if err != nil {
 			logger.Error("An error occured while sending message to user, error: %v, with code :%v", err, code)

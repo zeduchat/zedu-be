@@ -137,11 +137,13 @@ func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 	req.OrgId = c.Param("org_id")
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Info("error parsing channel id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Info("error parsing organisation id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -150,6 +152,7 @@ func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Info("error getting user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -160,8 +163,9 @@ func (base *Controller) LeaveGroupDMChannel(c *gin.Context) {
 
 	statusCode, err := dm.LeaveGroupDMChannel(req, base.Db, base.Logger)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Info("error leaving group dm channel")
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
 		return
 	}
 
@@ -178,6 +182,7 @@ func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
 	req.ChannelId = c.Param("channel_id")
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Info("error parsing channel id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -186,6 +191,7 @@ func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Info("error getting user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -196,6 +202,7 @@ func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
 	req.OrgId = userClaims["org_id"].(string)
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Info("error parsing organisation id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -203,6 +210,7 @@ func (base *Controller) JoinGroupDMChannel(c *gin.Context) {
 
 	respData, statusCode, err := dm.JoinGroupDMChannel(req, base.Db, base.Logger)
 	if err != nil {
+		base.Logger.Info("error joining group dm channel")
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)
 		return
@@ -221,6 +229,7 @@ func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
 	req.ChannelId = c.Param("channel_id")
 
 	if _, err := uuid.Parse(req.ChannelId); err != nil {
+		base.Logger.Info("error parsing channel id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -229,6 +238,7 @@ func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
 	claims, exists := c.Get("userClaims")
 
 	if !exists {
+		base.Logger.Info("error getting user claims")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -238,6 +248,7 @@ func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
 	req.OrgId = userClaims["org_id"].(string)
 
 	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Info("error parsing organisation id")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -261,6 +272,7 @@ func (base *Controller) AddParticipantsToGroupDMChannel(c *gin.Context) {
 
 	respData, statusCode, err := dm.AddParticipantsToGroupDM(req, base.Db, base.Logger)
 	if err != nil {
+		base.Logger.Info("error adding participants to group dm channel")
 		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
 		c.JSON(statusCode, rd)
 		return

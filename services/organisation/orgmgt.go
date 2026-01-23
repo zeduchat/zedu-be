@@ -126,6 +126,7 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	var (
 		user        models.User
 		adminUser   models.User
+		oum         models.OrgUserManagement
 		user_token  models.AccessToken
 		user_id     = ids["user_id"]
 		org_id      = ids["org_id"]
@@ -138,6 +139,13 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 
 	if !adminUser.CheckUserExists(db, adminUserID) {
 		return http.StatusUnauthorized, errors.New("admin user does not exist")
+	}
+	adminIDS := models.IDS{
+		OrganisationID: org_id,
+		OwnerID:        adminUserID,
+	}
+	if !oum.CheckIsOrganisationAdmin(db, adminIDS) {
+		return http.StatusForbidden, errors.New("user is not authorized to change member status")
 	}
 
 	if user_id == adminUserID {
@@ -170,8 +178,7 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	} else {
 
 		access_token := models.AccessToken{ID: user_token.ID, OwnerID: user.ID}
-		err := access_token.RevokeAccessToken(db)
-
+		err := access_token.RevokeAccessToken(tx)
 		if err != nil {
 			tx.Rollback()
 			return http.StatusBadRequest, errors.New("failed to logout user")
