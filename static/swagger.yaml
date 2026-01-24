@@ -25272,7 +25272,6 @@ paths:
       summary: Create a new buzz (video/audio call)
       description: Creates a new buzz in a channel with a default duration of 60 minutes. The creator becomes a host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**
       operationId: createBuzz
-      operationId: createBuzz
       security:
         - bearerAuth: []
       requestBody:
