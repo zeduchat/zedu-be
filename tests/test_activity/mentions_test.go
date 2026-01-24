@@ -180,6 +180,15 @@ func TestGetUserMentionsActivity(t *testing.T) {
 		if err := threadDoc.CreateThread(db, logger); err != nil {
 			t.Fatalf("Failed to create thread in ES: %v", err)
 		}
+
+		// update UserChannels for mentions
+		for _, m := range mentions {
+			if m.Type == "user" {
+				if err := db.Postgresql.Model(&models.UserChannels{}).Where("user_id = ? AND channels_id = ?", m.ID, chID).Update("mention_count", 1).Error; err != nil {
+					t.Logf("Failed to update mention count for user %s: %v", m.ID, err)
+				}
+			}
+		}
 		return tID
 	}
 
@@ -201,6 +210,15 @@ func TestGetUserMentionsActivity(t *testing.T) {
 
 		if _, err := msgDoc.CreateMessage(db, logger); err != nil {
 			t.Fatalf("Failed to create message in ES: %v", err)
+		}
+
+		// update UserChannels for mentions
+		for _, m := range mentions {
+			if m.Type == "user" {
+				if err := db.Postgresql.Model(&models.UserChannels{}).Where("user_id = ? AND channels_id = ?", m.ID, chID).Update("mention_count", 1).Error; err != nil {
+					t.Logf("Failed to update mention count for user %s: %v", m.ID, err)
+				}
+			}
 		}
 
 		return mID
@@ -263,7 +281,7 @@ func TestGetUserMentionsActivity(t *testing.T) {
 		}
 
 		// first user reads the channel (Update LastReadAt > Thread CreatedAt)
-		// we need to make sure LastReadAt is strictly AFTER the thread creation
+
 		futureTime := time.Now().Add(1 * time.Minute)
 		if err := db.Postgresql.Model(&models.UserChannels{}).
 			Where("user_id = ? AND channels_id = ?", userID, channelId).
@@ -347,8 +365,9 @@ func TestGetUserMentionsActivity(t *testing.T) {
 				}
 			}
 		}
+
 		if !found {
-			t.Log("Did not find reply mention immediately.")
+			t.Error("Did not find reply mention immediately.")
 		}
 	})
 }
