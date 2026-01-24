@@ -1500,8 +1500,8 @@ paths:
     get:
       tags:
         - Activity
-      summary: Get user mentions activity
-      description: Retrieves all channels, group DMs, and DMs where the authenticated user is mentioned, paginated and sorted by most recent.
+      summary: Get user unseen mentions activity
+      description: Retrieves a paginated list of **unseen** mentions (created after the user last read the channel) across all Channels, Group DMs, and DMs.
       security:
         - bearerAuth: []
       parameters:
