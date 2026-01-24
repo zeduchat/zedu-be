@@ -25677,6 +25677,49 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/channel/{channel_id}/end:
+    post:
+      tags:
+        - buzz
+      summary: End buzz(es) by channel ID
+      description: Allows the host to end all active buzzes they are hosting in a channel using the channel ID. If multiple active buzzes exist in the channel where the user is the host, all of them will be ended.
+      operationId: endBuzzByChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: channel_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the channel
+      responses:
+        "200":
+          description: Successfully ended the buzz(es)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzEndResponseSchema"
+        "403":
+          description: Forbidden - user is not the host of any active buzz in the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - no active buzz in the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/{id}/reaction:
     post:
       tags:

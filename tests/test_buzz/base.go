@@ -39,6 +39,7 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 		buzzGroup.POST("/invite", buzzController.InviteUsersToBuzz)
 		buzzGroup.POST("/invitation/respond", buzzController.RespondToInvitation)
 		buzzGroup.GET("/invitations/pending", buzzController.GetPendingInvitations)
+		buzzGroup.POST("/channel/:channel_id/end", buzzController.EndBuzzByChannel)
 	}
 
 	return r, buzzController

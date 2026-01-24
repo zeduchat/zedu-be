@@ -101,13 +101,14 @@ type BuzzEndResponse struct {
 }
 
 type BuzzMetadataResponse struct {
-	BuzzID       string                `json:"buzz_id"`
-	HostID       string                `json:"host_id"`
-	ChannelID    string                `json:"channel_id"`
-	Status       string                `json:"status"`
-	CreatedAt    time.Time             `json:"created_at"`
-	StartedAt    time.Time             `json:"started_at"`
-	Participants []ParticipantMetadata `json:"participants"`
+	BuzzID       string                  `json:"buzz_id"`
+	HostID       string                  `json:"host_id"`
+	ChannelID    string                  `json:"channel_id"`
+	Status       string                  `json:"status"`
+	CreatedAt    time.Time               `json:"created_at"`
+	StartedAt    time.Time               `json:"started_at"`
+	Participants []ParticipantMetadata   `json:"participants"`
+	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type ActiveBuzzIndicator struct {
