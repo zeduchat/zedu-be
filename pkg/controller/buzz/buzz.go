@@ -356,3 +356,64 @@ func (base *Controller) ForceEndBuzz(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(statusCode, "buzz force ended successfully (test endpoint)", data)
 	c.JSON(statusCode, rd)
 }
+
+func (base *Controller) CreateOrgBuzz(c *gin.Context) {
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	resp, code, err := buzz.CreateOrgBuzz(base.Db, base.Logger, userID.(string), orgID.(string))
+	if err != nil {
+		base.Logger.Error("failed to create org buzz: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("org buzz created successfully")
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "organization buzz created successfully", resp)
+	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) GetOrgBuzzList(c *gin.Context) {
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	resp, code, err := buzz.GetOrgBuzzList(base.Db, base.Logger, userID.(string), orgID.(string))
+	if err != nil {
+		base.Logger.Error("failed to fetch org buzz list: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("org buzz list retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "organization buzz list retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}

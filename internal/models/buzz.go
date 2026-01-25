@@ -27,11 +27,18 @@ const (
 	ChannelTypeGroupDM = "group_dm_channel"
 )
 
+const (
+	BuzzTypeChannel      = "channel"
+	BuzzTypeOrganization = "organization"
+)
+
 type Buzz struct {
 	ID             string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ChannelID      string         `gorm:"type:uuid;not null;index" json:"channel_id"`
 	ChannelType    string         `gorm:"type:varchar(20);not null;default:'channel'" json:"channel_type"`
 	HostID         string         `gorm:"type:uuid;not null;index" json:"host_id"`
+	OrgID          *string        `gorm:"type:uuid;index" json:"org_id,omitempty"`
+	BuzzType       string         `gorm:"type:varchar(20);not null;default:'channel'" json:"buzz_type"`
 	ParticipantIDs pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
 	BuzzStartTime  time.Time      `gorm:"column:buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
 	BuzzEndTime    *time.Time     `gorm:"column:buzz_end_time" json:"Buzz_end_time"`
@@ -249,9 +256,10 @@ func (h *Buzz) AddUserToBuzz(db *gorm.DB, userID string) error {
 		return errors.New("invalid user ID")
 	}
 
-	// Check if user is in the channel
-	if !IsUserInChannel(db, h.ChannelID, userID) {
-		return errors.New("user is not a member of the channel")
+	if h.BuzzType != BuzzTypeOrganization {
+		if !IsUserInChannel(db, h.ChannelID, userID) {
+			return errors.New("user is not a member of the channel")
+		}
 	}
 
 	// Check if Buzz exists
@@ -491,4 +499,21 @@ type BuzzStickerPayload struct {
 	Sticker      *string    `json:"sticker"`
 	StickerSetAt *time.Time `json:"sticker_set_at,omitempty"`
 	Timestamp    time.Time  `json:"timestamp"`
+}
+
+type OrgBuzzListResponse struct {
+	Buzzes []OrgBuzzItem `json:"buzzes"`
+	Total  int           `json:"total"`
+}
+
+type OrgBuzzItem struct {
+	BuzzID           string     `json:"buzz_id"`
+	ChannelID        string     `json:"channel_id"`
+	HostID           string     `json:"host_id"`
+	OrgID            string     `json:"org_id"`
+	Status           string     `json:"status"`
+	ParticipantCount int        `json:"participant_count"`
+	CreatedAt        time.Time  `json:"created_at"`
+	StartedAt        time.Time  `json:"started_at"`
+	EndedAt          *time.Time `json:"ended_at,omitempty"`
 }

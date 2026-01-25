@@ -219,20 +219,18 @@ func CanCreateBuzz(db *gorm.DB, channelID, hostID string) error {
 	return nil
 }
 
-// CanJoinBuzz validates if a user can join a buzz
 func CanJoinBuzz(db *gorm.DB, buzzID, userID string) (*models.Buzz, error) {
-	// Check if buzz is active
 	buzz, err := IsBuzzActive(db, buzzID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if user is a channel member
-	if !models.IsUserInChannel(db, buzz.ChannelID, userID) {
-		return nil, ErrNotChannelMember
+	if buzz.BuzzType != models.BuzzTypeOrganization {
+		if !models.IsUserInChannel(db, buzz.ChannelID, userID) {
+			return nil, ErrNotChannelMember
+		}
 	}
 
-	// Check if user is already in the buzz
 	for _, participantID := range buzz.ParticipantIDs {
 		if participantID == userID {
 			return nil, ErrAlreadyInBuzz
