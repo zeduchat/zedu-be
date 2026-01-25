@@ -375,16 +375,7 @@ func (base *Controller) CreateOrgBuzz(c *gin.Context) {
 		return
 	}
 
-	}
-
-	if err := base.Validator.Struct(&req); err != nil {
-		base.Logger.Info("validation failed for org buzz request")
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
-		c.JSON(http.StatusUnprocessableEntity, rd)
-		return
-	}
-
-	resp, code, err := buzz.CreateOrgBuzz(base.Db, base.Logger, req, userID.(string), orgID.(string))
+	resp, code, err := buzz.CreateOrgBuzz(base.Db, base.Logger, userID.(string), orgID.(string))
 	if err != nil {
 		base.Logger.Error("failed to create org buzz: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
