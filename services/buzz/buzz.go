@@ -23,6 +23,13 @@ const (
 	DefaultBuzzDurationMinutes = 60
 )
 
+func getPublishChannel(buzz *models.Buzz) string {
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		return buzz.ID
+	}
+	return buzz.ChannelID
+}
+
 // mapPermissionError maps permission errors to HTTP status codes and user-friendly messages
 func mapPermissionError(err error, action string) (int, string) {
 	switch err {
@@ -441,7 +448,8 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
+	publishChannel := getPublishChannel(&buzz)
+	if err := centrifuge.PublishChannel(logger, publishChannel, notification); err != nil {
 		logger.Error("failed to publish join buzz event: %v", err)
 	}
 }
@@ -538,7 +546,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		},
 	}
 
-	centrifuge.PublishLeaveBuzzEvent(logger, buzz.ChannelID, buzzID, publishPayload)
+	publishChannel := getPublishChannel(&buzz)
+	centrifuge.PublishLeaveBuzzEvent(logger, publishChannel, buzzID, publishPayload)
 
 	if buzzEnded {
 		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
@@ -631,7 +640,7 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
+	if err := centrifuge.PublishChannel(logger, getPublishChannel(buzz), notification); err != nil {
 		logger.Error("failed to publish buzz ended event: %v", err)
 	}
 
@@ -965,7 +974,7 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, notification); err != nil {
+	if err := centrifuge.PublishChannel(logger, getPublishChannel(&buzz), notification); err != nil {
 		logger.Error("failed to publish buzz ended event: %v", err)
 	}
 
@@ -977,4 +986,166 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 		EndedAt:   now,
 		Status:    buzz.Status,
 	}, http.StatusOK, nil
+}
+
+func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string, orgID string) (models.BuzzCreateResponse, int, error) {
+	var resp models.BuzzCreateResponse
+
+	logger.Info("creating organization buzz for user %s in org %s", hostID, orgID)
+
+	service := agora.Client.Service
+	if service == nil {
+		logger.Error(errorAgoraNotInitialized)
+		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
+	}
+
+	now := time.Now().UTC()
+	participants := []string{hostID}
+
+	defaultChannelID := "00000000-0000-0000-0000-000000000000"
+	buzz := models.Buzz{
+		ID:             utility.GenerateUUID(),
+		ChannelID:      defaultChannelID,
+		ChannelType:    "",
+		HostID:         hostID,
+		OrgID:          &orgID,
+		BuzzType:       models.BuzzTypeOrganization,
+		ParticipantIDs: participants,
+		BuzzStartTime:  now,
+		IsLiveStatus:   true,
+		Status:         models.BuzzStatusActive,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	logger.Info("generating Agora RTC token for host %s in org buzz %s", hostID, buzz.ID)
+	token, err := service.GenerateRTCToken(buzz.ID, hostID, hostID, agora.DefaultTokenExpirationSeconds)
+	if err != nil {
+		logger.Error("org buzz creation failed - Agora token generation error for host %s in buzz %s: %v", hostID, buzz.ID, err)
+		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
+	}
+
+	agoraToken := models.BuzzAgoraTokenResponse{
+		Token:       token,
+		AppId:       service.GetAppId(),
+		ChannelName: buzz.ID,
+		UID:         hostID,
+	}
+
+	logger.Info("starting database transaction to create org buzz %s", buzz.ID)
+	err = db.Postgresql.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&buzz).Error; err != nil {
+			logger.Error("transaction failed - org buzz record creation error: %v", err)
+			return err
+		}
+
+		hostParticipant := models.BuzzParticipant{
+			ID:       utility.GenerateUUID(),
+			BuzzID:   buzz.ID,
+			UserID:   hostID,
+			Status:   models.BuzzParticipantStatusActive,
+			IsMuted:  false,
+			JoinedAt: now,
+		}
+
+		if err := tx.Create(&hostParticipant).Error; err != nil {
+			logger.Error("transaction failed - buzz participant creation error: %v", err)
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Error("org buzz creation failed - database transaction error for buzz %s: %v", buzz.ID, err)
+		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
+	}
+
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	if err != nil {
+		logger.Error("failed to fetch participant metadata: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
+	}
+
+	metadataResp := buildBuzzMetadataResponse(&buzz, participantMetadata)
+	resp = models.BuzzCreateResponse{
+		BuzzID:         metadataResp.BuzzID,
+		HostID:         metadataResp.HostID,
+		ChannelID:      metadataResp.ChannelID,
+		Status:         metadataResp.Status,
+		CreatedAt:      metadataResp.CreatedAt,
+		StartedAt:      metadataResp.StartedAt,
+		ParticipantIDs: buzz.ParticipantIDs,
+		Participants:   metadataResp.Participants,
+		AgoraToken:     &agoraToken,
+	}
+
+	eventPayload := models.BuzzEventPayload{
+		Event:          string(models.BuzzStarted),
+		BuzzID:         buzz.ID,
+		ChannelID:      buzz.ChannelID,
+		HostID:         buzz.HostID,
+		ParticipantIDs: participants,
+		CreatedAt:      buzz.BuzzStartTime,
+		Status:         buzz.Status,
+	}
+
+	notification := models.Notification[models.BuzzStarted]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = eventPayload
+	notification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: buzz.ChannelID,
+	}
+	notification.NotificationId = utility.GenerateUUID()
+
+	publishChannel := getPublishChannel(&buzz)
+	if err := centrifuge.PublishChannel(logger, publishChannel, notification); err != nil {
+		logger.Error("failed to publish org buzz event: %v", err)
+	}
+
+	logger.Info("org buzz %s created successfully by user %s for org %s", buzz.ID, hostID, orgID)
+	return resp, http.StatusCreated, nil
+}
+
+func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string, orgID string) (models.OrgBuzzListResponse, int, error) {
+	var resp models.OrgBuzzListResponse
+
+	logger.Info("fetching org buzz list for user %s in org %s", userID, orgID)
+
+	var buzzes []models.Buzz
+	err := db.Postgresql.Where("org_id = ? AND host_id = ?", orgID, userID).
+		Order("created_at DESC").
+		Find(&buzzes).Error
+
+	if err != nil {
+		logger.Error("failed to fetch org buzz list: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch organization buzz list")
+	}
+
+	buzzItems := make([]models.OrgBuzzItem, 0, len(buzzes))
+	for _, buzz := range buzzes {
+		var participantCount int64
+		db.Postgresql.Model(&models.BuzzParticipant{}).
+			Where("buzz_id = ?", buzz.ID).
+			Count(&participantCount)
+
+		buzzItems = append(buzzItems, models.OrgBuzzItem{
+			BuzzID:           buzz.ID,
+			ChannelID:        buzz.ChannelID,
+			HostID:           buzz.HostID,
+			OrgID:            *buzz.OrgID,
+			Status:           buzz.Status,
+			ParticipantCount: int(participantCount),
+			CreatedAt:        buzz.CreatedAt,
+			StartedAt:        buzz.BuzzStartTime,
+			EndedAt:          buzz.BuzzEndTime,
+		})
+	}
+
+	resp = models.OrgBuzzListResponse{
+		Buzzes: buzzItems,
+		Total:  len(buzzItems),
+	}
+
+	logger.Info("successfully fetched %d org buzz items for user %s in org %s", len(buzzItems), userID, orgID)
+	return resp, http.StatusOK, nil
 }

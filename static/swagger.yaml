@@ -25384,6 +25384,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/org/create:
+    post:
+      tags:
+        - buzz
+      summary: Create a new organization-scoped buzz
+      description: "Creates a new buzz in a channel with organization tracking. The buzz is associated with the user's organization (org_id from JWT claims) and the creator (host_id). This allows filtering and retrieving buzz sessions by organization. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours)."
+      operationId: createOrgBuzz
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBuzzRequest"
+      responses:
+        "201":
+          description: Organization buzz created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzCreateResponseSchema"
+        "400":
+          description: Bad request - invalid channel ID or active buzz already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid authentication token or organization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/org:
+    get:
+      tags:
+        - buzz
+      summary: Get all buzz created by user in their organization
+      description: "Retrieves a list of all buzz sessions created by the authenticated user within their organization. The list is filtered by org_id and host_id (creator), ordered by creation date (newest first). Each buzz item includes metadata such as participant count, status, and timestamps."
+      operationId: getOrgBuzzList
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Organization buzz list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "organization buzz list retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: "#/components/schemas/OrgBuzzListResponse"
+        "401":
+          description: Unauthorized - missing or invalid authentication token or organization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/{id}/join:
     post:
       tags:
@@ -30908,22 +31008,82 @@ components:
       properties:
         token:
           type: string
-          description: The Agora RTC token for connecting to the buzz channel
+          description: The Agora RTC token for joining the buzz (valid for 4 hours)
+          example: "007eJxTYBBbsMMnKjTYJv..."
         app_id:
           type: string
-          description: The Agora App ID
+          description: The Agora application ID
+          example: "your-agora-app-id"
         channel_name:
           type: string
           description: The Agora channel name (same as buzz_id)
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         uid:
           type: string
+          description: The user ID for Agora (same as user_id)
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    OrgBuzzListResponse:
+      type: object
+      properties:
+        buzzes:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgBuzzItem"
+          description: Array of buzz items created by the user in their organization
+        total:
+          type: integer
+          description: Total number of buzz items
+          example: 5
+
+    OrgBuzzItem:
+      type: object
+      properties:
+        buzz_id:
+          type: string
           format: uuid
-          description: User account UUID for Agora participant tracking
-      example:
-        token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
-        app_id: "your-agora-app-id"
-        channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        uid: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+          description: The unique ID of the buzz
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz was created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz
+          example: "7cb8c920-9ead-22e2-90c5-11d15ge541d9"
+        org_id:
+          type: string
+          format: uuid
+          description: The organization ID associated with this buzz
+          example: "8dc9d030-afbe-33f3-a1d6-22e26hf652e0"
+        status:
+          type: string
+          enum: [active, ended]
+          description: Current status of the buzz
+          example: "active"
+        participant_count:
+          type: integer
+          description: Number of participants in the buzz
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+          example: "2024-01-15T10:30:00Z"
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+          example: "2024-01-15T10:30:00Z"
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the buzz ended (null if still active)
+          example: "2024-01-15T11:30:00Z"
 
     RegisterDeviceTokenRequest:
       type: object
