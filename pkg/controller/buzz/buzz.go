@@ -358,7 +358,6 @@ func (base *Controller) ForceEndBuzz(c *gin.Context) {
 }
 
 func (base *Controller) CreateOrgBuzz(c *gin.Context) {
-	var req models.CreateBuzzRequest
 
 	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
@@ -376,11 +375,6 @@ func (base *Controller) CreateOrgBuzz(c *gin.Context) {
 		return
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		base.Logger.Info("error parsing org buzz request body")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
 	}
 
 	if err := base.Validator.Struct(&req); err != nil {
