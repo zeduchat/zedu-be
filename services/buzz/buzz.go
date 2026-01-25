@@ -979,7 +979,7 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 	}, http.StatusOK, nil
 }
 
-func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, req models.CreateBuzzRequest, hostID string, orgID string) (models.BuzzCreateResponse, int, error) {
+func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, orgID string) (models.BuzzCreateResponse, int, error) {
 	var resp models.BuzzCreateResponse
 
 	logger.Info("creating organization buzz for user %s in org %s", hostID, orgID)
