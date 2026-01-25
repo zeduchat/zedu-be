@@ -25393,12 +25393,6 @@ paths:
       operationId: createOrgBuzz
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateBuzzRequest"
       responses:
         "201":
           description: Organization buzz created successfully
