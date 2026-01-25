@@ -1528,3 +1528,24 @@ func (c *Channels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMedia
 
 	return allMedia, len(allMedia), nil
 }
+
+func (u *UserChannels) GetChannelsWithMentions(db *gorm.DB, userID string) (map[string]time.Time, error) {
+	var results []struct {
+		ChannelsID string
+		LastReadAt time.Time
+	}
+
+	err := db.Model(&UserChannels{}).
+		Select("channels_id, last_read_at").
+		Where("user_id = ? AND mention_count > 0", userID).
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	channelMap := make(map[string]time.Time)
+	for _, r := range results {
+		channelMap[r.ChannelsID] = r.LastReadAt
+	}
+	return channelMap, nil
+}
