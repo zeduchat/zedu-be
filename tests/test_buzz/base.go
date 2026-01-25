@@ -54,7 +54,6 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
 
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
-		buzzGroup.POST("/channel/:channel_id/end", ctrl.EndBuzzByChannel)
 	}
 
 	return r, ctrl // Renamed buzzController to ctrl
