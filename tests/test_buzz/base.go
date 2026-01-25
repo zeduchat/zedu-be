@@ -1,6 +1,8 @@
 package test_buzz
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
@@ -12,37 +14,49 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+const ApiVersion = "/api/v1"
+
 func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) (*gin.Engine, *buzz.Controller) {
 	gin.SetMode(gin.TestMode)
 
 	db := storage.Connection()
 
-	buzzController := &buzz.Controller{
+	ctrl := &buzz.Controller{
 		Db:        db,
 		Validator: validator,
 		Logger:    logger,
 	}
 
 	r := gin.Default()
-	buzzGroup := r.Group("/api/v1/buzz", middleware.Authorize(buzzController.Db.Postgresql))
+	buzzGroup := r.Group(fmt.Sprintf("%v/buzz", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
-		buzzGroup.PUT("/:id/camera", buzzController.UpdateCamera)
-		buzzGroup.POST("/:id/notes", buzzController.CreateNote)
-		buzzGroup.GET("/:id/notes", buzzController.GetNotes)
-		buzzGroup.PATCH("/:id/notes/:note_id", buzzController.UpdateNote)
-		buzzGroup.POST("/create", buzzController.Create)
-		buzzGroup.POST("/:id/leave", buzzController.LeaveBuzz)
-		buzzGroup.POST("/:id/end", buzzController.EndBuzz)
-		buzzGroup.POST("/:id/reaction", buzzController.SendReaction)
-		buzzGroup.POST("/:id/sticker", buzzController.UpdateSticker)
-		buzzGroup.POST("/search-members", buzzController.SearchChannelMembers)
-		buzzGroup.POST("/invite", buzzController.InviteUsersToBuzz)
-		buzzGroup.POST("/invitation/respond", buzzController.RespondToInvitation)
-		buzzGroup.GET("/invitations/pending", buzzController.GetPendingInvitations)
-		buzzGroup.POST("/channel/:channel_id/end", buzzController.EndBuzzByChannel)
+		buzzGroup.POST("/create", ctrl.Create)
+		buzzGroup.POST("/org/create", ctrl.CreateOrgBuzz)
+		buzzGroup.GET("/org", ctrl.GetOrgBuzzList)
+		buzzGroup.POST("/:id/join", ctrl.Join)
+		buzzGroup.POST("/token", ctrl.GetAgoraToken)
+		buzzGroup.POST("/:id/notes", ctrl.CreateNote)
+		buzzGroup.GET("/:id/notes", ctrl.GetNotes)
+		buzzGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)
+		buzzGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
+		buzzGroup.POST("/:id/leave", ctrl.LeaveBuzz)
+		buzzGroup.POST("/:id/end", ctrl.EndBuzz)
+		buzzGroup.POST("/channel/:channel_id/end", ctrl.EndBuzzByChannel)
+		buzzGroup.GET("/:id/metadata", ctrl.GetMetadata)
+		buzzGroup.GET("/channel/:channel_id/active", ctrl.GetChannelActiveBuzz)
+		buzzGroup.GET("/dm/:dm_id/active", ctrl.GetDMActiveBuzz)
+		buzzGroup.GET("/group-dm/:group_dm_id/active", ctrl.GetGroupDMActiveBuzz)
+		buzzGroup.POST("/:id/reaction", ctrl.SendReaction)
+		buzzGroup.POST("/:id/sticker", ctrl.UpdateSticker)
+		buzzGroup.POST("/search-members", ctrl.SearchChannelMembers)
+		buzzGroup.POST("/invite", ctrl.InviteUsersToBuzz)
+		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
+		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
+
+		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 	}
 
-	return r, buzzController
+	return r, ctrl // Renamed buzzController to ctrl
 }
 
 // SetupBuzzInvitationTestRouter sets up router with invitation endpoints

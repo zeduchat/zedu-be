@@ -61,7 +61,7 @@ func TestUpdateCamera(t *testing.T) {
 		reqBody := models.UpdateCameraRequest{UserID: user.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
 
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -83,7 +83,7 @@ func TestUpdateCamera(t *testing.T) {
 
 		reqBody := models.UpdateCameraRequest{UserID: other.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 
@@ -110,7 +110,7 @@ func TestUpdateCamera(t *testing.T) {
 
 		reqBody := models.UpdateCameraRequest{UserID: non.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+buzzID+"/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+nonToken)
 
@@ -123,7 +123,7 @@ func TestUpdateCamera(t *testing.T) {
 	t.Run("InvalidBuzzIDReturns400", func(t *testing.T) {
 		reqBody := models.UpdateCameraRequest{UserID: user.ID, Status: true}
 		b, _ := json.Marshal(reqBody)
-		req, _ := http.NewRequest(http.MethodPut, "/api/v1/buzz/invalid-id/camera", bytes.NewBuffer(b))
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/invalid-id/camera", bytes.NewBuffer(b))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 

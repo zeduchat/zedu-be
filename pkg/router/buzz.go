@@ -22,6 +22,8 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	buzzGroup := r.Group(fmt.Sprintf("%v/buzz", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
 		buzzGroup.POST("/create", ctrl.Create)
+		buzzGroup.POST("/org/create", ctrl.CreateOrgBuzz)
+		buzzGroup.GET("/org", ctrl.GetOrgBuzzList)
 		buzzGroup.POST("/:id/join", ctrl.Join)
 		buzzGroup.POST("/token", ctrl.GetAgoraToken)
 		buzzGroup.POST("/:id/notes", ctrl.CreateNote)
@@ -42,7 +44,6 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
 
-		// Test endpoints (no permission checks) - REMOVE IN PRODUCTION
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 	}
 
