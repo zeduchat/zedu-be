@@ -42,8 +42,8 @@ type CreateAdminResponse struct {
 }
 
 type ChangeAdminRoleRequest struct {
-	NewRole           string `json:"new_role" validate:"required,oneof=admin superadmin"`
-	ConfirmSuperAdmin *bool  `json:"confirm_superadmin"`
+	NewRole     string `json:"new_role" validate:"required,oneof=admin superadmin"`
+	IsConfirmed *bool  `json:"is_confirmed" validate:"required"`
 }
 
 type ConfirmRoleChangeRequest struct {
@@ -124,7 +124,7 @@ func (user *Admin) ChangeRole(db *gorm.DB, role string, adminId string) error {
 
 	result := db.Model(&Admin{}).
 		Where("id = ?", adminId).
-		Update("role", role)
+		UpdateColumn("role", role)
 
 	if result.Error != nil {
 		return result.Error
@@ -169,7 +169,7 @@ func GetAdminById(db *gorm.DB, adminId string) (*Admin, error) {
 }
 
 // GetOrCreateSuperAdmin checks if the superadmin exists by email.
-// If not, it seeds the DB with the credentials provided in config.
+// If not, seeds the DB with the credentials provided in config.
 func (a *Admin) GetOrCreateSuperAdmin(db *gorm.DB, cfg config.Admin) error {
 	err := db.Where("email = ?", cfg.SUPER_ADMIN_EMAIL).First(a).Error
 
