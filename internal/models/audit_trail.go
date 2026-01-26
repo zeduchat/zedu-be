@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,15 +28,34 @@ type LoginActivity struct {
 }
 
 type AuditLog struct {
-	ID        string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	AdminID   string    `gorm:"type:uuid;not null;index" json:"admin_id"` // The one who performed the action
-	Action    string    `gorm:"type:varchar(100);not null" json:"action"`
-	TargetID  string    `gorm:"type:uuid;not null;index" json:"target_id"` // The admin whose role was changed
-	OldValue  string    `gorm:"type:varchar(50)" json:"old_value"`
-	NewValue  string    `gorm:"type:varchar(50)" json:"new_value"`
-	IPAddress string    `gorm:"type:varchar(45)" json:"ip_address"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	ID           string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	ActorID      string       `gorm:"type:uuid;not null;index" json:"actor_id"`
+	ActorEmail   string       `gorm:"type:varchar(255)" json:"actor_email"`
+	Action       AuditAction  `gorm:"type:varchar(100);not null;index" json:"action"`
+	ResourceType ResourceType `gorm:"type:varchar(50);index" json:"resource_type"`
+	ResourceID   string       `gorm:"type:varchar(100);index" json:"resource_id"`
+
+	OldValues string `gorm:"type:jsonb" json:"old_values"` // Stores JSON string of state before
+	NewValues string `gorm:"type:jsonb" json:"new_values"` // Stores JSON string of state after
+
+	Description string    `gorm:"type:text" json:"description"`
+	IPAddress   string    `gorm:"type:varchar(45)" json:"ip_address"`
+	UserAgent   string    `gorm:"type:text" json:"user_agent"` // Helps identify if action was via Script vs Browser
+	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime;index" json:"created_at"`
 }
+
+type ResourceType string
+
+const (
+	ResourceAdmin ResourceType = "admin"
+)
+
+type AuditAction string
+
+const (
+	ActionAdminCreate AuditAction = "admin.create"
+	ActionAdminUpdate AuditAction = "admin.update"
+)
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
 	err := postgresql.CreateOneRecord(db, &l)
@@ -101,12 +121,24 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 		values     []any
 	)
 
-	conditions = append(conditions, "action = ?")
-	values = append(values, "ROLE_CHANGE_CONFIRMED")
+	if action := c.Query("action"); action != "" {
+		conditions = append(conditions, "action = ?")
+		values = append(values, action)
+	}
 
-	if targetID := c.Query("target_id"); targetID != "" {
-		conditions = append(conditions, "target_id = ?")
-		values = append(values, targetID)
+	if resourceID := c.Query("resource_id"); resourceID != "" {
+		conditions = append(conditions, "resource_id = ?")
+		values = append(values, resourceID)
+	}
+
+	if resType := c.Query("resource_type"); resType != "" {
+		conditions = append(conditions, "resource_type = ?")
+		values = append(values, resType)
+	}
+
+	if actorID := c.Query("actor_id"); actorID != "" {
+		conditions = append(conditions, "actor_id = ?")
+		values = append(values, actorID)
 	}
 
 	if date := c.Query("date"); date != "" {
@@ -116,10 +148,7 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 
 	queryStr := ""
 	if len(conditions) > 0 {
-		queryStr = conditions[0]
-		for i := 1; i < len(conditions); i++ {
-			queryStr += " AND " + conditions[i]
-		}
+		queryStr = strings.Join(conditions, " AND ")
 	}
 
 	pagination := postgresql.GetPagination(c)
