@@ -359,8 +359,7 @@ func TestExistingRoutesWithOrgID(t *testing.T) {
 			t.Logf("Warning: Failed to add user to channel: %v", err)
 		}
 
-		createBuzzData := models.CreateBuzzRequest{
-		}
+		createBuzzData := models.CreateBuzzRequest{}
 
 		jsonData, _ := json.Marshal(createBuzzData)
 		createURL := "/api/v1/buzz/org/create"
@@ -464,8 +463,7 @@ func TestExistingRoutesWithOrgID(t *testing.T) {
 			t.Logf("Warning: Failed to add user to channel: %v", err)
 		}
 
-		createBuzzData := models.CreateBuzzRequest{
-		}
+		createBuzzData := models.CreateBuzzRequest{}
 
 		jsonData, _ := json.Marshal(createBuzzData)
 		createURL := "/api/v1/buzz/org/create"
@@ -513,6 +511,88 @@ func TestExistingRoutesWithOrgID(t *testing.T) {
 
 		if buzz.OrgID == nil {
 			t.Error("expected org_id to still be set after ending")
+		}
+	})
+}
+
+func TestOrgBuzzMetadata(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	auth := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	// Host setup
+	hostEmail := utility.GenerateUUID() + "@qa.team"
+	hostSignUp := models.CreateUserRequestModel{
+		Email:       hostEmail,
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "HostUser",
+		LastName:    "One",
+		Password:    "password",
+		UserName:    fmt.Sprintf("hostuser_%v", utility.GenerateUUID())}
+	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
+	tst.SignupUser(t, gin.Default(), auth, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, gin.Default(), auth, hostLogin)
+
+	var hostUser models.User
+	if err := db.Postgresql.Where("email = ?", hostSignUp.Email).First(&hostUser).Error; err != nil {
+		t.Fatalf("failed to fetch host user: %v", err)
+	}
+
+	// Create a dummy channel to satisfy initial create requirements if any (though Org Buzz creates its own dummy)
+	channelID := utility.GenerateUUID()
+	channel := models.Channels{
+		ID:             channelID,
+		Name:           "test_" + utility.GenerateUUID(),
+		OrganisationID: hostUser.CurrentOrg.String(),
+		OwnerId:        hostUser.ID,
+		CreatedAt:      time.Now(),
+	}
+	db.Postgresql.Create(&channel)
+	db.Postgresql.Create(&models.UserChannels{
+		ChannelsID: channelID,
+		UserID:     hostUser.ID,
+		Username:   hostSignUp.UserName,
+		CreatedAt:  time.Now(),
+	})
+
+	router, _ := SetupBuzzEndTestRouter(logger, validatorRef)
+
+	// Create Org Buzz
+	createBuzzData := models.CreateBuzzRequest{}
+	jsonData, _ := json.Marshal(createBuzzData)
+	createReq, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/org/create", bytes.NewBuffer(jsonData))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+hostToken)
+	createRR := httptest.NewRecorder()
+	router.ServeHTTP(createRR, createReq)
+
+	if createRR.Code != http.StatusCreated {
+		t.Fatalf("Failed to create Org Buzz: %d", createRR.Code)
+	}
+
+	createData := tst.ParseResponse(createRR)
+	createDataM := createData["data"].(map[string]any)
+	buzzID := createDataM["buzz_id"].(string)
+
+	t.Run("GetMetadata_ShouldSucceedForOrgBuzz", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/metadata", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("GetBuzzMetadata failed for Org Buzz: expected 200, got %d. Body: %s", rr.Code, rr.Body.String())
 		}
 	})
 }

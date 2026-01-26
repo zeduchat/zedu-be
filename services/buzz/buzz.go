@@ -780,7 +780,7 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 	}
 
 	// Verify user is a member of the channel where the buzz is active
-	if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) {
+	if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) && buzz.BuzzType != models.BuzzTypeOrganization {
 		logger.Error("user %s is not a member of channel %s", userID, buzz.ChannelID)
 		return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
 	}
