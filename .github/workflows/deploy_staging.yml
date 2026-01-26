@@ -24,11 +24,11 @@ jobs:
           eval $(ssh-agent -s)
           echo "$SSH_KEY" | ssh-add -
 
-          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << ENDSSH
-            cd $APP_DIR
+          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << 'ENDSSH'
+            cd ${{ env.APP_DIR }}
             git reset --hard
-            git pull origin $BRANCH
-            go build -o $APP_BINARY
+            git pull origin ${{ env.BRANCH }}
+            go build -o ${{ env.APP_BINARY }}
           ENDSSH
         
       - name: Run DB migrations
@@ -36,8 +36,8 @@ jobs:
           eval $(ssh-agent -s)
           echo "$SSH_KEY" | ssh-add -
 
-          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << ENDSSH
-            cd $APP_DIR
+          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << 'ENDSSH'
+            cd ${{ env.APP_DIR }}
             echo "Running DB migrations..."
             yes | make migrate-safe-up
           ENDSSH
@@ -47,6 +47,6 @@ jobs:
           eval $(ssh-agent -s)
           echo "$SSH_KEY" | ssh-add -
 
-          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << ENDSSH
-            supervisorctl restart $SUPERVISOR_PROCESS
+          ssh -o StrictHostKeyChecking=no $SSH_USERNAME@$SSH_HOST << 'ENDSSH'
+            supervisorctl restart ${{ env.SUPERVISOR_PROCESS }}
           ENDSSH
