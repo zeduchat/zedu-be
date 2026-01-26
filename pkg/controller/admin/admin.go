@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	admin "github.com/hngprojects/telex_be/services/admin"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 type Controller struct {
@@ -208,8 +209,8 @@ func (base *Controller) InviteLeaderboard(c *gin.Context) {
 func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 	targetAdminID := c.Param("admin_id")
 
-	if _, err := uuid.Parse(targetAdminID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid admin id format", err.Error(), nil)
+	if !utility.IsValidUUID(targetAdminID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid admin id format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -228,25 +229,24 @@ func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
 		return
 	}
 
-	if req.NewRole == models.RoleSuperAdmin {
-		if req.ConfirmSuperAdmin == nil {
-			base.Logger.Error("Promotion to superadmin attempted without confirmation flag", nil)
-			rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "Explicit confirmation required for superadmin promotion. Set confirm_superadmin to true.", nil, nil)
-			c.JSON(http.StatusPreconditionRequired, rd)
-			return
-		}
-		if !*req.ConfirmSuperAdmin {
-			base.Logger.Error("Promotion to superadmin attempted with confirmation=false", nil)
-			rd := utility.BuildErrorResponse(http.StatusPreconditionRequired, "error", "You must explicitly confirm superadmin promotion by setting confirm_superadmin to true.", nil, nil)
-			c.JSON(http.StatusPreconditionRequired, rd)
-			return
-		}
+	if req.IsConfirmed == nil {
+		base.Logger.Error("Admin role change attempted without confirmation flag", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "confirm_superadmin is required when changing admin roles.", nil, nil)
+		c.JSON(http.StatusPreconditionRequired, rd)
+		return
+	}
+	if !*req.IsConfirmed {
+		base.Logger.Error("Admin role change attempted with confirmation=false", nil)
+		rd := utility.BuildErrorResponse(http.StatusConflict, "error", "You must explicitly confirm admin role change by setting confirm_superadmin to true.", nil, nil)
+		c.JSON(http.StatusPreconditionRequired, rd)
+		return
 	}
 
 	claims := c.MustGet("adminClaims").(jwt.MapClaims)
 	requesterID := claims["admin_id"].(string)
+	ipAddress := audit_utility.GetClientIP(c)
 
-	resp, err := admin.InitiateRoleChange(base.Db, targetAdminID, req.NewRole, requesterID, c.ClientIP())
+	resp, err := admin.InitiateAdminRoleChange(base.Db, targetAdminID, req.NewRole, requesterID, ipAddress)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -265,10 +265,23 @@ func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
 		return
 	}
 
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	claims := c.MustGet("adminClaims").(jwt.MapClaims)
 	requesterID := claims["admin_id"].(string)
 
-	err := admin.ConfirmRoleChange(base.Db, base.Logger, req.ConfirmationToken, requesterID)
+	ipAddress := audit_utility.GetClientIP(c)
+	userAgent := c.GetHeader("User-Agent")
+	if userAgent == "" {
+		userAgent = "Unknown/Direct API Request"
+	}
+
+	err := admin.ConfirmAdminRoleChange(base.Db, base.Logger, req.ConfirmationToken, requesterID, ipAddress, userAgent)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -315,7 +328,6 @@ func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
 		return
 	}
 
-	// Return the standardized success response
 	rd := utility.BuildSuccessResponse(
 		http.StatusOK,
 		"Audit logs retrieved successfully",
