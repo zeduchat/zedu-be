@@ -58,8 +58,8 @@ tags:
     description: API for user agents operations
   - name: System Agents
     description: API for system agents operations
-  - name: admin
-    description: API for backoffice admin and superadmin operations (superadmin only)
+  - name: Admin
+    description: API for backoffice admin and superadmin operations
   - name: Overview
     description: API for overview operations
   - name: newsletter
@@ -100,8 +100,6 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
-  - name: Super Admin
-    description: API endpoints for superadmin dashboard and operations
   - name: Avatars
     description: API for shared avatar gallery management
   - name: Activity
@@ -117,71 +115,6 @@ tags:
   - name: shares
     description: API endpoints for buying and tracking shares
 paths:
-  # Super Admin Dashboard paths
-  /backoffice/dashboard/credits-summary:
-    get:
-      tags:
-        - Super Admin
-      summary: Get platform credit summary for superadmin dashboard
-      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Platform credit summary retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  message:
-                    type: string
-                    example: "Platform credit summary retrieved successfully"
-                  data:
-                    $ref: "#/components/schemas/PlatformCreditMetrics"
-        "401":
-          description: Unauthorized - Invalid or missing authentication token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Unauthorized"
-        "403":
-          description: Forbidden - User does not have superadmin privileges
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Access denied. Super admin privileges required."
-        "500":
-          description: Internal server error - Failed to fetch platform credit summary
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Failed to fetch platform credit summary"
-
   # Auth paths
   /auth/register:
     post:
@@ -7995,10 +7928,345 @@ paths:
                   status_code: 404
                   message: "Invitation not found"
 
+ # Admin/Backoffice paths
+  /backoffice/admins/{admin_id}/role/initiate:
+    post:
+      tags:
+        - Admin
+      summary: Initiate admin role change
+      description: |-
+        Initiates a role change for an admin user. Returns a confirmation token that must be used within 15 minutes to complete the role change. This two-step process ensures intentional role modifications.
+
+        **Access**: Superadmins only.
+      operationId: initiateAdminRoleChange
+      parameters:
+        - name: admin_id
+          in: path
+          required: true
+          description: UUID of the admin whose role is being changed
+          schema:
+            type: string
+            format: uuid
+            example: "019bf8e4-996b-7c12-8574-88069538de83"
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - new_role
+                - confirm_superadmin
+              properties:
+                new_role:
+                  type: string
+                  enum: [admin, superadmin]
+                  description: The new role to assign to the admin
+                  example: "superadmin"
+                confirm_superadmin:
+                  type: boolean
+                  description: Explicit confirmation flag that must be set to true
+                  example: true
+      responses:
+        "202":
+          description: Role change initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 202
+                  message:
+                    type: string
+                    example: "Role change initiated. Use the token to confirm."
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        description: Confirmation token (expires in 15 minutes)
+                        example: "160cf2e67ce517a1f861489c33e673a251207f0cab0d6f92960af026fc93cc20"
+                      expires_at:
+                        type: string
+                        format: date-time
+                        description: Token expiration timestamp
+                        example: "2026-01-26T09:29:25.871448Z"
+                      target:
+                        type: string
+                        format: email
+                        description: Email of the target admin
+                        example: "targetadmin@example.com"
+        "400":
+          description: Bad request - Invalid admin ID, role, or missing confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "428":
+          description: Precondition Required - confirm_superadmin must be true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 428
+                  message:
+                    type: string
+                    example: "You must explicitly confirm admin role change by setting confirm_superadmin to true."
+
+  /backoffice/admins/role/confirm:
+    post:
+      tags:
+        - Admin
+      summary: Confirm admin role change
+      description: |-
+        Completes the role change process using the confirmation token received from the initiation endpoint. This operation is atomic - if any step fails (including audit log creation), the entire transaction is rolled back.
+
+        The confirmation process:
+        - Updates the admin's role
+        - Invalidates all existing access tokens for the admin
+        - Creates an audit log entry
+        - Marks the confirmation token as used
+
+        **Access**: Superadmins only (must be the same user who initiated the change).
+      operationId: confirmAdminRoleChange
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - confirmation_token
+              properties:
+                confirmation_token:
+                  type: string
+                  description: The confirmation token received from the initiate endpoint
+                  example: "160cf2e67ce517a1f861489c33e673a251207f0cab0d6f92960af026fc93cc20"
+      responses:
+        "200":
+          description: Admin role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Admin role updated successfully"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request - Invalid, expired, or already used token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "invalid or expired token"
+                    description: Possible messages include "invalid or expired token", "token expired", "unauthorized requester", "requester not found", "target admin not found", "failed to create audit log (transaction rolled back)"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /backoffice/admins/audit-logs:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve admin role change audit history
+      description: |-
+        Returns a paginated list of audit logs for admin role changes, providing a complete audit trail of all role modifications.
+
+        **Access**: Superadmins only.
+      operationId: getAdminRoleAuditHistory
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 20)
+          schema:
+            type: integer
+            default: 20
+            example: 20
+        - name: target_id
+          in: query
+          required: false
+          description: Filter audit logs by target admin ID
+          schema:
+            type: string
+            format: uuid
+            example: "019bf8e4-996b-7c12-8574-88069538de83"
+        - name: actor_id
+          in: query
+          required: false
+          description: Filter audit logs by actor (requester) admin ID
+          schema:
+            type: string
+            format: uuid
+            example: "019be70b-6719-7cae-b24f-3e9ba5c01f4e"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Audit logs retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      logs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              example: "019bf8f0-714f-7c12-aea5-77d4edfd3949"
+                            actor_id:
+                              type: string
+                              format: uuid
+                              example: "019be70b-6719-7cae-b24f-3e9ba5c01f4e"
+                            actor_email:
+                              type: string
+                              example: "superadmin@example.com"
+                            action:
+                              type: string
+                              example: "admin_update"
+                            resource_id:
+                              type: string
+                              format: uuid
+                              example: "019bf8e4-996b-7c12-8574-88069538de83"
+                            resource_type:
+                              type: string
+                              example: "admin"
+                            old_values:
+                              type: string
+                              example: '{"role":"admin"}'
+                            new_values:
+                              type: string
+                              example: '{"role":"superadmin"}'
+                            description:
+                              type: string
+                              example: "Superadmin superadmin@example.com changed role of targetadmin@example.com from admin to superadmin"
+                            ip_address:
+                              type: string
+                              example: "::1"
+                            user_agent:
+                              type: string
+                              example: "curl/7.68.0"
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2026-01-26T09:14:26Z"
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          total_records:
+                            type: integer
+                            example: 45
+                          total_pages:
+                            type: integer
+                            example: 3
+        "400":
+          description: Bad request - Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
   /backoffice/admins/users:
     get:
       tags:
-        - admin
+        - Admin
       summary: Retrieve all users
       description: |-
         Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts and activity metrics.
@@ -8031,12 +8299,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminUsersResponseSchema"
-        "204":
-          description: No content
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoContentResponseSchema"
         "400":
           description: Bad request
           content:
@@ -8059,7 +8321,7 @@ paths:
   /backoffice/admins/users/invites:
     get:
       tags:
-        - admin
+        - Admin
       summary: Retrieve invite leaderboard (top N inviters)
       description: |-
         Returns the top N users ordered by the number of invitations (referrals) they have sent. This endpoint is intended for leaderboard use and **does not** return a paginated list. 
@@ -8107,6 +8369,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+  /backoffice/dashboard/credits-summary:
+    get:
+      tags:
+        - Admin
+      summary: Get platform credit summary for superadmin dashboard
+      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform credit summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Platform credit summary retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/PlatformCreditMetrics"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Unauthorized"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Access denied. Super admin privileges required."
+        "500":
+          description: Internal server error - Failed to fetch platform credit summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch platform credit summary"
 
   /invite/change-status:
     post:

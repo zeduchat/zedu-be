@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -37,6 +39,33 @@ type CreateAdminResponse struct {
 	Email string `json:"email" validate:"required"`
 	Name  string `json:"name" validate:"required"`
 	Role  string `json:"role"`
+}
+
+type ChangeAdminRoleRequest struct {
+	NewRole     string `json:"new_role" validate:"required,oneof=admin superadmin"`
+	IsConfirmed *bool  `json:"is_confirmed" validate:"required"`
+}
+
+type ConfirmRoleChangeRequest struct {
+	ConfirmationToken string `json:"confirmation_token" validate:"required"`
+}
+
+type RoleChangeConfirmation struct {
+	ID                string     `gorm:"primary_key;type:uuid" json:"id"`
+	TargetAdminID     string     `gorm:"type:uuid;not null;index" json:"target_admin_id"`
+	TargetAdminEmail  string     `gorm:"type:varchar(255);not null" json:"target_admin_email"`
+	TargetAdminName   string     `gorm:"type:varchar(255);not null" json:"target_admin_name"`
+	RequesterID       string     `gorm:"type:uuid;not null;index" json:"requester_id"`
+	RequesterEmail    string     `gorm:"type:varchar(255);not null" json:"requester_email"`
+	NewRole           string     `gorm:"type:varchar(50);not null" json:"new_role"`
+	OldRole           string     `gorm:"type:varchar(50);not null" json:"old_role"`
+	ConfirmationToken string     `gorm:"type:varchar(255);unique;not null;index" json:"-"`
+	ExpiresAt         time.Time  `gorm:"not null;index" json:"expires_at"`
+	IsUsed            bool       `gorm:"default:false;not null;index" json:"is_used"`
+	UsedAt            *time.Time `gorm:"type:timestamp" json:"used_at,omitempty"`
+	IPAddress         string     `gorm:"type:varchar(45)" json:"ip_address"`
+	CreatedAt         time.Time  `gorm:"not null" json:"created_at"`
+	UpdatedAt         time.Time  `gorm:"not null" json:"updated_at"`
 }
 
 const (
@@ -89,13 +118,13 @@ func (user *Admin) ActivateAdmin(db *gorm.DB, is_active bool, adminId string) er
 }
 
 func (user *Admin) ChangeRole(db *gorm.DB, role string, adminId string) error {
-	if role != "admin" && role != "superadmin" {
+	if role != RoleAdmin && role != RoleSuperAdmin {
 		return fmt.Errorf("invalid role: %s", role)
 	}
 
 	result := db.Model(&Admin{}).
 		Where("id = ?", adminId).
-		Update("role", role)
+		UpdateColumn("role", role)
 
 	if result.Error != nil {
 		return result.Error
@@ -125,4 +154,39 @@ func GetAllAdmins(db *gorm.DB) ([]CreateAdminResponse, error) {
 	}
 
 	return response, nil
+}
+
+func GetAdminById(db *gorm.DB, adminId string) (*Admin, error) {
+	var admin Admin
+	err := db.Where("id = ? AND is_deleted = ?", adminId, false).First(&admin).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New("admin not found")
+		}
+		return nil, err
+	}
+	return &admin, nil
+}
+
+// GetOrCreateSuperAdmin checks if the superadmin exists by email.
+// If not, seeds the DB with the credentials provided in config.
+func (a *Admin) GetOrCreateSuperAdmin(db *gorm.DB, cfg config.Admin) error {
+	err := db.Where("email = ?", cfg.SUPER_ADMIN_EMAIL).First(a).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			hashedPassword, _ := utility.HashPassword(cfg.SUPER_ADMIN_PASSWORD)
+
+			a.ID = utility.GenerateUUID()
+			a.Email = cfg.SUPER_ADMIN_EMAIL
+			a.Name = cfg.SUPER_ADMIN_NAME
+			a.Password = hashedPassword
+			a.Role = RoleSuperAdmin
+			a.IsActive = true
+
+			return db.Create(a).Error
+		}
+		return err
+	}
+	return nil
 }

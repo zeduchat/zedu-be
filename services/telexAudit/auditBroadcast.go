@@ -73,3 +73,24 @@ func LoginAudit(db *storage.Database, logger *utility.Logger, data gin.H) error 
 
 	return nil
 }
+
+func RoleChangeAudit(db *storage.Database, logger *utility.Logger, requesterEmail, targetEmail, oldRole, newRole string) error {
+	var req models.CreateWebhookHistoryRequest
+
+	channelID := config.Config.Channels.Audit
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		return fmt.Errorf("invalid audit channel id")
+	}
+
+	req.ChannelID = channelID
+	req.UserName = "Security Monitor"
+	req.EventName = "Role Change"
+	req.Status = "success"
+	req.Message = fmt.Sprintf("Superadmin (%s) changed role of %s from %s to %s",
+		requesterEmail, targetEmail, oldRole, newRole)
+	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
+
+	_, _, err := webhook.PostFeedWebhook(db, logger, req)
+	return err
+}
