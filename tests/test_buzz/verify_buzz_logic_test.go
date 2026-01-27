@@ -543,7 +543,7 @@ func TestJoinBuzzScenarios(t *testing.T) {
 			t.Errorf("Expected 'user joined buzz successfully', got '%s'", message)
 		}
 
-		t.Logf("✅ Correctly rejected duplicate join attempt")
+		t.Logf("✅ Correctly rejoined a buzz")
 	})
 
 	// Cleanup
