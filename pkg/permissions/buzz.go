@@ -226,7 +226,7 @@ func CanJoinBuzz(db *gorm.DB, buzzID, userID string) (*models.Buzz, error) {
 	}
 
 	if buzz.BuzzType != models.BuzzTypeOrganization {
-		if !models.IsUserInChannel(db, buzz.ChannelID, userID) {
+		if !models.IsUserInChannel(db, buzz.ChannelID, userID) && buzz.BuzzType != models.BuzzTypeOrganization {
 			return nil, ErrNotChannelMember
 		}
 	}
