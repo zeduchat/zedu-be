@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -360,7 +361,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		AgoraToken:   &agoraToken,
 	}
 
-	publishJoinBuzzEvent(logger, *buzz, timestamp)
+	publishJoinBuzzEvent(logger, *buzz, timestamp, db.Postgresql, userID)
 
 	logger.Info("user %s successfully joined buzz %s", userID, buzzID)
 	return resp, http.StatusOK, nil
@@ -421,15 +422,52 @@ func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz
 	return nil
 }
 
-func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp time.Time) {
+func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp time.Time, db *gorm.DB, userID string) {
+	var joinedUsername string
+
+	var profile models.Profile
+	var user models.User
+	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
+		logger.Error("failed to fetch user for join event: %v", err)
+	} else {
+		if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
+			logger.Error("failed to fetch profile for join event: %v", err)
+		} else {
+			joinedUsername = profile.UserName
+			if joinedUsername == "" {
+				joinedUsername = user.Email
+				if idx := strings.Index(joinedUsername, "@"); idx != -1 {
+					joinedUsername = joinedUsername[:idx]
+				}
+			}
+		}
+	}
+
+	participantDetails, err := getParticipantsMetadata(db, buzz.ID)
+	if err != nil {
+		logger.Error("failed to fetch participant details for join event: %v", err)
+		participantDetails = []models.ParticipantMetadata{}
+	}
+
+	participantDetailsArray := make([]models.ParticipantDetails, 0, len(participantDetails))
+	for _, p := range participantDetails {
+		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
+			UserID:    p.UserID,
+			Username:  p.UserName,
+			AvatarURL: p.AvatarURL,
+		})
+	}
+
 	eventPayload := models.BuzzEventPayload{
-		Event:          string(models.UserJoinedBuzz),
-		BuzzID:         buzz.ID,
-		ChannelID:      buzz.ChannelID,
-		HostID:         buzz.HostID,
-		ParticipantIDs: buzz.ParticipantIDs,
-		CreatedAt:      timestamp,
-		Status:         buzz.Status,
+		Event:              string(models.UserJoinedBuzz),
+		BuzzID:             buzz.ID,
+		ChannelID:          buzz.ChannelID,
+		HostID:             buzz.HostID,
+		ParticipantIDs:     buzz.ParticipantIDs,
+		ParticipantDetails: participantDetailsArray,
+		CreatedAt:          timestamp,
+		Status:             buzz.Status,
+		UserJoined:         joinedUsername,
 	}
 
 	notification := models.Notification[models.UserJoinedBuzz]
@@ -510,6 +548,16 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to update participant")
 	}
 
+	var user models.User
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, http.StatusNotFound, errors.New("user not found")
+		}
+		logger.Error("Failed to fetch user: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to fetch user")
+	}
+
 	if err := tx.Where("userid = ?", userID).First(&profile).Error; err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -524,17 +572,42 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to commit changes")
 	}
 
+	username := profile.UserName
+	if username == "" {
+		username = user.Email
+		if idx := strings.Index(username, "@"); idx != -1 {
+			username = username[:idx]
+		}
+	}
+
+	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzzID)
+	if err != nil {
+		logger.Error("failed to fetch participant details for leave event: %v", err)
+		participantDetails = []models.ParticipantMetadata{}
+	}
+
+	participantDetailsArray := make([]models.ParticipantDetails, 0, len(participantDetails))
+	for _, p := range participantDetails {
+		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
+			UserID:    p.UserID,
+			Username:  p.UserName,
+			AvatarURL: p.AvatarURL,
+		})
+	}
+
 	publishPayload := models.BuzzLeaveEventPayload{
 		HuddleStatus: buzz.Status,
 		HostChanged:  !(newHostID == ""),
 		UserID:       userID,
 		UserName:     profile.UserName,
 		BuzzEventPayload: models.BuzzEventPayload{
-			Event:          string(models.UserLeftBuzz),
-			BuzzID:         buzzID,
-			HostID:         buzz.HostID,
-			ParticipantIDs: newParticipants,
-			Status:         models.BuzzStatusActive,
+			Event:              string(models.UserLeftBuzz),
+			BuzzID:             buzzID,
+			HostID:             buzz.HostID,
+			ParticipantIDs:     newParticipants,
+			ParticipantDetails: participantDetailsArray,
+			Status:             models.BuzzStatusActive,
+			UserLeft:           username,
 		},
 	}
 
