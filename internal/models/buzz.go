@@ -181,13 +181,23 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 }
 
 type BuzzEventPayload struct {
-	Event          string    `json:"event"`
-	BuzzID         string    `json:"Buzz_id"`
-	ChannelID      string    `json:"channel_id"`
-	HostID         string    `json:"host_id"`
-	ParticipantIDs []string  `json:"participant_ids"`
-	CreatedAt      time.Time `json:"created_at"`
-	Status         string    `json:"status"`
+	Event              string               `json:"event"`
+	BuzzID             string               `json:"Buzz_id"`
+	ChannelID          string               `json:"channel_id"`
+	HostID             string               `json:"host_id"`
+	ParticipantIDs     []string             `json:"participant_ids"`
+	ParticipantDetails []ParticipantDetails `json:"participant_details,omitempty"`
+	CreatedAt          time.Time            `json:"created_at"`
+	Status             string               `json:"status"`
+	UserJoined         string               `json:"user_joined,omitempty"`
+	UserLeft           string               `json:"user_left,omitempty"`
+}
+
+type ParticipantDetails struct {
+	UserID    string  `json:"user_id"`
+	Username  string  `json:"username"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	Email     string  `json:"email,omitempty"`
 }
 
 type BuzzLeaveEventPayload struct {
