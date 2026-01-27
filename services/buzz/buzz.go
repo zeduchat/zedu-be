@@ -612,7 +612,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	}
 
 	publishChannel := getPublishChannel(&buzz)
-	centrifuge.PublishLeaveBuzzEvent(logger, publishChannel, buzzID, publishPayload)
+	centrifuge.PublishLeaveBuzzEvent(logger, publishChannel, publishPayload)
 
 	if buzzEnded {
 		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
