@@ -596,6 +596,9 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 	participantDetailsArray := make([]models.ParticipantDetails, 0, len(participantDetails))
 	for _, p := range participantDetails {
+		if p.Status == models.BuzzParticipantStatusLeft {
+			continue
+		}
 		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
 			UserID:    p.UserID,
 			Username:  p.UserName,
@@ -865,7 +868,14 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
-	resp = buildBuzzMetadataResponse(&buzz, participantMetadata)
+	activeParticipantMetadata := make([]models.ParticipantMetadata, 0, len(participantMetadata))
+	for _, p := range participantMetadata {
+		if p.Status == models.BuzzParticipantStatusActive {
+			activeParticipantMetadata = append(activeParticipantMetadata, p)
+		}
+	}
+
+	resp = buildBuzzMetadataResponse(&buzz, activeParticipantMetadata)
 	logger.Info("generating Agora RTC token for host %s in buzz %s", userID, buzzID)
 	service := agora.Client.Service
 	if service == nil {
