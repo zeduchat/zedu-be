@@ -282,7 +282,7 @@ func (h *Buzz) AddUserToBuzz(db *gorm.DB, userID string) error {
 	// Check if user is already in the Buzz
 	for _, participantID := range Buzz.ParticipantIDs {
 		if participantID == userID {
-			return errors.New("user is already in the Buzz")
+			return nil
 		}
 	}
 
