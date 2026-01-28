@@ -423,10 +423,12 @@ func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz
 }
 
 func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp time.Time, db *gorm.DB, userID string) {
-	var joinedUsername string
-
-	var profile models.Profile
-	var user models.User
+	var (
+		joinedUsername string
+		joinedUser     = models.ParticipantDetails{}
+		profile        models.Profile
+		user           models.User
+	)
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
 		logger.Error("failed to fetch user for join event: %v", err)
 	} else {
@@ -440,6 +442,9 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 					joinedUsername = joinedUsername[:idx]
 				}
 			}
+			joinedUser.UserID = userID
+			joinedUser.Username = joinedUsername
+			joinedUser.AvatarURL = &profile.AvatarURL
 		}
 	}
 
@@ -467,7 +472,7 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 		ParticipantDetails: participantDetailsArray,
 		CreatedAt:          timestamp,
 		Status:             buzz.Status,
-		UserJoined:         joinedUsername,
+		UserJoined:         joinedUser,
 	}
 
 	notification := models.Notification[models.UserJoinedBuzz]
@@ -489,6 +494,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		profile   models.Profile
 		newHostID = ""
 		buzzEnded = false
+		userLeft  = models.ParticipantDetails{}
 	)
 
 	logger.Info("user %s attempting to leave buzz %s", userID, buzzID)
@@ -580,6 +586,10 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		}
 	}
 
+	userLeft.UserID = userID
+	userLeft.Username = username
+	userLeft.AvatarURL = &profile.AvatarURL
+
 	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzzID)
 	if err != nil {
 		logger.Error("failed to fetch participant details for leave event: %v", err)
@@ -610,7 +620,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 			ParticipantIDs:     newParticipants,
 			ParticipantDetails: participantDetailsArray,
 			Status:             models.BuzzStatusActive,
-			UserLeft:           username,
+			UserLeft:           userLeft,
 		},
 	}
 
