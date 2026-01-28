@@ -189,8 +189,8 @@ type BuzzEventPayload struct {
 	ParticipantDetails []ParticipantDetails `json:"participant_details,omitempty"`
 	CreatedAt          time.Time            `json:"created_at"`
 	Status             string               `json:"status"`
-	UserJoined         string               `json:"user_joined,omitempty"`
-	UserLeft           string               `json:"user_left,omitempty"`
+	UserJoined         ParticipantDetails   `json:"user_joined,omitempty"`
+	UserLeft           ParticipantDetails   `json:"user_left,omitempty"`
 }
 
 type ParticipantDetails struct {
