@@ -56,6 +56,7 @@ type BuzzParticipant struct {
 	IsMuted       bool       `gorm:"type:boolean;default:false" json:"is_muted"`
 	StatusSticker *string    `gorm:"type:varchar(50)" json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `gorm:"column:sticker_set_at" json:"sticker_set_at,omitempty"`
+	MediaState    *string    `gorm:"type:jsonb" json:"media_state,omitempty"`
 	JoinedAt      time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
 	LeftAt        *time.Time `gorm:"column:left_at" json:"left_at"`
 	CreatedAt     time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
@@ -77,6 +78,7 @@ type ParticipantMetadata struct {
 	Status        string     `json:"status"`
 	StatusSticker *string    `json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
+	MediaState    *string    `json:"media_state,omitempty"`
 }
 
 type BuzzCreateResponse struct {
@@ -194,10 +196,11 @@ type BuzzEventPayload struct {
 }
 
 type ParticipantDetails struct {
-	UserID    string  `json:"user_id"`
-	Username  string  `json:"username"`
-	AvatarURL *string `json:"avatar_url,omitempty"`
-	Email     string  `json:"email,omitempty"`
+	UserID     string  `json:"user_id"`
+	Username   string  `json:"username"`
+	AvatarURL  *string `json:"avatar_url,omitempty"`
+	Email      string  `json:"email,omitempty"`
+	MediaState *string `json:"media_state,omitempty"`
 }
 
 type BuzzLeaveEventPayload struct {
@@ -257,6 +260,10 @@ type CameraStatusEventPayload struct {
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	Timestamp  string `json:"timestamp"`
+}
+
+type UpdateMediaStateRequest struct {
+	MediaState interface{} `json:"media_state" validate:"required"`
 }
 
 // AddUserToBuzz adds a user to a Buzz as a participant

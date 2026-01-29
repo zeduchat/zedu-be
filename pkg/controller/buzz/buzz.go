@@ -417,3 +417,56 @@ func (base *Controller) GetOrgBuzzList(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "organization buzz list retrieved successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) UpdateMediaState(c *gin.Context) {
+	buzzID, ok := c.Params.Get("id")
+	if !ok || !(utility.IsValidUUID(buzzID)) {
+		base.Logger.Error("invalid request param: buzz id is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userIDInterface, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		base.Logger.Error("user_id is not of type string")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "user_id is not of type string", errors.New("user_id is not of type string"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.UpdateMediaStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Info("error parsing media state request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Info("validation failed for media state request")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := buzz.UpdateMediaState(base.Db, base.Logger, buzzID, userID, req.MediaState)
+	if err != nil {
+		base.Logger.Error("failed to update media state: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("media state updated successfully for user %s in buzz %s", userID, buzzID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "media state updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
