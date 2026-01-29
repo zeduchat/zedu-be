@@ -57,8 +57,9 @@ func SendBuzzReaction(db *storage.Database, logger *utility.Logger, req models.S
 		ChannelId: buzz.ChannelID,
 	}
 	notification.NotificationId = utility.GenerateUUID()
+	buzzChannelId := getPublishChannel(buzz)
 
-	if err := centrifuge.PublishChannelOptional(logger, buzz.ChannelID, notification); err != nil {
+	if err := centrifuge.PublishChannelOptional(logger, buzzChannelId, notification); err != nil {
 		logger.Warning("failed to publish buzz reaction event (non-critical): %v", err)
 	}
 
@@ -134,7 +135,9 @@ func UpdateBuzzSticker(db *storage.Database, logger *utility.Logger, req models.
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannelOptional(logger, buzz.ChannelID, notification); err != nil {
+	buzzChannelId := getPublishChannel(buzz)
+
+	if err := centrifuge.PublishChannelOptional(logger, buzzChannelId, notification); err != nil {
 		logger.Warning("failed to publish buzz sticker event (non-critical): %v", err)
 	}
 

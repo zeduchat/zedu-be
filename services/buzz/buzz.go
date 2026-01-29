@@ -1,6 +1,7 @@
 package buzz
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -75,7 +76,8 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 			bp.joined_at,
 			bp.status,
 			bp.status_sticker,
-			bp.sticker_set_at
+			bp.sticker_set_at,
+			bp.media_state
 		FROM buzz_participants bp
 		JOIN users u ON bp.user_id = u.id
 		LEFT JOIN profiles p ON u.id = p.userid
@@ -457,9 +459,10 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	participantDetailsArray := make([]models.ParticipantDetails, 0, len(participantDetails))
 	for _, p := range participantDetails {
 		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
-			UserID:    p.UserID,
-			Username:  p.UserName,
-			AvatarURL: p.AvatarURL,
+			UserID:     p.UserID,
+			Username:   p.UserName,
+			AvatarURL:  p.AvatarURL,
+			MediaState: p.MediaState,
 		})
 	}
 
@@ -602,9 +605,10 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 			continue
 		}
 		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
-			UserID:    p.UserID,
-			Username:  p.UserName,
-			AvatarURL: p.AvatarURL,
+			UserID:     p.UserID,
+			Username:   p.UserName,
+			AvatarURL:  p.AvatarURL,
+			MediaState: p.MediaState,
 		})
 	}
 
@@ -869,7 +873,6 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		logger.Error("failed to fetch participant metadata: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
-
 	activeParticipantMetadata := make([]models.ParticipantMetadata, 0, len(participantMetadata))
 	for _, p := range participantMetadata {
 		if p.Status == models.BuzzParticipantStatusActive {
@@ -1015,7 +1018,6 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 		if err := tx.Model(&buzz).Updates(buzz).Error; err != nil {
 			return err
 		}
-
 		// Update all active participants to left status
 		if err := tx.Model(&models.BuzzParticipant{}).
 			Where("buzz_id = ? AND status = ?", buzzID, models.BuzzParticipantStatusActive).
@@ -1070,6 +1072,35 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 		EndedAt:   now,
 		Status:    buzz.Status,
 	}, http.StatusOK, nil
+}
+
+func UpdateMediaState(db *storage.Database, logger *utility.Logger, buzzID, userID string, mediaState interface{}) (int, error) {
+	logger.Info("user %s updating media state in buzz %s", userID, buzzID)
+
+	buzz, err := permissions.CanPerformBuzzAction(db.Postgresql, buzzID, userID)
+	if err != nil && buzz.BuzzType != models.BuzzTypeOrganization {
+		statusCode, errMsg := mapPermissionError(err, "update media state")
+		return statusCode, errors.New(errMsg)
+	}
+
+	stateJSON, err := json.Marshal(mediaState)
+	if err != nil {
+		logger.Error("failed to marshal media state: %v", err)
+		return http.StatusBadRequest, errors.New("invalid media state format")
+	}
+	stateStr := string(stateJSON)
+
+	err = db.Postgresql.Model(&models.BuzzParticipant{}).
+		Where("buzz_id = ? AND user_id = ?", buzzID, userID).
+		Update("media_state", stateStr).Error
+
+	if err != nil {
+		logger.Error("failed to update media state: %v", err)
+		return http.StatusInternalServerError, errors.New("failed to update media state")
+	}
+
+	logger.Info("media state updated successfully for user %s in buzz %s", userID, buzzID)
+	return http.StatusOK, nil
 }
 
 func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, orgID string) (models.BuzzCreateResponse, int, error) {

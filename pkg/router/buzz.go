@@ -30,6 +30,7 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.GET("/:id/notes", ctrl.GetNotes)
 		buzzGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)
 		buzzGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
+		buzzGroup.PATCH("/:id/media-state", ctrl.UpdateMediaState)
 		buzzGroup.POST("/:id/leave", ctrl.LeaveBuzz)
 		buzzGroup.POST("/:id/end", ctrl.EndBuzz)
 		buzzGroup.POST("/channel/:channel_id/end", ctrl.EndBuzzByChannel)
