@@ -16,12 +16,14 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	dm "github.com/hngprojects/telex_be/services/directMessage"
+	"github.com/hngprojects/telex_be/services/directMessage"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 const (
-	errorAgoraNotInitialized = "agora service not initialized"
+	errorAgoraNotInitialized   = "agora service not initialized"
+	DefaultBuzzDurationMinutes = 60
 )
 
 func getPublishChannel(buzz *models.Buzz) string {
@@ -101,6 +103,7 @@ func buildBuzzMetadataResponse(buzz *models.Buzz, participantMetadata []models.P
 		Status:       buzz.Status,
 		CreatedAt:    buzz.CreatedAt,
 		StartedAt:    buzz.BuzzStartTime,
+		EndedAt:      buzz.BuzzEndTime,
 		Participants: participantMetadata,
 	}
 }
@@ -183,6 +186,8 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	// Only the host auto-joins on creation; others must explicitly join via /join endpoint
 	participants := []string{hostID}
 
+	endTime := now.Add(time.Duration(DefaultBuzzDurationMinutes) * time.Minute)
+
 	buzz := models.Buzz{
 		ID:             utility.GenerateUUID(),
 		ChannelID:      channelID,
@@ -190,6 +195,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		HostID:         hostID,
 		ParticipantIDs: participants,
 		BuzzStartTime:  now,
+		BuzzEndTime:    &endTime,
 		IsLiveStatus:   true,
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
@@ -256,6 +262,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		Status:         metadataResp.Status,
 		CreatedAt:      metadataResp.CreatedAt,
 		StartedAt:      metadataResp.StartedAt,
+		EndedAt:        metadataResp.EndedAt,
 		ParticipantIDs: buzz.ParticipantIDs,
 		Participants:   metadataResp.Participants,
 		AgoraToken:     &agoraToken,
@@ -358,6 +365,8 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		UserID:       userID,
 		Status:       metadataResp.Status,
 		CreatedAt:    metadataResp.CreatedAt,
+		StartedAt:    metadataResp.StartedAt,
+		EndedAt:      metadataResp.EndedAt,
 		JoinedAt:     timestamp,
 		Participants: metadataResp.Participants,
 		AgoraToken:   &agoraToken,
@@ -981,6 +990,7 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 		BuzzID:                buzz.ID,
 		HostID:                buzz.HostID,
 		Status:                buzz.Status,
+		EndedAt:               buzz.BuzzEndTime,
 		ParticipantCount:      len(participantMetadata),
 		ParticipantPreview:    participantPreview,
 		RemainingParticipants: remainingCount,
@@ -1263,4 +1273,53 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 
 	logger.Info("successfully fetched %d org buzz items for user %s in org %s", len(buzzItems), userID, orgID)
 	return resp, http.StatusOK, nil
+}
+
+func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, hostID string, eventType string) error {
+	var user models.User
+	_, userErr := user.GetUserByID(db.Postgresql, hostID)
+	if userErr != nil {
+		return userErr
+	}
+
+	if user.ID == "" {
+		logger.Error("User %s not found, skipping system message", hostID)
+		return nil
+	}
+
+	displayName := user.Profile.UserName
+	if displayName == "" && user.Email != "" {
+		displayName = strings.Split(user.Email, "@")[0]
+	}
+
+	participantCount := len(buzz.ParticipantIDs)
+	var content string
+
+	if eventType == "started" {
+		content = fmt.Sprintf("@%s started a buzz (%d participants)", displayName, participantCount)
+	} else {
+		content = fmt.Sprintf("@%s ended a buzz (%d participants)", displayName, participantCount)
+	}
+
+	var orgID string
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    content,
+		Type:       "system",
+		UserId:     hostID,
+		ChannelsID: buzz.ChannelID,
+		OrgId:      orgID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err := thread.SaveThreadMessage(systemMsg, db, logger)
+	if err != nil {
+		logger.Error("Failed to save system message: %v", err)
+		return err
+	}
+
+	return nil
 }

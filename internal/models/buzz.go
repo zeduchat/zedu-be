@@ -88,6 +88,7 @@ type BuzzCreateResponse struct {
 	Status         string                  `json:"status"`
 	CreatedAt      time.Time               `json:"created_at"`
 	StartedAt      time.Time               `json:"started_at"`
+	EndedAt        *time.Time              `json:"ended_at,omitempty"`
 	ParticipantIDs []string                `json:"participants_id"`
 	Participants   []ParticipantMetadata   `json:"participants"`
 	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
@@ -116,19 +117,21 @@ type BuzzMetadataResponse struct {
 	Status       string                  `json:"status"`
 	CreatedAt    time.Time               `json:"created_at"`
 	StartedAt    time.Time               `json:"started_at"`
+	EndedAt      *time.Time            `json:"ended_at,omitempty"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type ActiveBuzzIndicator struct {
-	IsActive              bool     `json:"is_active"`
-	BuzzID                string   `json:"buzz_id,omitempty"`
-	HostID                string   `json:"host_id,omitempty"`
-	Status                string   `json:"status,omitempty"`
-	ParticipantCount      int      `json:"participant_count"`
-	ParticipantPreview    []string `json:"participant_preview"`       // First 2-3 names
-	RemainingParticipants int      `json:"remaining_participants"`    // Count of others
-	IsUserInBuzz          bool     `json:"is_user_in_buzz,omitempty"` // Whether the requesting user is in the buzz
+	IsActive              bool       `json:"is_active"`
+	BuzzID                string     `json:"buzz_id,omitempty"`
+	HostID                string     `json:"host_id,omitempty"`
+	Status                string     `json:"status,omitempty"`
+	EndedAt               *time.Time `json:"ended_at,omitempty"`
+	ParticipantCount      int        `json:"participant_count"`
+	ParticipantPreview    []string   `json:"participant_preview"`
+	RemainingParticipants int        `json:"remaining_participants"`
+	IsUserInBuzz          bool       `json:"is_user_in_buzz,omitempty"`
 }
 
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
@@ -324,6 +327,8 @@ type JoinBuzzResponse struct {
 	UserID       string                  `json:"user_id"`
 	Status       string                  `json:"status"`
 	CreatedAt    time.Time               `json:"created_at"`
+	StartedAt    time.Time               `json:"started_at"`
+	EndedAt      *time.Time              `json:"ended_at,omitempty"`
 	JoinedAt     time.Time               `json:"joined_at"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
@@ -533,4 +538,14 @@ type OrgBuzzItem struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartedAt        time.Time  `json:"started_at"`
 	EndedAt          *time.Time `json:"ended_at,omitempty"`
+}
+
+type BuzzTimeWarningPayload struct {
+	Event            string    `json:"event"`
+	BuzzID           string    `json:"buzz_id"`
+	ChannelID        string    `json:"channel_id"`
+	HostID           string    `json:"host_id"`
+	RemainingMinutes int       `json:"remaining_minutes"`
+	EstimatedEndTime time.Time `json:"estimated_end_time"`
+	Timestamp        time.Time `json:"timestamp"`
 }

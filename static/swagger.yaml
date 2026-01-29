@@ -14923,7 +14923,7 @@ paths:
                     description: A message describing the result.
                   data:
                     type: object
-                    properties:
+                    
 
         400:
           description: Invalid agent_idor request.
@@ -25660,7 +25660,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: "Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**"
+      description: Creates a new buzz in a channel with a default duration of 60 minutes. The creator becomes a host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.** A system message is generated in the channel to indicate the buzz started.
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -26165,7 +26165,7 @@ paths:
       tags:
         - buzz
       summary: End a buzz (call)
-      description: Allows the host to explicitly end the buzz for all participants
+      description: Allows the host to explicitly end the buzz for all participants. A system message is generated in the channel to indicate the buzz ended.
       operationId: endBuzz
       security:
         - bearerAuth: []
@@ -26578,8 +26578,8 @@ paths:
           description: Not found - channel does not exist
           content:
             application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error
           content:
@@ -26687,6 +26687,17 @@ paths:
 
 components:
   schemas:
+    MessageType:
+      type: string
+      enum:
+        - user
+        - system
+        - bot
+      description: |
+        Type of message:
+        - `user`: Regular user message
+        - `system`: Automated system message (e.g., user joined/left, buzz started/ended)
+        - `bot`: Bot or agent response
     MentionActivityItem:
       type: object
       properties:
@@ -27082,11 +27093,11 @@ components:
           format: uri
           nullable: true
           example: "https://example.com/avatar.jpg"
-          is_in_buzz:
+        is_in_buzz:
             type: boolean
             description: Whether the user is currently an active participant in the buzz (excludes users who have left)
             example: false
-          is_invited:
+        is_invited:
             type: boolean
             description: Whether the user has a pending invitation
             example: false
@@ -27243,38 +27254,44 @@ components:
           enum: [active, ended]
           description: Current status of the buzz
         created_at:
-          type: string
-          format: date-time
-          description: When the buzz was created
+           type: string
+           format: date-time
+           description: When the buzz was created
         started_at:
-          type: string
-          format: date-time
-          description: When the buzz started
+           type: string
+           format: date-time
+           description: When the buzz started
+        ended_at:
+           type: string
+           format: date-time
+           nullable: true
+           description: When buzz is scheduled to end default is 60 minutes after creation
         participants:
-          type: array
-          items:
-            $ref: "#/components/schemas/ParticipantMetadata"
-          description: Array of participant metadata (initially contains only the host)
+           type: array
+           items:
+             $ref: "#/components/schemas/ParticipantMetadata"
+           description: Array of participant metadata (initially contains only the host)
         agora_token:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
-          description: Agora RTC token and connection details (valid for 4 hours - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
+      description: Agora RTC token and connection details (valid for 1 hour - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
       example:
-        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        status: "active"
-        created_at: "2025-11-28T12:00:00Z"
-        started_at: "2025-11-28T12:00:00Z"
-        participants:
-          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-            username: "hostuser"
-            full_name: "Host User"
-            avatar_url: "https://example.com/avatars/host.jpg"
-            joined_at: "2025-11-28T12:00:00Z"
-            status: "active"
-        agora_token:
+         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         status: "active"
+         created_at: "2025-11-28T12:00:00Z"
+         started_at: "2025-11-28T12:00:00Z"
+         ended_at: "2025-11-28T13:00:00Z"
+         participants:
+           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+             username: "hostuser"
+             full_name: "Host User"
+             avatar_url: "https://example.com/avatars/host.jpg"
+             joined_at: "2025-11-28T12:00:00Z"
+             status: "active"
+         agora_token:
           token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
           app_id: "your-agora-app-id"
           channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -27307,6 +27324,15 @@ components:
           type: string
           format: date-time
           description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end
         joined_at:
           type: string
           format: date-time
@@ -27328,6 +27354,8 @@ components:
         user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
         status: "active"
         created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        ended_at: "2025-11-28T13:00:00Z"
         joined_at: "2025-11-28T12:05:00Z"
         participants:
           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -27466,6 +27494,7 @@ components:
         status: "active"
         created_at: "2025-11-28T10:00:00Z"
         started_at: "2025-11-28T10:00:00Z"
+        ended_at: "2025-11-28T11:00:00Z"
         participants:
           - user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
             username: "tolu"
@@ -27528,6 +27557,11 @@ components:
           type: boolean
           description: Whether the requesting user is currently an active participant in the buzz
           nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end default is 60 minutes
         example:
           is_active: true
           buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
@@ -27537,6 +27571,7 @@ components:
           participant_preview: ["tolu", "kemi"]
           remaining_participants: 9
           is_user_in_buzz: true
+          ended_at: "2025-11-28T11:00:00Z"
         example_no_active:
           is_active: false
           buzz_id: null
@@ -27545,6 +27580,7 @@ components:
           participant_count: 0
           participant_preview: []
           remaining_participants: 0
+          ended_at: null
 
     ErrorResponse:
       type: object
@@ -30107,12 +30143,22 @@ components:
         userId:
           type: string
           format: uuid
+        type:
+          $ref: "#/components/schemas/MessageType"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        content: "@john started a buzz (3 participants)"
+        channel_id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        userId: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        type: "system"
+        created_at: "2024-07-30T21:11:21.9538358+01:00"
+        updated_at: "2024-07-30T21:11:21.9538358+01:00"
 
     ChannelJoinResponseSchema:
       type: object
