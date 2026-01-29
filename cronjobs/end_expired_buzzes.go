@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	buzzservice "github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
@@ -85,6 +86,10 @@ func endBuzzBySystem(extReq request.ExternalRequest, db storage.Database, buzz *
 
 	if err := centrifuge.PublishChannel(extReq.Logger, buzz.ChannelID, notification); err != nil {
 		extReq.Logger.Error("failed to publish auto-ended buzz event: %v", err)
+	}
+
+	if err := buzzservice.CreateBuzzSystemMessage(&db, extReq.Logger, buzz, buzz.HostID, "ended"); err != nil {
+		extReq.Logger.Error("failed to create system message for buzz end: %v", err)
 	}
 
 	return nil

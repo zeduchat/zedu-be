@@ -16,7 +16,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	dm "github.com/hngprojects/telex_be/services/directMessage"
+	"github.com/hngprojects/telex_be/services/directMessage"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -1272,4 +1273,53 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 
 	logger.Info("successfully fetched %d org buzz items for user %s in org %s", len(buzzItems), userID, orgID)
 	return resp, http.StatusOK, nil
+}
+
+func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, hostID string, eventType string) error {
+	var user models.User
+	_, userErr := user.GetUserByID(db.Postgresql, hostID)
+	if userErr != nil {
+		return userErr
+	}
+
+	if user.ID == "" {
+		logger.Error("User %s not found, skipping system message", hostID)
+		return nil
+	}
+
+	displayName := user.Profile.UserName
+	if displayName == "" && user.Email != "" {
+		displayName = strings.Split(user.Email, "@")[0]
+	}
+
+	participantCount := len(buzz.ParticipantIDs)
+	var content string
+
+	if eventType == "started" {
+		content = fmt.Sprintf("@%s started a buzz (%d participants)", displayName, participantCount)
+	} else {
+		content = fmt.Sprintf("@%s ended a buzz (%d participants)", displayName, participantCount)
+	}
+
+	var orgID string
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+
+	systemMsg := models.CreateThreadMsgReq{
+		Content:    content,
+		Type:       "system",
+		UserId:     hostID,
+		ChannelsID: buzz.ChannelID,
+		OrgId:      orgID,
+		ThreadId:   utility.GenerateUUID(),
+	}
+
+	_, err := thread.SaveThreadMessage(systemMsg, db, logger)
+	if err != nil {
+		logger.Error("Failed to save system message: %v", err)
+		return err
+	}
+
+	return nil
 }

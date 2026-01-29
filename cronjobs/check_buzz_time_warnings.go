@@ -63,12 +63,17 @@ func sendTimeWarningNotification(extReq request.ExternalRequest, buzz *models.Bu
 	}
 	notification.NotificationId = utility.GenerateUUID()
 
-	for _, participantID := range buzz.ParticipantIDs {
-		if err := centrifuge.PublishChannel(extReq.Logger, "user:"+participantID, notification); err != nil {
-			extReq.Logger.Error("failed to send warning to user %s: %v", participantID, err)
-		}
+	var publishChannel string
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		publishChannel = buzz.ID
+	} else {
+		publishChannel = buzz.ChannelID
 	}
 
-	extReq.Logger.Info("sent %d minute warning for buzz %s to %d participants",
-		remainingMinutes, buzz.ID, len(buzz.ParticipantIDs))
+	if err := centrifuge.PublishChannel(extReq.Logger, publishChannel, notification); err != nil {
+		extReq.Logger.Error("failed to send warning for buzz %s: %v", buzz.ID, err)
+	}
+
+	extReq.Logger.Info("sent %d minute warning for buzz %s",
+		remainingMinutes, buzz.ID)
 }
