@@ -16,7 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/services/directMessage"
+	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -1088,7 +1088,7 @@ func UpdateMediaState(db *storage.Database, logger *utility.Logger, buzzID, user
 	logger.Info("user %s updating media state in buzz %s", userID, buzzID)
 
 	buzz, err := permissions.CanPerformBuzzAction(db.Postgresql, buzzID, userID)
-	if err != nil && buzz.BuzzType != models.BuzzTypeOrganization {
+	if err != nil && (buzz == nil || buzz.BuzzType != models.BuzzTypeOrganization) {
 		statusCode, errMsg := mapPermissionError(err, "update media state")
 		return statusCode, errors.New(errMsg)
 	}

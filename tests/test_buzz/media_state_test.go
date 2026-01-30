@@ -128,4 +128,31 @@ func TestUpdateMediaStateBase(t *testing.T) {
 			t.Errorf("media_state not found in metadata response")
 		}
 	})
+
+	t.Run("UpdateMediaStateWithInvalidBuzzID", func(t *testing.T) {
+		invalidBuzzID := utility.GenerateUUID()
+		mediaState := map[string]interface{}{"audio": true, "video": false}
+		reqBody := models.UpdateMediaStateRequest{MediaState: mediaState}
+		b, _ := json.Marshal(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPatch, "/api/v1/buzz/"+invalidBuzzID+"/media-state", bytes.NewBuffer(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	})
+
+	t.Run("GetMetadataWithInvalidBuzzID", func(t *testing.T) {
+		invalidBuzzID := utility.GenerateUUID()
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/buzz/"+invalidBuzzID+"/metadata", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	})
 }
