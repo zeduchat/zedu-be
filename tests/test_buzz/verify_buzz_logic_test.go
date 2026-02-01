@@ -533,17 +533,17 @@ func TestJoinBuzzScenarios(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("Expected status 400 for already joined, got %d", rr.Code)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200 for already joined, got %d", rr.Code)
 		}
 
 		data := tst.ParseResponse(rr)
 		message := data["message"].(string)
-		if message != "user is already in the buzz" {
-			t.Errorf("Expected 'user is already in the buzz', got '%s'", message)
+		if message != "user joined buzz successfully" {
+			t.Errorf("Expected 'user joined buzz successfully', got '%s'", message)
 		}
 
-		t.Logf("✅ Correctly rejected duplicate join attempt")
+		t.Logf("✅ Correctly rejoined a buzz")
 	})
 
 	// Cleanup

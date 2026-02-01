@@ -213,9 +213,8 @@ func VerifyCredentials(db *gorm.DB, ids models.IDS) (string, string, error) {
 	return orgint.OrgID, orgint.IntegrationID, nil
 }
 
-func SuperAdminAuthorize(db *gorm.DB) gin.HandlerFunc {
+func AdminAuthorize(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		var (
 			tokenStr     string
 			access_token models.AccessToken
@@ -242,26 +241,18 @@ func SuperAdminAuthorize(db *gorm.DB) gin.HandlerFunc {
 
 		claims := token.Claims.(jwt.MapClaims)
 
-		userID, ok := claims["admin_id"].(string)
+		adminID, ok := claims["admin_id"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
 			return
 		}
 
-		// Check role from claims
 		role, ok := claims["role"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Role not found in token!", "Unauthorized", nil))
+		if !ok || (role != models.RoleAdmin && role != models.RoleSuperAdmin) {
+			c.AbortWithStatusJSON(http.StatusForbidden, utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied. Admin privileges required.", "Forbidden", nil))
 			return
 		}
 
-		// Verify super admin role
-		if role != models.RoleSuperAdmin {
-			c.AbortWithStatusJSON(http.StatusForbidden, utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied. Super admin privileges required.", "Forbidden", nil))
-			return
-		}
-
-		// Check if access id exists and fetch it
 		accessID, ok := claims["access_uuid"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
@@ -274,76 +265,32 @@ func SuperAdminAuthorize(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		if access_token.LoginAccessToken != tokenStr || userID != access_token.OwnerID || !access_token.IsLive {
+		if access_token.LoginAccessToken != tokenStr || adminID != access_token.OwnerID || !access_token.IsLive {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Session is invalid!", "Unauthorized", nil))
 			return
 		}
 
 		c.Set("adminClaims", claims)
+		c.Set("adminRole", role)
 
-		// call the next handler
 		c.Next()
 	}
 }
 
-func AdminAuthorize(db *gorm.DB) gin.HandlerFunc {
+func RequireSuperAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		var (
-			tokenStr     string
-			access_token models.AccessToken
-		)
-
-		bearerToken := c.GetHeader("Authorization")
-		strArr := strings.Split(bearerToken, " ")
-		if len(strArr) == 2 {
-			tokenStr = strArr[1]
-		}
-
-		if tokenStr == "" {
-			r := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token could not be found!", "Unauthorized", nil)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, r)
+		role, exists := c.Get("adminRole")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized access", "Unauthorized", nil))
 			return
 		}
 
-		token, err := TokenValid(tokenStr)
-		if err != nil {
-			r := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, r)
+		if role != models.RoleSuperAdmin {
+			c.AbortWithStatusJSON(http.StatusForbidden, utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied. Superadmin privileges required.", "Forbidden", nil))
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
-
-		userID, ok := claims["admin_id"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
-			return
-		}
-
-		// check if access id exists and fetch it
-		accessID, ok := claims["access_uuid"].(string)
-		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
-			return
-		}
-
-		access_token = models.AccessToken{ID: accessID}
-		if code, err := access_token.GetByID(db); err != nil {
-			c.AbortWithStatusJSON(code, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
-			return
-		}
-
-		if access_token.LoginAccessToken != tokenStr || userID != access_token.OwnerID || !access_token.IsLive {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Session is invalid!", "Unauthorized", nil))
-			return
-		}
-
-		c.Set("adminClaims", claims)
-
-		// call the next handler
 		c.Next()
-
 	}
 }
 

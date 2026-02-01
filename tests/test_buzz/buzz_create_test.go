@@ -147,6 +147,11 @@ func TestBuzzCreate(t *testing.T) {
 		if responseData["status"] != "active" {
 			t.Error("Expected status to be 'active'")
 		}
+
+		if responseData["ended_at"] == nil {
+			t.Error("Expected ended_at in response")
+		}
+
 		// Check for 'participants' field (should be a non-empty array)
 		participants, ok := responseData["participants"].([]interface{})
 		if !ok || len(participants) == 0 {

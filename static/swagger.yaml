@@ -58,8 +58,8 @@ tags:
     description: API for user agents operations
   - name: System Agents
     description: API for system agents operations
-  - name: admin
-    description: API for backoffice admin and superadmin operations (superadmin only)
+  - name: Admin
+    description: API for backoffice admin and superadmin operations
   - name: Overview
     description: API for overview operations
   - name: newsletter
@@ -100,10 +100,10 @@ tags:
     description: API endpoints for pinning a specific message
   - name: Message Forwarding
     description: API endpoints for handling message forwarding
-  - name: Super Admin
-    description: API endpoints for superadmin dashboard and operations
   - name: Avatars
     description: API for shared avatar gallery management
+  - name: Activity
+    description: API for user activity feeds including mentions
   - name: Skills
     description: API endpoints for agents skills
   - name: Tasks
@@ -114,73 +114,7 @@ tags:
     description: API endpoints for buzz (audio/video calls) feature
   - name: shares
     description: API endpoints for buying and tracking shares
-
 paths:
-  # Super Admin Dashboard paths
-  /backoffice/dashboard/credits-summary:
-    get:
-      tags:
-        - Super Admin
-      summary: Get platform credit summary for superadmin dashboard
-      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Platform credit summary retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "success"
-                  message:
-                    type: string
-                    example: "Platform credit summary retrieved successfully"
-                  data:
-                    $ref: "#/components/schemas/PlatformCreditMetrics"
-        "401":
-          description: Unauthorized - Invalid or missing authentication token
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Unauthorized"
-        "403":
-          description: Forbidden - User does not have superadmin privileges
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Access denied. Super admin privileges required."
-        "500":
-          description: Internal server error - Failed to fetch platform credit summary
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-                    example: "Failed to fetch platform credit summary"
-
   # Auth paths
   /auth/register:
     post:
@@ -1493,6 +1427,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
+
+  /organisations/{org_id}/mentions:
+    get:
+      tags:
+        - Activity
+      summary: Get user unseen mentions activity
+      description: Retrieves a paginated list of **unseen** mentions (created after the user last read the channel) across all Channels, Group DMs, and DMs.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: ID of the organisation
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Mentions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: mentions retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MentionActivityItem"
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 20
 
   /organisations/{org_id}/invites:
     get:
@@ -7930,10 +7928,345 @@ paths:
                   status_code: 404
                   message: "Invitation not found"
 
+ # Admin/Backoffice paths
+  /backoffice/admins/{admin_id}/role/initiate:
+    post:
+      tags:
+        - Admin
+      summary: Initiate admin role change
+      description: |-
+        Initiates a role change for an admin user. Returns a confirmation token that must be used within 15 minutes to complete the role change. This two-step process ensures intentional role modifications.
+
+        **Access**: Superadmins only.
+      operationId: initiateAdminRoleChange
+      parameters:
+        - name: admin_id
+          in: path
+          required: true
+          description: UUID of the admin whose role is being changed
+          schema:
+            type: string
+            format: uuid
+            example: "019bf8e4-996b-7c12-8574-88069538de83"
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - new_role
+                - confirm_superadmin
+              properties:
+                new_role:
+                  type: string
+                  enum: [admin, superadmin]
+                  description: The new role to assign to the admin
+                  example: "superadmin"
+                confirm_superadmin:
+                  type: boolean
+                  description: Explicit confirmation flag that must be set to true
+                  example: true
+      responses:
+        "202":
+          description: Role change initiated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 202
+                  message:
+                    type: string
+                    example: "Role change initiated. Use the token to confirm."
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        description: Confirmation token (expires in 15 minutes)
+                        example: "160cf2e67ce517a1f861489c33e673a251207f0cab0d6f92960af026fc93cc20"
+                      expires_at:
+                        type: string
+                        format: date-time
+                        description: Token expiration timestamp
+                        example: "2026-01-26T09:29:25.871448Z"
+                      target:
+                        type: string
+                        format: email
+                        description: Email of the target admin
+                        example: "targetadmin@example.com"
+        "400":
+          description: Bad request - Invalid admin ID, role, or missing confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "428":
+          description: Precondition Required - confirm_superadmin must be true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 428
+                  message:
+                    type: string
+                    example: "You must explicitly confirm admin role change by setting confirm_superadmin to true."
+
+  /backoffice/admins/role/confirm:
+    post:
+      tags:
+        - Admin
+      summary: Confirm admin role change
+      description: |-
+        Completes the role change process using the confirmation token received from the initiation endpoint. This operation is atomic - if any step fails (including audit log creation), the entire transaction is rolled back.
+
+        The confirmation process:
+        - Updates the admin's role
+        - Invalidates all existing access tokens for the admin
+        - Creates an audit log entry
+        - Marks the confirmation token as used
+
+        **Access**: Superadmins only (must be the same user who initiated the change).
+      operationId: confirmAdminRoleChange
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - confirmation_token
+              properties:
+                confirmation_token:
+                  type: string
+                  description: The confirmation token received from the initiate endpoint
+                  example: "160cf2e67ce517a1f861489c33e673a251207f0cab0d6f92960af026fc93cc20"
+      responses:
+        "200":
+          description: Admin role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Admin role updated successfully"
+                  data:
+                    type: object
+                    nullable: true
+                    example: null
+        "400":
+          description: Bad request - Invalid, expired, or already used token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: "invalid or expired token"
+                    description: Possible messages include "invalid or expired token", "token expired", "unauthorized requester", "requester not found", "target admin not found", "failed to create audit log (transaction rolled back)"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  /backoffice/admins/audit-logs:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve admin role change audit history
+      description: |-
+        Returns a paginated list of audit logs for admin role changes, providing a complete audit trail of all role modifications.
+
+        **Access**: Superadmins only.
+      operationId: getAdminRoleAuditHistory
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 20)
+          schema:
+            type: integer
+            default: 20
+            example: 20
+        - name: target_id
+          in: query
+          required: false
+          description: Filter audit logs by target admin ID
+          schema:
+            type: string
+            format: uuid
+            example: "019bf8e4-996b-7c12-8574-88069538de83"
+        - name: actor_id
+          in: query
+          required: false
+          description: Filter audit logs by actor (requester) admin ID
+          schema:
+            type: string
+            format: uuid
+            example: "019be70b-6719-7cae-b24f-3e9ba5c01f4e"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Audit logs retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      logs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                              example: "019bf8f0-714f-7c12-aea5-77d4edfd3949"
+                            actor_id:
+                              type: string
+                              format: uuid
+                              example: "019be70b-6719-7cae-b24f-3e9ba5c01f4e"
+                            actor_email:
+                              type: string
+                              example: "superadmin@example.com"
+                            action:
+                              type: string
+                              example: "admin_update"
+                            resource_id:
+                              type: string
+                              format: uuid
+                              example: "019bf8e4-996b-7c12-8574-88069538de83"
+                            resource_type:
+                              type: string
+                              example: "admin"
+                            old_values:
+                              type: string
+                              example: '{"role":"admin"}'
+                            new_values:
+                              type: string
+                              example: '{"role":"superadmin"}'
+                            description:
+                              type: string
+                              example: "Superadmin superadmin@example.com changed role of targetadmin@example.com from admin to superadmin"
+                            ip_address:
+                              type: string
+                              example: "::1"
+                            user_agent:
+                              type: string
+                              example: "curl/7.68.0"
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2026-01-26T09:14:26Z"
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          total_records:
+                            type: integer
+                            example: 45
+                          total_pages:
+                            type: integer
+                            example: 3
+        "400":
+          description: Bad request - Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
   /backoffice/admins/users:
     get:
       tags:
-        - admin
+        - Admin
       summary: Retrieve all users
       description: |-
         Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts and activity metrics.
@@ -7966,12 +8299,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminUsersResponseSchema"
-        "204":
-          description: No content
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NoContentResponseSchema"
         "400":
           description: Bad request
           content:
@@ -7994,7 +8321,7 @@ paths:
   /backoffice/admins/users/invites:
     get:
       tags:
-        - admin
+        - Admin
       summary: Retrieve invite leaderboard (top N inviters)
       description: |-
         Returns the top N users ordered by the number of invitations (referrals) they have sent. This endpoint is intended for leaderboard use and **does not** return a paginated list. 
@@ -8042,6 +8369,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+  /backoffice/dashboard/credits-summary:
+    get:
+      tags:
+        - Admin
+      summary: Get platform credit summary for superadmin dashboard
+      description: Retrieves comprehensive credit metrics across all organizations including total credits purchased, consumed, and remaining balance. Only accessible to superadmin users.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform credit summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Platform credit summary retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/PlatformCreditMetrics"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Unauthorized"
+        "403":
+          description: Forbidden - User does not have superadmin privileges
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Access denied. Super admin privileges required."
+        "500":
+          description: Internal server error - Failed to fetch platform credit summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch platform credit summary"
 
   /invite/change-status:
     post:
@@ -14533,7 +14923,7 @@ paths:
                     description: A message describing the result.
                   data:
                     type: object
-                    properties:
+                    
 
         400:
           description: Invalid agent_idor request.
@@ -25270,7 +25660,7 @@ paths:
       tags:
         - buzz
       summary: Create a new buzz (video/audio call)
-      description: "Creates a new buzz in a channel. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.**"
+      description: Creates a new buzz in a channel with a default duration of 60 minutes. The creator becomes a host and automatically joins with an Agora RTC token (valid for 4 hours). Token is generated before database creation to ensure consistency. **Supports regular channels, DM channels (1-on-1), and group DM channels.** A system message is generated in the channel to indicate the buzz started.
       operationId: createBuzz
       security:
         - bearerAuth: []
@@ -25311,6 +25701,100 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/org/create:
+    post:
+      tags:
+        - buzz
+      summary: Create a new organization-scoped buzz
+      description: "Creates a new buzz in a channel with organization tracking. The buzz is associated with the user's organization (org_id from JWT claims) and the creator (host_id). This allows filtering and retrieving buzz sessions by organization. The creator becomes the host and automatically joins with an Agora RTC token (valid for 4 hours)."
+      operationId: createOrgBuzz
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Organization buzz created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzCreateResponseSchema"
+        "400":
+          description: Bad request - invalid channel ID or active buzz already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid authentication token or organization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a member of the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - channel does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/org:
+    get:
+      tags:
+        - buzz
+      summary: Get all buzz created by user in their organization
+      description: "Retrieves a list of all buzz sessions created by the authenticated user within their organization. The list is filtered by org_id and host_id (creator), ordered by creation date (newest first). Each buzz item includes metadata such as participant count, status, and timestamps."
+      operationId: getOrgBuzzList
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Organization buzz list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "organization buzz list retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    $ref: "#/components/schemas/OrgBuzzListResponse"
+        "401":
+          description: Unauthorized - missing or invalid authentication token or organization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error
           content:
@@ -25403,6 +25887,54 @@ paths:
                         $ref: "#/components/schemas/UpdateCameraResponse"
         "400":
           description: Bad Request (Invalid ID or Buzz inactive)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "404":
+          description: Not Found (Buzz does not exist or User is not a participant)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/{id}/media-state:
+    patch:
+      tags:
+        - buzz
+      summary: Update participant media state
+      description: Updates the real-time media state (audio, video, screen share, etc.) for a participant in an active buzz.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the buzz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaStateRequest"
+      responses:
+        "200":
+          description: Media state updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad Request (Invalid input or Buzz inactive)
           content:
             application/json:
               schema:
@@ -25633,7 +26165,7 @@ paths:
       tags:
         - buzz
       summary: End a buzz (call)
-      description: Allows the host to explicitly end the buzz for all participants
+      description: Allows the host to explicitly end the buzz for all participants. A system message is generated in the channel to indicate the buzz ended.
       operationId: endBuzz
       security:
         - bearerAuth: []
@@ -25666,6 +26198,49 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Conflict - buzz has already ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /buzz/channel/{channel_id}/end:
+    post:
+      tags:
+        - buzz
+      summary: End buzz(es) by channel ID
+      description: Allows the host to end all active buzzes they are hosting in a channel using the channel ID. If multiple active buzzes exist in the channel where the user is the host, all of them will be ended.
+      operationId: endBuzzByChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: channel_id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: The unique UUID of the channel
+      responses:
+        "200":
+          description: Successfully ended the buzz(es)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuzzEndResponseSchema"
+        "403":
+          description: Forbidden - user is not the host of any active buzz in the channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - no active buzz in the channel
           content:
             application/json:
               schema:
@@ -26003,8 +26578,8 @@ paths:
           description: Not found - channel does not exist
           content:
             application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorResponse"
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error
           content:
@@ -26112,6 +26687,57 @@ paths:
 
 components:
   schemas:
+    MessageType:
+      type: string
+      enum:
+        - user
+        - system
+        - bot
+      description: |
+        Type of message:
+        - `user`: Regular user message
+        - `system`: Automated system message (e.g., user joined/left, buzz started/ended)
+        - `bot`: Bot or agent response
+    MentionActivityItem:
+      type: object
+      properties:
+        thread_id:
+          type: string
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        channels_id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        channel_name:
+          type: string
+          example: "general"
+        channel_type:
+          type: string
+          enum: [public, private, dm, group_dm]
+          example: "public"
+        message:
+          type: string
+          example: "Hey @john, can you check this?"
+        user_id:
+          type: string
+          format: uuid
+          example: "d4e5f678-90ab-cdef-1234-567890abcdef"
+        username:
+          type: string
+          example: "jane_doe"
+        avatar_url:
+          type: string
+          example: "https://example.com/avatar.jpg"
+        org_id:
+          type: string
+          format: uuid
+          example: "12345678-90ab-cdef-1234-567890abcdef"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
     PartialStatusUpdateRequest:
       type: object
       description: Partial status payload; at least one field must be provided.
@@ -26467,11 +27093,11 @@ components:
           format: uri
           nullable: true
           example: "https://example.com/avatar.jpg"
-          is_in_buzz:
+        is_in_buzz:
             type: boolean
             description: Whether the user is currently an active participant in the buzz (excludes users who have left)
             example: false
-          is_invited:
+        is_invited:
             type: boolean
             description: Whether the user has a pending invitation
             example: false
@@ -26592,6 +27218,18 @@ components:
           description: "The ID of a user to create a new DM channel with and start a buzz. If a DM channel already exists with this user, it will be used. Either channel_id or participant_id must be provided."
           example: "7cb8c920-9ead-22e2-90c5-11d15ge541d9"
 
+    UpdateMediaStateRequest:
+      type: object
+      required:
+        - media_state
+      properties:
+        media_state:
+          type: object
+          description: JSON object representing the participant's media state
+          example:
+            audio: true
+            video: false
+
     BuzzCreateResponseSchema:
       type: object
       properties:
@@ -26616,38 +27254,44 @@ components:
           enum: [active, ended]
           description: Current status of the buzz
         created_at:
-          type: string
-          format: date-time
-          description: When the buzz was created
+           type: string
+           format: date-time
+           description: When the buzz was created
         started_at:
-          type: string
-          format: date-time
-          description: When the buzz started
+           type: string
+           format: date-time
+           description: When the buzz started
+        ended_at:
+           type: string
+           format: date-time
+           nullable: true
+           description: When buzz is scheduled to end default is 60 minutes after creation
         participants:
-          type: array
-          items:
-            $ref: "#/components/schemas/ParticipantMetadata"
-          description: Array of participant metadata (initially contains only the host)
+           type: array
+           items:
+             $ref: "#/components/schemas/ParticipantMetadata"
+           description: Array of participant metadata (initially contains only the host)
         agora_token:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
-          description: Agora RTC token and connection details (valid for 4 hours - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
+      description: Agora RTC token and connection details (valid for 1 hour - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
       example:
-        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        status: "active"
-        created_at: "2025-11-28T12:00:00Z"
-        started_at: "2025-11-28T12:00:00Z"
-        participants:
-          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-            username: "hostuser"
-            full_name: "Host User"
-            avatar_url: "https://example.com/avatars/host.jpg"
-            joined_at: "2025-11-28T12:00:00Z"
-            status: "active"
-        agora_token:
+         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+         status: "active"
+         created_at: "2025-11-28T12:00:00Z"
+         started_at: "2025-11-28T12:00:00Z"
+         ended_at: "2025-11-28T13:00:00Z"
+         participants:
+           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+             username: "hostuser"
+             full_name: "Host User"
+             avatar_url: "https://example.com/avatars/host.jpg"
+             joined_at: "2025-11-28T12:00:00Z"
+             status: "active"
+         agora_token:
           token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
           app_id: "your-agora-app-id"
           channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -26680,6 +27324,15 @@ components:
           type: string
           format: date-time
           description: When the buzz was created
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end
         joined_at:
           type: string
           format: date-time
@@ -26701,6 +27354,8 @@ components:
         user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
         status: "active"
         created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        ended_at: "2025-11-28T13:00:00Z"
         joined_at: "2025-11-28T12:05:00Z"
         participants:
           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -26839,6 +27494,7 @@ components:
         status: "active"
         created_at: "2025-11-28T10:00:00Z"
         started_at: "2025-11-28T10:00:00Z"
+        ended_at: "2025-11-28T11:00:00Z"
         participants:
           - user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
             username: "tolu"
@@ -26901,6 +27557,11 @@ components:
           type: boolean
           description: Whether the requesting user is currently an active participant in the buzz
           nullable: true
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end default is 60 minutes
         example:
           is_active: true
           buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
@@ -26910,6 +27571,7 @@ components:
           participant_preview: ["tolu", "kemi"]
           remaining_participants: 9
           is_user_in_buzz: true
+          ended_at: "2025-11-28T11:00:00Z"
         example_no_active:
           is_active: false
           buzz_id: null
@@ -26918,6 +27580,7 @@ components:
           participant_count: 0
           participant_preview: []
           remaining_participants: 0
+          ended_at: null
 
     ErrorResponse:
       type: object
@@ -29480,12 +30143,22 @@ components:
         userId:
           type: string
           format: uuid
+        type:
+          $ref: "#/components/schemas/MessageType"
         created_at:
           type: string
           format: date-time
         updated_at:
           type: string
           format: date-time
+      example:
+        id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        content: "@john started a buzz (3 participants)"
+        channel_id: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        userId: "01910544-d1e1-7ada-bdac-c761e527ec91"
+        type: "system"
+        created_at: "2024-07-30T21:11:21.9538358+01:00"
+        updated_at: "2024-07-30T21:11:21.9538358+01:00"
 
     ChannelJoinResponseSchema:
       type: object
@@ -30734,22 +31407,82 @@ components:
       properties:
         token:
           type: string
-          description: The Agora RTC token for connecting to the buzz channel
+          description: The Agora RTC token for joining the buzz (valid for 4 hours)
+          example: "007eJxTYBBbsMMnKjTYJv..."
         app_id:
           type: string
-          description: The Agora App ID
+          description: The Agora application ID
+          example: "your-agora-app-id"
         channel_name:
           type: string
           description: The Agora channel name (same as buzz_id)
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
         uid:
           type: string
+          description: The user ID for Agora (same as user_id)
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+
+    OrgBuzzListResponse:
+      type: object
+      properties:
+        buzzes:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgBuzzItem"
+          description: Array of buzz items created by the user in their organization
+        total:
+          type: integer
+          description: Total number of buzz items
+          example: 5
+
+    OrgBuzzItem:
+      type: object
+      properties:
+        buzz_id:
+          type: string
           format: uuid
-          description: User account UUID for Agora participant tracking
-      example:
-        token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
-        app_id: "your-agora-app-id"
-        channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        uid: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+          description: The unique ID of the buzz
+          example: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id:
+          type: string
+          format: uuid
+          description: The channel where the buzz was created
+          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        host_id:
+          type: string
+          format: uuid
+          description: The ID of the user who created the buzz
+          example: "7cb8c920-9ead-22e2-90c5-11d15ge541d9"
+        org_id:
+          type: string
+          format: uuid
+          description: The organization ID associated with this buzz
+          example: "8dc9d030-afbe-33f3-a1d6-22e26hf652e0"
+        status:
+          type: string
+          enum: [active, ended]
+          description: Current status of the buzz
+          example: "active"
+        participant_count:
+          type: integer
+          description: Number of participants in the buzz
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          description: When the buzz was created
+          example: "2024-01-15T10:30:00Z"
+        started_at:
+          type: string
+          format: date-time
+          description: When the buzz started
+          example: "2024-01-15T10:30:00Z"
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the buzz ended (null if still active)
+          example: "2024-01-15T11:30:00Z"
 
     RegisterDeviceTokenRequest:
       type: object

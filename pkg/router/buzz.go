@@ -22,14 +22,18 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	buzzGroup := r.Group(fmt.Sprintf("%v/buzz", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
 		buzzGroup.POST("/create", ctrl.Create)
+		buzzGroup.POST("/org/create", ctrl.CreateOrgBuzz)
+		buzzGroup.GET("/org", ctrl.GetOrgBuzzList)
 		buzzGroup.POST("/:id/join", ctrl.Join)
 		buzzGroup.POST("/token", ctrl.GetAgoraToken)
 		buzzGroup.POST("/:id/notes", ctrl.CreateNote)
 		buzzGroup.GET("/:id/notes", ctrl.GetNotes)
 		buzzGroup.PATCH("/:id/notes/:note_id", ctrl.UpdateNote)
 		buzzGroup.PATCH("/:id/camera", ctrl.UpdateCamera)
+		buzzGroup.PATCH("/:id/media-state", ctrl.UpdateMediaState)
 		buzzGroup.POST("/:id/leave", ctrl.LeaveBuzz)
 		buzzGroup.POST("/:id/end", ctrl.EndBuzz)
+		buzzGroup.POST("/channel/:channel_id/end", ctrl.EndBuzzByChannel)
 		buzzGroup.GET("/:id/metadata", ctrl.GetMetadata)
 		buzzGroup.GET("/channel/:channel_id/active", ctrl.GetChannelActiveBuzz)
 		buzzGroup.GET("/dm/:dm_id/active", ctrl.GetDMActiveBuzz)
@@ -41,7 +45,6 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
 
-		// Test endpoints (no permission checks) - REMOVE IN PRODUCTION
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 	}
 

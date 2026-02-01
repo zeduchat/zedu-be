@@ -14,13 +14,12 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *storage.Database) {
 	gin.SetMode(gin.TestMode)
-	logger := tst.Setup()
+	logger := utility.NewLogger()
 	db := storage.Connection()
 	validator := validator.New()
 
@@ -47,13 +46,24 @@ func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *st
 }
 
 func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
-	adminUrl := r.Group("/api/v1/backoffice",
-		middleware.SuperAdminAuthorize(adminController.Db.Postgresql))
+	apiVersion := "/api/v1"
+
+	adminUrl := r.Group(fmt.Sprintf("%s/backoffice", apiVersion),
+		middleware.AdminAuthorize(adminController.Db.Postgresql))
 	{
 		adminUrl.GET("/dashboard/credits-summary", adminController.GetPlatformCreditsSummary)
 	}
 
-	loginUrl := r.Group("/api/v1/backoffice")
+	superAdminAuthUrl := r.Group(fmt.Sprintf("%s/backoffice", apiVersion),
+		middleware.AdminAuthorize(adminController.Db.Postgresql),
+		middleware.RequireSuperAdmin())
+	{
+		superAdminAuthUrl.POST("/admins/:admin_id/role/initiate", adminController.InitiateChangeAdminRole)
+		superAdminAuthUrl.POST("/admins/role/confirm", adminController.ConfirmChangeAdminRole)
+		superAdminAuthUrl.GET("/admins/audit-logs", adminController.GetRoleAuditHistory)
+	}
+
+	loginUrl := r.Group(fmt.Sprintf("%s/backoffice", apiVersion))
 	{
 		loginUrl.POST("/login", adminController.LoginAdmin)
 	}
@@ -229,7 +239,6 @@ func cleanupAdmins(db *gorm.DB) {
 	// Delete admins
 	db.Exec("DELETE FROM admins WHERE email LIKE ?", "%@qa.team%")
 }
-
 
 func CleanupSpecificTestData(db *gorm.DB, adminID string, orgIDs []string) {
 	// Delete child records for each org

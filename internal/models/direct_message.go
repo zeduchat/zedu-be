@@ -1407,3 +1407,41 @@ func containsAny(s string, substrs []string) bool {
 	}
 	return false
 }
+
+func (dm *DmChannels) GetDMsWithUnread(db *gorm.DB, userID string) (map[string]time.Time, error) {
+	channelMap := make(map[string]time.Time)
+
+	var dmResults []struct {
+		ChannelId  string
+		LastReadAt time.Time
+	}
+
+	err := db.Model(&DmChannels{}).
+		Select("channel_id, last_read_at").
+		Where("user_id = ? AND thread_count > 0", userID).
+		Scan(&dmResults).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range dmResults {
+		channelMap[r.ChannelId] = r.LastReadAt
+	}
+
+	// fetch group dms
+	var groupResults []struct {
+		ChannelId  string
+		LastReadAt time.Time
+	}
+	err = db.Model(&ChannelParticipant{}).
+		Select("channel_id, last_read_at").
+		Where("user_id = ? AND thread_count > 0", userID).
+		Scan(&groupResults).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range groupResults {
+		channelMap[r.ChannelId] = r.LastReadAt
+	}
+
+	return channelMap, nil
+}
