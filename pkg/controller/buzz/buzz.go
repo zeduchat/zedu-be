@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
@@ -468,5 +471,124 @@ func (base *Controller) UpdateMediaState(c *gin.Context) {
 
 	base.Logger.Info("media state updated successfully for user %s in buzz %s", userID, buzzID)
 	rd := utility.BuildSuccessResponse(http.StatusOK, "media state updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) SendBuzzMessage(c *gin.Context) {
+	var (
+		req    models.SendBuzzMessageRequest
+		buzzID = c.Param("id")
+	)
+
+	if !utility.IsValidUUID(buzzID) {
+		base.Logger.Error("invalid buzz id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id format", errors.New("failed to parse buzz id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		base.Logger.Error("Failed to parse request body: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Validation failed: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("Unable to get user claims: user not authorized")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	var buzzRecord models.Buzz
+	if err := base.Db.Postgresql.Where("id = ?", buzzID).First(&buzzRecord).Error; err != nil {
+		base.Logger.Error("Failed to fetch buzz: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	if buzzRecord.Status != models.BuzzStatusActive {
+		base.Logger.Error("Buzz is not active")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz is not active", errors.New("buzz has ended"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	isParticipant := false
+	for _, participantID := range buzzRecord.ParticipantIDs {
+		if participantID == userID {
+			isParticipant = true
+			break
+		}
+	}
+
+	if !isParticipant {
+		base.Logger.Error("User is not a participant in this buzz")
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "user is not a participant in this buzz", errors.New("not a participant"), nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	var profile models.Profile
+	err = profile.GetProfileByUserId(base.Db.Postgresql, userID)
+	if err != nil {
+		base.Logger.Error("Failed to get user profile: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to get user profile", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	var user models.User
+	user, err = user.GetUserByID(base.Db.Postgresql, userID)
+	if err != nil {
+		base.Logger.Error("Failed to get user: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to get user", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	feed := models.FeedMessageRequest{
+		ChannelID:   buzzRecord.ChannelID,
+		UserName:    profile.UserName,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:   profile.AvatarURL,
+		Type:        "buzz_message",
+		Content:     req.Content,
+		ThreadId:    buzzID,
+		Email:       user.Email,
+		UserType:    "user",
+		FullName:    profile.FullName,
+		UserId:      userID,
+		OrgId:       *buzzRecord.OrgID,
+		Media:       req.Media,
+		ChannelName: "",
+		ChannelType: buzzRecord.ChannelType,
+	}
+
+	err = centrifuge.PublishChannel(base.Logger, buzzID, feed)
+	if err != nil {
+		base.Logger.Error(fmt.Sprintf("Error publishing to buzz channel: %s, error: %v", buzzID, err.Error()))
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to publish message", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("buzz message published successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "message sent successfully", feed)
 	c.JSON(http.StatusOK, rd)
 }
