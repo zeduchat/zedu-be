@@ -296,8 +296,8 @@ func TestBuzzJoin(t *testing.T) {
 				// Note: agora_token can be nil if Agora service is not configured (e.g., in tests)
 
 				// Verify other join response fields
-				if responseData["Buzz_id"] != buzzID {
-					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["Buzz_id"])
+				if responseData["buzz_id"] != buzzID {
+					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["buzz_id"])
 				}
 				if responseData["channel_id"] != channelID {
 					t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
