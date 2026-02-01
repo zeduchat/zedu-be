@@ -117,7 +117,7 @@ type BuzzMetadataResponse struct {
 	Status       string                  `json:"status"`
 	CreatedAt    time.Time               `json:"created_at"`
 	StartedAt    time.Time               `json:"started_at"`
-	EndedAt      *time.Time            `json:"ended_at,omitempty"`
+	EndedAt      *time.Time              `json:"ended_at,omitempty"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
@@ -222,6 +222,11 @@ type BuzzNote struct {
 
 type CreateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
+}
+
+type SendBuzzMessageRequest struct {
+	Content string        `json:"content" validate:"required"`
+	Media   []File `json:"media"`
 }
 
 type UpdateBuzzNoteRequest struct {

@@ -46,6 +46,7 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
 
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
+		buzzGroup.POST("/:id/message", ctrl.SendBuzzMessage)
 	}
 
 	return r
