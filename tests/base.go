@@ -12,8 +12,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/internal/models/migrations"
@@ -23,6 +25,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/invitation"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
+	threadCtrl "github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -374,4 +377,43 @@ func CreateBuzz(t *testing.T, r *gin.Engine, buzzContoller buzz.Controller, db *
 	buzzID := dataM["buzz_id"].(string)
 	hostID := dataM["host_id"].(string)
 	return buzzID, hostID
+}
+
+func FetchSystemMessage(t *testing.T, db *storage.Database, logger *utility.Logger, channelID, token string) map[string]interface{} {
+	extReq := request.ExternalRequest{Logger: logger, Test: true}
+	controller := threadCtrl.Controller{Db: db, Validator: validator.New(), Logger: logger, ExtReq: extReq}
+	threadRouter := gin.Default()
+	threadRouter.GET("/api/v1/threads/channels/:channel_id/threads", middleware.Authorize(db.Postgresql), controller.GetAllChannelThreads)
+
+	threadReq, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/channels/%s/threads", channelID), nil)
+	threadReq.Header.Set("Authorization", "Bearer "+token)
+
+	threadRr := httptest.NewRecorder()
+	threadRouter.ServeHTTP(threadRr, threadReq)
+
+	if threadRr.Code != http.StatusOK {
+		t.Logf("Expected status 200 for threads, got %d. Response: %s", threadRr.Code, threadRr.Body.String())
+		return nil
+	}
+
+	var threadResponse map[string]interface{}
+	if err := json.Unmarshal(threadRr.Body.Bytes(), &threadResponse); err != nil {
+		t.Logf("Failed to parse thread response: %v", err)
+		return nil
+	}
+
+	threadsData, ok := threadResponse["data"].([]interface{})
+	if !ok {
+		t.Log("Threads data missing or invalid format")
+		return nil
+	}
+
+	for _, thread := range threadsData {
+		threadMap := thread.(map[string]interface{})
+		if threadType, ok := threadMap["type"].(string); ok && threadType == "system" {
+			return threadMap
+		}
+	}
+
+	return nil
 }

@@ -16,51 +16,11 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	dmCtrl "github.com/hngprojects/telex_be/pkg/controller/directMessage"
-	threadCtrl "github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
-
-func fetchSystemMessage(t *testing.T, db *storage.Database, logger *utility.Logger, channelID, token string) map[string]interface{} {
-	extReq := request.ExternalRequest{Logger: logger, Test: true}
-	controller := threadCtrl.Controller{Db: db, Validator: validator.New(), Logger: logger, ExtReq: extReq}
-	threadRouter := gin.Default()
-	threadRouter.GET("/api/v1/threads/channels/:channel_id/threads", middleware.Authorize(db.Postgresql), controller.GetAllChannelThreads)
-
-	threadReq, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/channels/%s/threads", channelID), nil)
-	threadReq.Header.Set("Authorization", "Bearer "+token)
-
-	threadRr := httptest.NewRecorder()
-	threadRouter.ServeHTTP(threadRr, threadReq)
-
-	if threadRr.Code != http.StatusOK {
-		t.Logf("Expected status 200 for threads, got %d. Response: %s", threadRr.Code, threadRr.Body.String())
-		return nil
-	}
-
-	var threadResponse map[string]interface{}
-	if err := json.Unmarshal(threadRr.Body.Bytes(), &threadResponse); err != nil {
-		t.Logf("Failed to parse thread response: %v", err)
-		return nil
-	}
-
-	threadsData, ok := threadResponse["data"].([]interface{})
-	if !ok {
-		t.Log("Threads data missing or invalid format")
-		return nil
-	}
-
-	for _, thread := range threadsData {
-		threadMap := thread.(map[string]interface{})
-		if threadType, ok := threadMap["type"].(string); ok && threadType == "system" {
-			return threadMap
-		}
-	}
-
-	return nil
-}
 
 func TestSystemMessagesForDMOperations(t *testing.T) {
 	logger := tst.Setup()
@@ -186,7 +146,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 
 		time.Sleep(5 * time.Second)
 
-		systemMessage := fetchSystemMessage(t, db, logger, channelID, token1)
+		systemMessage := tst.FetchSystemMessage(t, db, logger, channelID, token1)
 		if systemMessage == nil {
 			t.Error("No system message found for DM channel creation")
 			return
@@ -243,7 +203,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 
 		time.Sleep(5 * time.Second)
 
-		systemMessage := fetchSystemMessage(t, db, logger, channelID, token1)
+		systemMessage := tst.FetchSystemMessage(t, db, logger, channelID, token1)
 		if systemMessage == nil {
 			t.Error("No system message found for group DM creation")
 			return
@@ -335,7 +295,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 
 		time.Sleep(3 * time.Second)
 
-		systemMessage := fetchSystemMessage(t, db, logger, groupDMChannelID, token2)
+		systemMessage := tst.FetchSystemMessage(t, db, logger, groupDMChannelID, token2)
 		if systemMessage == nil {
 			t.Error("No system message found for joining group DM")
 			return
@@ -404,7 +364,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 
 		time.Sleep(3 * time.Second)
 
-		systemMessage := fetchSystemMessage(t, db, logger, groupDMChannelID, token1)
+		systemMessage := tst.FetchSystemMessage(t, db, logger, groupDMChannelID, token1)
 		if systemMessage == nil {
 			t.Error("No system message found for leaving group DM")
 			return
@@ -472,7 +432,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 
 		time.Sleep(3 * time.Second)
 
-		systemMessage := fetchSystemMessage(t, db, logger, groupDMChannelID, token1)
+		systemMessage := tst.FetchSystemMessage(t, db, logger, groupDMChannelID, token1)
 		if systemMessage == nil {
 			t.Error("No system message found for adding participants")
 			return

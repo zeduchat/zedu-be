@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -108,15 +106,23 @@ func TestBuzzSystemMessage(t *testing.T) {
 		tst.Cleanup(db)
 	})
 
-	createBuzzReq := models.CreateBuzzRequest{
-		ChannelID: channelID,
-	}
-
 	t.Run("BuzzStartCreatesSystemMessage", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel1",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createBuzzReq)
+		json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -148,24 +154,24 @@ func TestBuzzSystemMessage(t *testing.T) {
 			t.Error("Expected at least 1 participant")
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 
-		threads := getChannelSystemMessages(t, channelID)
+		threads := getChannelSystemMessages(t, router, subChannelID, token)
 		if len(threads) > 0 {
 			msg := threads[0]
 			if msg.Type != "system" {
 				t.Errorf("Expected message type 'system', got %s", msg.Type)
 			}
 
-			if msg.ChannelsID != channelID {
-				t.Errorf("Expected channel_id %s, got %s", channelID, msg.ChannelsID)
+			if msg.ChannelsID != subChannelID {
+				t.Errorf("Expected channel_id %s, got %s", subChannelID, msg.ChannelsID)
 			}
 
 			if msg.Status != "success" {
 				t.Errorf("Expected status 'success', got %s", msg.Status)
 			}
 
-			if !validateBuzzStartMessageContent(t, msg.Content, user.Profile.UserName, len(buzz.ParticipantIDs)) {
+			if !validateBuzzStartMessageContent(t, msg.Content, userSignUpData.UserName, len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
@@ -189,9 +195,21 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 	t.Run("BuzzEndCreatesSystemMessage", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel2",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createBuzzReq)
+		json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -222,7 +240,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		beforeEndThreads := getChannelSystemMessages(t, channelID)
+		beforeEndThreads := getChannelSystemMessages(t, router, subChannelID, token)
 		startCount := len(beforeEndThreads)
 
 		endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
@@ -250,14 +268,14 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterEndThreads := getChannelSystemMessages(t, channelID)
+		afterEndThreads := getChannelSystemMessages(t, router, subChannelID, token)
 		if len(afterEndThreads) > startCount {
 			endMsg := afterEndThreads[0]
 			if endMsg.Type != "system" {
 				t.Errorf("Expected message type 'system', got %s", endMsg.Type)
 			}
 
-			if !validateBuzzEndMessageContent(t, endMsg.Content, user.Profile.UserName, len(buzz.ParticipantIDs)) {
+			if !validateBuzzEndMessageContent(t, endMsg.Content, userSignUpData.UserName, len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
@@ -267,9 +285,21 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 	t.Run("SystemMessageContentFormat", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel3",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createBuzzReq)
+		json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -295,7 +325,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		threads := getChannelSystemMessages(t, channelID)
+		threads := getChannelSystemMessages(t, router, subChannelID, token)
 		if len(threads) == 0 {
 			t.Skip("Skipping test - No system messages found")
 			return
@@ -303,7 +333,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		msg := threads[0]
 
-		startPattern := regexp.MustCompile(`^@(\w+)\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)$`)
+		startPattern := regexp.MustCompile(`^@([\w-]+)\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)$`)
 		if !startPattern.MatchString(msg.Content) {
 			t.Errorf("Start message does not match expected format. Got: %s", msg.Content)
 		}
@@ -325,14 +355,14 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterEndThreads := getChannelSystemMessages(t, channelID)
+		afterEndThreads := getChannelSystemMessages(t, router, subChannelID, token)
 		if len(afterEndThreads) < 2 {
 			t.Skip("Skipping test - No end message found")
 			return
 		}
 
 		endMsg := afterEndThreads[0]
-		endPattern := regexp.MustCompile(`^@(\w+)\s+ended\s+the\s+buzz\s+\((\d+)\s+participants\)$`)
+		endPattern := regexp.MustCompile(`^@([\w-]+)\s+ended\s+the\s+buzz\s+\((\d+)\s+participants\)$`)
 		if !endPattern.MatchString(endMsg.Content) {
 			t.Errorf("End message does not match expected format. Got: %s", endMsg.Content)
 		}
@@ -356,6 +386,18 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 	t.Run("BuzzMessagesInChannelHistory", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel4",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		threadController := thread.Controller{Db: db, Validator: validatorRef, Logger: logger}
 		threadRouter := gin.Default()
@@ -364,10 +406,10 @@ func TestBuzzSystemMessage(t *testing.T) {
 			threadUrl.GET("/channels/:channel_id/threads", threadController.GetAllChannelThreads)
 		}
 
-		initialThreads := getChannelAllMessages(t, threadRouter, channelID, token)
+		initialThreads := getChannelAllMessages(t, threadRouter, subChannelID, token)
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createBuzzReq)
+		json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -381,7 +423,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		if rr.Code == http.StatusConflict {
-			t.Skip("Skipping test - Channel already has active buzz from previous test")
+			t.Skip("Skipping test - Channel already has active buzz")
 			return
 		}
 
@@ -393,7 +435,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterStartThreads := getChannelAllMessages(t, threadRouter, channelID, token)
+		afterStartThreads := getChannelAllMessages(t, threadRouter, subChannelID, token)
 
 		endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
 		endReq, _ := http.NewRequest(http.MethodPost, endUrl, nil)
@@ -407,7 +449,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterEndThreads := getChannelAllMessages(t, threadRouter, channelID, token)
+		afterEndThreads := getChannelAllMessages(t, threadRouter, subChannelID, token)
 
 		systemMessages := filterMessagesByType(afterEndThreads, "system")
 		if len(systemMessages) > 0 {
@@ -418,17 +460,27 @@ func TestBuzzSystemMessage(t *testing.T) {
 				if msg.Type != "system" {
 					t.Errorf("Message %d: Expected type 'system', got '%s'", i, msg.Type)
 				}
-				if msg.ChannelsID != channelID {
-					t.Errorf("Message %d: Expected channel_id %s, got %s", i, channelID, msg.ChannelsID)
+				if msg.ChannelsID != subChannelID {
+					t.Errorf("Message %d: Expected channel_id %s, got %s", i, subChannelID, msg.ChannelsID)
 				}
 			}
-		} else {
-			t.Log("Note: No system messages found - Elastic search may not be working properly")
 		}
 	})
 
 	t.Run("BuzzMessagesNotInThreadHistory", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel5",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		threadController := thread.Controller{Db: db, Validator: validatorRef, Logger: logger}
 		threadRouter := gin.Default()
@@ -438,7 +490,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		var b bytes.Buffer
-		json.NewEncoder(&b).Encode(createBuzzReq)
+		json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -452,7 +504,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		if rr.Code == http.StatusConflict {
-			t.Skip("Skipping test - Channel already has active buzz from previous test")
+			t.Skip("Skipping test - Channel already has active buzz")
 			return
 		}
 
@@ -464,37 +516,22 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		getUrl := fmt.Sprintf("/api/v1/threads/channels/%s", channelID)
+		getUrl := fmt.Sprintf("/api/v1/threads/channels/%s", subChannelID)
 		getReq, _ := http.NewRequest(http.MethodGet, getUrl, nil)
 		getReq.Header.Set("Authorization", "Bearer "+token)
 
 		rr2 := httptest.NewRecorder()
 		threadRouter.ServeHTTP(rr2, getReq)
 
-		if rr2.Code != http.StatusOK && rr2.Code != http.StatusNoContent {
-			t.Logf("Unexpected status code: %d", rr2.Code)
-		}
-
 		threadData := tst.ParseResponse(rr2)
-		threadDataM, ok := threadData["data"].(map[string]any)
-		if !ok {
-			t.Log("Note: Thread data format unexpected")
-			return
-		}
-
-		threadsInterface, exists := threadDataM["data"]
-		if !exists {
-			t.Log("Note: No data field in thread response")
-			return
-		}
-
-		threads := threadsInterface.([]interface{})
-
-		for i, threadItem := range threads {
-			threadMap := threadItem.(map[string]interface{})
-			threadType := threadMap["type"].(string)
-			if threadType == "system" {
-				t.Errorf("System message should not be in thread history. Found at index %d", i)
+		threads, ok := threadData["data"].([]interface{})
+		if ok {
+			for i, threadItem := range threads {
+				threadMap := threadItem.(map[string]interface{})
+				threadType := threadMap["type"].(string)
+				if threadType == "system" {
+					t.Errorf("System message should not be in thread history. Found at index %d", i)
+				}
 			}
 		}
 
@@ -515,37 +552,38 @@ func TestBuzzSystemMessage(t *testing.T) {
 		threadRouter.ServeHTTP(rr4, getReq2)
 
 		threadData2 := tst.ParseResponse(rr4)
-		threadDataM2, ok := threadData2["data"].(map[string]any)
-		if !ok {
-			return
-		}
-
-		threads2Interface, exists := threadDataM2["data"]
-		if !exists {
-			return
-		}
-
-		threads2 := threads2Interface.([]interface{})
-
-		for i, threadItem := range threads2 {
-			threadMap := threadItem.(map[string]interface{})
-			threadType := threadMap["type"].(string)
-			if threadType == "system" {
-				t.Errorf("System message should not be in thread history. Found at index %d", i)
+		threads2, ok := threadData2["data"].([]interface{})
+		if ok {
+			for i, threadItem := range threads2 {
+				threadMap := threadItem.(map[string]interface{})
+				threadType := threadMap["type"].(string)
+				if threadType == "system" {
+					t.Errorf("System message should not be in thread history. Found at index %d", i)
+				}
 			}
 		}
 	})
 
 	t.Run("MultipleBuzzesCreateMultipleMessages", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
-
-		getChannelSystemMessages(t, channelID)
+		subChannelID := utility.GenerateUUID()
+		storage.DB.Postgresql.Create(&models.Channels{
+			ID:             subChannelID,
+			Name:           "SubTestChannel6",
+			OrganisationID: orgId,
+			OwnerId:        user.ID,
+		})
+		storage.DB.Postgresql.Create(&models.UserChannels{
+			ChannelsID: subChannelID,
+			UserID:     user.ID,
+			Username:   userSignUpData.UserName,
+		})
 
 		var buzzIDs []string
 
 		for i := 0; i < 3; i++ {
 			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(createBuzzReq)
+			json.NewEncoder(&b).Encode(models.CreateBuzzRequest{ChannelID: subChannelID})
 			req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+token)
@@ -558,19 +596,33 @@ func TestBuzzSystemMessage(t *testing.T) {
 				return
 			}
 
-			if rr.Code == http.StatusConflict && i == 0 {
-				t.Skip("Skipping test - Channel has active buzz from previous test")
-				return
+			if rr.Code == http.StatusConflict {
+				// Retry ending buzzes in this channel if any
+				endUrl := fmt.Sprintf("/api/v1/buzz/channel/%s/end", subChannelID)
+				endReq, _ := http.NewRequest(http.MethodPost, endUrl, nil)
+				endReq.Header.Set("Authorization", "Bearer "+token)
+				rrEnd := httptest.NewRecorder()
+				router.ServeHTTP(rrEnd, endReq)
+
+				// Retry creation
+				rr = httptest.NewRecorder()
+				router.ServeHTTP(rr, req)
 			}
 
-			if rr.Code != http.StatusCreated {
-				t.Logf("Buzz %d creation failed with status %d, skipping", i+1, rr.Code)
-				continue
-			}
+			if rr.Code == http.StatusCreated {
+				data := tst.ParseResponse(rr)
+				dataM := data["data"].(map[string]any)
+				currentBuzzID := dataM["buzz_id"].(string)
+				buzzIDs = append(buzzIDs, currentBuzzID)
 
-			data := tst.ParseResponse(rr)
-			dataM := data["data"].(map[string]any)
-			buzzIDs = append(buzzIDs, dataM["buzz_id"].(string))
+				// End it to allow next one
+				endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", currentBuzzID)
+				endReq, _ := http.NewRequest(http.MethodPost, endUrl, nil)
+				endReq.Header.Set("Authorization", "Bearer "+token)
+				router.ServeHTTP(httptest.NewRecorder(), endReq)
+			} else {
+				t.Logf("Buzz %d creation failed with status %d", i+1, rr.Code)
+			}
 
 			time.Sleep(1 * time.Second)
 		}
@@ -580,119 +632,19 @@ func TestBuzzSystemMessage(t *testing.T) {
 			return
 		}
 
-		for _, buzzID := range buzzIDs {
-			endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
-			endReq, _ := http.NewRequest(http.MethodPost, endUrl, nil)
-			endReq.Header.Set("Content-Type", "application/json")
-			endReq.Header.Set("Authorization", "Bearer "+token)
-
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, endReq)
-
-			if rr.Code != http.StatusOK {
-				t.Logf("Failed to end buzz %s with status %d", buzzID, rr.Code)
-				continue
-			}
-
-			time.Sleep(500 * time.Millisecond)
-		}
-
 		time.Sleep(2 * time.Second)
 
-		finalThreads := getChannelSystemMessages(t, channelID)
-
-		startMessages := 0
-		endMessages := 0
-		for _, msg := range finalThreads {
-			if strings.Contains(msg.Content, "started a buzz") {
-				startMessages++
-			} else if strings.Contains(msg.Content, "ended the buzz") {
-				endMessages++
-			}
-		}
-
-		if startMessages > 0 {
-			t.Logf("Found %d start messages", startMessages)
-		}
-		if endMessages > 0 {
-			t.Logf("Found %d end messages", endMessages)
-		}
-
-		if startMessages+endMessages > 0 {
-			t.Logf("✓ System messages are being created for multiple buzzes")
-		} else {
-			t.Log("Note: No system messages found - Elastic search may not be working properly")
-		}
-
-		if startMessages != 3 {
-			t.Logf("Warning: Expected 3 start messages, got %d", startMessages)
-		}
-		if endMessages != 3 {
-			t.Logf("Warning: Expected 3 end messages, got %d", endMessages)
+		finalThreads := getChannelSystemMessages(t, router, subChannelID, token)
+		if len(finalThreads) < len(buzzIDs)*2 {
+			t.Logf("Expected at least %d messages, got %d", len(buzzIDs)*2, len(finalThreads))
 		}
 	})
+
 }
 
-func getChannelSystemMessages(t *testing.T, channelID string) []models.ThreadDocument {
-	if storage.DB.Elastic == nil {
-		return []models.ThreadDocument{}
-	}
-
-	query := map[string]any{
-		"query": map[string]any{
-			"bool": map[string]any{
-				"must": []map[string]any{
-					{
-						"term": map[string]any{
-							"channels_id.keyword": channelID,
-						},
-					},
-					{
-						"term": map[string]any{
-							"type.keyword": "system",
-						},
-					},
-				},
-			},
-		},
-		"from": 0,
-		"size": 100,
-		"sort": []map[string]any{
-			{
-				"created_at": map[string]any{
-					"order": "desc",
-				},
-			},
-		},
-	}
-
-	var threadData any
-	err := elastic.SelectAll(storage.DB.Elastic, models.ThreadIndexName, query, &threadData)
-	if err != nil {
-		t.Logf("Failed to query Elasticsearch for system messages: %v", err)
-		return []models.ThreadDocument{}
-	}
-
-	var searchResult struct {
-		Hits struct {
-			Hits []struct {
-				Source models.ThreadDocument `json:"_source"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-
-	rawJSON, _ := json.Marshal(threadData)
-	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
-		t.Logf("Failed to unmarshal search response: %v", err)
-		return []models.ThreadDocument{}
-	}
-
-	threads := make([]models.ThreadDocument, 0, len(searchResult.Hits.Hits))
-	for _, hit := range searchResult.Hits.Hits {
-		threads = append(threads, hit.Source)
-	}
-
-	return threads
+func getChannelSystemMessages(t *testing.T, r *gin.Engine, channelID, token string) []models.ThreadDocument {
+	threads := getChannelAllMessages(t, r, channelID, token)
+	return filterMessagesByType(threads, "system")
 }
 
 func getChannelAllMessages(t *testing.T, r *gin.Engine, channelID, token string) []models.ThreadDocument {
@@ -718,8 +670,10 @@ func getChannelAllMessages(t *testing.T, r *gin.Engine, channelID, token string)
 	}
 
 	data := tst.ParseResponse(rr)
-	dataM := data["data"].(map[string]any)
-	threadsData := dataM["data"].([]interface{})
+	threadsData, ok := data["data"].([]interface{})
+	if !ok {
+		return []models.ThreadDocument{}
+	}
 
 	threads := make([]models.ThreadDocument, 0, len(threadsData))
 	for _, threadItem := range threadsData {
@@ -745,10 +699,20 @@ func filterMessagesByType(threads []models.ThreadDocument, msgType string) []mod
 
 func validateBuzzStartMessageContent(t *testing.T, content, username string, participantCount int) bool {
 	expected := fmt.Sprintf("@%s started a buzz (%d participants)", username, participantCount)
-	return content == expected
+	var check = content == expected
+	if !check {
+		t.Logf("Expected: %s", expected)
+		t.Logf("Got: %s", content)
+	}
+	return check
 }
 
 func validateBuzzEndMessageContent(t *testing.T, content, username string, participantCount int) bool {
 	expected := fmt.Sprintf("@%s ended the buzz (%d participants)", username, participantCount)
-	return content == expected
+	var check = content == expected
+	if !check {
+		t.Logf("Expected: %s", expected)
+		t.Logf("Got: %s", content)
+	}
+	return check
 }

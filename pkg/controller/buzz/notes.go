@@ -12,11 +12,19 @@ import (
 )
 
 func (base *Controller) CreateNote(c *gin.Context) {
-	buzzID := c.Param("id")
-	if buzzID == "" {
-		base.Logger.Info("missing buzz ID")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz ID is required", nil, nil)
+	buzzCode := c.Param("id")
+	if buzzCode == "" || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Info("invalid buzz code")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "valid buzz code is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -58,11 +66,19 @@ func (base *Controller) CreateNote(c *gin.Context) {
 }
 
 func (base *Controller) GetNotes(c *gin.Context) {
-	buzzID := c.Param("id")
-	if buzzID == "" {
-		base.Logger.Info("missing buzz ID")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz ID is required", nil, nil)
+	buzzCode := c.Param("id")
+	if buzzCode == "" || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Info("invalid buzz code")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "valid buzz code is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -88,11 +104,19 @@ func (base *Controller) GetNotes(c *gin.Context) {
 }
 
 func (base *Controller) UpdateNote(c *gin.Context) {
-	buzzID := c.Param("id")
-	if buzzID == "" {
-		base.Logger.Info("missing buzz ID")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz ID is required", nil, nil)
+	buzzCode := c.Param("id")
+	if buzzCode == "" || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Info("invalid buzz code")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "valid buzz code is required", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 

@@ -319,6 +319,7 @@ type FeedMessageRequest struct {
 	Content                  string                    `json:"message"`
 	ThreadId                 string                    `json:"thread_id"`
 	OrgId                    string                    `json:"org_id"`
+	BuzzCode                 string                    `json:"buzz_code,omitempty"`
 	UserId                   string                    `json:"user_id"`
 	Media                    []File                    `json:"media"`
 	UserType                 string                    `json:"user_type"`
