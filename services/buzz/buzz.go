@@ -1301,6 +1301,10 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 }
 
 func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, hostID string, eventType string) error {
+
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		return nil
+	}
 	var user models.User
 	user, userErr := user.GetUserByID(db.Postgresql, hostID)
 	if userErr != nil {
