@@ -125,22 +125,22 @@ func BatchBroadcastToChannel(logger *utility.Logger, channelIDs []string, publis
 	return nil
 }
 
-func PublishLeaveBuzzEvent(logger *utility.Logger, channelID, buzzID string, publishPayload any) error {
-	buzzChannelID := fmt.Sprintf("%s:%s", buzzID, channelID)
+func PublishLeaveBuzzEvent(logger *utility.Logger, channelID string, publishPayload any) error {
+
 	payload, err := json.Marshal(publishPayload)
 	if err != nil {
 		return err
 	}
 
 	client := Client.C
-	err = client.Publish(context.Background(), buzzChannelID, payload)
+	err = client.Publish(context.Background(), channelID, payload)
 
 	if err != nil {
-		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to buzzChannelID %s: %v", buzzChannelID, err))
+		utility.LogAndPrint(logger, fmt.Sprintf("Failed to publish to channelID %s: %v", channelID, err))
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("Published to buzz-channel %s", buzzChannelID))
+	logger.Info(fmt.Sprintf("Published leave event to buzz-channel %s", channelID))
 	return nil
 
 }

@@ -16,20 +16,24 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	admin := admin.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// Regular admin endpoints (including superadmin)
+	// Regular admin endpoints
 	adminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
 		adminAuthUrl.DELETE("/admins/:admin_id", admin.DeleteAdmin)
+		adminAuthUrl.GET("/dashboard/credits-summary", admin.GetPlatformCreditsSummary)
+		adminAuthUrl.GET("/admins/users", admin.ListUsers)
+		adminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 	}
 
 	// Super admin only endpoints
-	superAdminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.SuperAdminAuthorize(db.Postgresql))
+	superAdminAuthUrl := r.Group(fmt.Sprintf("%v/backoffice", ApiVersion), middleware.AdminAuthorize(db.Postgresql), middleware.RequireSuperAdmin())
 	{
-		superAdminAuthUrl.POST("/admins", admin.CreateAdmin)                                 // Only super admins can create admins
-		superAdminAuthUrl.GET("/dashboard/credits-summary", admin.GetPlatformCreditsSummary) // Platform credit metrics
-		superAdminAuthUrl.GET("/admins/users", admin.ListUsers)
-		superAdminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
+		superAdminAuthUrl.POST("/admins", admin.CreateAdmin) // Only super admins can create admins
+		superAdminAuthUrl.POST("/admins/:admin_id/role/initiate", admin.InitiateChangeAdminRole)
+		superAdminAuthUrl.POST("/admins/role/confirm", admin.ConfirmChangeAdminRole)
+		superAdminAuthUrl.GET("/admins/audit-logs", admin.GetRoleAuditHistory)
+
 	}
 
 	// Public admin endpoints

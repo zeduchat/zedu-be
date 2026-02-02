@@ -27,11 +27,18 @@ const (
 	ChannelTypeGroupDM = "group_dm_channel"
 )
 
+const (
+	BuzzTypeChannel      = "channel"
+	BuzzTypeOrganization = "organization"
+)
+
 type Buzz struct {
 	ID             string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ChannelID      string         `gorm:"type:uuid;not null;index" json:"channel_id"`
 	ChannelType    string         `gorm:"type:varchar(20);not null;default:'channel'" json:"channel_type"`
 	HostID         string         `gorm:"type:uuid;not null;index" json:"host_id"`
+	OrgID          *string        `gorm:"type:uuid;index" json:"org_id,omitempty"`
+	BuzzType       string         `gorm:"type:varchar(20);not null;default:'channel'" json:"buzz_type"`
 	ParticipantIDs pq.StringArray `gorm:"column:participants;type:text[];not null" json:"participant_ids"`
 	BuzzStartTime  time.Time      `gorm:"column:buzz_start_time;autoCreateTime" json:"Buzz_start_time"`
 	BuzzEndTime    *time.Time     `gorm:"column:buzz_end_time" json:"Buzz_end_time"`
@@ -43,12 +50,13 @@ type Buzz struct {
 
 type BuzzParticipant struct {
 	ID            string     `gorm:"type:uuid;primaryKey" json:"id"`
-	BuzzID        string     `gorm:"type:uuid;index;not null" json:"Buzz_id"`
+	BuzzID        string     `gorm:"type:uuid;index;not null" json:"buzz_id"`
 	UserID        string     `gorm:"type:uuid;index;not null" json:"user_id"`
 	Status        string     `gorm:"type:text;not null;default:'active'" json:"status"`
 	IsMuted       bool       `gorm:"type:boolean;default:false" json:"is_muted"`
 	StatusSticker *string    `gorm:"type:varchar(50)" json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `gorm:"column:sticker_set_at" json:"sticker_set_at,omitempty"`
+	MediaState    *string    `gorm:"type:jsonb" json:"media_state,omitempty"`
 	JoinedAt      time.Time  `gorm:"column:joined_at;not null;autoCreateTime" json:"joined_at"`
 	LeftAt        *time.Time `gorm:"column:left_at" json:"left_at"`
 	CreatedAt     time.Time  `gorm:"column:created_at;autoCreateTime" json:"created_at"`
@@ -70,6 +78,7 @@ type ParticipantMetadata struct {
 	Status        string     `json:"status"`
 	StatusSticker *string    `json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
+	MediaState    *string    `json:"media_state,omitempty"`
 }
 
 type BuzzCreateResponse struct {
@@ -79,13 +88,16 @@ type BuzzCreateResponse struct {
 	Status         string                  `json:"status"`
 	CreatedAt      time.Time               `json:"created_at"`
 	StartedAt      time.Time               `json:"started_at"`
+	EndedAt        *time.Time              `json:"ended_at,omitempty"`
 	ParticipantIDs []string                `json:"participants_id"`
 	Participants   []ParticipantMetadata   `json:"participants"`
 	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzCode       string                  `json:"buzz_code"`
 }
 
 type BuzzLeaveResponse struct {
 	BuzzID        string    `json:"buzz_id"`
+	BuzzCode      string    `json:"buzz_code"`
 	ParticipantID string    `json:"participant_id"`
 	NewHostID     string    `json:"new_host_id,omitempty"`
 	LeftAt        time.Time `json:"left_at"`
@@ -94,6 +106,7 @@ type BuzzLeaveResponse struct {
 
 type BuzzEndResponse struct {
 	BuzzID    string    `json:"buzz_id"`
+	BuzzCode  string    `json:"buzz_code"`
 	ChannelID string    `json:"channel_id"`
 	HostID    string    `json:"host_id"`
 	EndedAt   time.Time `json:"ended_at"`
@@ -101,24 +114,29 @@ type BuzzEndResponse struct {
 }
 
 type BuzzMetadataResponse struct {
-	BuzzID       string                `json:"buzz_id"`
-	HostID       string                `json:"host_id"`
-	ChannelID    string                `json:"channel_id"`
-	Status       string                `json:"status"`
-	CreatedAt    time.Time             `json:"created_at"`
-	StartedAt    time.Time             `json:"started_at"`
-	Participants []ParticipantMetadata `json:"participants"`
+	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
+	HostID       string                  `json:"host_id"`
+	ChannelID    string                  `json:"channel_id"`
+	Status       string                  `json:"status"`
+	CreatedAt    time.Time               `json:"created_at"`
+	StartedAt    time.Time               `json:"started_at"`
+	EndedAt      *time.Time              `json:"ended_at,omitempty"`
+	Participants []ParticipantMetadata   `json:"participants"`
+	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
 }
 
 type ActiveBuzzIndicator struct {
-	IsActive              bool     `json:"is_active"`
-	BuzzID                string   `json:"buzz_id,omitempty"`
-	HostID                string   `json:"host_id,omitempty"`
-	Status                string   `json:"status,omitempty"`
-	ParticipantCount      int      `json:"participant_count"`
-	ParticipantPreview    []string `json:"participant_preview"`       // First 2-3 names
-	RemainingParticipants int      `json:"remaining_participants"`    // Count of others
-	IsUserInBuzz          bool     `json:"is_user_in_buzz,omitempty"` // Whether the requesting user is in the buzz
+	IsActive              bool       `json:"is_active"`
+	BuzzID                string     `json:"buzz_id,omitempty"`
+	BuzzCode              string     `json:"buzz_code,omitempty"`
+	HostID                string     `json:"host_id,omitempty"`
+	Status                string     `json:"status,omitempty"`
+	EndedAt               *time.Time `json:"ended_at,omitempty"`
+	ParticipantCount      int        `json:"participant_count"`
+	ParticipantPreview    []string   `json:"participant_preview"`
+	RemainingParticipants int        `json:"remaining_participants"`
+	IsUserInBuzz          bool       `json:"is_user_in_buzz,omitempty"`
 }
 
 func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
@@ -170,13 +188,24 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 }
 
 type BuzzEventPayload struct {
-	Event          string    `json:"event"`
-	BuzzID         string    `json:"Buzz_id"`
-	ChannelID      string    `json:"channel_id"`
-	HostID         string    `json:"host_id"`
-	ParticipantIDs []string  `json:"participant_ids"`
-	CreatedAt      time.Time `json:"created_at"`
-	Status         string    `json:"status"`
+	Event              string               `json:"event"`
+	BuzzID             string               `json:"buzz_id"`
+	ChannelID          string               `json:"channel_id"`
+	HostID             string               `json:"host_id"`
+	ParticipantIDs     []string             `json:"participant_ids"`
+	ParticipantDetails []ParticipantDetails `json:"participant_details,omitempty"`
+	CreatedAt          time.Time            `json:"created_at"`
+	Status             string               `json:"status"`
+	UserJoined         ParticipantDetails   `json:"user_joined,omitempty"`
+	UserLeft           ParticipantDetails   `json:"user_left,omitempty"`
+}
+
+type ParticipantDetails struct {
+	UserID     string  `json:"user_id"`
+	Username   string  `json:"username"`
+	AvatarURL  *string `json:"avatar_url,omitempty"`
+	Email      string  `json:"email,omitempty"`
+	MediaState *string `json:"media_state,omitempty"`
 }
 
 type BuzzLeaveEventPayload struct {
@@ -189,7 +218,7 @@ type BuzzLeaveEventPayload struct {
 
 type BuzzNote struct {
 	ID        string    `gorm:"type:uuid;primaryKey" json:"id"`
-	BuzzID    string    `gorm:"type:uuid;not null;index" json:"Buzz_id"`
+	BuzzID    string    `gorm:"type:uuid;not null;index" json:"buzz_id"`
 	UserID    string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	Note      string    `gorm:"type:text;not null" json:"note"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
@@ -200,13 +229,18 @@ type CreateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
+type SendBuzzMessageRequest struct {
+	Content string `json:"content" validate:"required"`
+	Media   []File `json:"media"`
+}
+
 type UpdateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
 type BuzzNoteResponse struct {
 	ID        string    `json:"id"`
-	BuzzID    string    `json:"Buzz_id"`
+	BuzzID    string    `json:"buzz_id"`
 	UserID    string    `json:"user_id"`
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"created_at"`
@@ -223,7 +257,7 @@ type UpdateCameraRequest struct {
 }
 
 type UpdateCameraResponse struct {
-	BuzzID     string `json:"Buzz_id"`
+	BuzzID     string `json:"buzz_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	UpdatedAt  string `json:"updated_at"`
@@ -231,11 +265,15 @@ type UpdateCameraResponse struct {
 
 type CameraStatusEventPayload struct {
 	Event      string `json:"event"`
-	BuzzID     string `json:"Buzz_id"`
+	BuzzID     string `json:"buzz_id"`
 	ChannelID  string `json:"channel_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	Timestamp  string `json:"timestamp"`
+}
+
+type UpdateMediaStateRequest struct {
+	MediaState interface{} `json:"media_state" validate:"required"`
 }
 
 // AddUserToBuzz adds a user to a Buzz as a participant
@@ -248,9 +286,10 @@ func (h *Buzz) AddUserToBuzz(db *gorm.DB, userID string) error {
 		return errors.New("invalid user ID")
 	}
 
-	// Check if user is in the channel
-	if !IsUserInChannel(db, h.ChannelID, userID) {
-		return errors.New("user is not a member of the channel")
+	if h.BuzzType != BuzzTypeOrganization {
+		if !IsUserInChannel(db, h.ChannelID, userID) {
+			return errors.New("user is not a member of the channel")
+		}
 	}
 
 	// Check if Buzz exists
@@ -270,7 +309,7 @@ func (h *Buzz) AddUserToBuzz(db *gorm.DB, userID string) error {
 	// Check if user is already in the Buzz
 	for _, participantID := range Buzz.ParticipantIDs {
 		if participantID == userID {
-			return errors.New("user is already in the Buzz")
+			return nil
 		}
 	}
 
@@ -287,17 +326,20 @@ func updateBuzzParticipants(db *gorm.DB, BuzzID string, participants pq.StringAr
 
 // JoinBuzzRequest represents the request to join a Buzz
 type JoinBuzzRequest struct {
-	BuzzID string `json:"Buzz_id" validate:"required,uuid"`
+	BuzzID string `json:"buzz_id" validate:"required,uuid"`
 }
 
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
-	BuzzID       string                  `json:"Buzz_id"`
+	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
 	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
 	Status       string                  `json:"status"`
 	CreatedAt    time.Time               `json:"created_at"`
+	StartedAt    time.Time               `json:"started_at"`
+	EndedAt      *time.Time              `json:"ended_at,omitempty"`
 	JoinedAt     time.Time               `json:"joined_at"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
@@ -490,4 +532,32 @@ type BuzzStickerPayload struct {
 	Sticker      *string    `json:"sticker"`
 	StickerSetAt *time.Time `json:"sticker_set_at,omitempty"`
 	Timestamp    time.Time  `json:"timestamp"`
+}
+
+type OrgBuzzListResponse struct {
+	Buzzes []OrgBuzzItem `json:"buzzes"`
+	Total  int           `json:"total"`
+}
+
+type OrgBuzzItem struct {
+	BuzzID           string     `json:"buzz_id"`
+	BuzzCode         string     `json:"buzz_code"`
+	ChannelID        string     `json:"channel_id"`
+	HostID           string     `json:"host_id"`
+	OrgID            string     `json:"org_id"`
+	Status           string     `json:"status"`
+	ParticipantCount int        `json:"participant_count"`
+	CreatedAt        time.Time  `json:"created_at"`
+	StartedAt        time.Time  `json:"started_at"`
+	EndedAt          *time.Time `json:"ended_at,omitempty"`
+}
+
+type BuzzTimeWarningPayload struct {
+	Event            string    `json:"event"`
+	BuzzID           string    `json:"buzz_id"`
+	ChannelID        string    `json:"channel_id"`
+	HostID           string    `json:"host_id"`
+	RemainingMinutes int       `json:"remaining_minutes"`
+	EstimatedEndTime time.Time `json:"estimated_end_time"`
+	Timestamp        time.Time `json:"timestamp"`
 }

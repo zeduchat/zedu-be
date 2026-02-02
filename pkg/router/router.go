@@ -81,6 +81,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	AgentSkillTask(r, ApiVersion, validator, db, logger)
 	Translator(r, ApiVersion, validator, db, logger)
 	Shares(r, ApiVersion, validator, db, logger)
+	Activity(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

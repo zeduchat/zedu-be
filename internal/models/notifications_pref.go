@@ -46,6 +46,7 @@ var (
 	UserJoinedBuzz              NotificationType = "user_joined_buzz"
 	UserLeftBuzz                NotificationType = "user_left_buzz"
 	BuzzEnded                   NotificationType = "buzz_ended"
+	BuzzTimeWarning             NotificationType = "buzz_time_warning"
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	BuzzReactionEvent           NotificationType = "buzz_reaction_event"
 	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
@@ -181,6 +182,12 @@ var Notification = map[NotificationType]Content{
 	UserJoinedBuzz: Content{
 		NotificationType: UserJoinedBuzz,
 	},
+	BuzzEnded: Content{
+		NotificationType: BuzzEnded,
+	},
+	BuzzTimeWarning: Content{
+		NotificationType: BuzzTimeWarning,
+	},
 	UpdatedMedia: Content{
 		NotificationType: UpdatedMedia,
 		Content:          ModificationDetails{},
@@ -296,9 +303,11 @@ func (n *DeviceNotificationSettings) GetOrCreateDeviceNotification(db *gorm.DB) 
 	if !ok {
 		// If not exist, create default settings
 		deviceSettings = DeviceNotification{
-			Muted:      false,
-			AtMentions: true,
-			AtChannel:  true,
+			Muted:       false,
+			AtMentions:  true,
+			AtChannel:   true,
+			NotifyAbout: AllMessages,
+			SendMail:    false,
 		}
 		pref.Preferences[n.DeviceType] = deviceSettings
 

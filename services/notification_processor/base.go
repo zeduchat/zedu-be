@@ -16,8 +16,39 @@ import (
 )
 
 func stripHTMLTags(content string) string {
+	htmlEntities := map[string]string{
+		"&nbsp;":   " ",
+		"&amp;":    "&",
+		"&lt;":     "<",
+		"&gt;":     ">",
+		"&quot;":   "\"",
+		"&#39;":    "'",
+		"&apos;":   "'",
+		"&ndash;":  "-",
+		"&mdash;":  "—",
+		"&hellip;": "...",
+	}
+
+	for entity, replacement := range htmlEntities {
+		content = strings.ReplaceAll(content, entity, replacement)
+	}
+
+	content = strings.ReplaceAll(content, "</p>", "\n")
+	content = strings.ReplaceAll(content, "<br>", "\n")
+	content = strings.ReplaceAll(content, "<br/>", "\n")
+	content = strings.ReplaceAll(content, "<br />", "\n")
+
 	re := regexp.MustCompile(`<[^>]*>?`)
-	return re.ReplaceAllString(content, "")
+	content = re.ReplaceAllString(content, "")
+
+	content = strings.TrimSpace(content)
+
+	maxLength := 100
+	if len(content) > maxLength {
+		content = content[:maxLength] + "..."
+	}
+
+	return content
 }
 
 func ProcessNotification(req Job, logger *utility.Logger) error {
@@ -71,10 +102,71 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		userIDs   []string
 	)
 
+	// Get notification type to determine filtering logic
+	notifType := notifPayload.Notification.NotificationType
+
+	// Build WHERE clause based on notification type
+	var whereClause string
+	switch notifType {
+	case models.NewMessage:
+		// Send to users who want all messages (notify_about = 'all_new_messages')
+		// Users with no notify_about preference (NULL) are treated as wanting all messages (opt-in by default)
+		whereClause = `(
+			(preferences->'web'->>'muted' = 'false' 
+			 OR preferences = '{}' 
+			 OR preferences->'mobile'->>'muted' = 'false')
+			AND (preferences->'web'->>'notify_about' = 'all_new_messages' 
+			     OR preferences->'mobile'->>'notify_about' = 'all_new_messages'
+			     OR preferences->'web'->>'notify_about' IS NULL 
+			     OR preferences->'mobile'->>'notify_about' IS NULL)
+		)`
+
+	case models.ChannelMention:
+		// Send to users who want all messages OR have at_channel enabled with mentions preference
+		whereClause = `(
+			(preferences->'web'->>'muted' = 'false' 
+			 OR preferences = '{}' 
+			 OR preferences->'mobile'->>'muted' = 'false')
+			AND (
+				(preferences->'web'->>'notify_about' = 'all_new_messages' 
+				 OR preferences->'mobile'->>'notify_about' = 'all_new_messages')
+				OR (preferences->'web'->>'at_channel' = 'true' 
+					AND (preferences->'web'->>'notify_about' = 'mentions' 
+						OR preferences->'web'->>'notify_about' IS NULL))
+				OR (preferences->'mobile'->>'at_channel' = 'true' 
+					AND (preferences->'mobile'->>'notify_about' = 'mentions' 
+						OR preferences->'mobile'->>'notify_about' IS NULL))
+			)
+		)`
+
+	case models.ThreadReply:
+		// Send to users who want all messages OR have at_mentions enabled with mentions preference
+		whereClause = `(
+			(preferences->'web'->>'muted' = 'false' 
+			 OR preferences = '{}' 
+			 OR preferences->'mobile'->>'muted' = 'false')
+			AND (
+				(preferences->'web'->>'notify_about' = 'all_new_messages' 
+				 OR preferences->'mobile'->>'notify_about' = 'all_new_messages')
+				OR (preferences->'web'->>'at_mentions' = 'true' 
+					AND (preferences->'web'->>'notify_about' = 'mentions' 
+						OR preferences->'web'->>'notify_about' IS NULL))
+				OR (preferences->'mobile'->>'at_mentions' = 'true' 
+					AND (preferences->'mobile'->>'notify_about' = 'mentions' 
+						OR preferences->'mobile'->>'notify_about' IS NULL))
+			)
+		)`
+
+	default:
+		// For unknown notification types, use old behavior but log warning
+		logger.Error("Unknown notification type '%s', using default filtering", notifType)
+		whereClause = `preferences->'web'->>'muted' = 'false' OR preferences = '{}' OR preferences->'mobile'->>'muted' = 'false'`
+	}
+
 	err := db.
 		Model(&models.UserChannels{}).
 		Where("channels_id = ? AND user_id != ?", channelId, userId).
-		Where(`preferences->'web'->>'muted' = ? OR preferences = '{}' OR preferences->'mobile'->>'muted' = ?`, "false", "false").
+		Where(whereClause).
 		Pluck("user_id", &userIDs).Error
 
 	if err != nil {
@@ -143,6 +235,45 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 	)
 
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
+
+	// Find the other participant in the DM (the recipient, not the sender)
+	var recipientID string
+	err := db.Table("user_channels AS uc").
+		Select("uc.user_id").
+		Where("uc.channels_id = ? AND uc.user_id != ?", channelId, userId).
+		Pluck("user_id", &recipientID).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to find DM recipient: %v", err)
+	}
+
+	if recipientID == "" {
+		logger.Info("DM Notification aborted: no recipient found")
+		return nil
+	}
+
+	// Check if recipient wants DM notifications
+	// DMs should only be sent if user has notify_about = 'all_new_messages' or NULL (default)
+	var count int64
+	err = db.Table("user_channels AS uc").
+		Where("uc.channels_id = ? AND uc.user_id = ?", channelId, recipientID).
+		Where(`(uc.preferences->'web'->>'muted' = 'false' 
+			OR uc.preferences = '{}' 
+			OR uc.preferences->'mobile'->>'muted' = 'false')
+			AND (uc.preferences->'web'->>'notify_about' = 'all_new_messages' 
+				OR uc.preferences->'mobile'->>'notify_about' = 'all_new_messages'
+				OR uc.preferences->'web'->>'notify_about' IS NULL 
+				OR uc.preferences->'mobile'->>'notify_about' IS NULL)`).
+		Count(&count).Error
+
+	if err != nil {
+		return fmt.Errorf("failed to check DM notification preferences: %v", err)
+	}
+
+	if count == 0 {
+		logger.Info("DM Notification aborted: recipient has notifications disabled")
+		return nil
+	}
 
 	typeCall := map[models.ChannelType]func() error{
 		models.DMChannel: func() error {

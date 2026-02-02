@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -13,12 +12,20 @@ import (
 )
 
 func (base *Controller) UpdateCamera(c *gin.Context) {
-	buzzID := c.Param("id")
+	buzzCode := c.Param("id")
 
-	if _, err := uuid.Parse(buzzID); err != nil {
-		base.Logger.Error("invalid buzz id format", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id format", "failed to decode buzz id", nil)
+	if !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid buzz code format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code format", "failed to decode buzz code", nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 

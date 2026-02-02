@@ -2,15 +2,19 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	admin "github.com/hngprojects/telex_be/services/admin"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 type Controller struct {
@@ -120,5 +124,215 @@ func (base *Controller) DeleteAdmin(c *gin.Context) {
 
 	base.Logger.Info("admin deleted successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin deleted successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) ListUsers(c *gin.Context) {
+
+	users, paginationResponse, code, err := admin.ListUsers(base.Db.Postgresql, c)
+	if err != nil {
+		base.Logger.Error("failed to list users", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("users retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "users retrieved successfully", users, paginationResponse)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetPlatformCreditsSummary(c *gin.Context) {
+	metrics, err := models.GetPlatformCreditSummary(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch platform credit summary", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch platform credit summary", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Platform credit summary retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Platform credit summary retrieved successfully", metrics)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) InviteLeaderboard(c *gin.Context) {
+	orgID := c.Query("org_id")
+	var orgPtr *string
+	if orgID != "" {
+		if _, err := uuid.Parse(orgID); err != nil {
+			base.Logger.Error("invalid org_id format", err)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid org_id format", "invalid org_id format", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		orgPtr = &orgID
+	}
+
+	limit := 10
+	if c.Query("limit") != "" {
+		l, err := strconv.Atoi(c.Query("limit"))
+		if err != nil || l <= 0 {
+			if err != nil {
+				base.Logger.Error("invalid limit - parse error", err)
+			} else {
+				base.Logger.Error("invalid limit - non-positive", fmt.Errorf("limit must be a positive integer: %d", l))
+			}
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid limit", "limit must be a positive integer", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		if l > 100 {
+			base.Logger.Error("limit exceeds maximum allowed", fmt.Errorf("limit cannot exceed 100: %d", l))
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "limit cannot exceed 100", "limit cannot exceed 100", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		limit = l
+	}
+
+	users, code, err := admin.ListUsersByInvites(base.Db.Postgresql, orgPtr, limit)
+	if err != nil {
+		base.Logger.Error("failed to build invite leaderboard", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("invite leaderboard retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "invite leaderboard retrieved successfully", users)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) InitiateChangeAdminRole(c *gin.Context) {
+	targetAdminID := c.Param("admin_id")
+
+	if !utility.IsValidUUID(targetAdminID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid admin id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.ChangeAdminRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed for role change", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if req.IsConfirmed == nil {
+		base.Logger.Error("Admin role change attempted without confirmation flag", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "confirm_superadmin is required when changing admin roles.", nil, nil)
+		c.JSON(http.StatusPreconditionRequired, rd)
+		return
+	}
+	if !*req.IsConfirmed {
+		base.Logger.Error("Admin role change attempted with confirmation=false", nil)
+		rd := utility.BuildErrorResponse(http.StatusConflict, "error", "You must explicitly confirm admin role change by setting confirm_superadmin to true.", nil, nil)
+		c.JSON(http.StatusPreconditionRequired, rd)
+		return
+	}
+
+	claims := c.MustGet("adminClaims").(jwt.MapClaims)
+	requesterID := claims["admin_id"].(string)
+	ipAddress := audit_utility.GetClientIP(c)
+
+	resp, err := admin.InitiateAdminRoleChange(base.Db, targetAdminID, req.NewRole, requesterID, ipAddress)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusAccepted, "Role change initiated. Use the token to confirm.", resp)
+	c.JSON(http.StatusAccepted, rd)
+}
+
+func (base *Controller) ConfirmChangeAdminRole(c *gin.Context) {
+	var req models.ConfirmRoleChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims := c.MustGet("adminClaims").(jwt.MapClaims)
+	requesterID := claims["admin_id"].(string)
+
+	ipAddress := audit_utility.GetClientIP(c)
+	userAgent := c.GetHeader("User-Agent")
+	if userAgent == "" {
+		userAgent = "Unknown/Direct API Request"
+	}
+
+	err := admin.ConfirmAdminRoleChange(base.Db, base.Logger, req.ConfirmationToken, requesterID, ipAddress, userAgent)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Admin role updated successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
+	dateStr := c.Query("date")
+
+	if dateStr != "" {
+		_, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			base.Logger.Error("Invalid date format provided", err)
+			rd := utility.BuildErrorResponse(
+				http.StatusBadRequest,
+				"error",
+				"Invalid date format. Use YYYY-MM-DD",
+				err.Error(),
+				nil,
+			)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+	}
+
+	var auditModel models.AuditLog
+
+	logs, pagination, err := auditModel.GetAuditHistory(base.Db.Postgresql, c)
+
+	if err != nil {
+		base.Logger.Error("Failed to retrieve audit history", err)
+		rd := utility.BuildErrorResponse(
+			http.StatusInternalServerError,
+			"error",
+			"Failed to fetch audit logs",
+			err.Error(),
+			nil,
+		)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(
+		http.StatusOK,
+		"Audit logs retrieved successfully",
+		map[string]any{
+			"logs":       logs,
+			"pagination": pagination,
+		},
+	)
 	c.JSON(http.StatusOK, rd)
 }
