@@ -164,7 +164,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 				t.Errorf("Expected status 'success', got %s", msg.Status)
 			}
 
-			if !validateBuzzStartMessageContent(t, msg.Content, user.Profile.UserName, len(buzz.ParticipantIDs)) {
+			if !validateBuzzStartMessageContent(t, msg.Content, strings.Split(user.Email, "@")[0], len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
@@ -256,7 +256,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 				t.Errorf("Expected message type 'system', got %s", endMsg.Type)
 			}
 
-			if !validateBuzzEndMessageContent(t, endMsg.Content, user.Profile.UserName, len(buzz.ParticipantIDs)) {
+			if !validateBuzzEndMessageContent(t, endMsg.Content, strings.Split(user.Email, "@")[0], len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
