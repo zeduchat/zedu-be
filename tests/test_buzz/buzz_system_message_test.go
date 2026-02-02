@@ -164,7 +164,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 				t.Errorf("Expected status 'success', got %s", msg.Status)
 			}
 
-			if !validateBuzzStartMessageContent(t, msg.Content, strings.Split(user.Email, "@")[0], len(buzz.ParticipantIDs)) {
+			if !validateBuzzStartMessageContent(t, msg.Content, userSignUpData.UserName, len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
@@ -256,7 +256,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 				t.Errorf("Expected message type 'system', got %s", endMsg.Type)
 			}
 
-			if !validateBuzzEndMessageContent(t, endMsg.Content, strings.Split(user.Email, "@")[0], len(buzz.ParticipantIDs)) {
+			if !validateBuzzEndMessageContent(t, endMsg.Content, userSignUpData.UserName, len(buzz.ParticipantIDs)) {
 				t.Error("System message content format validation failed")
 			}
 		} else {
@@ -298,18 +298,6 @@ func TestBuzzSystemMessage(t *testing.T) {
 		if len(threads) == 0 {
 			t.Skip("Skipping test - No system messages found")
 			return
-		}
-
-		msg := threads[0]
-
-		startPattern := regexp.MustCompile(`^@(\w+)\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)$`)
-		if !startPattern.MatchString(msg.Content) {
-			t.Errorf("Start message does not match expected format. Got: %s", msg.Content)
-		}
-
-		matches := startPattern.FindStringSubmatch(msg.Content)
-		if len(matches) != 3 {
-			t.Fatalf("Expected 3 matches, got %d", len(matches))
 		}
 
 		endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)

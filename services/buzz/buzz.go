@@ -1323,7 +1323,7 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 	if eventType == "started" {
 		content = fmt.Sprintf("@%s started a buzz (%d participants)", displayName, participantCount)
 	} else {
-		content = fmt.Sprintf("@%s ended a buzz (%d participants)", displayName, participantCount)
+		content = fmt.Sprintf("@%s ended the buzz (%d participants)", displayName, participantCount)
 	}
 
 	var orgID string
