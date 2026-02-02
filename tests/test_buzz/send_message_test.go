@@ -90,14 +90,17 @@ func TestSendBuzzMessage(t *testing.T) {
 		json.Unmarshal(rr.Body.Bytes(), &resp)
 		tst.AssertResponseMessage(t, resp["message"].(string), "message sent successfully")
 
-		data := resp["data"].(map[string]interface{})
-		if data["message"].(string) != "Hello from buzz!" {
+		data, ok := resp["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected data to be a map, got %T", resp["data"])
+		}
+		if msg, ok := data["message"].(string); !ok || msg != "Hello from buzz!" {
 			t.Errorf("expected content 'Hello from buzz!', got %v", data["message"])
 		}
-		if data["type"].(string) != "buzz_message" {
+		if msgType, ok := data["type"].(string); !ok || msgType != "buzz_message" {
 			t.Errorf("expected type 'buzz_message', got %v", data["type"])
 		}
-		if data["user_id"].(string) != user.ID {
+		if uID, ok := data["user_id"].(string); !ok || uID != user.ID {
 			t.Errorf("expected user_id %s, got %v", user.ID, data["user_id"])
 		}
 	})
@@ -128,8 +131,14 @@ func TestSendBuzzMessage(t *testing.T) {
 
 		var resp map[string]interface{}
 		json.Unmarshal(rr.Body.Bytes(), &resp)
-		data := resp["data"].(map[string]interface{})
-		media := data["media"].([]interface{})
+		data, ok := resp["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("expected data to be a map, got %T", resp["data"])
+		}
+		media, ok := data["media"].([]interface{})
+		if !ok {
+			t.Fatalf("expected media to be a slice, got %T", data["media"])
+		}
 		if len(media) != 1 {
 			t.Errorf("expected 1 media item, got %d", len(media))
 		}

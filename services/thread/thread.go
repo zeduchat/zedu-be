@@ -145,6 +145,9 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 
 	updateCall := map[string]func(chanType, orgId string){
 		"channels": func(chanType, orgId string) {
+			if len(accessResp) == 0 {
+				return
+			}
 			var userChannel models.UserChannels
 			updateLastRead := models.UpdateLastRead{
 				LastReadAt:   accessResp[0].CreatedAt,
@@ -166,6 +169,9 @@ func GetAllChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger 
 			}()
 		},
 		"dm": func(chanType, orgId string) {
+			if len(accessResp) == 0 {
+				return
+			}
 			var dmChan models.DmChannels
 			updateLastRead := models.UpdateLastRead{
 				LastReadAt:   accessResp[0].CreatedAt,

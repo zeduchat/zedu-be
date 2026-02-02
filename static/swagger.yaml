@@ -25816,9 +25816,8 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
           required: true
-          description: The unique UUID of the buzz to join
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Example UUID: `019acc68-ad4f-721e-9c4b-d2064d445225`, Example buzzCode: `D2064D445225`. Both formats are supported for backward compatibility."
       responses:
         "200":
           description: Successfully joined the buzz
@@ -25864,9 +25863,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -25917,9 +25916,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -25965,9 +25964,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26064,9 +26063,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
         - in: path
           name: note_id
           schema:
@@ -26125,9 +26124,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully left the buzz
@@ -26174,9 +26173,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call) to end
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully ended the buzz
@@ -26266,9 +26265,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26355,9 +26354,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26460,9 +26459,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz to force end
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Buzz force ended successfully (test mode)
@@ -26489,6 +26488,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/message:
+    post:
+      tags:
+        - buzz
+      summary: Send a message to a buzz
+      description: Sends a message to an active buzz. The message is published to the buzz's real-time channel but not persisted in the database. Only active participants can send messages.
+      operationId: sendBuzzMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendBuzzMessageRequest"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedMessageResponse"
+        "400":
+          description: Bad request - invalid buzz ID or buzz not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a participant in the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable Entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+
   /buzz/{id}/metadata:
     get:
       tags:
@@ -26503,9 +26563,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully retrieved buzz metadata
@@ -27237,6 +27297,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the created buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27304,6 +27368,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27390,6 +27458,11 @@ components:
           format: uuid
           description: The unique identifier of the buzz
           example: "550e8400-e29b-41d4-a716-446655440000"
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
+          example: "446655440000"
         participant_id:
           type: string
           format: uuid
@@ -27425,6 +27498,11 @@ components:
           format: uuid
           description: The unique identifier of the buzz
           example: "550e8400-e29b-41d4-a716-446655440000"
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
+          example: "446655440000"
         channel_id:
           type: string
           format: uuid
@@ -27462,6 +27540,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27513,6 +27595,94 @@ components:
             status_sticker: "raise_hand"
             sticker_set_at: "2025-11-28T10:05:30Z"
 
+    BuzzFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        file_type:
+          type: string
+        mime_type:
+          type: string
+        file_link:
+          type: string
+        size:
+          type: integer
+
+    SendBuzzMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: The message content
+          example: "Hello from buzz!"
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzFile"
+          description: Optional media files attached to the message
+
+    FeedMessageSchema:
+      type: object
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        username:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type: string
+        avatar_url:
+          type: string
+        type:
+          type: string
+          example: "buzz_message"
+        message:
+          type: string
+        thread_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+        user_id:
+          type: string
+          format: uuid
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzFile"
+        user_type:
+          type: string
+          example: "user"
+        channel_type:
+          type: string
+
+    FeedMessageResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "message sent successfully"
+        data:
+          $ref: "#/components/schemas/FeedMessageSchema"
+
     ActiveBuzzIndicator:
       type: object
       required:
@@ -27529,6 +27699,11 @@ components:
           format: uuid
           nullable: true
           description: The unique ID of the active buzz (null if no active buzz)
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          nullable: true
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27629,6 +27804,10 @@ components:
         buzz_id:
           type: string
           format: uuid
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         user_id:
           type: string
           format: uuid

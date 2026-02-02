@@ -64,13 +64,20 @@ func (base *Controller) Create(c *gin.Context) {
 }
 
 func (base *Controller) Join(c *gin.Context) {
-	buzzID := c.Param("id")
+	buzzCodeOrID := c.Param("id")
 
-	valid := utility.IsValidUUID(buzzID)
-	if !valid {
-		base.Logger.Info("invalid buzz ID format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz ID format", "failed to decode buzz ID", nil)
+	if !utility.IsValidBuzzCodeOrUUID(buzzCodeOrID) {
+		base.Logger.Info("invalid buzz code or ID format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code or ID format", "failed to decode buzz code or ID", nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCodeOrID)
+	if err != nil {
+		base.Logger.Info("buzz not found for code: %s", buzzCodeOrID)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -135,11 +142,19 @@ func (base *Controller) GetAgoraToken(c *gin.Context) {
 }
 
 func (base *Controller) LeaveBuzz(c *gin.Context) {
-	buzzID, ok := c.Params.Get("id")
-	if !ok || !(utility.IsValidUUID(buzzID)) {
-		base.Logger.Error("invalid request param: buzz id is invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid request param: buzz code is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code in params", errors.New("invalid buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -174,11 +189,19 @@ func (base *Controller) LeaveBuzz(c *gin.Context) {
 }
 
 func (base *Controller) EndBuzz(c *gin.Context) {
-	buzzID, ok := c.Params.Get("id")
-	if !ok || !(utility.IsValidUUID(buzzID)) {
-		base.Logger.Error("invalid request param: buzz id is invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid request param: buzz code is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code in params", errors.New("invalid buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -252,11 +275,19 @@ func (base *Controller) EndBuzzByChannel(c *gin.Context) {
 }
 
 func (base *Controller) GetMetadata(c *gin.Context) {
-	buzzID, ok := c.Params.Get("id")
-	if !ok || !(utility.IsValidUUID(buzzID)) {
-		base.Logger.Error("invalid request param: buzz id is invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid request param: buzz code is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code in params", errors.New("invalid buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -336,11 +367,19 @@ func (base *Controller) getActiveBuzzForChannel(c *gin.Context, paramName, chann
 
 // ForceEndBuzz force ends a buzz without permission checks - FOR TESTING ONLY
 func (base *Controller) ForceEndBuzz(c *gin.Context) {
-	buzzID, ok := c.Params.Get("id")
-	if !ok || !(utility.IsValidUUID(buzzID)) {
-		base.Logger.Error("invalid request param: buzz id is invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid request param: buzz code is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code in params", errors.New("invalid buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -422,11 +461,19 @@ func (base *Controller) GetOrgBuzzList(c *gin.Context) {
 }
 
 func (base *Controller) UpdateMediaState(c *gin.Context) {
-	buzzID, ok := c.Params.Get("id")
-	if !ok || !(utility.IsValidUUID(buzzID)) {
-		base.Logger.Error("invalid request param: buzz id is invalid")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id in params", errors.New("invalid buzz id"), nil)
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid request param: buzz code is invalid")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code in params", errors.New("invalid buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
@@ -476,18 +523,26 @@ func (base *Controller) UpdateMediaState(c *gin.Context) {
 
 func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	var (
-		req    models.SendBuzzMessageRequest
-		buzzID = c.Param("id")
+		req      models.SendBuzzMessageRequest
+		buzzCode = c.Param("id")
 	)
 
-	if !utility.IsValidUUID(buzzID) {
-		base.Logger.Error("invalid buzz id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz id format", errors.New("failed to parse buzz id"), nil)
+	if !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Error("invalid buzz code format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code format", errors.New("failed to parse buzz code"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	err := c.ShouldBind(&req)
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	err = c.ShouldBind(&req)
 	if err != nil {
 		base.Logger.Error("Failed to parse request body: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
@@ -562,6 +617,11 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 		return
 	}
 
+	orgID := ""
+	if buzzRecord.OrgID != nil {
+		orgID = *buzzRecord.OrgID
+	}
+
 	feed := models.FeedMessageRequest{
 		ChannelID:   buzzRecord.ChannelID,
 		UserName:    profile.UserName,
@@ -574,15 +634,21 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 		UserType:    "user",
 		FullName:    profile.FullName,
 		UserId:      userID,
-		OrgId:       *buzzRecord.OrgID,
+		OrgId:       orgID,
+		BuzzCode:    utility.ExtractBuzzCode(buzzID),
 		Media:       req.Media,
 		ChannelName: "",
 		ChannelType: buzzRecord.ChannelType,
 	}
 
-	err = centrifuge.PublishChannel(base.Logger, buzzID, feed)
+	publishChannel := buzzID
+	if buzzRecord.BuzzType == models.BuzzTypeOrganization {
+		publishChannel = utility.ExtractBuzzCode(buzzID)
+	}
+
+	err = centrifuge.PublishChannel(base.Logger, publishChannel, feed)
 	if err != nil {
-		base.Logger.Error(fmt.Sprintf("Error publishing to buzz channel: %s, error: %v", buzzID, err.Error()))
+		base.Logger.Error(fmt.Sprintf("Error publishing to buzz channel: %s, error: %v", publishChannel, err.Error()))
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to publish message", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return

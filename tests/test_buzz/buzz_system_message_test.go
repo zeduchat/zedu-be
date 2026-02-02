@@ -21,7 +21,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -148,9 +147,9 @@ func TestBuzzSystemMessage(t *testing.T) {
 			t.Error("Expected at least 1 participant")
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 
-		threads := getChannelSystemMessages(t, channelID)
+		threads := getChannelSystemMessages(t, router, channelID, token)
 		if len(threads) > 0 {
 			msg := threads[0]
 			if msg.Type != "system" {
@@ -222,7 +221,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		beforeEndThreads := getChannelSystemMessages(t, channelID)
+		beforeEndThreads := getChannelSystemMessages(t, router, channelID, token)
 		startCount := len(beforeEndThreads)
 
 		endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
@@ -250,7 +249,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterEndThreads := getChannelSystemMessages(t, channelID)
+		afterEndThreads := getChannelSystemMessages(t, router, channelID, token)
 		if len(afterEndThreads) > startCount {
 			endMsg := afterEndThreads[0]
 			if endMsg.Type != "system" {
@@ -295,7 +294,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		threads := getChannelSystemMessages(t, channelID)
+		threads := getChannelSystemMessages(t, router, channelID, token)
 		if len(threads) == 0 {
 			t.Skip("Skipping test - No system messages found")
 			return
@@ -325,7 +324,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		afterEndThreads := getChannelSystemMessages(t, channelID)
+		afterEndThreads := getChannelSystemMessages(t, router, channelID, token)
 		if len(afterEndThreads) < 2 {
 			t.Skip("Skipping test - No end message found")
 			return
@@ -476,19 +475,11 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		threadData := tst.ParseResponse(rr2)
-		threadDataM, ok := threadData["data"].(map[string]any)
+		threads, ok := threadData["data"].([]interface{})
 		if !ok {
-			t.Log("Note: Thread data format unexpected")
+			t.Log("Note: Thread data format unexpected, expected slice in data field")
 			return
 		}
-
-		threadsInterface, exists := threadDataM["data"]
-		if !exists {
-			t.Log("Note: No data field in thread response")
-			return
-		}
-
-		threads := threadsInterface.([]interface{})
 
 		for i, threadItem := range threads {
 			threadMap := threadItem.(map[string]interface{})
@@ -515,17 +506,10 @@ func TestBuzzSystemMessage(t *testing.T) {
 		threadRouter.ServeHTTP(rr4, getReq2)
 
 		threadData2 := tst.ParseResponse(rr4)
-		threadDataM2, ok := threadData2["data"].(map[string]any)
+		threads2, ok := threadData2["data"].([]interface{})
 		if !ok {
 			return
 		}
-
-		threads2Interface, exists := threadDataM2["data"]
-		if !exists {
-			return
-		}
-
-		threads2 := threads2Interface.([]interface{})
 
 		for i, threadItem := range threads2 {
 			threadMap := threadItem.(map[string]interface{})
@@ -539,7 +523,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 	t.Run("MultipleBuzzesCreateMultipleMessages", func(t *testing.T) {
 		router, _ := SetupBuzzTestRouter(logger, validatorRef)
 
-		getChannelSystemMessages(t, channelID)
+		getChannelSystemMessages(t, router, channelID, token)
 
 		var buzzIDs []string
 
@@ -597,9 +581,9 @@ func TestBuzzSystemMessage(t *testing.T) {
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 
-		finalThreads := getChannelSystemMessages(t, channelID)
+		finalThreads := getChannelSystemMessages(t, router, channelID, token)
 
 		startMessages := 0
 		endMessages := 0
@@ -633,66 +617,9 @@ func TestBuzzSystemMessage(t *testing.T) {
 	})
 }
 
-func getChannelSystemMessages(t *testing.T, channelID string) []models.ThreadDocument {
-	if storage.DB.Elastic == nil {
-		return []models.ThreadDocument{}
-	}
-
-	query := map[string]any{
-		"query": map[string]any{
-			"bool": map[string]any{
-				"must": []map[string]any{
-					{
-						"term": map[string]any{
-							"channels_id.keyword": channelID,
-						},
-					},
-					{
-						"term": map[string]any{
-							"type.keyword": "system",
-						},
-					},
-				},
-			},
-		},
-		"from": 0,
-		"size": 100,
-		"sort": []map[string]any{
-			{
-				"created_at": map[string]any{
-					"order": "desc",
-				},
-			},
-		},
-	}
-
-	var threadData any
-	err := elastic.SelectAll(storage.DB.Elastic, models.ThreadIndexName, query, &threadData)
-	if err != nil {
-		t.Logf("Failed to query Elasticsearch for system messages: %v", err)
-		return []models.ThreadDocument{}
-	}
-
-	var searchResult struct {
-		Hits struct {
-			Hits []struct {
-				Source models.ThreadDocument `json:"_source"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-
-	rawJSON, _ := json.Marshal(threadData)
-	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
-		t.Logf("Failed to unmarshal search response: %v", err)
-		return []models.ThreadDocument{}
-	}
-
-	threads := make([]models.ThreadDocument, 0, len(searchResult.Hits.Hits))
-	for _, hit := range searchResult.Hits.Hits {
-		threads = append(threads, hit.Source)
-	}
-
-	return threads
+func getChannelSystemMessages(t *testing.T, r *gin.Engine, channelID, token string) []models.ThreadDocument {
+	threads := getChannelAllMessages(t, r, channelID, token)
+	return filterMessagesByType(threads, "system")
 }
 
 func getChannelAllMessages(t *testing.T, r *gin.Engine, channelID, token string) []models.ThreadDocument {
@@ -718,8 +645,10 @@ func getChannelAllMessages(t *testing.T, r *gin.Engine, channelID, token string)
 	}
 
 	data := tst.ParseResponse(rr)
-	dataM := data["data"].(map[string]any)
-	threadsData := dataM["data"].([]interface{})
+	threadsData, ok := data["data"].([]interface{})
+	if !ok {
+		return []models.ThreadDocument{}
+	}
 
 	threads := make([]models.ThreadDocument, 0, len(threadsData))
 	for _, threadItem := range threadsData {
@@ -745,10 +674,20 @@ func filterMessagesByType(threads []models.ThreadDocument, msgType string) []mod
 
 func validateBuzzStartMessageContent(t *testing.T, content, username string, participantCount int) bool {
 	expected := fmt.Sprintf("@%s started a buzz (%d participants)", username, participantCount)
-	return content == expected
+	var check = content == expected
+	if !check {
+		t.Logf("Expected: %s", expected)
+		t.Logf("Got: %s", content)
+	}
+	return check
 }
 
 func validateBuzzEndMessageContent(t *testing.T, content, username string, participantCount int) bool {
 	expected := fmt.Sprintf("@%s ended the buzz (%d participants)", username, participantCount)
-	return content == expected
+	var check = content == expected
+	if !check {
+		t.Logf("Expected: %s", expected)
+		t.Logf("Got: %s", content)
+	}
+	return check
 }

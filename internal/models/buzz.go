@@ -92,10 +92,12 @@ type BuzzCreateResponse struct {
 	ParticipantIDs []string                `json:"participants_id"`
 	Participants   []ParticipantMetadata   `json:"participants"`
 	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzCode       string                  `json:"buzz_code"`
 }
 
 type BuzzLeaveResponse struct {
 	BuzzID        string    `json:"buzz_id"`
+	BuzzCode      string    `json:"buzz_code"`
 	ParticipantID string    `json:"participant_id"`
 	NewHostID     string    `json:"new_host_id,omitempty"`
 	LeftAt        time.Time `json:"left_at"`
@@ -104,6 +106,7 @@ type BuzzLeaveResponse struct {
 
 type BuzzEndResponse struct {
 	BuzzID    string    `json:"buzz_id"`
+	BuzzCode  string    `json:"buzz_code"`
 	ChannelID string    `json:"channel_id"`
 	HostID    string    `json:"host_id"`
 	EndedAt   time.Time `json:"ended_at"`
@@ -112,6 +115,7 @@ type BuzzEndResponse struct {
 
 type BuzzMetadataResponse struct {
 	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
 	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	Status       string                  `json:"status"`
@@ -125,6 +129,7 @@ type BuzzMetadataResponse struct {
 type ActiveBuzzIndicator struct {
 	IsActive              bool       `json:"is_active"`
 	BuzzID                string     `json:"buzz_id,omitempty"`
+	BuzzCode              string     `json:"buzz_code,omitempty"`
 	HostID                string     `json:"host_id,omitempty"`
 	Status                string     `json:"status,omitempty"`
 	EndedAt               *time.Time `json:"ended_at,omitempty"`
@@ -327,6 +332,7 @@ type JoinBuzzRequest struct {
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
 	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
 	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
@@ -535,6 +541,7 @@ type OrgBuzzListResponse struct {
 
 type OrgBuzzItem struct {
 	BuzzID           string     `json:"buzz_id"`
+	BuzzCode         string     `json:"buzz_code"`
 	ChannelID        string     `json:"channel_id"`
 	HostID           string     `json:"host_id"`
 	OrgID            string     `json:"org_id"`
