@@ -303,11 +303,9 @@ func (n *DeviceNotificationSettings) GetOrCreateDeviceNotification(db *gorm.DB) 
 	if !ok {
 		// If not exist, create default settings
 		deviceSettings = DeviceNotification{
-			Muted:       false,
-			AtMentions:  true,
-			AtChannel:   true,
-			NotifyAbout: AllMessages,
-			SendMail:    false,
+			Muted:      false,
+			AtMentions: true,
+			AtChannel:  true,
 		}
 		pref.Preferences[n.DeviceType] = deviceSettings
 
