@@ -22,13 +22,9 @@ func CORS() gin.HandlerFunc {
 		"http://localhost:3001":         true,
 		"http://localhost:3002":         true,
 		"https://telex-auth.vercel.app": true,
-		"https://zedu.chat":             true,
-		"https://ziki.chat":             true,
-		"https://ziki.im":               true,
-		"https://staging.zedu.chat":     true,
-		"https://staging.ziki.chat":     true,
-		"https://staging.ziki.im":       true,
-		"https://preview.zedu.chat":     true,
+		"https://*.zedu.chat":           true,
+		"https://*.ziki.chat":           true,
+		"https://*.ziki.im":             true,
 	}
 
 	return func(c *gin.Context) {
