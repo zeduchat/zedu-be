@@ -28,6 +28,7 @@ func CORS() gin.HandlerFunc {
 		"https://staging.zedu.chat":     true,
 		"https://staging.ziki.chat":     true,
 		"https://staging.ziki.im":       true,
+		"https://preview.zedu.chat":     true,
 	}
 
 	return func(c *gin.Context) {
