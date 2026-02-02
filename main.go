@@ -101,6 +101,7 @@ func main() {
 		seed.SeedIndex(logger, db.Elastic)
 		seed.SeedCreditPackages(logger, db.Postgresql)
 		seed.SeedTranslatorPrompt(logger, db.Postgresql)
+		seed.SeedSuperAdmin(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)

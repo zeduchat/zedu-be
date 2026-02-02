@@ -23,31 +23,28 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
-		envEmail     = config.GetConfig().Admin.SUPER_ADMIN_EMAIL
-		envName      = config.GetConfig().Admin.SUPER_ADMIN_NAME
-		envPassword  = config.GetConfig().Admin.SUPER_ADMIN_PASSWORD
-		envRole      = config.GetConfig().Admin.SUPER_ADMIN_ROLE
+		cfg = config.GetConfig().Admin
 	)
 
-	if req.Email == envEmail && req.Password == envPassword {
-		// Construct a pseudo-admin
-		admin = models.Admin{
-			ID:       utility.GenerateUUID(),
-			Email:    envEmail,
-			Name:     envName,
-			IsActive: true,
-			Role:     envRole,
-		}
-	} else {
-		// Proceed with DB check
-		exists := postgresql.CheckExists(db, &admin, "email = ?", req.Email)
-		if !exists {
-			return responseData, 400, fmt.Errorf("invalid credentials")
-		}
 
-		if !utility.CompareHash(req.Password, admin.Password) {
-			return responseData, 400, fmt.Errorf("invalid credentials")
+	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {
+		err := admin.GetOrCreateSuperAdmin(db, cfg)
+		if err != nil {
+			return responseData, http.StatusInternalServerError, fmt.Errorf("error creating super admin: %w", err)
+		}	
+	}else{
+		exists := postgresql.CheckExists(db, &admin, "email = ?", strings.ToLower(req.Email))
+		if !exists {
+			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
+	
+		if !utility.CompareHash(req.Password, admin.Password) {
+			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
+		}
+	}
+
+	if !admin.IsActive {
+		return responseData, http.StatusForbidden, fmt.Errorf("admin account is deactivated")
 	}
 
 	tokenData, err := middleware.CreateAdminToken(admin, c)
@@ -87,9 +84,16 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		responseData gin.H
 	)
 
+	// Check if admin already exists
 	var existing models.Admin
 	if err := db.Postgresql.Where("email = ?", email).First(&existing).Error; err == nil {
 		return nil, fmt.Errorf("admin with this email already exists")
+	}
+
+	// Validate that email belongs to an existing Telex user
+	var user models.User
+	if err := db.Postgresql.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("email is not registered as a Telex user")
 	}
 
 	plaintextPass, err := GenerateStrongPassword(16) // 16-char password
@@ -102,11 +106,12 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		return nil, err
 	}
 
+	// Always create with admin role (not superadmin)
 	admin := models.Admin{
 		ID:       utility.GenerateUUID(),
 		Name:     req.Name,
 		Email:    email,
-		Role:     req.Role,
+		Role:     models.RoleAdmin, // Locked to admin role only
 		Password: password,
 		IsActive: true,
 	}
