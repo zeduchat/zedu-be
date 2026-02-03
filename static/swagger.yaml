@@ -8486,6 +8486,167 @@ paths:
                     type: string
                     example: "Failed to fetch platform credit summary"
 
+  /backoffice/dashboard/overview:
+    get:
+      tags:
+        - Admin
+      summary: Get overview statistics for the dashboard
+      description: Retrieves revenue, new users, total users, active users, and available credits.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard overview stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Dashboard overview stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      revenue:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      new_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      total_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      active_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      available_credits:
+                        type: number
+
+  /backoffice/dashboard/users-stats:
+    get:
+      tags:
+        - Admin
+      summary: Get free vs paid user statistics
+      description: Retrieves the count of free vs paid users over a specified duration.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [last_week, last_month, last_year]
+            default: last_month
+          description: Duration for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            free:
+                              type: integer
+                            paid:
+                              type: integer
+
+  /backoffice/dashboard/ai-credits:
+    get:
+      tags:
+        - Admin
+      summary: Get AI credit usage statistics
+      description: Retrieves AI credit usage over a specified duration with optional unit conversion.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [weekly, monthly, yearly, daily]
+            default: monthly
+          description: Duration for the stats
+        - in: query
+          name: unit
+          schema:
+            type: string
+            enum: [tokens, price]
+            default: tokens
+          description: Unit for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "AI credit stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      unit:
+                        type: string
+                      total_consumed:
+                        type: number
+                      percentage_change:
+                        type: number
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            value:
+                              type: number
+
   /backoffice/admins/invitations/dashboard:
     get:
       tags:
