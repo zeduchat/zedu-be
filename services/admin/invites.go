@@ -13,10 +13,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
-// ============================================================================
-// RESPONSE TYPES
-// ============================================================================
-
 type InvitationDashboardResponse struct {
 	Stats        InvitationStats      `json:"stats"`
 	GrowthTrends []GrowthTrendPoint   `json:"growth_trends"`
@@ -63,9 +59,6 @@ type InvitationFilter struct {
 	TopLimit     int
 }
 
-// ============================================================================
-// MAIN FUNCTION
-// ============================================================================
 
 func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter) (InvitationDashboardResponse, postgresql.PaginationResponse, int, error) {
 	var response InvitationDashboardResponse
@@ -160,9 +153,6 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 	return response, paginationResponse, http.StatusOK, nil
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
 
 func getGrowthTrends(db *gorm.DB, now time.Time) []GrowthTrendPoint {
 	trends := make([]GrowthTrendPoint, 0, 6)
@@ -174,13 +164,11 @@ func getGrowthTrends(db *gorm.DB, now time.Time) []GrowthTrendPoint {
 
 		var organic, referral int64
 
-		// Organic = invitations where invited_by is null (no referrer)
 		db.Model(&models.Invitation{}).
 			Where("created_at >= ? AND created_at < ?", monthStart, monthEnd).
 			Where("invited_by IS NULL").
 			Count(&organic)
 
-		// Referral = invitations where invited_by is set
 		db.Model(&models.Invitation{}).
 			Where("created_at >= ? AND created_at < ?", monthStart, monthEnd).
 			Where("invited_by IS NOT NULL").
@@ -293,10 +281,6 @@ func getInvitationsList(db *gorm.DB, pagination postgresql.Pagination, filter In
 
 	return items, paginationResponse, nil
 }
-
-// ============================================================================
-// LEGACY FUNCTION (for backward compatibility)
-// ============================================================================
 
 func ListUsersByInvites(db *gorm.DB, orgID *string, limit int) ([]map[string]any, int, error) {
 	if limit <= 0 {

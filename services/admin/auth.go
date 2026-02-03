@@ -83,13 +83,11 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		responseData gin.H
 	)
 
-	// Check if admin already exists
 	var existing models.Admin
 	if err := db.Postgresql.Where("email = ?", email).First(&existing).Error; err == nil {
 		return nil, fmt.Errorf("admin with this email already exists")
 	}
 
-	// Validate that email belongs to an existing Telex user
 	var user models.User
 	if err := db.Postgresql.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, fmt.Errorf("email is not registered as a Telex user")
@@ -105,12 +103,11 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		return nil, err
 	}
 
-	// Always create with admin role (not superadmin)
 	admin := models.Admin{
 		ID:       utility.GenerateUUID(),
 		Name:     req.Name,
 		Email:    email,
-		Role:     models.RoleAdmin, // Locked to admin role only
+		Role:     models.RoleAdmin,
 		Password: password,
 		IsActive: true,
 	}
@@ -142,7 +139,7 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 			"id":       admin.ID,
 			"email":    admin.Email,
 			"name":     admin.Name,
-			"password": plaintextPass, // show generated password to admin once to store it somewhere, for security purpose
+			"password": plaintextPass,
 		},
 		"access_token": tokenData.AccessToken,
 	}

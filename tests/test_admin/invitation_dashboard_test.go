@@ -19,10 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-// =============================================================================
-// ENDPOINT TESTS
-// =============================================================================
-
 func TestGetInvitationDashboard_Success(t *testing.T) {
 	logger := tst.Setup()
 	gin.SetMode(gin.TestMode)
@@ -271,10 +267,6 @@ func TestGetInvitationDashboard_Pagination(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// SERVICE LAYER TESTS
-// =============================================================================
-
 func TestGetInvitationDashboardService_Stats(t *testing.T) {
 	_, _, _, db := SetupAdminTestRouter()
 
@@ -361,12 +353,10 @@ func TestGetInvitationDashboardService_WithInvitation(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, code)
 	}
 
-	// Should have at least 1 invitation
 	if len(response.Invitations) < 1 {
 		t.Log("Warning: expected at least 1 invitation in response")
 	}
 
-	// Stats should reflect the invitation
 	if response.Stats.TotalInvitationsSent < 1 {
 		t.Log("Warning: expected total_invitations_sent >= 1")
 	}
