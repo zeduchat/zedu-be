@@ -47,3 +47,19 @@ func (base *Controller) GetPlatformCreditsSummary(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Platform credit summary retrieved successfully", metrics)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetFreeVsPaidUserStats(c *gin.Context) {
+	duration := c.Query("duration")
+
+	resp, code, err := admin.GetFreeVsPaidUserStats(base.Db.Postgresql, duration)
+	if err != nil {
+		base.Logger.Error("Failed to fetch user stats", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch user stats", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("User stats retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User stats retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}

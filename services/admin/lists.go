@@ -13,6 +13,11 @@ import (
 	"github.com/hngprojects/telex_be/services/user"
 )
 
+const (
+	SubscriptionStatusFree = "Free"
+	SubscriptionStatusPaid = "Paid"
+)
+
 type UserListItem struct {
 	ID                 string  `json:"id"`
 	Email              string  `json:"email"`
