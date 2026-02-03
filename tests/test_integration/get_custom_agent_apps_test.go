@@ -72,7 +72,6 @@ func TestGetCustomAgentAppsPreview(t *testing.T) {
 
 	orgID, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, createOrgData, token)
 
-
 	agentNames := []string{
 		fmt.Sprintf("Agent Two %s", currUUID),
 		fmt.Sprintf("Agent One %s", currUUID),
@@ -186,7 +185,6 @@ func TestGetCustomAgentAppsPreview(t *testing.T) {
 			t.Errorf("Expected %s as second agent, got %s", expectedAgentTwo, secondAgent["name"])
 		}
 
-
 		if firstAgent["preview_message"] != "Hello from Agent One" {
 			t.Errorf("Expected preview_message 'Hello from Agent One', got %s", firstAgent["preview_message"])
 		}
@@ -200,7 +198,6 @@ func TestGetCustomAgentAppsPreview(t *testing.T) {
 				t.Errorf("Expected message in preview_thread 'Hello from Agent One', got %s", firstThread["message"])
 			}
 		}
-
 
 		participants := firstAgent["participants"].([]interface{})
 		if len(participants) != 2 {

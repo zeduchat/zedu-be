@@ -26,10 +26,10 @@ func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templ
 		return &EmailRequest{}, err
 	}
 	return &EmailRequest{
-		ExtReq:      extReq,
-		To:          to,
-		Subject:     subject,
-		Body:        body, //or parsed template
+		ExtReq:  extReq,
+		To:      to,
+		Subject: subject,
+		Body:    body, //or parsed template
 	}, nil
 }
 

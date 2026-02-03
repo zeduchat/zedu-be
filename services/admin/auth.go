@@ -23,21 +23,20 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
-		cfg = config.GetConfig().Admin
+		cfg          = config.GetConfig().Admin
 	)
-
 
 	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {
 		err := admin.GetOrCreateSuperAdmin(db, cfg)
 		if err != nil {
 			return responseData, http.StatusInternalServerError, fmt.Errorf("error creating super admin: %w", err)
-		}	
-	}else{
+		}
+	} else {
 		exists := postgresql.CheckExists(db, &admin, "email = ?", strings.ToLower(req.Email))
 		if !exists {
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
-	
+
 		if !utility.CompareHash(req.Password, admin.Password) {
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}

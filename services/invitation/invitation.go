@@ -242,7 +242,7 @@ func CheckerValidator(base *storage.Database, Emails []string, ids *models.IDS, 
 		return http.StatusBadRequest, "Duplicate emails detected", errors.New("duplicate emails detected")
 	}
 
-	if ids.RoleID == "00000000-0000-0000-0000-000000000000" || ids.RoleID == ""{
+	if ids.RoleID == "00000000-0000-0000-0000-000000000000" || ids.RoleID == "" {
 		resp, err := r.GetOrgRoles(base.Postgresql, ids.OrganisationID)
 		if err != nil {
 			return http.StatusInternalServerError, "Failed to get roles", err

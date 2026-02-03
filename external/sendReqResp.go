@@ -30,7 +30,6 @@ type SendRequestObject struct {
 	Context      context.Context
 }
 
-
 func GetNewSendRequestObject(logger *utility.Logger, name, path, method, urlPrefix, decodeMethod string, headers map[string]string, successCode int, data any, timeout bool) *SendRequestObject {
 	return &SendRequestObject{
 		Logger:       logger,

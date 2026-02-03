@@ -1,6 +1,5 @@
 package credentials
 
-
 import (
 	"net/http"
 
@@ -65,7 +64,6 @@ func (base *Controller) CreateCredential(c *gin.Context) {
 	c.JSON(code, rd)
 }
 
-
 func (base *Controller) GetSkillCredentials(c *gin.Context) {
 	var req models.CredentialRequest
 	req.SkillId = c.Param("skill_id")
@@ -100,7 +98,6 @@ func (base *Controller) GetSkillCredentials(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Skill Credentials fetched successfully", resp)
 	c.JSON(code, rd)
 }
-
 
 func (base *Controller) GetCredentialByID(c *gin.Context) {
 	var credentialId = c.Param("credential_id")
