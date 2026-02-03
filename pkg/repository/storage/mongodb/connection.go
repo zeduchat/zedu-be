@@ -119,7 +119,7 @@ func StartMongoDBConnection(logger *utility.Logger, MongoConfig config.MongoDB) 
 	return store
 }
 
-//ensures db level integrity for the creation of unique collections based on agent_id
+// ensures db level integrity for the creation of unique collections based on agent_id
 func EnsureAgentCollectionsIndex(logger *utility.Logger, db *mongo.Client) error {
 	databaseName := config.Config.MongoDB.DB_Name
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

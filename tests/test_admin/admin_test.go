@@ -84,7 +84,8 @@ func TestListUsersEndpoint(t *testing.T) {
 	tst.AssertStatusCode(t, code, http.StatusOK)
 	tst.AssertResponseMessage(t, data["message"].(string), "users retrieved successfully")
 
-	arr := data["data"].([]any)
+	respData := data["data"].(map[string]any)
+	arr := respData["users"].([]any)
 	if len(arr) < 2 {
 		t.Fatalf("expected at least 2 users, got %d", len(arr))
 	}
@@ -100,6 +101,12 @@ func TestListUsersEndpoint(t *testing.T) {
 		if _, ok := m["amount_spent"]; !ok {
 			t.Errorf("user %d missing 'amount_spent' field", i)
 		}
+	}
+
+	// Verify Stats keys exist
+	stats := respData["stats"].(map[string]any)
+	if _, ok := stats["total_signups"]; !ok {
+		t.Error("missing total_signups in stats")
 	}
 
 	pagArr, ok := data["pagination"].([]any)
@@ -256,19 +263,20 @@ func TestListUsersService(t *testing.T) {
 	c, _ := gin.CreateTestContext(rr)
 	c.Request = req
 
-	users, pagination, code, err := adminSvc.ListUsers(db.Postgresql, c)
+	response, pagination, code, err := adminSvc.ListUsers(db.Postgresql, c, adminSvc.UserFilter{})
 	if err != nil {
 		t.Fatalf("ListUsers service returned error: %v", err)
 	}
 	if code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, code)
 	}
-	if len(users) < 2 {
-		t.Fatalf("expected at least 2 users, got %d", len(users))
+	if len(response.Users) < 2 {
+		t.Fatalf("expected at least 2 users, got %d", len(response.Users))
 	}
 	if pagination.TotalItems < 2 {
 		t.Fatalf("expected pagination TotalItems >= 2, got %d", pagination.TotalItems)
 	}
+
 }
 
 func TestListUsersByInvitesService(t *testing.T) {

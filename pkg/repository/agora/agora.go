@@ -59,7 +59,6 @@ func (s *AgoraService) GenerateRTCToken(channelName, userID string, uid string, 
 		expireTimeInSeconds = 7200 // 2 hours
 	}
 
-
 	token, err := rtctokenbuilder.BuildTokenWithAccount(
 		s.appId,
 		s.appCertificate,

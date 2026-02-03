@@ -44,7 +44,7 @@ func GetPrompt(db *gorm.DB, prompt_name string) (models.GetPromptResponse, int, 
 }
 
 func FetchUniqueSteps(db *gorm.DB) ([]models.Prompts, int, error) {
-	var prompt models.Prompts 
+	var prompt models.Prompts
 
 	prompts, err := prompt.FetchUniquePrompts(db)
 	if err != nil {

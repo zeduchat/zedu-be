@@ -1,6 +1,6 @@
 package config
 
 type OpenRouter struct {
-	ApiKey string
+	ApiKey  string
 	BaseUrl string
 }

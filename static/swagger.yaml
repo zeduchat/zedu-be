@@ -8267,9 +8267,13 @@ paths:
     get:
       tags:
         - Admin
-      summary: Retrieve all users
+      summary: Retrieve all users with stats and filters
       description: |-
-        Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts and activity metrics.
+        Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts, credit usage, and subscription status.
+
+        Also returns dashboard statistics (total signups, new today, yesterday, this week, free/paid users, active users).
+
+        Supports filtering by search term, user type, and date range.
 
         **Access**: Superadmins only.
       operationId: listAdminUsers
@@ -8290,6 +8294,53 @@ paths:
             type: integer
             default: 10
             example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search users by name or email (case-insensitive)
+          schema:
+            type: string
+            example: "john"
+        - name: user_type
+          in: query
+          required: false
+          description: Filter by user type
+          schema:
+            type: string
+            enum: [active, paying, free]
+            example: "paying"
+        - name: duration
+          in: query
+          required: false
+          description: Preset date range filter for user creation date
+          schema:
+            type: string
+            enum: [last_month, last_3_months, last_year, custom, all_time]
+            example: "last_month"
+        - name: start_date
+          in: query
+          required: false
+          description: Custom start date (YYYY-MM-DD). Used with duration=custom.
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: end_date
+          in: query
+          required: false
+          description: Custom end date (YYYY-MM-DD). Used with duration=custom.
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include dashboard statistics (default true). Set to false for faster pagination.
+          schema:
+            type: boolean
+            default: true
+            example: true
       security:
         - bearerAuth: []
       responses:
@@ -8432,6 +8483,257 @@ paths:
                   message:
                     type: string
                     example: "Failed to fetch platform credit summary"
+
+  /backoffice/dashboard/overview:
+    get:
+      tags:
+        - Admin
+      summary: Get overview statistics for the dashboard
+      description: Retrieves revenue, new users, total users, active users, and available credits.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard overview stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Dashboard overview stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      revenue:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      new_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      total_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      active_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      available_credits:
+                        type: number
+
+  /backoffice/dashboard/users-stats:
+    get:
+      tags:
+        - Admin
+      summary: Get free vs paid user statistics
+      description: Retrieves the count of free vs paid users over a specified duration.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [last_week, last_month, last_year]
+            default: last_month
+          description: Duration for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            free:
+                              type: integer
+                            paid:
+                              type: integer
+
+  /backoffice/dashboard/ai-credits:
+    get:
+      tags:
+        - Admin
+      summary: Get AI credit usage statistics
+      description: Retrieves AI credit usage over a specified duration with optional unit conversion.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [weekly, monthly, yearly, daily]
+            default: monthly
+          description: Duration for the stats
+        - in: query
+          name: unit
+          schema:
+            type: string
+            enum: [tokens, price]
+            default: tokens
+          description: Unit for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "AI credit stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      unit:
+                        type: string
+                      total_consumed:
+                        type: number
+                      percentage_change:
+                        type: number
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            value:
+                              type: number
+
+  /backoffice/admins/invitations/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get invitation dashboard with stats, trends, and leaderboard
+      description: |-
+        Returns a comprehensive invitation dashboard containing:
+        - **Stats**: Total invitations sent, today's count, yesterday's count, this week's count, growth percentages
+        - **Growth Trends**: Monthly organic vs referral breakdown for the last 6 months
+        - **Top Inviters**: Leaderboard of users with most referrals (configurable limit)
+        - **Invitations List**: Paginated list of all invitations with filtering and search
+
+        **Access**: Superadmins only.
+      operationId: getInvitationDashboard
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of invitations per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search invitations by email (case-insensitive)
+          schema:
+            type: string
+            example: "john@example.com"
+        - name: status
+          in: query
+          required: false
+          description: Filter invitations by status
+          schema:
+            type: string
+            enum: [invited, accepted, expired, cancelled]
+            example: "invited"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include dashboard statistics (default true). Set to false for faster pagination.
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: top_limit
+          in: query
+          required: false
+          description: Maximum number of top inviters to return (default is 5)
+          schema:
+            type: integer
+            default: 5
+            example: 5
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Invitation dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDashboardResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /invite/change-status:
     post:
@@ -31782,6 +32084,102 @@ components:
                   type: string
                   format: uuid
                   description: Optional organisation filter applied to this leaderboard
+
+    InvitationDashboardResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                stats:
+                  type: object
+                  properties:
+                    total_invitations_sent:
+                      type: integer
+                      description: Total number of invitations ever sent
+                    total_growth_percent:
+                      type: number
+                      format: float
+                      description: Month-over-month growth percentage
+                    sent_today:
+                      type: integer
+                      description: Number of invitations sent today
+                    sent_today_percent:
+                      type: number
+                      format: float
+                      description: Day-over-day change percentage
+                    yesterday:
+                      type: integer
+                      description: Number of invitations sent yesterday
+                    this_week:
+                      type: integer
+                      description: Number of invitations sent this week
+                growth_trends:
+                  type: array
+                  description: Last 6 months of invitation data
+                  items:
+                    type: object
+                    properties:
+                      month:
+                        type: string
+                        description: Month abbreviation (e.g., "Jan", "Feb")
+                      organic:
+                        type: integer
+                        description: Number of organic (non-referral) invitations
+                      referral:
+                        type: integer
+                        description: Number of referral invitations
+                top_inviters:
+                  type: array
+                  description: Top users by referral count
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: User ID
+                      name:
+                        type: string
+                        description: User name
+                      email:
+                        type: string
+                        description: User email
+                      avatar_url:
+                        type: string
+                        description: User avatar URL
+                      invite_count:
+                        type: integer
+                        description: Number of referrals
+                      rank:
+                        type: integer
+                        description: Leaderboard rank
+                invitations:
+                  type: array
+                  description: Paginated list of invitations
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: Invitation ID
+                      email:
+                        type: string
+                        description: Invited email address
+                      role:
+                        type: string
+                        description: Role name for the invitation
+                      status:
+                        type: string
+                        description: Invitation status
+                      date_sent:
+                        type: string
+                        description: Date invitation was sent (YYYY-MM-DD)
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
 
   securitySchemes:
     bearerAuth:

@@ -32,7 +32,7 @@ func CreateUserPinnedOrganisation(db *gorm.DB, ids models.IDS) (int, error) {
 	if err != nil {
 		return http.StatusInternalServerError, errors.New("failed to count current user pinned organisations: " + err.Error())
 	}
-	
+
 	if currentNoOfPinnedOrgs >= 5 {
 		err = pinnedOrg.RemoveOldestPinnedOrganisation(db, ids.UserID)
 		if err != nil {
