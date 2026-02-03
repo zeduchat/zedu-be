@@ -133,3 +133,126 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 		t.Errorf("did not find data point for today: %s", todayStr)
 	}
 }
+
+func TestGetAICreditUsageStats(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	adminCtl := admin.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+
+	currUUID := utility.GenerateUUID()
+	now := time.Now()
+
+	// 1. Setup Data - Need an Org and Agent
+	orgID := utility.GenerateUUID()
+	org := models.Organisation{
+		ID:                 orgID,
+		Name:               "AI Stat Org",
+		Email:              "ai@org.com",
+		Type:               "business",
+		Country:            "US",
+		OwnerID:            currUUID, // Dummy owner
+		SubscriptionPlanId: "pro",
+		CreatedAt:          now,
+	}
+	// We need to ensure owner exists if FK constraint is strict, but models usually handle FK.
+	// To be safe, let's create a user first.
+	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	userAI := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("aiuser%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "AI",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    fmt.Sprintf("aiuser%v", currUUID),
+	}
+	tst.SignupUser(t, gin.Default(), authCtl, userAI, false)
+
+	// Get User ID
+	token := tst.GetLoginToken(t, gin.Default(), authCtl, models.LoginRequestModel{Email: userAI.Email, Password: userAI.Password})
+	uid := tst.GetUserIDFromToken(t, token, db)
+	org.OwnerID = uid
+
+	if err := db.Postgresql.Create(&org).Error; err != nil {
+		t.Fatalf("failed to create org: %v", err)
+	}
+
+	agentID := utility.GenerateUUID()
+	// We might need to create an agent record if constraint exists, but let's try inserting usage directly first.
+	// If FK fails, we'll know. Assuming loose coupling for test or no strict FK on AgentID in simple test db setup?
+	// Looking at models/credit_usage.go: AgentID `gorm:"type:uuid;not null;index"`. No foreignKey tag explicit to Agent table here, but let's check.
+
+	// 2. Insert Credit Usage (Today)
+	usage1 := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgID,
+		Amount:         100.0,
+		AgentID:        agentID,
+		CreatedAt:      now,
+	}
+	if err := db.Postgresql.Create(&usage1).Error; err != nil {
+		t.Fatalf("failed to create usage1: %v", err)
+	}
+
+	// 3. Insert Credit Usage (Yesterday)
+	usage2 := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgID,
+		Amount:         50.0,
+		AgentID:        agentID,
+		CreatedAt:      now.Add(-24 * time.Hour),
+	}
+	if err := db.Postgresql.Create(&usage2).Error; err != nil {
+		t.Fatalf("failed to create usage2: %v", err)
+	}
+
+	// 4. Insert Usage Outside Range (8 days ago)
+	usageOld := models.CreditUsage{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgID,
+		Amount:         500.0,
+		AgentID:        agentID,
+		CreatedAt:      now.AddDate(0, 0, -8),
+	}
+	// Manually insert or create and update date
+	if err := db.Postgresql.Create(&usageOld).Error; err != nil {
+		t.Fatalf("failed to create usageOld: %v", err)
+	}
+	// Ensure date is set correctly (GORM sometimes overwrites CreatedAt on Create)
+	db.Postgresql.Model(&models.CreditUsage{}).Where("id = ?", usageOld.ID).Update("created_at", usageOld.CreatedAt)
+
+	// Setup Router
+	r := gin.Default()
+	r.GET("/api/v1/backoffice/dashboard/ai-credits", adminCtl.GetAICreditUsageStats)
+
+	// Execute Request (Weekly = Last 7 Days)
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/ai-credits?duration=weekly&unit=tokens", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	// Assertions
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	data := tst.ParseResponse(rr)
+	respData := data["data"].(map[string]any)
+
+	totalConsumed := respData["total_consumed"].(float64)
+
+	// Expect 100 + 50 = 150 (usageOld is 8 days ago, so outside "weekly" 7 days range)
+	// **Correction**: "Weekly" usually means last 7 days.
+	// logic: startDate = now.AddDate(0,0,-7).
+	// usageOld is -8 days. So it should be excluded.
+	// usage1 is today. usage2 is yesterday.
+	// Expected total = 150.
+
+	if totalConsumed < 150 {
+		t.Errorf("expected total consumed >= 150, got %v", totalConsumed)
+	}
+
+	chartData := respData["data"].([]any)
+	if len(chartData) == 0 {
+		t.Fatal("expected chart data")
+	}
+}

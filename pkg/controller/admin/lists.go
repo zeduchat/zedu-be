@@ -63,3 +63,20 @@ func (base *Controller) GetFreeVsPaidUserStats(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User stats retrieved successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetAICreditUsageStats(c *gin.Context) {
+	duration := c.DefaultQuery("duration", "monthly")
+	unit := c.DefaultQuery("unit", "tokens")
+
+	resp, code, err := admin.GetAICreditUsageStats(base.Db.Postgresql, duration, unit)
+	if err != nil {
+		base.Logger.Error("Failed to fetch AI credit stats", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch AI credit stats", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("AI credit stats retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "AI credit stats retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}
