@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/models"
 )
 
 type ChartDataPoint struct {
@@ -286,6 +288,98 @@ func GetAICreditUsageStats(db *gorm.DB, duration, unit string) (AICreditStatsRes
 		default:
 			current = current.Add(step)
 		}
+	}
+
+	return resp, http.StatusOK, nil
+}
+
+type Metric struct {
+	Value            float64 `json:"value"`
+	PercentageChange float64 `json:"percentage_change"`
+}
+
+type OverviewStatsResponse struct {
+	Revenue          Metric  `json:"revenue"`
+	NewUsers         Metric  `json:"new_users"`
+	TotalUsers       Metric  `json:"total_users"`
+	ActiveUsers      Metric  `json:"active_users"`
+	AvailableCredits float64 `json:"available_credits"`
+}
+
+func GetDashboardOverviewStats(db *gorm.DB) (OverviewStatsResponse, int, error) {
+	var resp OverviewStatsResponse
+	now := time.Now()
+
+	// Dates for Current Month
+	currentYear, currentMonth, _ := now.Date()
+	currentLocation := now.Location()
+
+	startOfCurrentMonth := time.Date(currentYear, currentMonth, 1, 0, 0, 0, 0, currentLocation)
+	startOfNextMonth := startOfCurrentMonth.AddDate(0, 1, 0)
+
+	// Dates for Last Month
+	startOfLastMonth := startOfCurrentMonth.AddDate(0, -1, 0)
+
+	// 1. Revenue
+	var currentRevenue float64
+	var lastMonthRevenue float64
+
+	db.Model(&models.CreditTransaction{}).
+		Where("created_at >= ? AND created_at < ? AND type = ?", startOfCurrentMonth, startOfNextMonth, "Top-up").
+		Select("COALESCE(SUM(amount), 0)").Scan(&currentRevenue)
+
+	db.Model(&models.CreditTransaction{}).
+		Where("created_at >= ? AND created_at < ? AND type = ?", startOfLastMonth, startOfCurrentMonth, "Top-up").
+		Select("COALESCE(SUM(amount), 0)").Scan(&lastMonthRevenue)
+
+	resp.Revenue.Value = currentRevenue
+	if lastMonthRevenue > 0 {
+		resp.Revenue.PercentageChange = ((currentRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+	} else if currentRevenue > 0 {
+		resp.Revenue.PercentageChange = 100
+	}
+
+	// 2. New Users
+	var currentNewUsers int64
+	var lastMonthNewUsers int64
+
+	db.Model(&models.User{}).
+		Where("created_at >= ? AND created_at < ?", startOfCurrentMonth, startOfNextMonth).
+		Count(&currentNewUsers)
+
+	db.Model(&models.User{}).
+		Where("created_at >= ? AND created_at < ?", startOfLastMonth, startOfCurrentMonth).
+		Count(&lastMonthNewUsers)
+
+	resp.NewUsers.Value = float64(currentNewUsers)
+	if lastMonthNewUsers > 0 {
+		resp.NewUsers.PercentageChange = (float64(currentNewUsers-lastMonthNewUsers) / float64(lastMonthNewUsers)) * 100
+	} else if currentNewUsers > 0 {
+		resp.NewUsers.PercentageChange = 100
+	}
+
+	// 3. Total Users
+	var totalUsers int64
+	db.Model(&models.User{}).Count(&totalUsers)
+	resp.TotalUsers.Value = float64(totalUsers)
+
+	totalStartOfMonth := totalUsers - currentNewUsers
+	if totalStartOfMonth > 0 {
+		resp.TotalUsers.PercentageChange = (float64(currentNewUsers) / float64(totalStartOfMonth)) * 100
+	}
+
+	// 4. Active Users
+	startOf30DaysAgo := now.Add(-30 * 24 * time.Hour)
+	var activeUsers int64
+	db.Model(&models.User{}).Where("updated_at >= ?", startOf30DaysAgo).Count(&activeUsers)
+	resp.ActiveUsers.Value = float64(activeUsers)
+
+	resp.ActiveUsers.PercentageChange = 0
+
+	// 5. Available Credits
+	metrics, err := models.GetPlatformCreditSummary(db)
+	if err == nil {
+		resp.AvailableCredits = metrics.TotalBalance
 	}
 
 	return resp, http.StatusOK, nil

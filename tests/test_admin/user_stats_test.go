@@ -31,7 +31,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 	currUUID := utility.GenerateUUID()
 	now := time.Now()
 
-	// 1. Create Free User (Today)
 	userFree := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("statfree%v@qa.team", currUUID),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
@@ -42,7 +41,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 	}
 	tst.SignupUser(t, gin.Default(), authCtl, userFree, false)
 
-	// 2. Create Paid User (Today)
 	userPaid := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("statpaid%v@qa.team", currUUID),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
@@ -53,7 +51,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 	}
 	tst.SignupUser(t, gin.Default(), authCtl, userPaid, false)
 
-	// Make userPaid actually paid
 	token := tst.GetLoginToken(t, gin.Default(), authCtl, models.LoginRequestModel{Email: userPaid.Email, Password: userPaid.Password})
 	uid := tst.GetUserIDFromToken(t, token, db)
 
@@ -72,7 +69,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 		t.Fatalf("failed to create paid org: %v", err)
 	}
 
-	// 3. Create Old User (8 days ago - outside of last_week)
 	userOld := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("statold%v@qa.team", currUUID),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
@@ -86,16 +82,13 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 	eightDaysAgo := now.AddDate(0, 0, -8)
 	db.Postgresql.Model(&models.User{}).Where("email = ?", userOld.Email).Update("created_at", eightDaysAgo)
 
-	// Setup Router
 	r := gin.Default()
 	r.GET("/api/v1/backoffice/dashboard/users-stats", adminCtl.GetFreeVsPaidUserStats)
 
-	// Execute Request
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/users-stats?duration=last_week", nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	// Assertions
 	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 	data := tst.ParseResponse(rr)
@@ -106,7 +99,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 		t.Fatal("expected chart data, got empty")
 	}
 
-	// Verify today's data
 	todayStr := now.Format("2006-01-02")
 	foundToday := false
 
@@ -118,8 +110,6 @@ func TestGetFreeVsPaidUserStats(t *testing.T) {
 			freeCount := point["free"].(float64)
 			paidCount := point["paid"].(float64)
 
-			// We expect AT LEAST 1 Free and 1 Paid from our seeding
-			// (Other concurrent tests might add more, so exact match is flaky)
 			if freeCount < 1 {
 				t.Errorf("expected at least 1 free user today, got %v", freeCount)
 			}
@@ -145,7 +135,6 @@ func TestGetAICreditUsageStats(t *testing.T) {
 	currUUID := utility.GenerateUUID()
 	now := time.Now()
 
-	// 1. Setup Data - Need an Org and Agent
 	orgID := utility.GenerateUUID()
 	org := models.Organisation{
 		ID:                 orgID,
@@ -153,12 +142,9 @@ func TestGetAICreditUsageStats(t *testing.T) {
 		Email:              "ai@org.com",
 		Type:               "business",
 		Country:            "US",
-		OwnerID:            currUUID, // Dummy owner
 		SubscriptionPlanId: "pro",
 		CreatedAt:          now,
 	}
-	// We need to ensure owner exists if FK constraint is strict, but models usually handle FK.
-	// To be safe, let's create a user first.
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 	userAI := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("aiuser%v@qa.team", currUUID),
@@ -170,7 +156,6 @@ func TestGetAICreditUsageStats(t *testing.T) {
 	}
 	tst.SignupUser(t, gin.Default(), authCtl, userAI, false)
 
-	// Get User ID
 	token := tst.GetLoginToken(t, gin.Default(), authCtl, models.LoginRequestModel{Email: userAI.Email, Password: userAI.Password})
 	uid := tst.GetUserIDFromToken(t, token, db)
 	org.OwnerID = uid
@@ -180,11 +165,7 @@ func TestGetAICreditUsageStats(t *testing.T) {
 	}
 
 	agentID := utility.GenerateUUID()
-	// We might need to create an agent record if constraint exists, but let's try inserting usage directly first.
-	// If FK fails, we'll know. Assuming loose coupling for test or no strict FK on AgentID in simple test db setup?
-	// Looking at models/credit_usage.go: AgentID `gorm:"type:uuid;not null;index"`. No foreignKey tag explicit to Agent table here, but let's check.
 
-	// 2. Insert Credit Usage (Today)
 	usage1 := models.CreditUsage{
 		ID:             utility.GenerateUUID(),
 		OrganisationID: orgID,
@@ -196,7 +177,6 @@ func TestGetAICreditUsageStats(t *testing.T) {
 		t.Fatalf("failed to create usage1: %v", err)
 	}
 
-	// 3. Insert Credit Usage (Yesterday)
 	usage2 := models.CreditUsage{
 		ID:             utility.GenerateUUID(),
 		OrganisationID: orgID,
@@ -208,7 +188,6 @@ func TestGetAICreditUsageStats(t *testing.T) {
 		t.Fatalf("failed to create usage2: %v", err)
 	}
 
-	// 4. Insert Usage Outside Range (8 days ago)
 	usageOld := models.CreditUsage{
 		ID:             utility.GenerateUUID(),
 		OrganisationID: orgID,
@@ -216,36 +195,24 @@ func TestGetAICreditUsageStats(t *testing.T) {
 		AgentID:        agentID,
 		CreatedAt:      now.AddDate(0, 0, -8),
 	}
-	// Manually insert or create and update date
 	if err := db.Postgresql.Create(&usageOld).Error; err != nil {
 		t.Fatalf("failed to create usageOld: %v", err)
 	}
-	// Ensure date is set correctly (GORM sometimes overwrites CreatedAt on Create)
 	db.Postgresql.Model(&models.CreditUsage{}).Where("id = ?", usageOld.ID).Update("created_at", usageOld.CreatedAt)
 
-	// Setup Router
 	r := gin.Default()
 	r.GET("/api/v1/backoffice/dashboard/ai-credits", adminCtl.GetAICreditUsageStats)
 
-	// Execute Request (Weekly = Last 7 Days)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/ai-credits?duration=weekly&unit=tokens", nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	// Assertions
 	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 	data := tst.ParseResponse(rr)
 	respData := data["data"].(map[string]any)
 
 	totalConsumed := respData["total_consumed"].(float64)
-
-	// Expect 100 + 50 = 150 (usageOld is 8 days ago, so outside "weekly" 7 days range)
-	// **Correction**: "Weekly" usually means last 7 days.
-	// logic: startDate = now.AddDate(0,0,-7).
-	// usageOld is -8 days. So it should be excluded.
-	// usage1 is today. usage2 is yesterday.
-	// Expected total = 150.
 
 	if totalConsumed < 150 {
 		t.Errorf("expected total consumed >= 150, got %v", totalConsumed)
@@ -255,4 +222,104 @@ func TestGetAICreditUsageStats(t *testing.T) {
 	if len(chartData) == 0 {
 		t.Fatal("expected chart data")
 	}
+}
+
+func TestGetDashboardOverviewStats(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	adminCtl := admin.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+
+	currUUID := utility.GenerateUUID()
+	now := time.Now()
+
+	orgID := utility.GenerateUUID()
+	org := models.Organisation{
+		ID:                 orgID,
+		Name:               "Overview Org",
+		Email:              "overview@org.com",
+		Type:               "business",
+		Country:            "US",
+		OwnerID:            currUUID,
+		SubscriptionPlanId: "pro",
+		CreatedAt:          now,
+	}
+
+	userOwner := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("owner%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Owner",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    fmt.Sprintf("owner%v", currUUID),
+	}
+	tst.SignupUser(t, gin.Default(), authCtl, userOwner, false)
+	token := tst.GetLoginToken(t, gin.Default(), authCtl, models.LoginRequestModel{Email: userOwner.Email, Password: userOwner.Password})
+	uid := tst.GetUserIDFromToken(t, token, db)
+	org.OwnerID = uid
+	db.Postgresql.Create(&org)
+
+	userLastMonth := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("lastmonth%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Last",
+		LastName:    "Month",
+		Password:    "password",
+		UserName:    fmt.Sprintf("lastmonth%v", currUUID),
+	}
+	tst.SignupUser(t, gin.Default(), authCtl, userLastMonth, false)
+	db.Postgresql.Model(&models.User{}).Where("email = ?", userLastMonth.Email).Update("created_at", now.AddDate(0, -1, 0))
+
+	topup1 := models.CreditTransaction{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgID,
+		Type:           "Top-up",
+		CreatedAt:      now,
+	}
+	db.Postgresql.Create(&topup1)
+
+	topup2 := models.CreditTransaction{
+		ID:             utility.GenerateUUID(),
+		OrganisationID: orgID,
+		Amount:         250.0,
+		Type:           "Top-up",
+		CreatedAt:      now.AddDate(0, -1, 0),
+	}
+	db.Postgresql.Create(&topup2)
+	db.Postgresql.Model(&models.CreditTransaction{}).Where("id = ?", topup2.ID).Update("created_at", topup2.CreatedAt)
+
+	r := gin.Default()
+	r.GET("/api/v1/backoffice/dashboard/overview", adminCtl.GetDashboardOverviewStats)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/overview", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	data := tst.ParseResponse(rr)
+	respData := data["data"].(map[string]any)
+
+	revenue := respData["revenue"].(map[string]any)
+	if revenue["value"].(float64) < 500 {
+		t.Errorf("Expected current revenue >= 500, got %v", revenue["value"])
+	}
+
+	newUsers := respData["new_users"].(map[string]any)
+	if newUsers["value"].(float64) < 1 {
+		t.Errorf("Expected at least 1 new user (owner), got %v", newUsers["value"])
+	}
+
+	totalUsers := respData["total_users"].(map[string]any)
+	if totalUsers["value"].(float64) < 2 {
+		t.Errorf("Expected at least 2 users (owner + lastmonth), got %v", totalUsers["value"])
+	}
+
+	if _, ok := respData["available_credits"]; !ok {
+		t.Error("expected available_credits field")
+	}
+
 }

@@ -80,3 +80,17 @@ func (base *Controller) GetAICreditUsageStats(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "AI credit stats retrieved successfully", resp)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetDashboardOverviewStats(c *gin.Context) {
+	resp, code, err := admin.GetDashboardOverviewStats(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch dashboard overview stats", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch dashboard overview stats", err.Error(), nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Dashboard overview stats retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Dashboard overview stats retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}
