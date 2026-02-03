@@ -16,7 +16,7 @@ jobs:
       SSH_KEY: ${{ secrets.TELEX_SERVER_SSH_KEY }}
       BRANCH: main
       APP_DIR: /var/www/telex_be
-      APP_BINARY: telexbe_staging
+      APP_BINARY: telexbe_main
       SUPERVISOR_PROCESS: telexbe
     steps:
       - name: Build and stop on failure
