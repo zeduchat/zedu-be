@@ -8266,10 +8266,8 @@ paths:
   /backoffice/admins/users:
     get:
       tags:
-        - admin
-      summary: Retrieve all users with stats and filters
         - Admin
-      summary: Retrieve all users
+      summary: Retrieve all users with stats and filters
       description: |-
         Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts, credit usage, and subscription status.
 
@@ -8650,7 +8648,7 @@ paths:
   /backoffice/admins/invitations/dashboard:
     get:
       tags:
-        - admin
+        - Admin
       summary: Get invitation dashboard with stats, trends, and leaderboard
       description: |-
         Returns a comprehensive invitation dashboard containing:
