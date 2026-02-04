@@ -1226,6 +1226,7 @@ func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, 
 		ParticipantIDs: buzz.ParticipantIDs,
 		Participants:   metadataResp.Participants,
 		AgoraToken:     &agoraToken,
+		BuzzCode:       metadataResp.BuzzCode,
 	}
 
 	eventPayload := models.BuzzEventPayload{
