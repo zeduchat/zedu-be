@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	notificationpref "github.com/hngprojects/telex_be/services/notification_pref"
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -105,21 +106,26 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	err := db.
 		Model(&models.UserChannels{}).
 		Where("channels_id = ? AND user_id != ?", channelId, userId).
-		Where(`preferences->'web'->>'muted' = ? OR preferences = '{}' OR preferences->'mobile'->>'muted' = ?`, "false", "false").
 		Pluck("user_id", &userIDs).Error
 
 	if err != nil {
 		return fmt.Errorf("failed to query entry of userids")
 	}
 
+	filteredUserIDs, err := notificationpref.FilterUsersByPreferences(db, userIDs, channelId, orgId, notificationpref.NotificationTypeAllMessages)
+	if err != nil {
+		logger.Error("failed to filter users by preferences: %v", err.Error())
+		return err
+	}
+
 	orgUserIds := make([]string, 0)
 
-	for _, userId := range userIDs {
+	for _, userId := range filteredUserIDs {
 		orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
 	}
 
 	if len(orgUserIds) == 0 {
-		logger.Info("Channel Notification aborted, empty users")
+		logger.Info("Channel Notification aborted, empty users after preference filtering")
 		return nil
 	}
 
@@ -131,7 +137,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		return fmt.Errorf("failed to publish thread data")
 	}
 
-	logger.Info("published new_message notification to %d users", len(userIDs))
+	logger.Info("published new_message notification to %d users", len(filteredUserIDs))
 
 	// Push fcm notification to channel users
 
@@ -139,8 +145,9 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 
 	pushReq := models.PushRequest{
 		ChannelId:   channelId,
+		OrgId:       orgId,
 		ChannelName: feed.ChannelName,
-		UserIds:     userIDs,
+		UserIds:     filteredUserIDs,
 		Message:     stripHTMLTags(feed.Content),
 		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
@@ -177,6 +184,17 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 	typeCall := map[models.ChannelType]func() error{
 		models.DMChannel: func() error {
+			shouldSend, checkErr := notificationpref.ShouldSendNotification(db, channelId, channelId, orgId, notificationpref.NotificationTypeDirectMessage)
+			if checkErr != nil {
+				logger.Error("Failed to check notification preferences for user %s: %v", channelId, checkErr)
+				return checkErr
+			}
+
+			if !shouldSend {
+				logger.Info("DM notification skipped for user %s due to preferences", channelId)
+				return nil
+			}
+
 			notifPayload.Notification.NotificationId = utility.GenerateUUID()
 			err := centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, channelId), notifPayload.Notification)
 			if err != nil {
@@ -187,6 +205,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			logger.Info("published new_message notification to %d users in dm", 1)
 
 			pushReq := models.PushRequest{
+				ChannelId:   channelId,
+				OrgId:       orgId,
 				ChannelName: feed.ChannelName,
 				UserId:      channelId,
 				Message:     stripHTMLTags(feed.Content),
@@ -227,9 +247,20 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				return nil
 			}
 
+			filteredUserIDs, err := notificationpref.FilterUsersByPreferences(db, userIDs, channelId, orgId, notificationpref.NotificationTypeDirectMessage)
+			if err != nil {
+				logger.Error("failed to filter users by preferences: %v", err.Error())
+				return err
+			}
+
+			if len(filteredUserIDs) == 0 {
+				logger.Info("Group DM notification aborted, no users after preference filtering")
+				return nil
+			}
+
 			orgUserIds := make([]string, 0)
 
-			for _, userId := range userIDs {
+			for _, userId := range filteredUserIDs {
 				orgUserIds = append(orgUserIds, fmt.Sprintf("%s/%s", orgId, userId))
 			}
 
@@ -240,10 +271,12 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				return fmt.Errorf("failed to publish data")
 			}
 
-			logger.Info("published new_message notification to %d users in group_dm", len(userIDs))
+			logger.Info("published new_message notification to %d users in group_dm", len(filteredUserIDs))
 
 			pushReq := models.PushRequest{
-				UserIds:     userIDs,
+				ChannelId:   channelId,
+				OrgId:       orgId,
+				UserIds:     filteredUserIDs,
 				ChannelName: feed.ChannelName,
 				Message:     stripHTMLTags(feed.Content),
 				TimeStamp:   feed.CreatedAt,

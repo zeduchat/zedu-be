@@ -522,6 +522,8 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	logger.Info(fmt.Sprintf("Publishing update to channel id: %s", req.ChannelID))
 
 	pushReq := models.PushRequest{
+		ChannelId:   req.ChannelID,
+		OrgId:       channel.OrgId,
 		ChannelName: feed.UserName,
 		UserId:      *channel.ParticipantId,
 		Message:     req.Content,
