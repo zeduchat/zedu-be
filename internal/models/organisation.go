@@ -324,7 +324,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		lastPart := parts[len(parts)-1]
 		chanResp[i].ChannelSlug = fmt.Sprintf("%s-%s", slug.Make(chanResp[i].Name), lastPart)
 
-				chanResp[i].MemberAvatars = avatars
+		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
 		if previewThread != nil {
 			chanResp[i].PreviewThread = previewThread

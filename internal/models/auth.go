@@ -59,7 +59,7 @@ type VerifyEmailRequestModel struct {
 }
 
 type VerifyEmailTokenReqModel struct {
-	Token       string `json:"token" validate:"required"`
+	Token string `json:"token" validate:"required"`
 }
 
 type GoogleClaims struct {
@@ -82,7 +82,6 @@ type FacebookClaims struct {
 type FacebookRequestModel struct {
 	Token string `json:"id_token" validate:"required"`
 }
-
 
 func (p *PasswordReset) CreatePasswordReset(db *gorm.DB) error {
 

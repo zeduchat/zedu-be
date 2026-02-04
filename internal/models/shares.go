@@ -94,10 +94,10 @@ func (ss *ShareSettings) UpdateCurrentPrice(db *gorm.DB, newPrice float64) error
 
 // SharePortfolioResponse is the response for user portfolio with calculations
 type SharePortfolioResponse struct {
-	TotalShares       int     `json:"total_shares"`
-	TotalInvested     float64 `json:"total_invested"`
-	CurrentPrice      float64 `json:"current_price_per_share"`
-	CurrentValue      float64 `json:"current_value"`
-	ProfitLoss        float64 `json:"profit_loss"`
+	TotalShares        int     `json:"total_shares"`
+	TotalInvested      float64 `json:"total_invested"`
+	CurrentPrice       float64 `json:"current_price_per_share"`
+	CurrentValue       float64 `json:"current_value"`
+	ProfitLoss         float64 `json:"profit_loss"`
 	PerformancePercent float64 `json:"performance_percent"`
 }

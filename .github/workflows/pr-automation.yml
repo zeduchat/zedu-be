@@ -1,8 +1,9 @@
 name: PR Automation Suite
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch: 
+  # pull_request:
+  #  types: [opened, synchronize, reopened]
 
 permissions:
   contents: read

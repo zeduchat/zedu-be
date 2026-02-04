@@ -299,7 +299,7 @@ func (base *Controller) UpdateWorkflowNode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	workflow_id := c.Param("workflow_id")
 	if _, err := uuid.Parse(workflow_id); err != nil {
 		base.Logger.Error("invalid workflow_id format", err)
@@ -307,7 +307,7 @@ func (base *Controller) UpdateWorkflowNode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	// bind the json body to updateData struct and validate
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid request body", err, nil))
@@ -319,7 +319,7 @@ func (base *Controller) UpdateWorkflowNode(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
-	
+
 	if _, err := uuid.Parse(req.AgentId); err != nil {
 		base.Logger.Error("invalid agent_id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid agent_id format", "failed to decode agent id", nil)

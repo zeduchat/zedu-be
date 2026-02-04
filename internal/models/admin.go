@@ -14,7 +14,7 @@ import (
 type Admin struct {
 	ID        string    `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Name      string    `gorm:"column:name; type:varchar(255)" json:"name"`
-	Email     string    `gorm:"column:email; type:varchar(255)" json:"email"`
+	Email     string    `gorm:"column:email; type:varchar(255); uniqueIndex" json:"email"`
 	IsActive  bool      `gorm:"column:is_active; type:bool; default:false" json:"is_active"`
 	IsDeleted bool      `gorm:"column:is_deleted; type:bool; default:false" json:"is_deleted"`
 	Password  string    `gorm:"column:password; type:text; not null" json:"-"`

@@ -108,7 +108,7 @@ func (base *Controller) UnpinOrganisation(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	ids := models.IDS{
-		UserID: userId,
+		UserID:         userId,
 		OrganisationID: orgId,
 	}
 

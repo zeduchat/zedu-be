@@ -24,7 +24,7 @@ type CreateOptIn struct {
 	Email     string `json:"email" validate:"required,email"`
 }
 
-func (o *OptIn) CreateOptInRecord(db *gorm.DB, email string) (int,error) {
+func (o *OptIn) CreateOptInRecord(db *gorm.DB, email string) (int, error) {
 
 	if postgresql.CheckExists(db, &OptIn{}, "email = ?", email) {
 		return http.StatusConflict, errors.New("email already opted in, please use a different email or stay tuned")
