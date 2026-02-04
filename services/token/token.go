@@ -13,6 +13,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func GetConnToken(userId string, db *gorm.DB) (gin.H, int, error) {
@@ -62,7 +63,7 @@ func GetSubToken(userId string, req models.ChannelSubTokenReq, db *gorm.DB) (gin
 		}
 
 	} else {
-		if _, err := uuid.Parse(channelName); err != nil {
+		if !utility.IsValidBuzzCodeOrUUID(channelName) {
 			return gin.H{}, http.StatusBadRequest, errors.New("invalid channel id supplied")
 		}
 
