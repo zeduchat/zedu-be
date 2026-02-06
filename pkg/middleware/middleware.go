@@ -26,10 +26,10 @@ func CORS() gin.HandlerFunc {
 	}
 
 	wildcards := []string{
-		".zedu.chat",
-		".ziki.chat",
-		".ziki.im",
-		".telex.im",
+		"zedu.chat",
+		"ziki.chat",
+		"ziki.im",
+		"telex.im",
 	}
 
 	return func(c *gin.Context) {
