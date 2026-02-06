@@ -124,6 +124,7 @@ type BuzzMetadataResponse struct {
 	EndedAt      *time.Time              `json:"ended_at,omitempty"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
+	HostName     string                  `json:"host_name"`
 }
 
 type ActiveBuzzIndicator struct {
