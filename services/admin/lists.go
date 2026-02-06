@@ -72,7 +72,14 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 
 	if filter.Search != "" {
 		search := "%" + filter.Search + "%"
-		query = query.Where("name ILIKE ? OR email ILIKE ?", search, search)
+		profileSubQuery := db.Table("profiles").
+			Select("userid").
+			Where("first_name ILIKE ? OR last_name ILIKE ?", search, search)
+
+		query = query.Where(
+			"users.name ILIKE ? OR users.email ILIKE ? OR users.id IN (?)",
+			search, search, profileSubQuery,
+		)
 	}
 
 	// Duration preset mapping

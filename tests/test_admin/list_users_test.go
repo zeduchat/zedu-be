@@ -583,19 +583,31 @@ func TestListUsers_CombinedFilters(t *testing.T) {
 // =============================================================================
 
 func TestListUsersService_WithFilters(t *testing.T) {
-	_, authCtl, _, db := SetupAdminTestRouter()
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	authCtl := auth.Controller{
+		Db: db, 
+		Validator: validatorRef, 
+		Logger: logger, 
+		ExtReq: request.ExternalRequest{
+			Logger: logger, 
+			Test: true,
+		}}
 
 	currUUID := utility.GenerateUUID()
 	user1 := models.CreateUserRequestModel{
-		Email:       "svc-filter-" + currUUID + "@qa.team",
+		Email:       "svcfilter-" + currUUID + "@qa.team",
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 		FirstName:   "SvcFilter",
 		LastName:    "User",
 		Password:    "password",
-		UserName:    "svc-filter-" + currUUID,
+		UserName:    "svcfilter" + currUUID,
 	}
 
-	tst.SignupUser(t, gin.Default(), *authCtl, user1, false)
+	tst.SignupUser(t, gin.Default(), authCtl, user1, false)
 
 	rr := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/?page=1&limit=10", nil)
