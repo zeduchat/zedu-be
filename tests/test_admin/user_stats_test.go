@@ -278,6 +278,7 @@ func TestGetDashboardOverviewStats(t *testing.T) {
 		OrganisationID: orgID,
 		Type:           "Top-up",
 		CreatedAt:      now,
+		Amount:         250.0,
 	}
 	db.Postgresql.Create(&topup1)
 
@@ -286,10 +287,9 @@ func TestGetDashboardOverviewStats(t *testing.T) {
 		OrganisationID: orgID,
 		Amount:         250.0,
 		Type:           "Top-up",
-		CreatedAt:      now.AddDate(0, -1, 0),
+		CreatedAt:      now,
 	}
 	db.Postgresql.Create(&topup2)
-	db.Postgresql.Model(&models.CreditTransaction{}).Where("id = ?", topup2.ID).Update("created_at", topup2.CreatedAt)
 
 	r := gin.Default()
 	r.GET("/api/v1/backoffice/dashboard/overview", adminCtl.GetDashboardOverviewStats)
