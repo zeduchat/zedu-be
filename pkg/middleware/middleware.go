@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,18 +23,27 @@ func CORS() gin.HandlerFunc {
 		"http://localhost:3001":         true,
 		"http://localhost:3002":         true,
 		"https://telex-auth.vercel.app": true,
-		"https://zedu.chat":             true,
-		"https://ziki.chat":             true,
-		"https://ziki.im":               true,
-		"https://staging.zedu.chat":     true,
-		"https://staging.ziki.chat":     true,
-		"https://staging.ziki.im":       true,
+	}
+
+	wildcards := []string{
+		".zedu.chat",
+		".ziki.chat",
+		".ziki.im",
+		".telex.im",
 	}
 
 	return func(c *gin.Context) {
+		reqOrigin := c.Request.Header.Get("Origin")
 
-		if allowList[c.Request.Header.Get("Origin")] {
-			origin = c.Request.Header.Get("Origin")
+		if allowList[reqOrigin] {
+			origin = reqOrigin
+		} else {
+			for _, w := range wildcards {
+				if strings.HasSuffix(reqOrigin, w) {
+					origin = reqOrigin
+					break
+				}
+			}
 		}
 
 		c.Writer.Header().Add("Access-Control-Allow-Origin", origin)

@@ -11,8 +11,8 @@ info:
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   version: 1.0.0
 servers:
-  - url: https://api.staging.telex.im/api/v1
-  - url: https://api.telex.im/api/v1
+  - url: https://api.staging.zedu.chat/api/v1
+  - url: https://api.zedu.chat/api/v1
   - url: http://localhost:8019/api/v1
 
 tags:
@@ -8267,9 +8267,13 @@ paths:
     get:
       tags:
         - Admin
-      summary: Retrieve all users
+      summary: Retrieve all users with stats and filters
       description: |-
-        Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts and activity metrics.
+        Returns a paginated list of users including email, name, avatar URL, timestamps, referral counts, credit usage, and subscription status.
+
+        Also returns dashboard statistics (total signups, new today, yesterday, this week, free/paid users, active users).
+
+        Supports filtering by search term, user type, and date range.
 
         **Access**: Superadmins only.
       operationId: listAdminUsers
@@ -8290,6 +8294,53 @@ paths:
             type: integer
             default: 10
             example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search users by name or email (case-insensitive)
+          schema:
+            type: string
+            example: "john"
+        - name: user_type
+          in: query
+          required: false
+          description: Filter by user type
+          schema:
+            type: string
+            enum: [active, paying, free]
+            example: "paying"
+        - name: duration
+          in: query
+          required: false
+          description: Preset date range filter for user creation date
+          schema:
+            type: string
+            enum: [last_month, last_3_months, last_year, custom, all_time]
+            example: "last_month"
+        - name: start_date
+          in: query
+          required: false
+          description: Custom start date (YYYY-MM-DD). Used with duration=custom.
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: end_date
+          in: query
+          required: false
+          description: Custom end date (YYYY-MM-DD). Used with duration=custom.
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include dashboard statistics (default true). Set to false for faster pagination.
+          schema:
+            type: boolean
+            default: true
+            example: true
       security:
         - bearerAuth: []
       responses:
@@ -8432,6 +8483,445 @@ paths:
                   message:
                     type: string
                     example: "Failed to fetch platform credit summary"
+
+  /backoffice/dashboard/overview:
+    get:
+      tags:
+        - Admin
+      summary: Get overview statistics for the dashboard
+      description: Retrieves revenue, new users, total users, active users, and available credits.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard overview stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Dashboard overview stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      revenue:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      new_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      total_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      active_users:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                          percentage_change:
+                            type: number
+                      available_credits:
+                        type: number
+
+  /backoffice/dashboard/users-stats:
+    get:
+      tags:
+        - Admin
+      summary: Get free vs paid user statistics
+      description: Retrieves the count of free vs paid users over a specified duration.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [last_week, last_month, last_year]
+            default: last_month
+          description: Duration for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            free:
+                              type: integer
+                            paid:
+                              type: integer
+
+  /backoffice/dashboard/ai-credits:
+    get:
+      tags:
+        - Admin
+      summary: Get AI credit usage statistics
+      description: Retrieves AI credit usage over a specified duration with optional unit conversion.
+      parameters:
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [weekly, monthly, yearly, daily]
+            default: monthly
+          description: Duration for the stats
+        - in: query
+          name: unit
+          schema:
+            type: string
+            enum: [tokens, price]
+            default: tokens
+          description: Unit for the stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "AI credit stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      filter:
+                        type: string
+                      unit:
+                        type: string
+                      total_consumed:
+                        type: number
+                      percentage_change:
+                        type: number
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            value:
+                              type: number
+
+  /backoffice/admins/invitations/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get invitation dashboard with stats, trends, and leaderboard
+      description: |-
+        Returns a comprehensive invitation dashboard containing:
+        - **Stats**: Total invitations sent, today's count, yesterday's count, this week's count, growth percentages
+        - **Growth Trends**: Monthly organic vs referral breakdown for the last 6 months
+        - **Top Inviters**: Leaderboard of users with most referrals (configurable limit)
+        - **Invitations List**: Paginated list of all invitations with filtering and search
+
+        **Access**: Superadmins only.
+      operationId: getInvitationDashboard
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of invitations per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search invitations by email (case-insensitive)
+          schema:
+            type: string
+            example: "john@example.com"
+        - name: status
+          in: query
+          required: false
+          description: Filter invitations by status
+          schema:
+            type: string
+            enum: [invited, accepted, expired, cancelled]
+            example: "invited"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include dashboard statistics (default true). Set to false for faster pagination.
+          schema:
+            type: boolean
+            default: true
+            example: true
+        - name: top_limit
+          in: query
+          required: false
+          description: Maximum number of top inviters to return (default is 5)
+          schema:
+            type: integer
+            default: 5
+            example: 5
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Invitation dashboard retrieved successfully
+          content:
+                  message:
+                    type: string
+                    example: "Failed to fetch invitation dashboard"
+                  data:
+                    $ref: "#/components/schemas/InvitationDashboardResponse"
+
+  /backoffice/admins:
+    get:
+      tags:
+        - Admin
+      summary: List all admins
+      description: Retrieves a list of all administrators.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admins retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        email:
+                          type: string
+                        name:
+                          type: string
+                        role:
+                          type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+    post:
+      tags:
+        - Admin
+      summary: Create a new admin
+      description: Creates a new administrator account (Super Admin only).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+                role:
+                  type: string
+      responses:
+        "200":
+          description: Admin created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Admin created successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+  /backoffice/admins/{admin_id}:
+    delete:
+      tags:
+        - Admin
+      summary: Delete an admin
+      description: Deletes an administrator account.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: admin_id
+          in: path
+          required: true
+          description: ID of the admin to delete
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Admin deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Admin deleted successfully"
+                  data:
+                    type: object
+                    nullable: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+
+  /backoffice/login:
+    post:
+      tags:
+        - Admin
+      summary: Admin login
+      description: Authenticates an admin user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Admin login successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Admin login successfully"
+                  data:
+                    type: object
+                    properties:
+                      admin:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          email:
+                            type: string
+                          name:
+                            type: string
+                          password:
+                            type: string
+                      access_token:
+                        type: string
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /invite/change-status:
     post:
@@ -25816,9 +26306,8 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
           required: true
-          description: The unique UUID of the buzz to join
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Example UUID: `019acc68-ad4f-721e-9c4b-d2064d445225`, Example buzzCode: `D2064D445225`. Both formats are supported for backward compatibility."
       responses:
         "200":
           description: Successfully joined the buzz
@@ -25864,9 +26353,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -25917,9 +26406,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -25965,9 +26454,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26064,9 +26553,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
         - in: path
           name: note_id
           schema:
@@ -26125,9 +26614,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully left the buzz
@@ -26174,9 +26663,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call) to end
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully ended the buzz
@@ -26266,9 +26755,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26355,9 +26844,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz (call)
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
         required: true
         content:
@@ -26460,9 +26949,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz to force end
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Buzz force ended successfully (test mode)
@@ -26489,6 +26978,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/message:
+    post:
+      tags:
+        - buzz
+      summary: Send a message to a buzz
+      description: Sends a message to an active buzz. The message is published to the buzz's real-time channel but not persisted in the database. Only active participants can send messages.
+      operationId: sendBuzzMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendBuzzMessageRequest"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedMessageResponse"
+        "400":
+          description: Bad request - invalid buzz ID or buzz not active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - user is not a participant in the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - buzz does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable Entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+
   /buzz/{id}/metadata:
     get:
       tags:
@@ -26503,9 +27053,9 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+            
           required: true
-          description: The unique UUID of the buzz
+          description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
         "200":
           description: Successfully retrieved buzz metadata
@@ -27237,6 +27787,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the created buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27304,6 +27858,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27390,6 +27948,11 @@ components:
           format: uuid
           description: The unique identifier of the buzz
           example: "550e8400-e29b-41d4-a716-446655440000"
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
+          example: "446655440000"
         participant_id:
           type: string
           format: uuid
@@ -27425,6 +27988,11 @@ components:
           format: uuid
           description: The unique identifier of the buzz
           example: "550e8400-e29b-41d4-a716-446655440000"
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
+          example: "446655440000"
         channel_id:
           type: string
           format: uuid
@@ -27462,6 +28030,10 @@ components:
           type: string
           format: uuid
           description: The unique ID of the buzz
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27513,6 +28085,94 @@ components:
             status_sticker: "raise_hand"
             sticker_set_at: "2025-11-28T10:05:30Z"
 
+    BuzzFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        file_name:
+          type: string
+        file_type:
+          type: string
+        mime_type:
+          type: string
+        file_link:
+          type: string
+        size:
+          type: integer
+
+    SendBuzzMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: The message content
+          example: "Hello from buzz!"
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzFile"
+          description: Optional media files attached to the message
+
+    FeedMessageSchema:
+      type: object
+      properties:
+        channel_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        username:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type: string
+        avatar_url:
+          type: string
+        type:
+          type: string
+          example: "buzz_message"
+        message:
+          type: string
+        thread_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+        user_id:
+          type: string
+          format: uuid
+        media:
+          type: array
+          items:
+            $ref: "#/components/schemas/BuzzFile"
+        user_type:
+          type: string
+          example: "user"
+        channel_type:
+          type: string
+
+    FeedMessageResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "message sent successfully"
+        data:
+          $ref: "#/components/schemas/FeedMessageSchema"
+
     ActiveBuzzIndicator:
       type: object
       required:
@@ -27529,6 +28189,11 @@ components:
           format: uuid
           nullable: true
           description: The unique ID of the active buzz (null if no active buzz)
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          nullable: true
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
           format: uuid
@@ -27629,6 +28294,10 @@ components:
         buzz_id:
           type: string
           format: uuid
+        buzz_code:
+          type: string
+          pattern: '^[0-9A-F]{12}$'
+          description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         user_id:
           type: string
           format: uuid
@@ -31603,6 +32272,102 @@ components:
                   type: string
                   format: uuid
                   description: Optional organisation filter applied to this leaderboard
+
+    InvitationDashboardResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                stats:
+                  type: object
+                  properties:
+                    total_invitations_sent:
+                      type: integer
+                      description: Total number of invitations ever sent
+                    total_growth_percent:
+                      type: number
+                      format: float
+                      description: Month-over-month growth percentage
+                    sent_today:
+                      type: integer
+                      description: Number of invitations sent today
+                    sent_today_percent:
+                      type: number
+                      format: float
+                      description: Day-over-day change percentage
+                    yesterday:
+                      type: integer
+                      description: Number of invitations sent yesterday
+                    this_week:
+                      type: integer
+                      description: Number of invitations sent this week
+                growth_trends:
+                  type: array
+                  description: Last 6 months of invitation data
+                  items:
+                    type: object
+                    properties:
+                      month:
+                        type: string
+                        description: Month abbreviation (e.g., "Jan", "Feb")
+                      organic:
+                        type: integer
+                        description: Number of organic (non-referral) invitations
+                      referral:
+                        type: integer
+                        description: Number of referral invitations
+                top_inviters:
+                  type: array
+                  description: Top users by referral count
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: User ID
+                      name:
+                        type: string
+                        description: User name
+                      email:
+                        type: string
+                        description: User email
+                      avatar_url:
+                        type: string
+                        description: User avatar URL
+                      invite_count:
+                        type: integer
+                        description: Number of referrals
+                      rank:
+                        type: integer
+                        description: Leaderboard rank
+                invitations:
+                  type: array
+                  description: Paginated list of invitations
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: Invitation ID
+                      email:
+                        type: string
+                        description: Invited email address
+                      role:
+                        type: string
+                        description: Role name for the invitation
+                      status:
+                        type: string
+                        description: Invitation status
+                      date_sent:
+                        type: string
+                        description: Date invitation was sent (YYYY-MM-DD)
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
 
   securitySchemes:
     bearerAuth:

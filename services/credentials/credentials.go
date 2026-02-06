@@ -17,7 +17,6 @@ func CreateCredentialService(req models.CredentialRequest, db *gorm.DB) (int, er
 	return http.StatusCreated, nil
 }
 
-
 func GetSkillCredentialsService(req models.CredentialRequest, db *gorm.DB) ([]models.SkillCredentialsResponse, int, error) {
 	var cred models.Credential
 	cred.OrgId = req.OrgId

@@ -9,24 +9,23 @@ import (
 	"gorm.io/gorm"
 )
 
-
 type HelpCenterArticle struct {
-	ID          string    `gorm:"column:article_id; type:uuid; primaryKey" json:"article_id"`
-	Title       string    `gorm:"column:title; type:varchar(255); not null" json:"title"`
-	Content     string    `gorm:"column:content; type:varchar(255); not null" json:"content"`
-	CategoryID  string    `gorm:"column:category_id; type:uuid; not null" json:"category_id"`
-	Category    HelpCenterCategory `gorm:"foreignKey:CategoryID" json:"-"`
-	CreatedAt   time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID         string             `gorm:"column:article_id; type:uuid; primaryKey" json:"article_id"`
+	Title      string             `gorm:"column:title; type:varchar(255); not null" json:"title"`
+	Content    string             `gorm:"column:content; type:varchar(255); not null" json:"content"`
+	CategoryID string             `gorm:"column:category_id; type:uuid; not null" json:"category_id"`
+	Category   HelpCenterCategory `gorm:"foreignKey:CategoryID" json:"-"`
+	CreatedAt  time.Time          `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time          `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type HelpCenterCategory struct {
-	ID          string               `gorm:"column:category_id; type:uuid; primaryKey" json:"category_id"`
-	Name        string               `gorm:"column:name; type:varchar(255); not null" json:"name"`
-	Articles    []HelpCenterArticle  `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"articles"`
-	Description string               `gorm:"column:description; type:varchar(255); not null" json:"description"`
-	CreatedAt   time.Time            `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time            `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID          string              `gorm:"column:category_id; type:uuid; primaryKey" json:"category_id"`
+	Name        string              `gorm:"column:name; type:varchar(255); not null" json:"name"`
+	Articles    []HelpCenterArticle `gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"articles"`
+	Description string              `gorm:"column:description; type:varchar(255); not null" json:"description"`
+	CreatedAt   time.Time           `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time           `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type CreateHelpCenterCategory struct {
@@ -40,20 +39,19 @@ type CreateHelpCenterArticle struct {
 	CategoryID string `json:"category_id" validate:"required"`
 }
 
-
 type HelpCntArticleSummary struct {
-	ID			string `json:"id"`
-	Title       string `json:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 type HelpCntCategorySummary struct {
-	ID			       string `json:"id"`
-	Name        	   string `json:"name"`
-	Description        string `json:"description"`
-	ArticlesLen         int   `json:"articles_len"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ArticlesLen int    `json:"articles_len"`
 }
 
 func (j *HelpCenterCategory) CreateHelpCenterCategory(db *gorm.DB, name string) error {
-    var hnpCntCategory HelpCenterCategory
+	var hnpCntCategory HelpCenterCategory
 
 	exists := postgresql.CheckExists(db, &hnpCntCategory, "name = ?", name)
 
@@ -77,28 +75,28 @@ func (j *HelpCenterCategory) GetAllCategories(db *gorm.DB, c *gin.Context) ([]He
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db.Preload("Articles"),
-		"created_at", 
-		"desc",       
-		pagination,   
-		&helpCntCat,  
-		nil,          
+		"created_at",
+		"desc",
+		pagination,
+		&helpCntCat,
+		nil,
 	)
 
 	if err != nil {
 		return nil, paginationResponse, err
 	}
-	
+
 	return helpCntCat, paginationResponse, nil
 }
 
-func (j *HelpCenterCategory) GetCategoryByID(db *gorm.DB ) error {
+func (j *HelpCenterCategory) GetCategoryByID(db *gorm.DB) error {
 	err := postgresql.SelectFirstFromDb(db.Preload("Articles"), &j)
 
 	if err != nil {
-		return  err
+		return err
 	}
 
-	return  nil
+	return nil
 }
 
 func (j *HelpCenterCategory) GetArticlesByCategoryID(db *gorm.DB, c *gin.Context) ([]HelpCenterArticle, postgresql.PaginationResponse, error) {
@@ -108,18 +106,18 @@ func (j *HelpCenterCategory) GetArticlesByCategoryID(db *gorm.DB, c *gin.Context
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db,
-		"created_at",      
-		"desc",           
-		pagination,       
-		&articles,         
-		"category_id = ?", 
-		j.ID,              
+		"created_at",
+		"desc",
+		pagination,
+		&articles,
+		"category_id = ?",
+		j.ID,
 	)
 
 	if err != nil {
 		return nil, paginationResponse, err
 	}
-	
+
 	return articles, paginationResponse, nil
 }
 
@@ -147,28 +145,28 @@ func (j *HelpCenterArticle) GetAllArticles(db *gorm.DB, c *gin.Context) ([]HelpC
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db,
-		"created_at", 
-		"desc",       
-		pagination,   
-		&helpCntArticles,  
-		nil,          
+		"created_at",
+		"desc",
+		pagination,
+		&helpCntArticles,
+		nil,
 	)
 
 	if err != nil {
 		return nil, paginationResponse, err
 	}
-	
+
 	return helpCntArticles, paginationResponse, nil
 }
 
-func (j *HelpCenterArticle) GetArticleByID(db *gorm.DB ) error {
-	err := postgresql.SelectFirstFromDb(db, &j);
+func (j *HelpCenterArticle) GetArticleByID(db *gorm.DB) error {
+	err := postgresql.SelectFirstFromDb(db, &j)
 
 	if err != nil {
-		return  err
+		return err
 	}
 
-	return  nil
+	return nil
 }
 
 func (h *HelpCenterArticle) SearchHelpCenterArticles(db *gorm.DB, c *gin.Context, query string) ([]HelpCenterArticle, postgresql.PaginationResponse, error) {
@@ -190,30 +188,30 @@ func (h *HelpCenterArticle) SearchHelpCenterArticles(db *gorm.DB, c *gin.Context
 	if err != nil {
 		return nil, paginationResponse, err
 	}
-	
+
 	return helpCntArticles, paginationResponse, nil
 }
 
 func (j *HelpCenterArticle) UpdateArticleByID(db *gorm.DB, ID string) (HelpCenterArticle, error) {
-	j.ID = ID 
-	
-    exists := postgresql.CheckExists(db, &HelpCenterArticle{}, "article_id = ?", ID)
-    if !exists {
-        return HelpCenterArticle{}, gorm.ErrRecordNotFound
-    }
+	j.ID = ID
 
-    _, err := postgresql.SaveAllFields(db, j)
-    if err != nil {
-        return HelpCenterArticle{}, err
-    }
+	exists := postgresql.CheckExists(db, &HelpCenterArticle{}, "article_id = ?", ID)
+	if !exists {
+		return HelpCenterArticle{}, gorm.ErrRecordNotFound
+	}
 
-    updatedHelpCntArticle := HelpCenterArticle{}
-    err = db.First(&updatedHelpCntArticle, "article_id = ?", ID).Error
-    if err != nil {
-        return HelpCenterArticle{}, err
-    }
+	_, err := postgresql.SaveAllFields(db, j)
+	if err != nil {
+		return HelpCenterArticle{}, err
+	}
 
-    return updatedHelpCntArticle, nil
+	updatedHelpCntArticle := HelpCenterArticle{}
+	err = db.First(&updatedHelpCntArticle, "article_id = ?", ID).Error
+	if err != nil {
+		return HelpCenterArticle{}, err
+	}
+
+	return updatedHelpCntArticle, nil
 }
 
 func (j *HelpCenterArticle) DeleteArticleByID(db *gorm.DB, ID string) error {

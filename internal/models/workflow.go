@@ -95,7 +95,7 @@ type AgentWorkFlowRequest struct {
 	AgentId          string   `json:"-"`
 	Name             string   `json:"name" validate:"required"`
 	OrgId            string   `json:"-"`
-	UserID            string   `json:"-"`
+	UserID           string   `json:"-"`
 	WorkflowId       string   `json:"-"`
 	ShortDescription string   `json:"short_description"`
 	LongDescription  string   `json:"long_description"`
@@ -297,7 +297,7 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 		}
 
 		wf.WorkflowId = existing.WorkflowId
-		wf.ID = existing.ID 
+		wf.ID = existing.ID
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -380,7 +380,6 @@ func (n *AgentWorkFloNodeUpdateRequest) UpdateWorkflowNode(db *gorm.DB) (AgentWo
 	if !ok {
 		return wfr, errors.New("workflow has no nodes")
 	}
-
 
 	for i, node := range nodes {
 		nodeMap, ok := node.(map[string]interface{})

@@ -32,12 +32,20 @@ func (base *Controller) SendReaction(c *gin.Context) {
 		return
 	}
 
-	// Get buzz ID from URL path
-	buzzID := c.Param("id")
-	if buzzID == "" {
-		base.Logger.Info("buzz_id is required")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz_id is required", errors.New("buzz_id is required"), nil)
+	// Get buzz code from URL path
+	buzzCode := c.Param("id")
+	if buzzCode == "" || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Info("valid buzz_code is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "valid buzz_code is required", errors.New("buzz_code is required"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 	req.BuzzID = buzzID
@@ -89,12 +97,20 @@ func (base *Controller) UpdateSticker(c *gin.Context) {
 		return
 	}
 
-	// Get buzz ID from URL path
-	buzzID := c.Param("id")
-	if buzzID == "" {
-		base.Logger.Info("buzz_id is required")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "buzz_id is required", errors.New("buzz_id is required"), nil)
+	// Get buzz code from URL path
+	buzzCode := c.Param("id")
+	if buzzCode == "" || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		base.Logger.Info("valid buzz_code is required")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "valid buzz_code is required", errors.New("buzz_code is required"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		base.Logger.Error("buzz not found for code: %s", buzzCode)
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 	req.BuzzID = buzzID

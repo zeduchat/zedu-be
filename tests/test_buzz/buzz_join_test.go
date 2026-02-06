@@ -98,7 +98,7 @@ func TestBuzzJoin(t *testing.T) {
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
 		Description:    "Some Random description",
 		OrganisationID: orgId,
-		OwnerId:        getUserID(t, db, userSignUpData.Email),
+		OwnerId:        getTestUserID(db, userSignUpData.Email),
 		CreatedAt:      time.Now(),
 	}
 	if err := db.Postgresql.Create(&channel).Error; err != nil {
@@ -106,7 +106,7 @@ func TestBuzzJoin(t *testing.T) {
 	}
 
 	// Add first user (host) to channel
-	hostUserID := getUserID(t, db, userSignUpData.Email)
+	hostUserID := getTestUserID(db, userSignUpData.Email)
 	hostUserChannel := models.UserChannels{
 		ChannelsID: channelID,
 		UserID:     hostUserID,
@@ -124,7 +124,7 @@ func TestBuzzJoin(t *testing.T) {
 		t.Fatalf("Failed to get org role: %v", err)
 	}
 	userMgmt.OrganisationID = orgId
-	userMgmt.UserID = getUserID(t, db, user2SignUpData.Email)
+	userMgmt.UserID = getTestUserID(db, user2SignUpData.Email)
 	userMgmt.RoleID = orgRole.ID
 	userMgmt.Status = "active"
 	db.Postgresql.Create(&userMgmt)
@@ -200,7 +200,7 @@ func TestBuzzJoin(t *testing.T) {
 			Name:         "Join Buzz Action - Invalid Buzz ID",
 			RequestBody:  nil,
 			ExpectedCode: http.StatusBadRequest,
-			Message:      "invalid buzz ID format",
+			Message:      "invalid buzz code or ID format",
 			Method:       http.MethodPost,
 			RequestURI:   url.URL{Path: "/api/v1/buzz/invalid-uuid/join"},
 			Token:        token,
@@ -296,8 +296,8 @@ func TestBuzzJoin(t *testing.T) {
 				// Note: agora_token can be nil if Agora service is not configured (e.g., in tests)
 
 				// Verify other join response fields
-				if responseData["Buzz_id"] != buzzID {
-					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["Buzz_id"])
+				if responseData["buzz_id"] != buzzID {
+					t.Errorf("Expected buzz_id %s, got %v", buzzID, responseData["buzz_id"])
 				}
 				if responseData["channel_id"] != channelID {
 					t.Errorf("Expected channel_id %s, got %v", channelID, responseData["channel_id"])
@@ -316,13 +316,4 @@ func TestBuzzJoin(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to get user ID by email
-func getUserID(t *testing.T, db *storage.Database, email string) string {
-	var user models.User
-	if err := db.Postgresql.Where("email = ?", email).First(&user).Error; err != nil {
-		t.Fatalf("Failed to get user ID: %v", err)
-	}
-	return user.ID
 }

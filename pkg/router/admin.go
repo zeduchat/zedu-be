@@ -22,6 +22,9 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/admins", admin.ListAdmins)
 		adminAuthUrl.DELETE("/admins/:admin_id", admin.DeleteAdmin)
 		adminAuthUrl.GET("/dashboard/credits-summary", admin.GetPlatformCreditsSummary)
+		adminAuthUrl.GET("/dashboard/users-stats", admin.GetFreeVsPaidUserStats)
+		adminAuthUrl.GET("/dashboard/ai-credits", admin.GetAICreditUsageStats)
+		adminAuthUrl.GET("/dashboard/overview", admin.GetDashboardOverviewStats)
 		adminAuthUrl.GET("/admins/users", admin.ListUsers)
 		adminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 	}

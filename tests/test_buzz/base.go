@@ -7,8 +7,10 @@ import (
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/buzz"
+	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -27,7 +29,12 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 		Logger:    logger,
 	}
 
+	extReq := request.ExternalRequest{Logger: logger, Test: true}
+	threadCtrl := thread.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+
 	r := gin.Default()
+	r.GET("/api/v1/threads/channels/:channel_id/threads", middleware.Authorize(db.Postgresql), threadCtrl.GetAllChannelThreads)
+
 	buzzGroup := r.Group(fmt.Sprintf("%v/buzz", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
 	{
 		buzzGroup.POST("/create", ctrl.Create)
@@ -55,6 +62,7 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
 
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
+		buzzGroup.POST("/:id/message", ctrl.SendBuzzMessage)
 	}
 
 	return r, ctrl // Renamed buzzController to ctrl

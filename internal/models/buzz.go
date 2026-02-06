@@ -50,7 +50,7 @@ type Buzz struct {
 
 type BuzzParticipant struct {
 	ID            string     `gorm:"type:uuid;primaryKey" json:"id"`
-	BuzzID        string     `gorm:"type:uuid;index;not null" json:"Buzz_id"`
+	BuzzID        string     `gorm:"type:uuid;index;not null" json:"buzz_id"`
 	UserID        string     `gorm:"type:uuid;index;not null" json:"user_id"`
 	Status        string     `gorm:"type:text;not null;default:'active'" json:"status"`
 	IsMuted       bool       `gorm:"type:boolean;default:false" json:"is_muted"`
@@ -92,10 +92,12 @@ type BuzzCreateResponse struct {
 	ParticipantIDs []string                `json:"participants_id"`
 	Participants   []ParticipantMetadata   `json:"participants"`
 	AgoraToken     *BuzzAgoraTokenResponse `json:"agora_token"`
+	BuzzCode       string                  `json:"buzz_code"`
 }
 
 type BuzzLeaveResponse struct {
 	BuzzID        string    `json:"buzz_id"`
+	BuzzCode      string    `json:"buzz_code"`
 	ParticipantID string    `json:"participant_id"`
 	NewHostID     string    `json:"new_host_id,omitempty"`
 	LeftAt        time.Time `json:"left_at"`
@@ -104,6 +106,7 @@ type BuzzLeaveResponse struct {
 
 type BuzzEndResponse struct {
 	BuzzID    string    `json:"buzz_id"`
+	BuzzCode  string    `json:"buzz_code"`
 	ChannelID string    `json:"channel_id"`
 	HostID    string    `json:"host_id"`
 	EndedAt   time.Time `json:"ended_at"`
@@ -112,19 +115,22 @@ type BuzzEndResponse struct {
 
 type BuzzMetadataResponse struct {
 	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
 	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	Status       string                  `json:"status"`
 	CreatedAt    time.Time               `json:"created_at"`
 	StartedAt    time.Time               `json:"started_at"`
-	EndedAt      *time.Time            `json:"ended_at,omitempty"`
+	EndedAt      *time.Time              `json:"ended_at,omitempty"`
 	Participants []ParticipantMetadata   `json:"participants"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
+	HostName     string                  `json:"host_name"`
 }
 
 type ActiveBuzzIndicator struct {
 	IsActive              bool       `json:"is_active"`
 	BuzzID                string     `json:"buzz_id,omitempty"`
+	BuzzCode              string     `json:"buzz_code,omitempty"`
 	HostID                string     `json:"host_id,omitempty"`
 	Status                string     `json:"status,omitempty"`
 	EndedAt               *time.Time `json:"ended_at,omitempty"`
@@ -184,7 +190,7 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 
 type BuzzEventPayload struct {
 	Event              string               `json:"event"`
-	BuzzID             string               `json:"Buzz_id"`
+	BuzzID             string               `json:"buzz_id"`
 	ChannelID          string               `json:"channel_id"`
 	HostID             string               `json:"host_id"`
 	ParticipantIDs     []string             `json:"participant_ids"`
@@ -213,7 +219,7 @@ type BuzzLeaveEventPayload struct {
 
 type BuzzNote struct {
 	ID        string    `gorm:"type:uuid;primaryKey" json:"id"`
-	BuzzID    string    `gorm:"type:uuid;not null;index" json:"Buzz_id"`
+	BuzzID    string    `gorm:"type:uuid;not null;index" json:"buzz_id"`
 	UserID    string    `gorm:"type:uuid;not null;index" json:"user_id"`
 	Note      string    `gorm:"type:text;not null" json:"note"`
 	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
@@ -224,13 +230,18 @@ type CreateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
+type SendBuzzMessageRequest struct {
+	Content string `json:"content" validate:"required"`
+	Media   []File `json:"media"`
+}
+
 type UpdateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
 
 type BuzzNoteResponse struct {
 	ID        string    `json:"id"`
-	BuzzID    string    `json:"Buzz_id"`
+	BuzzID    string    `json:"buzz_id"`
 	UserID    string    `json:"user_id"`
 	Note      string    `json:"note"`
 	CreatedAt time.Time `json:"created_at"`
@@ -247,7 +258,7 @@ type UpdateCameraRequest struct {
 }
 
 type UpdateCameraResponse struct {
-	BuzzID     string `json:"Buzz_id"`
+	BuzzID     string `json:"buzz_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
 	UpdatedAt  string `json:"updated_at"`
@@ -255,7 +266,7 @@ type UpdateCameraResponse struct {
 
 type CameraStatusEventPayload struct {
 	Event      string `json:"event"`
-	BuzzID     string `json:"Buzz_id"`
+	BuzzID     string `json:"buzz_id"`
 	ChannelID  string `json:"channel_id"`
 	UserID     string `json:"user_id"`
 	IsCameraOn bool   `json:"is_camera_on"`
@@ -316,12 +327,13 @@ func updateBuzzParticipants(db *gorm.DB, BuzzID string, participants pq.StringAr
 
 // JoinBuzzRequest represents the request to join a Buzz
 type JoinBuzzRequest struct {
-	BuzzID string `json:"Buzz_id" validate:"required,uuid"`
+	BuzzID string `json:"buzz_id" validate:"required,uuid"`
 }
 
 // JoinBuzzResponse represents the response after joining a Buzz
 type JoinBuzzResponse struct {
-	BuzzID       string                  `json:"Buzz_id"`
+	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
 	HostID       string                  `json:"host_id"`
 	ChannelID    string                  `json:"channel_id"`
 	UserID       string                  `json:"user_id"`
@@ -530,6 +542,7 @@ type OrgBuzzListResponse struct {
 
 type OrgBuzzItem struct {
 	BuzzID           string     `json:"buzz_id"`
+	BuzzCode         string     `json:"buzz_code"`
 	ChannelID        string     `json:"channel_id"`
 	HostID           string     `json:"host_id"`
 	OrgID            string     `json:"org_id"`

@@ -77,8 +77,8 @@ func (i *ChannelInvitation) DeleteChannelInviteLink(db *gorm.DB) error {
 
 func (i *ChannelInvitation) ChannelInvitationValidator(db *gorm.DB, email string, req ChannelInvitationCreateReq) error {
 	var (
-		user     User
-		om       OrgUserManagement
+		user User
+		om   OrgUserManagement
 	)
 	err, _ := postgresql.SelectOneFromDb(db, &user, "email = ?", email)
 	if err != nil {

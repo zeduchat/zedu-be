@@ -16,43 +16,40 @@ import (
 	"gorm.io/gorm"
 )
 
-
 type Credential struct {
-	ID               string                `gorm:"type:uuid;primaryKey" json:"id"`
-	Name             string                `gorm:"type:text" json:"name"`
-	OrgId		     string                `gorm:"type:uuid;index" json:"org_id"`
-	AgentId		     string                `gorm:"type:uuid;index" json:"agent_id"`
-	UserId		     string                `gorm:"type:uuid;index" json:"user_id"`
-	SkillId 		 string                `gorm:"type:uuid;index" json:"skill_id"`
-	Credentials      []byte                `gorm:"type:bytea" json:"credentials"`
-	CreatedAt        time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt        time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	ID          string    `gorm:"type:uuid;primaryKey" json:"id"`
+	Name        string    `gorm:"type:text" json:"name"`
+	OrgId       string    `gorm:"type:uuid;index" json:"org_id"`
+	AgentId     string    `gorm:"type:uuid;index" json:"agent_id"`
+	UserId      string    `gorm:"type:uuid;index" json:"user_id"`
+	SkillId     string    `gorm:"type:uuid;index" json:"skill_id"`
+	Credentials []byte    `gorm:"type:bytea" json:"credentials"`
+	CreatedAt   time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
+	UpdatedAt   time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
 }
 
 type CredentialRequest struct {
-	OrgId       string                 `json:"org_id" validate:"required"`
-	AgentId     string                 `json:"agent_id" validate:"required"`
-	UserId      string                 `json:"user_id" validate:"required"`
-	SkillId     string                 `json:"skill_id" validate:"required"`
-	Name        string                 `json:"name" validate:"required"`
-	Credentials JSONBMap               `json:"credentials" validate:"required"`
+	OrgId       string   `json:"org_id" validate:"required"`
+	AgentId     string   `json:"agent_id" validate:"required"`
+	UserId      string   `json:"user_id" validate:"required"`
+	SkillId     string   `json:"skill_id" validate:"required"`
+	Name        string   `json:"name" validate:"required"`
+	Credentials JSONBMap `json:"credentials" validate:"required"`
 }
-
 
 type CredentialsResponse struct {
-	ID          string                 `json:"id"`
-	OrgId       string                 `json:"org_id" `
-	AgentId     string                 `json:"agent_id"`
-	UserId      string                 `json:"user_id"`
-	SkillId     string                 `json:"skill_id"`
-	Name        string                 `json:"name"`
-	Credentials JSONBMap               `json:"credentials"`
+	ID          string   `json:"id"`
+	OrgId       string   `json:"org_id" `
+	AgentId     string   `json:"agent_id"`
+	UserId      string   `json:"user_id"`
+	SkillId     string   `json:"skill_id"`
+	Name        string   `json:"name"`
+	Credentials JSONBMap `json:"credentials"`
 }
 type SkillCredentialsResponse struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
-
 
 func EncryptJSON(data interface{}, key []byte) ([]byte, error) {
 	if len(key) != 32 {
@@ -82,7 +79,6 @@ func EncryptJSON(data interface{}, key []byte) ([]byte, error) {
 	ciphertext := gcm.Seal(nonce, nonce, jsonBytes, nil)
 	return ciphertext, nil
 }
-
 
 func DecryptJSON(ciphertext []byte, result interface{}) error {
 	var config = config.GetConfig()
@@ -120,8 +116,6 @@ func DecryptJSON(ciphertext []byte, result interface{}) error {
 	return nil
 }
 
-
-
 func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 	if err := ValidateAgentIDs(db, cred.OrgId, []string{cred.AgentId}); err != nil {
 		return http.StatusBadRequest, err
@@ -134,10 +128,9 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 	var config = config.GetConfig()
 	var encryptionKey = []byte(config.Server.EncryptionKey)
 
-
 	var existing Credential
 	err := db.Where("org_id = ? AND agent_id = ? AND skill_id = ? AND name = ?", cred.OrgId, cred.AgentId, cred.SkillId, cred.Name).First(&existing).Error
-	
+
 	if err == nil {
 		encrypted, err := EncryptJSON(cred.Credentials, encryptionKey)
 		if err != nil {
@@ -151,9 +144,8 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 			return http.StatusInternalServerError, fmt.Errorf("failed to update credential: %w", err)
 		}
 
-		return http.StatusOK, nil 
-	} 
-
+		return http.StatusOK, nil
+	}
 
 	encrypted, err := EncryptJSON(cred.Credentials, encryptionKey)
 	if err != nil {
@@ -162,14 +154,13 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 
 	dbCredential := Credential{
 		ID:          uuid.New().String(),
-        OrgId:       cred.OrgId,
-        AgentId:     cred.AgentId,
-        UserId:      cred.UserId,
-        SkillId:     cred.SkillId,
-        Name:        cred.Name,
-        Credentials: encrypted, 
-    }
-
+		OrgId:       cred.OrgId,
+		AgentId:     cred.AgentId,
+		UserId:      cred.UserId,
+		SkillId:     cred.SkillId,
+		Name:        cred.Name,
+		Credentials: encrypted,
+	}
 
 	if err := db.Create(&dbCredential).Error; err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to create credential: %w", err)
@@ -177,28 +168,27 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 
 	var agentWorkflow AgentWorkflow
 	err = db.Where("org_id = ? AND agent_id = ?", cred.OrgId, cred.AgentId).First(&agentWorkflow).Error
-	
+
 	if err != nil {
 		return http.StatusNotFound, fmt.Errorf("failed to fetch workflow: %w", err)
 	}
-	
+
 	var agentSkill AgentSkill
 	err = db.Select("id, skill_id, agent_id, node_type").
-			Where("skill_id = ? AND agent_id = ?", cred.SkillId, cred.AgentId).
-			First(&agentSkill).Error
-	
+		Where("skill_id = ? AND agent_id = ?", cred.SkillId, cred.AgentId).
+		First(&agentSkill).Error
+
 	if err != nil {
 		return http.StatusNotFound, fmt.Errorf("failed to fetch skill: %w", err)
 	}
-	
+
 	rawEntry := agentWorkflow.RawEntry
-	
+
 	nodes, ok := rawEntry["nodes"].([]interface{})
 	if !ok {
 		return http.StatusNotFound, errors.New("workflow has no nodes")
 	}
-	
-	
+
 	// Update the credentials for the node matching the skill nodetype in the workflow
 	for i, node := range nodes {
 		nodeMap, ok := node.(map[string]interface{})
@@ -213,14 +203,14 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 				credentials = make(map[string]interface{})
 			}
 
-			credentials[dbCredential.Name] = map[string]interface{} {
-				"id": dbCredential.ID,
+			credentials[dbCredential.Name] = map[string]interface{}{
+				"id":   dbCredential.ID,
 				"name": dbCredential.Name,
 			}
 
 			nodeMap["credentials"] = credentials
 			nodes[i] = nodeMap
-			
+
 		}
 	}
 
@@ -245,58 +235,56 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 	return http.StatusCreated, nil
 }
 
-
 func (cred *Credential) GetSkillCredentials(db *gorm.DB) ([]SkillCredentialsResponse, int, error) {
 
 	if err := ValidateSkillIDs(db, cred.OrgId, []string{cred.SkillId}); err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 
-    var dbCredentials []SkillCredentialsResponse
-    err := db.Model(&Credential{}).
+	var dbCredentials []SkillCredentialsResponse
+	err := db.Model(&Credential{}).
 		Select("id, name").
-        Where("user_id = ? AND org_id = ? AND skill_id = ?", cred.UserId, cred.OrgId, cred.SkillId).
-        Find(&dbCredentials).Error
-    
-    if err != nil {
-        return nil, http.StatusInternalServerError, err
-    }
+		Where("user_id = ? AND org_id = ? AND skill_id = ?", cred.UserId, cred.OrgId, cred.SkillId).
+		Find(&dbCredentials).Error
+
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
 
 	if dbCredentials == nil {
-        return []SkillCredentialsResponse{}, http.StatusOK, nil
-    }
+		return []SkillCredentialsResponse{}, http.StatusOK, nil
+	}
 
-    return dbCredentials, http.StatusOK, nil
+	return dbCredentials, http.StatusOK, nil
 }
-
 
 func (cred *Credential) GetCredentialByID(db *gorm.DB) (*CredentialsResponse, int, error) {
 	res := CredentialsResponse{}
 
-    var dbCredential Credential
-    err := db.Model(&Credential{}).
-        Where("id = ?", cred.ID).
-        First(&dbCredential).Error
-    
-    if err != nil {
-        if err == gorm.ErrRecordNotFound {
-            return &res, http.StatusNotFound, fmt.Errorf("credential not found")
-        }
-        return &res, http.StatusInternalServerError, err
-    }
+	var dbCredential Credential
+	err := db.Model(&Credential{}).
+		Where("id = ?", cred.ID).
+		First(&dbCredential).Error
 
-    var decryptedCreds JSONBMap 
-    if err := DecryptJSON(dbCredential.Credentials, &decryptedCreds); err != nil {
-        return &res, http.StatusInternalServerError, fmt.Errorf("failed to decrypt credentials: %w", err)
-    }
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return &res, http.StatusNotFound, fmt.Errorf("credential not found")
+		}
+		return &res, http.StatusInternalServerError, err
+	}
 
-    res.ID = dbCredential.ID
-    res.Name = dbCredential.Name
-    res.OrgId = dbCredential.OrgId
-    res.AgentId = dbCredential.AgentId
-    res.UserId = dbCredential.UserId
-    res.SkillId = dbCredential.SkillId
-    res.Credentials = decryptedCreds 
+	var decryptedCreds JSONBMap
+	if err := DecryptJSON(dbCredential.Credentials, &decryptedCreds); err != nil {
+		return &res, http.StatusInternalServerError, fmt.Errorf("failed to decrypt credentials: %w", err)
+	}
 
-    return &res, http.StatusOK, nil
+	res.ID = dbCredential.ID
+	res.Name = dbCredential.Name
+	res.OrgId = dbCredential.OrgId
+	res.AgentId = dbCredential.AgentId
+	res.UserId = dbCredential.UserId
+	res.SkillId = dbCredential.SkillId
+	res.Credentials = decryptedCreds
+
+	return &res, http.StatusOK, nil
 }

@@ -150,12 +150,9 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 		"errors": errs,
 	}
 
-	
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }
-
-
 
 func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 	var (
@@ -247,7 +244,6 @@ func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 		"errors": errs,
 	}
 
-	
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }

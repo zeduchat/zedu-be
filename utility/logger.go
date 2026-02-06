@@ -112,6 +112,11 @@ func (l *Logger) Debug(arg0 any, args ...any) {
 	if l == nil || l.logger == nil {
 		return
 	}
+
+	defer func() {
+		recover()
+	}()
+
 	l.logger.Log(log.DEBUG, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
@@ -120,6 +125,11 @@ func (l *Logger) Warning(arg0 any, args ...any) {
 	if l == nil || l.logger == nil {
 		return
 	}
+
+	defer func() {
+		recover()
+	}()
+
 	l.logger.Log(log.WARNING, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 
@@ -128,6 +138,11 @@ func (l *Logger) Error(arg0 any, args ...any) {
 	if l == nil || l.logger == nil {
 		return
 	}
+
+	defer func() {
+		recover()
+	}()
+
 	l.logger.Log(log.ERROR, getSource(), fmt.Sprintf(arg0.(string), args...))
 }
 

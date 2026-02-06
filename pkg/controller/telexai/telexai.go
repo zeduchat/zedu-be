@@ -1,11 +1,11 @@
 package telexai
 
 import (
-	"net/http"
-	"io"
 	"bytes"
-	"strings"
 	"github.com/hngprojects/telex_be/internal/config"
+	"io"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -26,10 +26,10 @@ type Controller struct {
 
 func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 	config := config.GetConfig()
-	
-    path := c.Request.URL.Path
-    path = strings.TrimPrefix(path, "/api/v1/telexai")
-    openRouterURL := config.OpenRouter.BaseUrl + path
+
+	path := c.Request.URL.Path
+	path = strings.TrimPrefix(path, "/api/v1/telexai")
+	openRouterURL := config.OpenRouter.BaseUrl + path
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -38,7 +38,7 @@ func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	
+
 	req, err := http.NewRequest(c.Request.Method, openRouterURL, bytes.NewBuffer(body))
 	if err != nil {
 		base.Logger.Error("Failed to create request to OpenRouter", err)
@@ -81,12 +81,12 @@ func (base *Controller) ProxyToOpenRouter(c *gin.Context) {
 	}
 
 	_, err = io.Copy(c.Writer, resp.Body)
-    if err != nil {
+	if err != nil {
 		base.Logger.Error("Failed to read response body from OpenRouter", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read response", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
-    }
+	}
 }
 
 func (base *Controller) RespondToChat(c *gin.Context) {
