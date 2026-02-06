@@ -332,6 +332,7 @@ func TestGetInvitationDashboardService_WithInvitation(t *testing.T) {
 		InvitedBy:      uid,
 		CreatedAt:      time.Now(),
 		ExpiresAt:      time.Now().Add(24 * time.Hour),
+		Role:           utility.GenerateUUID(),
 	}
 	db.Postgresql.Create(&invitation)
 
