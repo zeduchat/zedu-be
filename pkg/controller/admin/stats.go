@@ -16,30 +16,16 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 		Timezone: c.Query("timezone"),
 	}
 
-	// Parse custom date range if provided
-	if fromStr := c.Query("from"); fromStr != "" {
-		fromDate, err := time.Parse("2006-01-02", fromStr)
-		if err != nil {
-			base.Logger.Error("Invalid from date format", err)
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid from date format. Use YYYY-MM-DD", err.Error(), nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
-		}
-		params.From = &fromDate
+	from, to, err := utility.ParseDateRange(c.Query("from"), c.Query("to"))
+	if err != nil {
+		base.Logger.Error("Invalid date range", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
 	}
+	params.From = from
+	params.To = to
 
-	if toStr := c.Query("to"); toStr != "" {
-		toDate, err := time.Parse("2006-01-02", toStr)
-		if err != nil {
-			base.Logger.Error("Invalid to date format", err)
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid to date format. Use YYYY-MM-DD", err.Error(), nil)
-			c.JSON(http.StatusBadRequest, rd)
-			return
-		}
-		params.To = &toDate
-	}
-
-	// Validate parameters
 	if params.Preset == "" && (params.From == nil || params.To == nil) {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Either preset or both from/to dates must be provided", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -52,7 +38,6 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 		return
 	}
 
-	// Validate preset values
 	if params.Preset != "" {
 		validPresets := map[string]bool{
 			"today":        true,
@@ -69,7 +54,6 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 		}
 	}
 
-	// Validate group_by values
 	if params.GroupBy != "" {
 		validGroupBy := map[string]bool{
 			"day":   true,
@@ -83,7 +67,6 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 		}
 	}
 
-	// Validate custom date range
 	if params.From != nil && params.To != nil {
 		if params.To.Before(*params.From) {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "to date must be after from date", nil, nil)
@@ -91,7 +74,6 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 			return
 		}
 
-		// Check if range is too large (e.g., more than 2 years)
 		if params.To.Sub(*params.From) > 730*24*time.Hour {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Date range cannot exceed 2 years", nil, nil)
 			c.JSON(http.StatusBadRequest, rd)
@@ -99,7 +81,6 @@ func (base *Controller) GetUserGrowth(c *gin.Context) {
 		}
 	}
 
-	// Get user growth data
 	result, err := admin.GetUserGrowthMetrics(base.Db.Postgresql, params)
 	if err != nil {
 		base.Logger.Error("Failed to retrieve user growth data", err)
