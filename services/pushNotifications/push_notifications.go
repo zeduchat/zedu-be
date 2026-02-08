@@ -11,10 +11,24 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	repoWebpush "github.com/hngprojects/telex_be/pkg/repository/webpush"
 	fcmtokens "github.com/hngprojects/telex_be/services/fcmTokens"
+	notificationpref "github.com/hngprojects/telex_be/services/notification_pref"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 func PushFCMToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
+
+	// Check notification preferences if ChannelId and OrgId are provided
+	if req.ChannelId != "" && req.OrgId != "" {
+		shouldSend, err := notificationpref.ShouldSendNotification(db, req.UserId, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		if err != nil {
+			logger.Error("failed to check notification preferences: %v", err)
+			return nil // Non-critical error
+		}
+		if !shouldSend {
+			logger.Info("User %s has muted or disabled notifications for channel %s", req.UserId, req.ChannelId)
+			return nil
+		}
+	}
 
 	title := req.Title
 	body := req.Message
@@ -64,6 +78,21 @@ func PushFCMToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB)
 
 	} else {
 		userArr = req.UserIds
+	}
+
+	// Filter users by preferences if ChannelId and OrgId provided
+	if req.ChannelId != "" && req.OrgId != "" {
+		filteredUsers, err := notificationpref.FilterUsersByPreferences(db, userArr, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		if err != nil {
+			logger.Error("failed to filter users by preferences: %v", err)
+			return err
+		}
+		userArr = filteredUsers
+	}
+
+	if len(userArr) == 0 {
+		logger.Info("No users to send push notification to after preference filtering")
+		return nil
 	}
 
 	fcmTokens, err := fcmtokens.GetFcmTokenByUserIds(userArr, db)
@@ -171,6 +200,19 @@ func SendWebPushToUsers(req models.PushRequest, logger *utility.Logger, db *gorm
 
 // PushOneSignalToUser sends a OneSignal push notification to a single user
 func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
+	// Check notification preferences if ChannelId and OrgId are provided
+	if req.ChannelId != "" && req.OrgId != "" {
+		shouldSend, err := notificationpref.ShouldSendNotification(db, req.UserId, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		if err != nil {
+			logger.Error("failed to check notification preferences: %v", err)
+			return nil // Non-critical error
+		}
+		if !shouldSend {
+			logger.Info("User %s has muted or disabled notifications for channel %s", req.UserId, req.ChannelId)
+			return nil
+		}
+	}
+
 	user := &models.User{}
 
 	subscriptionID, err := user.GetOneSignalSubscriptionID(db, req.UserId)
@@ -209,6 +251,21 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 		userArr = users
 	} else {
 		userArr = req.UserIds
+	}
+
+	// Filter users by preferences if ChannelId and OrgId provided
+	if req.ChannelId != "" && req.OrgId != "" {
+		filteredUsers, err := notificationpref.FilterUsersByPreferences(db, userArr, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		if err != nil {
+			logger.Error("failed to filter users by preferences: %v", err)
+			return err
+		}
+		userArr = filteredUsers
+	}
+
+	if len(userArr) == 0 {
+		logger.Info("No users to send OneSignal notification to after preference filtering")
+		return nil
 	}
 
 	// OPTIMIZATION: Single query instead of N+1 (matching FCM pattern at push_notifications.go:69)
