@@ -97,6 +97,7 @@ func main() {
 		migrations.RunAllMigrations(db)
 		seed.SeedRolesAndPermissions(logger, db.Postgresql)
 		seed.SeedPlans(logger, db.Postgresql)
+		seed.SeedAICreditPackages(logger, db.Postgresql)
 		seed.SeedAssistants(logger, db.Postgresql)
 		seed.SeedIndex(logger, db.Elastic)
 		seed.SeedCreditPackages(logger, db.Postgresql)

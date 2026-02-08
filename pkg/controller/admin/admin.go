@@ -258,3 +258,16 @@ func (base *Controller) GetRoleAuditHistory(c *gin.Context) {
 	)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetPlans(c *gin.Context) {
+	response, err := admin.GetPlansWithPackages(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch plans", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch plans", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Plans retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+}

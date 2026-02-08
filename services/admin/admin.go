@@ -145,3 +145,41 @@ func ConfirmAdminRoleChange(db *storage.Database, logger *utility.Logger, token,
 
 	return nil
 }
+
+func GetPlans(db *gorm.DB) ([]models.Plan, error) {
+	var plans []models.Plan
+	if err := db.Find(&plans).Error; err != nil {
+		return nil, err
+	}
+	return plans, nil
+}
+
+func GetAICreditPackages(db *gorm.DB) ([]models.AICreditPackage, error) {
+	var packages []models.AICreditPackage
+	if err := db.Find(&packages).Error; err != nil {
+		return nil, err
+	}
+	return packages, nil
+}
+
+type PlansResponse struct {
+	Plans            []models.Plan            `json:"plans"`
+	AICreditPackages []models.AICreditPackage `json:"ai_credit_packages"`
+}
+
+func GetPlansWithPackages(db *gorm.DB) (*PlansResponse, error) {
+	plans, err := GetPlans(db)
+	if err != nil {
+		return nil, err
+	}
+
+	packages, err := GetAICreditPackages(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PlansResponse{
+		Plans:            plans,
+		AICreditPackages: packages,
+	}, nil
+}

@@ -7989,7 +7989,7 @@ paths:
                   status_code: 404
                   message: "Invitation not found"
 
- # Admin/Backoffice paths
+  # Admin/Backoffice paths
   /backoffice/admins/{admin_id}/role/initiate:
     post:
       tags:
@@ -8555,7 +8555,15 @@ paths:
           name: preset
           schema:
             type: string
-            enum: [today, yesterday, last_7_days, last_30_days, this_month, this_year]
+            enum:
+              [
+                today,
+                yesterday,
+                last_7_days,
+                last_30_days,
+                this_month,
+                this_year,
+              ]
           description: Preset time period for the stats. Cannot be used with 'from' and 'to' parameters.
           example: last_30_days
         - in: query
@@ -8760,6 +8768,137 @@ paths:
                       available_credits:
                         type: number
 
+  /backoffice/plans:
+    get:
+      tags:
+        - Admin
+      summary: Get all subscription plans
+      description: Retrieves all available subscription plans with their details including benefits, limits, and pricing.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Plans retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      plans:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "Pro"
+                            description:
+                              type: string
+                              example: "Ideal for growing learners"
+                            benefits:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                [
+                                  "Create your own AI Co Workers",
+                                  "Unlimited AI Co Workers",
+                                ]
+                            fee:
+                              type: integer
+                              example: 20
+                            max_channels:
+                              type: integer
+                              example: -1
+                            max_users:
+                              type: integer
+                              example: -1
+                            max_call_duration:
+                              type: integer
+                              example: 60
+                            max_buzz_participants:
+                              type: integer
+                              example: 50
+                            max_active_calls:
+                              type: integer
+                              example: 50
+                            call_records_available:
+                              type: boolean
+                              example: false
+                            transcript_available:
+                              type: boolean
+                              example: false
+                            advanced_controls:
+                              type: boolean
+                              example: true
+                            advanced_controls_user:
+                              type: boolean
+                              example: false
+                      ai_credit_packages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "Starter Pack"
+                            description:
+                              type: string
+                              example: "Perfect for individuals trying AI"
+                            price:
+                              type: integer
+                              example: 15
+                            credits:
+                              type: integer
+                              example: 1000
+                            benefits:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                [
+                                  "No expiration date",
+                                  "Access to GPT-4o models",
+                                  "Standard API priority",
+                                ]
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch plans"
+
   /backoffice/dashboard/users-stats:
     get:
       tags:
@@ -8933,11 +9072,11 @@ paths:
         "200":
           description: Invitation dashboard retrieved successfully
           content:
-                  message:
-                    type: string
-                    example: "Failed to fetch invitation dashboard"
-                  data:
-                    $ref: "#/components/schemas/InvitationDashboardResponse"
+            message:
+              type: string
+              example: "Failed to fetch invitation dashboard"
+            data:
+              $ref: "#/components/schemas/InvitationDashboardResponse"
 
   /backoffice/admins:
     get:
@@ -15633,7 +15772,6 @@ paths:
                     description: A message describing the result.
                   data:
                     type: object
-                    
 
         400:
           description: Invalid agent_idor request.
@@ -19496,7 +19634,11 @@ paths:
                     type: string
                     format: uuid
                   description: List of user IDs to send the file to
-                  example: ["550e8400-e29b-41d4-a716-446655440000", "550e8400-e29b-41d4-a716-446655440001"]
+                  example:
+                    [
+                      "550e8400-e29b-41d4-a716-446655440000",
+                      "550e8400-e29b-41d4-a716-446655440001",
+                    ]
                 note:
                   type: string
                   description: Optional note to include with the file
@@ -26573,7 +26715,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
@@ -26626,7 +26768,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
@@ -26674,7 +26816,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
@@ -26773,7 +26915,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
         - in: path
@@ -26834,7 +26976,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
@@ -26883,7 +27025,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
@@ -26975,7 +27117,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
@@ -27064,7 +27206,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       requestBody:
@@ -27169,7 +27311,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
@@ -27258,7 +27400,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-
   /buzz/{id}/metadata:
     get:
       tags:
@@ -27273,7 +27414,7 @@ paths:
           name: id
           schema:
             type: string
-            
+
           required: true
           description: "The buzz identifier - accepts either full UUID or buzzCode (12-character hex string). Both formats supported for backward compatibility."
       responses:
@@ -27864,13 +28005,13 @@ components:
           nullable: true
           example: "https://example.com/avatar.jpg"
         is_in_buzz:
-            type: boolean
-            description: Whether the user is currently an active participant in the buzz (excludes users who have left)
-            example: false
+          type: boolean
+          description: Whether the user is currently an active participant in the buzz (excludes users who have left)
+          example: false
         is_invited:
-            type: boolean
-            description: Whether the user has a pending invitation
-            example: false
+          type: boolean
+          description: Whether the user has a pending invitation
+          example: false
 
     SearchChannelMembersResponse:
       type: object
@@ -28009,7 +28150,7 @@ components:
           description: The unique ID of the created buzz
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
@@ -28028,44 +28169,44 @@ components:
           enum: [active, ended]
           description: Current status of the buzz
         created_at:
-           type: string
-           format: date-time
-           description: When the buzz was created
+          type: string
+          format: date-time
+          description: When the buzz was created
         started_at:
-           type: string
-           format: date-time
-           description: When the buzz started
+          type: string
+          format: date-time
+          description: When the buzz started
         ended_at:
-           type: string
-           format: date-time
-           nullable: true
-           description: When buzz is scheduled to end default is 60 minutes after creation
+          type: string
+          format: date-time
+          nullable: true
+          description: When buzz is scheduled to end default is 60 minutes after creation
         participants:
-           type: array
-           items:
-             $ref: "#/components/schemas/ParticipantMetadata"
-           description: Array of participant metadata (initially contains only the host)
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipantMetadata"
+          description: Array of participant metadata (initially contains only the host)
         agora_token:
           allOf:
             - $ref: "#/components/schemas/BuzzAgoraTokenResponse"
           nullable: true
       description: Agora RTC token and connection details (valid for 1 hour - matches maximum buzz duration). If token generation fails, the entire buzz creation will fail with HTTP 500.
       example:
-         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-         host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-         channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-         status: "active"
-         created_at: "2025-11-28T12:00:00Z"
-         started_at: "2025-11-28T12:00:00Z"
-         ended_at: "2025-11-28T13:00:00Z"
-         participants:
-           - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-             username: "hostuser"
-             full_name: "Host User"
-             avatar_url: "https://example.com/avatars/host.jpg"
-             joined_at: "2025-11-28T12:00:00Z"
-             status: "active"
-         agora_token:
+        buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        host_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        channel_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+        status: "active"
+        created_at: "2025-11-28T12:00:00Z"
+        started_at: "2025-11-28T12:00:00Z"
+        ended_at: "2025-11-28T13:00:00Z"
+        participants:
+          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
+            username: "hostuser"
+            full_name: "Host User"
+            avatar_url: "https://example.com/avatars/host.jpg"
+            joined_at: "2025-11-28T12:00:00Z"
+            status: "active"
+        agora_token:
           token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
           app_id: "your-agora-app-id"
           channel_name: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
@@ -28080,7 +28221,7 @@ components:
           description: The unique ID of the buzz
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
@@ -28170,7 +28311,7 @@ components:
           example: "550e8400-e29b-41d4-a716-446655440000"
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
           example: "446655440000"
         participant_id:
@@ -28210,7 +28351,7 @@ components:
           example: "550e8400-e29b-41d4-a716-446655440000"
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
           example: "446655440000"
         channel_id:
@@ -28252,7 +28393,7 @@ components:
           description: The unique ID of the buzz
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
           type: string
@@ -28367,7 +28508,7 @@ components:
           format: uuid
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
         user_id:
           type: string
           format: uuid
@@ -28411,7 +28552,7 @@ components:
           description: The unique ID of the active buzz (null if no active buzz)
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           nullable: true
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         host_id:
@@ -28516,7 +28657,7 @@ components:
           format: uuid
         buzz_code:
           type: string
-          pattern: '^[0-9A-F]{12}$'
+          pattern: "^[0-9A-F]{12}$"
           description: The 12-character hexadecimal buzz code (last segment of buzz_id)
         user_id:
           type: string
