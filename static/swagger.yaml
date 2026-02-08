@@ -8733,58 +8733,91 @@ paths:
                     type: string
                     example: "Plans retrieved successfully"
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                        name:
-                          type: string
-                          example: "Pro"
-                        description:
-                          type: string
-                          example: "Ideal for growing learners"
-                        benefits:
-                          type: array
-                          items:
-                            type: string
-                          example:
-                            [
-                              "Create your own AI Co Workers",
-                              "Unlimited AI Co Workers",
-                            ]
-                        fee:
-                          type: integer
-                          example: 20
-                        max_channels:
-                          type: integer
-                          example: -1
-                        max_users:
-                          type: integer
-                          example: -1
-                        max_call_duration:
-                          type: integer
-                          example: 60
-                        max_buzz_participants:
-                          type: integer
-                          example: 50
-                        max_active_calls:
-                          type: integer
-                          example: 50
-                        call_records_available:
-                          type: boolean
-                          example: false
-                        transcript_available:
-                          type: boolean
-                          example: false
-                        advanced_controls:
-                          type: boolean
-                          example: true
-                        advanced_controls_user:
-                          type: boolean
-                          example: false
+                    type: object
+                    properties:
+                      plans:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "Pro"
+                            description:
+                              type: string
+                              example: "Ideal for growing learners"
+                            benefits:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                [
+                                  "Create your own AI Co Workers",
+                                  "Unlimited AI Co Workers",
+                                ]
+                            fee:
+                              type: integer
+                              example: 20
+                            max_channels:
+                              type: integer
+                              example: -1
+                            max_users:
+                              type: integer
+                              example: -1
+                            max_call_duration:
+                              type: integer
+                              example: 60
+                            max_buzz_participants:
+                              type: integer
+                              example: 50
+                            max_active_calls:
+                              type: integer
+                              example: 50
+                            call_records_available:
+                              type: boolean
+                              example: false
+                            transcript_available:
+                              type: boolean
+                              example: false
+                            advanced_controls:
+                              type: boolean
+                              example: true
+                            advanced_controls_user:
+                              type: boolean
+                              example: false
+                      ai_credit_packages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "Starter Pack"
+                            description:
+                              type: string
+                              example: "Perfect for individuals trying AI"
+                            price:
+                              type: integer
+                              example: 15
+                            credits:
+                              type: integer
+                              example: 1000
+                            benefits:
+                              type: array
+                              items:
+                                type: string
+                              example:
+                                [
+                                  "No expiration date",
+                                  "Access to GPT-4o models",
+                                  "Standard API priority",
+                                ]
         "401":
           description: Unauthorized
           content:

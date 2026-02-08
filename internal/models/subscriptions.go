@@ -76,6 +76,18 @@ type Plan struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+type AICreditPackage struct {
+	ID          string         `gorm:"primaryKey;type:uuid" json:"id"`
+	Name        string         `gorm:"uniqueIndex;" json:"name"`
+	Description string         `json:"description"`
+	Price       int            `gorm:"not null" json:"price"`
+	Credits     int            `gorm:"not null" json:"credits"`
+	Benefits    pq.StringArray `gorm:"type:text[]" json:"benefits"`
+	CreatedAt   time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
 type OrganisationPlan struct {
 	ID             string         `gorm:"primaryKey;type:uuid" json:"id,omitempty"`
 	OrganisationID string         `gorm:"not null;index" json:"organisation_id,omitempty"`
