@@ -39,8 +39,14 @@ func BuildErrorResponse(code int, status string, message string, err any, data a
 
 // ResponseMessage method for the central response holder
 func ResponseMessage(code int, status string, name string, message string, err any, data any, pagination any, extra any) Response {
-	if pagination != nil && reflect.ValueOf(pagination).IsNil() {
-		pagination = nil
+	if pagination != nil {
+		v := reflect.ValueOf(pagination)
+		switch v.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+			if v.IsNil() {
+				pagination = nil
+			}
+		}
 	}
 
 	if code == http.StatusInternalServerError {
