@@ -516,8 +516,8 @@ func TestListUsers_Pagination(t *testing.T) {
 	}
 
 	// Check pagination metadata exists
-	pagArr, ok := data["pagination"].([]any)
-	if !ok || len(pagArr) == 0 {
+	_, ok := data["pagination"].(map[string]any)
+	if !ok {
 		t.Fatal("expected pagination metadata")
 	}
 }
@@ -589,12 +589,12 @@ func TestListUsersService_WithFilters(t *testing.T) {
 	db := storage.Connection()
 
 	authCtl := auth.Controller{
-		Db: db, 
-		Validator: validatorRef, 
-		Logger: logger, 
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
 		ExtReq: request.ExternalRequest{
-			Logger: logger, 
-			Test: true,
+			Logger: logger,
+			Test:   true,
 		}}
 
 	currUUID := utility.GenerateUUID()

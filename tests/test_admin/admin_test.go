@@ -109,14 +109,11 @@ func TestListUsersEndpoint(t *testing.T) {
 		t.Error("missing total_signups in stats")
 	}
 
-	pagArr, ok := data["pagination"].([]any)
-	if !ok || len(pagArr) == 0 {
+	pag, ok := data["pagination"].(map[string]any)
+	if !ok || len(pag) == 0 {
 		t.Logf("response headers: %v", rr.Header())
 		t.Logf("response body: %s", rr.Body.String())
 		t.Fatalf("expected pagination metadata in response")
-	}
-	if _, ok := pagArr[0].(map[string]any); !ok {
-		t.Fatalf("expected pagination element to be an object")
 	}
 }
 
