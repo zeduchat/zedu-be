@@ -145,3 +145,11 @@ func ConfirmAdminRoleChange(db *storage.Database, logger *utility.Logger, token,
 
 	return nil
 }
+
+func GetPlans(db *gorm.DB) ([]models.Plan, error) {
+	var plans []models.Plan
+	if err := db.Find(&plans).Error; err != nil {
+		return nil, err
+	}
+	return plans, nil
+}

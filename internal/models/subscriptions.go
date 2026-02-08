@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/lib/pq"
 )
 
 var StripeMap map[string]string
@@ -46,6 +47,8 @@ type CompleteSubscriptionRequest struct {
 type Plan struct {
 	ID                       string         `gorm:"primaryKey;type:uuid" json:"id"`
 	Name                     string         `gorm:"uniqueIndex;" json:"name"`
+	Description              string         `json:"description"`
+	Benefits                 pq.StringArray `gorm:"type:text[]" json:"benefits"`
 	Fee                      int            `gorm:"not null" json:"fee"`
 	MaxChannels              int            `gorm:"not null" json:"max_channels"`
 	MaxUsers                 int            `gorm:"not null" json:"max_users"`
@@ -59,10 +62,18 @@ type Plan struct {
 	UnlimitedAICoWorkers     bool           `gorm:"not null;default:false" json:"unlimited_ai_co_workers"`
 	CreateYourOwnAICoWorkers bool           `gorm:"not null;default:false" json:"create_your_own_ai_co_workers"`
 	AICreditsPurchasable     bool           `gorm:"not null;default:false" json:"ai_credits_purchasable"`
-	CreatedAt                time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	Credits                  int            `gorm:"not null;default:0" json:"credits"`
-	UpdatedAt                time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
-	DeletedAt                gorm.DeletedAt `gorm:"index" json:"-"`
+	MaxCallDuration          int            `gorm:"not null;default:0" json:"max_call_duration"`
+	MaxBuzzParticipants      int            `gorm:"not null;default:0" json:"max_buzz_participants"`
+	MaxActiveCalls           int            `gorm:"not null;default:0" json:"max_active_calls"`
+	CallRecordsAvailable     bool           `gorm:"not null;default:false" json:"call_records_available"`
+	TranscriptAvailable      bool           `gorm:"not null;default:false" json:"transcript_available"`
+	AdvancedControls         bool           `gorm:"not null;default:false" json:"advanced_controls"`
+	AdvancedControlsUser     bool           `gorm:"not null;default:false" json:"advanced_controls_user"`
+
+	CreatedAt time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	Credits   int            `gorm:"not null;default:0" json:"credits"`
+	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type OrganisationPlan struct {
