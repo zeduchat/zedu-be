@@ -77,9 +77,10 @@ type CreditPackageResponse struct {
 }
 
 type CreditTopUpRequest struct {
-	OrgID     string `json:"org_id" validate:"required"`
+	OrgID     string `json:"org_id"`
 	PackageID string `json:"package_id" validate:"required"`
 	Email     string `json:"email" validate:"required"`
+	UserId    string `json:"-"`
 }
 
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
@@ -332,13 +333,12 @@ func GetOrgCreditTransactions(org_id string, db *gorm.DB, c *gin.Context) ([]Cre
 
 func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
 	var creditUsages []CreditUsage
-	var creditUsageResponses []CreditUsageResponse
+	creditUsageResponses := make([]CreditUsageResponse, 0)
 
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&CreditUsage{}).
 		Where("organisation_id = ?", orgID).
-		Preload("Agent").
 		Order("created_at DESC")
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -371,12 +371,11 @@ func GetOrgCreditUsage(orgID string, db *gorm.DB, c *gin.Context) ([]CreditUsage
 
 func GetAllCreditUsage(db *gorm.DB, c *gin.Context) ([]CreditUsageResponse, postgresql.PaginationResponse, error) {
 	var creditUsages []CreditUsage
-	var creditUsageResponses []CreditUsageResponse
+	creditUsageResponses := make([]CreditUsageResponse, 0)
 
 	pagination := postgresql.GetPagination(c)
 
 	query := db.Model(&CreditUsage{}).
-		Preload("Agent").
 		Preload("Organisation").
 		Order("created_at DESC")
 

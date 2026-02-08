@@ -23,7 +23,11 @@ type Response struct {
 
 // BuildResponse method is to inject data value to dynamic success response
 func BuildSuccessResponse(code int, message string, data any, pagination ...any) Response {
-	res := ResponseMessage(code, "success", "", message, nil, data, pagination, nil)
+	var paginationData any
+	if len(pagination) > 0 {
+		paginationData = pagination[0]
+	}
+	res := ResponseMessage(code, "success", "", message, nil, data, paginationData, nil)
 	return res
 }
 

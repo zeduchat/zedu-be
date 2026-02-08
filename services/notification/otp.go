@@ -28,7 +28,7 @@ func SendDirectOTP(extReq request.ExternalRequest, req models.SendOTP, db *gorm.
 		return fmt.Errorf("error getting user with account id %v, %v", req.Email, err)
 	}
 
-	data, err := ConvertToMapAndAddExtraData(req, map[string]any{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email), "business_name": thisOrThatStr("", "Telex")})
+	data, err := ConvertToMapAndAddExtraData(req, map[string]any{"firstname": thisOrThatStr(user.Profile.FirstName, user.Email), "business_name": thisOrThatStr("", "Zedu")})
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v, %v", err, strings.Join(errs, ", "))
 	}
