@@ -23,7 +23,7 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	base.Logger.Info("DEBUG: Webhook body: %s\n", string(body))
 	var event stripe.Event
 	if err := json.Unmarshal(body, &event); err != nil {
 		base.Logger.Error("Error parsing event: " + err.Error())
@@ -36,13 +36,19 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 	case "checkout.session.completed":
 		var checkoutSession stripe.CheckoutSession
 
-		err := json.Unmarshal(event.Data.Raw, &checkoutSession)
+		rawObject := event.Data.Raw
+		if len(rawObject) == 0 && event.Data.Object != nil {
+			rawObject, _ = json.Marshal(event.Data.Object)
+		}
+
+		err := json.Unmarshal(rawObject, &checkoutSession)
 		if err != nil {
 			base.Logger.Error("Error parsing webhook JSON:" + err.Error())
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Error parsing webhook JSON", nil, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
+		base.Logger.Info("DEBUG: Webhook session ID: %s, SuccessURL: %s\n", checkoutSession.ID, checkoutSession.SuccessURL)
 
 		if !strings.HasPrefix(checkoutSession.SuccessURL, "https://zedu.chat") &&
 			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.zedu.chat") &&
