@@ -384,3 +384,236 @@ func GetDashboardOverviewStats(db *gorm.DB) (OverviewStatsResponse, int, error) 
 
 	return resp, http.StatusOK, nil
 }
+
+type UserGrowthParams struct {
+	Preset   string
+	From     *time.Time
+	To       *time.Time
+	GroupBy  string
+	Timezone string
+}
+
+type UserGrowthResponse struct {
+	Period     string                `json:"period,omitempty"`
+	StartDate  string                `json:"start_date,omitempty"`
+	EndDate    string                `json:"end_date,omitempty"`
+	TotalCount int64                 `json:"total_count"`
+	Breakdown  []UserGrowthBreakdown `json:"breakdown,omitempty"`
+}
+
+type UserGrowthBreakdown struct {
+	Period string `json:"period"`
+	Date   string `json:"date"`
+	Count  int64  `json:"count"`
+}
+
+func GetUserGrowthMetrics(db *gorm.DB, params UserGrowthParams) (*UserGrowthResponse, error) {
+	// Defaults to Nigerian time if timezone param is not provided
+	location, err := time.LoadLocation("Africa/Lagos")
+	if err != nil {
+		location = time.FixedZone("WAT", 1*60*60)
+	}
+
+	// Override with provided timezone if specified
+	if params.Timezone != "" {
+		loc, locErr := time.LoadLocation(params.Timezone)
+		if locErr != nil {
+			return nil, fmt.Errorf("invalid timezone: %w", locErr)
+		}
+		location = loc
+	}
+
+	now := time.Now().In(location)
+	var startDate, endDate time.Time
+
+	// Determine date range based on preset or custom dates
+	if params.Preset != "" {
+		startDate, endDate = getPresetDateRange(params.Preset, now)
+	} else if params.From != nil && params.To != nil {
+		startDate = time.Date(params.From.Year(), params.From.Month(), params.From.Day(), 0, 0, 0, 0, location)
+		endDate = time.Date(params.To.Year(), params.To.Month(), params.To.Day(), 23, 59, 59, 999999999, location)
+	} else {
+		return nil, fmt.Errorf("either preset or from/to dates must be provided")
+	}
+
+	response := &UserGrowthResponse{
+		StartDate: startDate.Format("2006-01-02"),
+		EndDate:   endDate.Format("2006-01-02"),
+	}
+
+	if params.Preset != "" {
+		response.Period = params.Preset
+	}
+
+	// Get total count
+	var totalCount int64
+	if err := db.Model(&models.User{}).
+		Where("created_at >= ? AND created_at <= ? AND deleted_at IS NULL", startDate.UTC(), endDate.UTC()).
+		Count(&totalCount).Error; err != nil {
+		return nil, fmt.Errorf("failed to get total user count: %w", err)
+	}
+	response.TotalCount = totalCount
+
+	// If group_by is specified, get breakdown
+	if params.GroupBy != "" {
+		breakdown, err := getBreakdown(db, startDate, endDate, params.GroupBy, location)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get breakdown: %w", err)
+		}
+		response.Breakdown = breakdown
+	}
+
+	return response, nil
+}
+
+func getPresetDateRange(preset string, now time.Time) (time.Time, time.Time) {
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todayEnd := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, now.Location())
+
+	switch preset {
+	case "today":
+		return todayStart, todayEnd
+
+	case "yesterday":
+		yesterdayStart := todayStart.AddDate(0, 0, -1)
+		yesterdayEnd := yesterdayStart.Add(24*time.Hour - time.Nanosecond)
+		return yesterdayStart, yesterdayEnd
+
+	case "last_7_days":
+		startDate := todayStart.AddDate(0, 0, -6) // Last 7 days including today
+		return startDate, todayEnd
+
+	case "last_30_days":
+		startDate := todayStart.AddDate(0, 0, -29) // Last 30 days including today
+		return startDate, todayEnd
+
+	case "this_month":
+		monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		return monthStart, todayEnd
+
+	case "this_year":
+		yearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		return yearStart, todayEnd
+
+	default:
+		return todayStart, todayEnd
+	}
+}
+
+func getBreakdown(db *gorm.DB, startDate, endDate time.Time, groupBy string, location *time.Location) ([]UserGrowthBreakdown, error) {
+	switch groupBy {
+	case "day":
+		return getDailyBreakdown(db, startDate, endDate, location)
+	case "week":
+		return getWeeklyBreakdown(db, startDate, endDate, location)
+	case "month":
+		return getMonthlyBreakdown(db, startDate, endDate, location)
+	default:
+		return nil, fmt.Errorf("invalid group_by value: %s", groupBy)
+	}
+}
+
+func getDailyBreakdown(db *gorm.DB, startDate, endDate time.Time, location *time.Location) ([]UserGrowthBreakdown, error) {
+	var breakdown []UserGrowthBreakdown
+
+	// Normalize dates to compare only date parts, not timestamps
+	currentDate := time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, location)
+	endDateOnly := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 0, 0, 0, 0, location)
+
+	// Fixed: Use !After instead of Before/Equal to properly include the last day
+	for !currentDate.After(endDateOnly) {
+		dayStart := time.Date(currentDate.Year(), currentDate.Month(), currentDate.Day(), 0, 0, 0, 0, location)
+		dayEnd := dayStart.Add(24*time.Hour - time.Nanosecond)
+
+		var count int64
+		if err := db.Model(&models.User{}).
+			Where("created_at >= ? AND created_at <= ? AND deleted_at IS NULL", dayStart.UTC(), dayEnd.UTC()).
+			Count(&count).Error; err != nil {
+			return nil, fmt.Errorf("failed to count users for day %s: %w", dayStart.Format("2006-01-02"), err)
+		}
+
+		breakdown = append(breakdown, UserGrowthBreakdown{
+			Period: "day",
+			Date:   dayStart.Format("2006-01-02"),
+			Count:  count,
+		})
+
+		currentDate = currentDate.AddDate(0, 0, 1)
+	}
+
+	return breakdown, nil
+}
+
+func getWeeklyBreakdown(db *gorm.DB, startDate, endDate time.Time, location *time.Location) ([]UserGrowthBreakdown, error) {
+	var breakdown []UserGrowthBreakdown
+
+	// Start from the beginning of the week containing startDate
+	weekday := int(startDate.Weekday())
+	if weekday == 0 {
+		weekday = 7
+	}
+	weekStart := startDate.AddDate(0, 0, -(weekday - 1))
+	weekStart = time.Date(weekStart.Year(), weekStart.Month(), weekStart.Day(), 0, 0, 0, 0, location)
+
+	for weekStart.Before(endDate) || weekStart.Equal(endDate) {
+		weekEnd := weekStart.AddDate(0, 0, 6)
+		weekEnd = time.Date(weekEnd.Year(), weekEnd.Month(), weekEnd.Day(), 23, 59, 59, 999999999, location)
+
+		// Adjust if week extends beyond endDate
+		if weekEnd.After(endDate) {
+			weekEnd = endDate
+		}
+
+		var count int64
+		if err := db.Model(&models.User{}).
+			Where("created_at >= ? AND created_at <= ? AND deleted_at IS NULL", weekStart.UTC(), weekEnd.UTC()).
+			Count(&count).Error; err != nil {
+			return nil, err
+		}
+
+		breakdown = append(breakdown, UserGrowthBreakdown{
+			Period: "week",
+			Date:   weekStart.Format("2006-01-02"),
+			Count:  count,
+		})
+
+		weekStart = weekStart.AddDate(0, 0, 7)
+	}
+
+	return breakdown, nil
+}
+
+func getMonthlyBreakdown(db *gorm.DB, startDate, endDate time.Time, location *time.Location) ([]UserGrowthBreakdown, error) {
+	var breakdown []UserGrowthBreakdown
+
+	// Start from the beginning of the month containing startDate
+	monthStart := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, location)
+
+	for monthStart.Before(endDate) || monthStart.Equal(endDate) {
+		// Calculate the last day of the month
+		nextMonth := monthStart.AddDate(0, 1, 0)
+		monthEnd := nextMonth.Add(-time.Nanosecond)
+
+		// Adjust if month extends beyond endDate
+		if monthEnd.After(endDate) {
+			monthEnd = endDate
+		}
+
+		var count int64
+		if err := db.Model(&models.User{}).
+			Where("created_at >= ? AND created_at <= ? AND deleted_at IS NULL", monthStart.UTC(), monthEnd.UTC()).
+			Count(&count).Error; err != nil {
+			return nil, err
+		}
+
+		breakdown = append(breakdown, UserGrowthBreakdown{
+			Period: "month",
+			Date:   monthStart.Format("2006-01"),
+			Count:  count,
+		})
+
+		monthStart = nextMonth
+	}
+
+	return breakdown, nil
+}
