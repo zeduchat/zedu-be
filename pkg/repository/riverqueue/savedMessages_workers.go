@@ -75,6 +75,8 @@ func (w *SavedMessagesRemainderWorker) Work(ctx context.Context, job *river.Job[
 
 	//send push notification
 	pushRequest := models.PushRequest{
+		ChannelId:   c.ChannelsID,
+		OrgId:       c.OrgId,
 		UserId:      content.UserId,
 		ChannelName: resolveChannelName(w.db, c.ChannelsID),
 		Message:     "You have a saved message reminder.",

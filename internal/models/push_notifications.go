@@ -2,6 +2,7 @@ package models
 
 type PushRequest struct {
 	ChannelId   string `json:"channel_id"`
+	OrgId       string `json:"org_id"`
 	UserId      string `json:"user_id"`
 	Message     string `json:"message"`
 	ChannelName string `json:"channel_name"`
