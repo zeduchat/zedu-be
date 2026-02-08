@@ -7246,12 +7246,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /credits/top-up:
+  /credits/purchase:
     post:
       tags:
         - credits
-      summary: Top-up organisation credit balance
-      description: Top-up organisation credit balance.
+      summary: Purchase credits for an organisation
+      description: Purchase credits for an organisation.
       security:
         - bearerAuth: []
       requestBody:
@@ -7261,19 +7261,22 @@ paths:
             schema:
               type: object
               properties:
-                org_id:
-                  type: string
-                  format: uuid
-                  description: The ID of the organization whose credit balance is to be topped up..
-                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
                 package_id:
                   type: string
                   format: uuid
-                  description: The Credit package organisation want to purchase.
+                  description: The ID of the credit package to purchase.
                   example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+                email:
+                  type: string
+                  format: email
+                  description: The email associated with the purchase.
+                  example: "user@example.com"
+              required:
+                - package_id
+                - email
       responses:
-        "201":
-          description: Organisation credit wallet has been topped up successfully
+        "200":
+          description: Checkout Session URL generated successfully
           content:
             application/json:
               schema:
@@ -7284,10 +7287,17 @@ paths:
                     example: "success"
                   status_code:
                     type: integer
-                    example: 201
+                    example: 200
                   message:
                     type: string
-                    example: "Organisation credit wallet has been topped up successfully"
+                    example: "Checkout Session URL generated successfully"
+                  data:
+                    type: object
+                    properties:
+                      checkout_session_id:
+                        type: string
+                      checkout_session_url:
+                        type: string
         "400":
           description: Bad request
           content:
@@ -7300,12 +7310,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: Not found
+        "500":
+          description: Server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /credits/verify-payment:
+    post:
+      tags:
+        - credits
+      summary: Verify organisation credit top-up payment
+      description: Verify organisation credit top-up payment using Stripe session ID.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  description: The ID of the Stripe checkout session.
+                  example: "cs_test_a1yvVa2yYQw4Mm0JOVbRWWtjdIRcYikZTPMFWDegPDmKmlUU9gEHLAwDW5"
+              required:
+                - session_id
+      responses:
+        "200":
+          description: Payment verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Payment verified successfully"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Server error
           content:

@@ -21,6 +21,7 @@ type Database struct {
 	Elastic    *elasticsearch.Client
 	Mongo      *mongo.Client
 	River      *river.Client[pgx.Tx]
+	IsTest     bool
 }
 
 var (

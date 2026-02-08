@@ -57,6 +57,7 @@ func Setup() *utility.Logger {
 		minio.ConnectToMinio(logger, config.Minio)
 		agora.NewAgoraService(logger, config.Agora)
 		db := storage.Connection()
+		db.IsTest = true
 		if config.TestDatabase.Migrate {
 			logger.Info("Starting SQL migrations...")
 			success, err := RunSQLMigrations(config.TestDatabase, logger)
@@ -69,6 +70,7 @@ func Setup() *utility.Logger {
 			seed.SeedRolesAndPermissions(logger, db.Postgresql)
 			seed.SeedPlans(logger, db.Postgresql)
 			seed.SeedCreditPackages(logger, db.Postgresql)
+			seed.SeedAICreditPackages(logger, db.Postgresql)
 		}
 
 		// Initialize River client for background jobs

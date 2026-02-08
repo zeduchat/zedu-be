@@ -76,6 +76,7 @@ func SetupCreditRoutes(r *gin.Engine, creditController *credits.Controller) {
 		middleware.Authorize(creditController.Db.Postgresql))
 	{
 		creditUrl.POST("/purchase", creditController.PurchaseCredits)
+		creditUrl.POST("/verify-payment", creditController.VerifyPayment)
 		creditUrl.GET("/packages", creditController.GetCreditPackages)
 		creditUrl.GET("/usage", creditController.GetOrgCreditUsage)
 		creditUrl.GET("/usage-report/:org_id", creditController.GetOrgCreditReport)
