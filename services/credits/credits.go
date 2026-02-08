@@ -1,8 +1,8 @@
 package credits
 
 import (
-	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,11 +27,6 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusNotFound, err
 	}
 
-	stripePriceID, exists := GetStripePriceID(credit.Name)
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for credit plan")
-	}
-
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
@@ -41,11 +36,20 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusBadRequest, err
 	}
 
+	priceInCents := int64(credit.Price * 100)
+
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String(strings.ToLower(credit.Currency)),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(credit.Name),
+						Description: stripe.String("Credit package with " + strconv.Itoa(credit.Credits) + " credits"),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -69,15 +73,4 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 	}
 
 	return &responseData, http.StatusOK, nil
-}
-
-func GetStripePriceID(planName string) (string, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(planName))
-	priceID, exist := models.MapPackagePriceID[normalized]
-
-	if !exist {
-		return priceID, false
-	}
-
-	return priceID, true
 }

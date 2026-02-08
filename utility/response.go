@@ -23,7 +23,11 @@ type Response struct {
 
 // BuildResponse method is to inject data value to dynamic success response
 func BuildSuccessResponse(code int, message string, data any, pagination ...any) Response {
-	res := ResponseMessage(code, "success", "", message, nil, data, pagination, nil)
+	var paginationData any
+	if len(pagination) > 0 {
+		paginationData = pagination[0]
+	}
+	res := ResponseMessage(code, "success", "", message, nil, data, paginationData, nil)
 	return res
 }
 
@@ -35,8 +39,14 @@ func BuildErrorResponse(code int, status string, message string, err any, data a
 
 // ResponseMessage method for the central response holder
 func ResponseMessage(code int, status string, name string, message string, err any, data any, pagination any, extra any) Response {
-	if pagination != nil && reflect.ValueOf(pagination).IsNil() {
-		pagination = nil
+	if pagination != nil {
+		v := reflect.ValueOf(pagination)
+		switch v.Kind() {
+		case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+			if v.IsNil() {
+				pagination = nil
+			}
+		}
 	}
 
 	if code == http.StatusInternalServerError {
