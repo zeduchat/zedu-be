@@ -181,3 +181,32 @@ func (base *Controller) GetAllCreditUsage(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "credit usage retrieved successfully.", credits_usage, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) VerifyPayment(c *gin.Context) {
+	var req models.VerifyPaymentRequest
+
+	err := c.ShouldBind(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	resp, code, err := service.VerifyPayment(req.SessionID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "Payment verified successfully", resp)
+	c.JSON(code, rd)
+}

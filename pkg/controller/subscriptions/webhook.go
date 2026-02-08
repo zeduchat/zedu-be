@@ -44,8 +44,9 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			return
 		}
 
-		if !strings.HasPrefix(checkoutSession.SuccessURL, "https://telex.im") &&
-			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.telex.im") {
+		if !strings.HasPrefix(checkoutSession.SuccessURL, "https://zedu.chat") &&
+			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.zedu.chat") &&
+			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.zedu.im") {
 			base.Logger.Info("Webhook not for telex")
 			rd := utility.BuildSuccessResponse(http.StatusOK, "Webhook not for telex", nil)
 			c.JSON(http.StatusOK, rd)
@@ -79,7 +80,7 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			org_id := checkoutSession.Metadata["org_id"]
 			package_id := checkoutSession.Metadata["package_id"]
 
-			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id)
+			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id, &checkoutSession.ID)
 			if err != nil {
 				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 				c.JSON(code, rd)

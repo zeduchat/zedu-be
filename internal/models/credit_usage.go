@@ -48,14 +48,15 @@ type CreditUsageResponse struct {
 }
 
 type CreditTransaction struct {
-	ID             string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	OrganisationID string    `gorm:"type:uuid;not null;index" json:"organisation_id"`
-	Amount         float64   `gorm:"type:decimal(10,2);not null" json:"amount"`
-	BalanceBefore  float64   `gorm:"type:decimal(10,2);not null" json:"balance_before"`
-	BalanceAfter   float64   `gorm:"type:decimal(10,2);not null" json:"balance_after"`
-	Type           string    `gorm:"type:varchar(50);not null" json:"type"` // e.g., "topup", "refund"
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
+	ID              string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	OrganisationID  string    `gorm:"type:uuid;not null;index" json:"organisation_id"`
+	Amount          float64   `gorm:"type:decimal(10,2);not null" json:"amount"`
+	BalanceBefore   float64   `gorm:"type:decimal(10,2);not null" json:"balance_before"`
+	BalanceAfter    float64   `gorm:"type:decimal(10,2);not null" json:"balance_after"`
+	Type            string    `gorm:"type:varchar(50);not null" json:"type"` // e.g., "topup", "refund"
+	StripeSessionID *string   `gorm:"type:varchar(255);unique;index;default:null" json:"stripe_session_id"`
+	CreatedAt       time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 }
 
 type CreditPackage struct {
@@ -81,6 +82,10 @@ type CreditTopUpRequest struct {
 	PackageID string `json:"package_id" validate:"required"`
 	Email     string `json:"email" validate:"required"`
 	UserId    string `json:"-"`
+}
+
+type VerifyPaymentRequest struct {
+	SessionID string `json:"session_id" validate:"required"`
 }
 
 func (c *CreditTransaction) CreateCreditTransaction(db *gorm.DB) error {
@@ -162,7 +167,7 @@ func UpdateOrgCreditBalance(db *gorm.DB, organisationID string) error {
 		Update("credit_balance", balance).Error
 }
 
-func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, error) {
+func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string, sessionID *string) (*gin.H, int, error) {
 	var org Organisation
 
 	org, err := org.GetOrgByID(db, OrgID)
@@ -179,12 +184,13 @@ func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string) (*gin.H, int, e
 
 	// create credit transaction
 	credit_transaction := CreditTransaction{
-		ID:             utility.GenerateUUID(),
-		OrganisationID: OrgID,
-		Amount:         float64(credit_pkg.Credits),
-		BalanceBefore:  float64(org.CreditBalance),
-		BalanceAfter:   float64(org.CreditBalance) + float64(credit_pkg.Credits),
-		Type:           "Top-up",
+		ID:              utility.GenerateUUID(),
+		OrganisationID:  OrgID,
+		Amount:          float64(credit_pkg.Credits),
+		BalanceBefore:   float64(org.CreditBalance),
+		BalanceAfter:    float64(org.CreditBalance) + float64(credit_pkg.Credits),
+		Type:            "Top-up",
+		StripeSessionID: sessionID,
 	}
 
 	err = credit_transaction.CreateCreditTransaction(db)

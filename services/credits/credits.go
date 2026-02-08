@@ -1,6 +1,8 @@
 package credits
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,4 +75,30 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 	}
 
 	return &responseData, http.StatusOK, nil
+}
+func VerifyPayment(sessionID string, db *gorm.DB) (*gin.H, int, error) {
+
+	var existingTransaction models.CreditTransaction
+	err := db.Where("stripe_session_id = ?", sessionID).First(&existingTransaction).Error
+	if err == nil {
+		return nil, http.StatusOK, nil
+	}
+
+	stripeSession, err := session.Get(sessionID, nil)
+	if err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to retrieve stripe session: %v", err)
+	}
+
+	if stripeSession.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+		return nil, http.StatusBadRequest, errors.New("payment not completed")
+	}
+
+	orgID := stripeSession.Metadata["org_id"]
+	packageID := stripeSession.Metadata["package_id"]
+
+	if orgID == "" || packageID == "" {
+		return nil, http.StatusBadRequest, errors.New("invalid session metadata")
+	}
+
+	return models.TopUpOrgCredit(db, orgID, packageID, &sessionID)
 }
