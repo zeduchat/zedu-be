@@ -8483,6 +8483,165 @@ paths:
                   message:
                     type: string
                     example: "Failed to fetch platform credit summary"
+  /backoffice/dashboard/user-growth:
+    get:
+      tags:
+        - Admin
+      summary: Get user growth statistics
+      description: Retrieves user growth metrics over a specified time period with optional breakdown by day, week, or month. Supports both preset periods and custom date ranges.
+      parameters:
+        - in: query
+          name: preset
+          schema:
+            type: string
+            enum: [today, yesterday, last_7_days, last_30_days, this_month, this_year]
+          description: Preset time period for the stats. Cannot be used with 'from' and 'to' parameters.
+          example: last_30_days
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+          description: Start date for custom date range (YYYY-MM-DD). Must be used with 'to' parameter. Cannot be used with 'preset'.
+          example: "2024-01-01"
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+          description: End date for custom date range (YYYY-MM-DD). Must be used with 'from' parameter. Cannot be used with 'preset'.
+          example: "2024-01-31"
+        - in: query
+          name: group_by
+          schema:
+            type: string
+            enum: [day, week, month]
+          description: Optional grouping for breakdown statistics
+          example: day
+        - in: query
+          name: timezone
+          schema:
+            type: string
+          description: Timezone for date calculations (IANA timezone format). Defaults to Africa/Lagos if not provided.
+          example: "America/New_York"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User growth data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User growth data retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      period:
+                        type: string
+                        description: The preset period used (only present when using preset parameter)
+                        example: "last_30_days"
+                      start_date:
+                        type: string
+                        format: date
+                        description: Start date of the period
+                        example: "2024-01-01"
+                      end_date:
+                        type: string
+                        format: date
+                        description: End date of the period
+                        example: "2024-01-31"
+                      total_count:
+                        type: integer
+                        description: Total number of users created in the specified period
+                        example: 150
+                      breakdown:
+                        type: array
+                        description: Optional breakdown of user counts (only present when group_by is specified)
+                        items:
+                          type: object
+                          properties:
+                            period:
+                              type: string
+                              enum: [day, week, month]
+                              description: The grouping period
+                              example: "day"
+                            date:
+                              type: string
+                              description: Date or start date of the period (YYYY-MM-DD for day/week, YYYY-MM for month)
+                              example: "2024-01-15"
+                            count:
+                              type: integer
+                              description: Number of users created in this period
+                              example: 5
+        "400":
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Either preset or both from/to dates must be provided"
+              examples:
+                missing_params:
+                  summary: Missing required parameters
+                  value:
+                    status: "error"
+                    message: "Either preset or both from/to dates must be provided"
+                both_preset_and_custom:
+                  summary: Both preset and custom range provided
+                  value:
+                    status: "error"
+                    message: "Cannot use both preset and custom date range"
+                invalid_preset:
+                  summary: Invalid preset value
+                  value:
+                    status: "error"
+                    message: "Invalid preset. Valid values: today, yesterday, last_7_days, last_30_days, this_month, this_year"
+                invalid_group_by:
+                  summary: Invalid group_by value
+                  value:
+                    status: "error"
+                    message: "Invalid group_by. Valid values: day, week, month"
+                invalid_date_format:
+                  summary: Invalid date format
+                  value:
+                    status: "error"
+                    message: "Invalid from date format. Use YYYY-MM-DD"
+                invalid_date_range:
+                  summary: Invalid date range
+                  value:
+                    status: "error"
+                    message: "to date must be after from date"
+                range_too_large:
+                  summary: Date range exceeds limit
+                  value:
+                    status: "error"
+                    message: "Date range cannot exceed 2 years"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to retrieve user growth data"
 
   /backoffice/dashboard/overview:
     get:

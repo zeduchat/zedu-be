@@ -220,12 +220,28 @@ const (
 )
 
 type DeviceNotification struct {
-	Muted       bool               `json:"muted,omitempty"`
-	AtMentions  bool               `json:"at_mentions,omitempty"`
+	Muted       bool               `json:"muted"`
+	AtMentions  bool               `json:"at_mentions"`
 	NotifyAbout NotificationOption `json:"notify_about,omitempty"`
-	AtChannel   bool               `json:"at_channel,omitempty"`
-	SendMail    bool               `json:"send_mail,omitempty"`
+	AtChannel   bool               `json:"at_channel"`
+	SendMail    bool               `json:"send_mail"`
 	TimeRange   string             `json:"time_range,omitempty"`
+}
+
+func GetDefaultChannelDeviceNotification() DeviceNotification {
+	return DeviceNotification{
+		Muted:       false,
+		AtMentions:  true,
+		AtChannel:   true,
+		NotifyAbout: AllMessages,
+	}
+}
+
+func GetDefaultOrgDeviceNotification() DeviceNotification {
+	return DeviceNotification{
+		NotifyAbout: AllMessages,
+		TimeRange:   "12:00 AM - 11:59 PM",
+	}
 }
 
 type ChannelNotificationInfo struct {
@@ -258,31 +274,26 @@ func (n *DeviceNotificationSettings) UpdateDeviceNotification(db *gorm.DB) (Devi
 
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
-
-		deviceSettings := pref.Preferences[n.DeviceType]
-		deviceSettings.AtChannel = n.AtChannel
-		deviceSettings.AtMentions = n.AtMentions
-		deviceSettings.Muted = n.Muted
-
-		pref.Preferences[n.DeviceType] = deviceSettings
-
-		// Save the updated preference
-		if err := db.Save(&pref).Error; err != nil {
-			return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
-		}
-
-		return deviceSettings, http.StatusOK, db.Save(&pref).Error
 	}
 
 	deviceSettings := pref.Preferences[n.DeviceType]
+
+	if deviceSettings.NotifyAbout == "" {
+		deviceSettings = GetDefaultChannelDeviceNotification()
+	}
+
 	deviceSettings.AtChannel = n.AtChannel
 	deviceSettings.AtMentions = n.AtMentions
 	deviceSettings.Muted = n.Muted
+	deviceSettings.NotifyAbout = n.NotifyAbout
 
-	// Save back to preferences
 	pref.Preferences[n.DeviceType] = deviceSettings
 
-	return deviceSettings, http.StatusOK, db.Save(&pref).Error
+	if err := db.Save(&pref).Error; err != nil {
+		return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
+	}
+
+	return deviceSettings, http.StatusOK, nil
 }
 
 func (n *DeviceNotificationSettings) GetOrCreateDeviceNotification(db *gorm.DB) (DeviceNotification, error) {
@@ -298,18 +309,12 @@ func (n *DeviceNotificationSettings) GetOrCreateDeviceNotification(db *gorm.DB) 
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
 	}
-	// Check if settings for deviceType exist
+
 	deviceSettings, ok := pref.Preferences[n.DeviceType]
 	if !ok {
-		// If not exist, create default settings
-		deviceSettings = DeviceNotification{
-			Muted:      false,
-			AtMentions: true,
-			AtChannel:  true,
-		}
+		deviceSettings = GetDefaultChannelDeviceNotification()
 		pref.Preferences[n.DeviceType] = deviceSettings
 
-		// Save the updated preference
 		if err := db.Save(&pref).Error; err != nil {
 			return DeviceNotification{}, err
 		}
@@ -362,31 +367,25 @@ func (n *DeviceNotificationSettings) UpdateDeviceOrgNotification(db *gorm.DB) (D
 
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
-
-		deviceSettings := pref.Preferences[n.DeviceType]
-		deviceSettings.NotifyAbout = n.NotifyAbout
-		deviceSettings.SendMail = n.SendMail
-		deviceSettings.TimeRange = n.TimeRange
-
-		pref.Preferences[n.DeviceType] = deviceSettings
-
-		// Save the updated preference
-		if err := db.Save(&pref).Error; err != nil {
-			return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
-		}
-
-		return deviceSettings, http.StatusOK, db.Save(&pref).Error
 	}
 
 	deviceSettings := pref.Preferences[n.DeviceType]
+
+	if deviceSettings.NotifyAbout == "" {
+		deviceSettings = GetDefaultOrgDeviceNotification()
+	}
+
 	deviceSettings.NotifyAbout = n.NotifyAbout
 	deviceSettings.SendMail = n.SendMail
 	deviceSettings.TimeRange = n.TimeRange
 
-	// Save back to preferences
 	pref.Preferences[n.DeviceType] = deviceSettings
 
-	return deviceSettings, http.StatusOK, db.Save(&pref).Error
+	if err := db.Save(&pref).Error; err != nil {
+		return DeviceNotification{}, http.StatusBadRequest, fmt.Errorf("failed to save entry")
+	}
+
+	return deviceSettings, http.StatusOK, nil
 }
 
 func (n *DeviceNotificationSettings) GetOrCreateDeviceOrgNotification(db *gorm.DB) (DeviceNotification, error) {
@@ -402,18 +401,12 @@ func (n *DeviceNotificationSettings) GetOrCreateDeviceOrgNotification(db *gorm.D
 	if pref.Preferences == nil {
 		pref.Preferences = make(NotificationPreference)
 	}
-	// Check if settings for deviceType exist
+
 	deviceSettings, ok := pref.Preferences[n.DeviceType]
 	if !ok {
-		// If not exist, create default settings
-		deviceSettings = DeviceNotification{
-			NotifyAbout: AllMessages,
-			SendMail:    false,
-			TimeRange:   "12:00 AM - 11:59 PM",
-		}
+		deviceSettings = GetDefaultOrgDeviceNotification()
 		pref.Preferences[n.DeviceType] = deviceSettings
 
-		// Save the updated preference
 		if err := db.Save(&pref).Error; err != nil {
 			return DeviceNotification{}, err
 		}
