@@ -80,7 +80,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	db := storage.Connection()
 	validator := validator.New()
 
-	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
 	sessionID := fmt.Sprintf("cs_test_%s", utility.GenerateUUID())
 
 	webhookController := subscriptions.Controller{
