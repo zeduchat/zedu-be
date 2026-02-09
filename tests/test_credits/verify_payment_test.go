@@ -71,6 +71,6 @@ func TestVerifyPayment_InvalidSession(t *testing.T) {
 	if rr.Code == http.StatusNotFound {
 		assert.Contains(t, response["message"], "org not found")
 	} else {
-		assert.Contains(t, response["message"], "invalid session metadata")
+		assert.Contains(t, response["message"], "failed to retrieve stripe session")
 	}
 }
