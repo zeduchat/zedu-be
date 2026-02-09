@@ -164,6 +164,8 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 		req models.CompleteSubscriptionRequest
 	)
 
+	req.StripeSessionID = c.Query("session_id")
+
 	err := c.ShouldBindQuery(&req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse query parameters", err, nil)
@@ -178,6 +180,15 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	req.OrgID = orgID.(string)
 
 	subscriptionData, code, _, err := service.CompleteSubscription(req, base.Db.Postgresql, base.Db.Redis)
 	if err != nil {
