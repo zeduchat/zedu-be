@@ -5022,6 +5022,10 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - org_id
+                - stripe_session_id
+                - plan_id
               properties:
                 org_id:
                   type: string
@@ -5030,9 +5034,10 @@ paths:
                 stripe_session_id:
                   type: string
                   example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
-              required:
-                - org_id
-                - stripe_session_id
+                plan_id:
+                  type: string
+                  format: uuid
+                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
       responses:
         "200":
           description: Subscription completed successfully and invoices retrieved
@@ -5502,6 +5507,12 @@ paths:
       responses:
         "200":
           description: Subscription plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanResponse"
         "401":
           description: Unauthorized
         "500":
@@ -7261,10 +7272,10 @@ paths:
             schema:
               type: object
               properties:
-                package_id:
+                plan_id:
                   type: string
                   format: uuid
-                  description: The ID of the credit package to purchase.
+                  description: The ID of the credit plan to purchase.
                   example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
                 email:
                   type: string
@@ -7272,7 +7283,7 @@ paths:
                   description: The email associated with the purchase.
                   example: "user@example.com"
               required:
-                - package_id
+                - plan_id
                 - email
       responses:
         "200":
@@ -31897,14 +31908,14 @@ components:
     CreateSubscriptionRequest:
       type: object
       required:
-        - plan_name
+        - plan_id
         - org_id
         - email
       properties:
-        plan_name:
+        plan_id:
           type: string
-          description: "The name of the subscription plan."
-          example: "Premium"
+          description: "The ID of the subscription plan."
+          example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
         org_id:
           type: string
           description: "The unique identifier for the org."
@@ -31919,14 +31930,39 @@ components:
       type: object
       required:
         - org_id
-        - plan_name
+        - plan_id
       properties:
         org_id:
           type: string
-          description: The ID of the user modifying the subscription
-        plan_name:
+          description: The ID of the organisation
+        plan_id:
           type: string
-          description: The new name of the subscription plan
+          description: The new ID of the subscription plan
+
+    PlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        benefits:
+          type: array
+          items:
+            type: string
+        fee:
+          type: integer
+        credits:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     DeleteSubscriptionRequest:
       type: object

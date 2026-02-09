@@ -177,6 +177,10 @@ func TopUpOrgCredit(db *gorm.DB, OrgID string, PackageID string, sessionID *stri
 
 	var credit_pkg CreditPackage
 
+	if PackageID == "" {
+		return nil, http.StatusBadRequest, errors.New("package id is required")
+	}
+
 	err = db.Where("id = ?", PackageID).First(&credit_pkg).Error
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("credit package does not exist: %v", err)

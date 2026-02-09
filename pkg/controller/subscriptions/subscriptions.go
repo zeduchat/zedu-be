@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/subscription"
 	"github.com/hngprojects/telex_be/utility"
@@ -47,6 +48,25 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	req.OrgID = orgID.(string)
+
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	req.UserId = userID.(string)
 
 	subscriptionData, code, err := service.CreateSubscription(req, base.Db.Postgresql, url)
 	if err != nil {

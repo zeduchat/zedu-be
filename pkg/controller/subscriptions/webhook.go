@@ -84,9 +84,9 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		switch checkoutSession.Metadata["flow"] {
 		case "credit_topup":
 			org_id := checkoutSession.Metadata["org_id"]
-			package_id := checkoutSession.Metadata["package_id"]
+			plan_id := checkoutSession.Metadata["plan_id"]
 
-			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id, &checkoutSession.ID)
+			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, plan_id, &checkoutSession.ID)
 			if err != nil {
 				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 				c.JSON(code, rd)
@@ -95,14 +95,14 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			}
 
 		case "subscription":
-			plan_name := checkoutSession.Metadata["plan_name"]
+			plan_id := checkoutSession.Metadata["plan_id"]
 			org_id := checkoutSession.Metadata["org_id"]
 			stripe_customer_id := checkoutSession.Metadata["customer_id"]
 
 			req := models.CompleteSubscriptionRequest{
 				Email:            orgEmail,
 				StripeSessionID:  checkoutSession.ID,
-				PlanName:         plan_name,
+				PlanID:           plan_id,
 				OrgID:            org_id,
 				StripeCustomerID: stripe_customer_id,
 			}

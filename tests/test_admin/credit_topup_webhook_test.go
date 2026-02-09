@@ -219,9 +219,9 @@ func CreateTestStripeWebhookEvent(orgID, packageID, sessionID, successURL, cance
 		"success_url": successURL,
 		"cancel_url":  cancelURL,
 		"metadata": map[string]string{
-			"flow":       "credit_topup",
-			"org_id":     orgID,
-			"package_id": packageID,
+			"flow":    "credit_topup",
+			"org_id":  orgID,
+			"plan_id": packageID,
 		},
 		"customer_details": map[string]any{
 			"email": fmt.Sprintf("test%s@qa.team", utility.RandomString(5)),
