@@ -220,7 +220,7 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	var orgUserMgt models.OrgUserManagement
 	userRoleInfo, err := orgUserMgt.GetUserRoleInOrganisation(db, userId, orgId)
 	if err == nil && userRoleInfo.RoleName != "" {
-		org.CurrentUserRole = userRoleInfo.RoleName
+		org.CurrentUserRoleInfo = userRoleInfo
 	}
 
 	org.OrganisationSlug = slug.Make(org.Name)

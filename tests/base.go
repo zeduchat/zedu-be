@@ -154,7 +154,7 @@ func SignupUser(t *testing.T, r *gin.Engine, auth auth.Controller, userSignUpDat
 	r.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
-		t.Logf("Registration failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		t.Fatalf("Registration failed with status %d. Response: %s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -176,6 +176,7 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 	r.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
+		t.Fatalf("Login failed with status %d. Response: %s", rr.Code, rr.Body.String())
 		return ""
 	}
 
@@ -303,7 +304,7 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	r.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
-		t.Logf("Organisation creation failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		t.Fatalf("Organisation creation failed with status %d. Response: %s", rr.Code, rr.Body.String())
 		return "", "", ""
 	}
 
