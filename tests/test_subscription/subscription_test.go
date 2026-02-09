@@ -41,7 +41,6 @@ func TestGetSubscriptionPlans_Fields(t *testing.T) {
 }
 
 func TestGetSubscriptions_NoDuplicates(t *testing.T) {
-	logger := tst.Setup()
 	db := storage.Connection()
 
 	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.OrganisationPlan{})
