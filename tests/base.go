@@ -302,8 +302,17 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	//get the response
+	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
+		t.Logf("Organisation creation failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		return "", "", ""
+	}
+
 	data := ParseResponse(rr)
+	if data["data"] == nil {
+		t.Logf("Organisation creation response has no data field. Response: %s", rr.Body.String())
+		return "", "", ""
+	}
+
 	dataM := data["data"].(map[string]any)
 	orgID := dataM["id"].(string)
 	orgName := dataM["name"].(string)
