@@ -107,6 +107,7 @@ type OrganisationPlan struct {
 	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at,omitempty"`
 	Status         string         `gorm:"null" json:"status,omitempty"`
 	SessionID      string         `gorm:"null" json:"session_id,omitempty"`
+	InvoicePDFURL  string         `gorm:"null" json:"invoice_pdf_url,omitempty"`
 	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at,omitempty"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at,omitempty"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
@@ -192,6 +193,7 @@ type OrgPlanDetails struct {
 	EndDate               time.Time `json:"end_date"`
 	Status                string    `json:"status"`
 	SessionID             string    `json:"session_id"`
+	InvoicePDFURL         string    `json:"invoice_pdf_url"`
 	OrganisationCreatedAt time.Time `json:"organisation_created_at"`
 }
 
@@ -204,7 +206,8 @@ func (r *OrganisationPlan) GetOrgPlanDetailByOrgID(db *gorm.DB, orgID string) (O
                op.started_at AS start_date, 
                op.ended_at AS end_date,
                o.created_at AS organisation_created_at,
-			   op.status AS  status
+			   op.status AS status,
+			   op.invoice_pdf_url AS invoice_pdf_url
         FROM organisations o
         LEFT JOIN organisation_plans op ON o.id = op.organisation_id AND op.status = ?
         LEFT JOIN plans p ON op.plan_id::uuid = p.id
@@ -253,9 +256,10 @@ func (r *OrganisationPlan) GetOrgPlanDetailsByOrgID(db *gorm.DB, orgID string) (
                op.started_at AS start_date, 
                op.ended_at AS end_date,
                o.created_at AS organisation_created_at,
-			   op.status AS  status,
+			   op.status AS status,
 			   op.session_id AS session_id,
-			   op.id AS id
+			   op.id AS id,
+			   op.invoice_pdf_url AS invoice_pdf_url
         FROM organisations o
         LEFT JOIN organisation_plans op ON o.id = op.organisation_id
         LEFT JOIN plans p ON op.plan_id::uuid = p.id

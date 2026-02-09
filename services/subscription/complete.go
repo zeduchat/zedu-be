@@ -57,6 +57,22 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusInternalServerError, nil, errors.New("error retrieving organisation plan")
 	}
 
+	params := &stripe.InvoiceListParams{
+		Subscription: stripe.String(sesh.Subscription.ID),
+	}
+
+	i := invoice.List(params)
+
+	var invoiceItems []*stripe.Invoice
+
+	for i.Next() {
+		invoiceItems = append(invoiceItems, i.Invoice())
+	}
+
+	if err := i.Err(); err != nil || len(invoiceItems) == 0 {
+		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
+	}
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 
 		orgPlan = models.OrganisationPlan{
@@ -109,22 +125,6 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 	_, err = org.Update(db)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error updating org subscription plan")
-	}
-
-	params := &stripe.InvoiceListParams{
-		Subscription: stripe.String(sesh.Subscription.ID),
-	}
-
-	i := invoice.List(params)
-
-	var invoiceItems []*stripe.Invoice
-
-	for i.Next() {
-		invoiceItems = append(invoiceItems, i.Invoice())
-	}
-
-	if err := i.Err(); err != nil {
-		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
 	}
 
 	cacheKey := "org_plan:" + org.ID
