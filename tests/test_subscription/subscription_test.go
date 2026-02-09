@@ -45,7 +45,6 @@ func TestGetSubscriptions_NoDuplicates(t *testing.T) {
 	db := storage.Connection()
 
 	db.Postgresql.Exec("DELETE FROM credit_usages WHERE 1 = 1")
-	db.Postgresql.Exec("DELETE FROM user_organisations WHERE 1 = 1")
 	db.Postgresql.Exec("DELETE FROM org_roles WHERE 1 = 1")
 	db.Postgresql.Exec("DELETE FROM invitations WHERE 1 = 1")
 	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.OrganisationPlan{})
