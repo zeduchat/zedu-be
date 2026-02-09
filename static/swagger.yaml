@@ -5010,34 +5010,20 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /subscriptions/complete:
-    post:
+    get:
       summary: Complete a subscription and retrieve associated invoices
       tags:
         - subscription
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - org_id
-                - stripe_session_id
-                - plan_id
-              properties:
-                org_id:
-                  type: string
-                  format: uuid
-                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
-                stripe_session_id:
-                  type: string
-                  example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
-                plan_id:
-                  type: string
-                  format: uuid
-                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
+      parameters:
+        - in: query
+          name: session_id
+          schema:
+            type: string
+          required: true
+          description: Stripe session ID
+          example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
       responses:
         "200":
           description: Subscription completed successfully and invoices retrieved

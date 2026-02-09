@@ -17,21 +17,31 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 	var orgRepo models.Organisation
 	var orgPlanRepo models.OrganisationPlan
 
-	org, err := orgRepo.GetOrgByID(db, req.OrgID)
-	if err != nil {
-		return nil, http.StatusNotFound, nil, errors.New("org not found")
-	}
-
 	sesh, err := session.Get(req.StripeSessionID, nil)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
+	}
+
+	orgID := sesh.Metadata["org_id"]
+	if orgID == "" {
+		return nil, http.StatusBadRequest, nil, errors.New("organisation ID not found in session metadata")
+	}
+
+	org, err := orgRepo.GetOrgByID(db, orgID)
+	if err != nil {
+		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
 
 	if sesh.PaymentStatus != "paid" {
 		return nil, http.StatusBadRequest, nil, errors.New("session not paid")
 	}
 
-	plan, err := models.GetPlanByID(db, req.PlanID)
+	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
+		return nil, http.StatusBadRequest, nil, errors.New("no subscription ID found")
+	}
+
+	planID := sesh.Metadata["plan_id"]
+	plan, err := models.GetPlanByID(db, planID)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("plan not found")
 	}
@@ -54,8 +64,8 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		}
 		org.OrgPlanID = orgPlan.ID
 		org.OrganisationPlan = orgPlan
-		org.SubscriptionPlanId = req.StripeSessionID
-		org.StripeCustomerID = req.StripeCustomerID
+		org.SubscriptionPlanId = sesh.Subscription.ID
+		org.StripeCustomerID = sesh.Customer.ID
 
 		err = orgPlan.Create(db)
 		if err != nil {
@@ -82,8 +92,8 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 
 		org.OrgPlanID = newOrgPlan.ID
 		org.OrganisationPlan = newOrgPlan
-		org.SubscriptionPlanId = req.StripeSessionID
-		org.StripeCustomerID = req.StripeCustomerID
+		org.SubscriptionPlanId = sesh.Subscription.ID
+		org.StripeCustomerID = sesh.Customer.ID
 
 		err = newOrgPlan.Create(db)
 		if err != nil {
