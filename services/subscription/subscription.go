@@ -24,11 +24,6 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusNotFound, errors.New("plan not found")
 	}
 
-	stripePriceID, exists := models.StripeMap[plan.Name]
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
-	}
-
 	stripeCustomerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.Email),
 	}
@@ -38,11 +33,22 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
 
+	priceInCents := int64(plan.Fee * 100)
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("usd"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String(plan.Description),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
+						Interval: stripe.String("month"),
+					},
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -126,11 +132,6 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 		return nil, http.StatusNotFound, errors.New("plan not found")
 	}
 
-	stripePriceID, exists := models.StripeMap[plan.Name]
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
-	}
-
 	var org models.Organisation
 	org, err = org.GetOrgByID(db, req.OrgID)
 	if err != nil {
@@ -141,11 +142,22 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 		return nil, http.StatusBadRequest, errors.New("org does not have a Stripe customer ID")
 	}
 
+	priceInCents := int64(plan.Fee * 100)
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(org.StripeCustomerID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("usd"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String(plan.Description),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
+						Interval: stripe.String("month"),
+					},
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
