@@ -59,13 +59,6 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			return
 		}
 
-		var orgEmail string
-		if checkoutSession.CustomerDetails != nil {
-			orgEmail = checkoutSession.CustomerDetails.Email
-		} else {
-			orgEmail = checkoutSession.Customer.Email
-		}
-
 		var webhookData = models.ProcessedStripeWebhook{}
 		isProcessed, err := webhookData.IsWebhookProcessed(base.Db.Postgresql, checkoutSession.ID)
 		if err != nil {
@@ -95,16 +88,9 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			}
 
 		case "subscription":
-			plan_id := checkoutSession.Metadata["plan_id"]
-			org_id := checkoutSession.Metadata["org_id"]
-			stripe_customer_id := checkoutSession.Metadata["customer_id"]
 
 			req := models.CompleteSubscriptionRequest{
-				Email:            orgEmail,
-				StripeSessionID:  checkoutSession.ID,
-				PlanID:           plan_id,
-				OrgID:            org_id,
-				StripeCustomerID: stripe_customer_id,
+				StripeSessionID: checkoutSession.ID,
 			}
 
 			_, code, _, err := service.CompleteSubscriptionWebhook(req, base.Db.Postgresql)

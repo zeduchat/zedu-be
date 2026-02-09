@@ -23,14 +23,19 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 	var planRepo models.Plan
 	var orgPlanRepo models.OrganisationPlan
 
-	org, err := orgRepo.GetOrgByID(db, req.OrgID)
-	if err != nil {
-		return nil, http.StatusNotFound, nil, errors.New("org not found")
-	}
-
 	sesh, err := session.Get(req.StripeSessionID, nil)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
+	}
+
+	orgID := sesh.Metadata["org_id"]
+	if orgID == "" {
+		return nil, http.StatusBadRequest, nil, errors.New("organisation ID not found in session metadata")
+	}
+
+	org, err := orgRepo.GetOrgByID(db, orgID)
+	if err != nil {
+		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
 
 	theAmt := int(sesh.AmountSubtotal) / 100
@@ -47,7 +52,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusBadRequest, nil, errors.New("plan not found")
 	}
 
-	orgPlan, err := orgPlanRepo.GetAnOrgPlanById(db, req.OrgID)
+	orgPlan, err := orgPlanRepo.GetAnOrgPlanById(db, org.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, nil, errors.New("error retrieving organisation plan")
 	}
@@ -56,7 +61,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 
 		orgPlan = models.OrganisationPlan{
 			ID:             utility.GenerateUUID(),
-			OrganisationID: req.OrgID,
+			OrganisationID: org.ID,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
@@ -80,7 +85,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 
 		newOrgPlan := models.OrganisationPlan{
 			ID:             utility.GenerateUUID(),
-			OrganisationID: req.OrgID,
+			OrganisationID: org.ID,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
@@ -97,7 +102,9 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 	}
 
 	org.SubscriptionPlanId = sesh.Subscription.ID
-	org.StripeCustomerID = sesh.Customer.ID
+	if sesh.Customer != nil {
+		org.StripeCustomerID = sesh.Customer.ID
+	}
 
 	_, err = org.Update(db)
 	if err != nil {

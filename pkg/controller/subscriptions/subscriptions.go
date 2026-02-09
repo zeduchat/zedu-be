@@ -158,9 +158,9 @@ func (base *Controller) CompleteSubscription(c *gin.Context) {
 		req models.CompleteSubscriptionRequest
 	)
 
-	err := c.ShouldBind(&req)
+	err := c.ShouldBindQuery(&req)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse query parameters", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
