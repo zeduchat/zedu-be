@@ -18,8 +18,6 @@ func TestGetSubscriptionPlans_Fields(t *testing.T) {
 	logger := tst.Setup()
 	db := storage.Connection()
 
-	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.Plan{})
-
 	if err := db.Postgresql.AutoMigrate(&models.Plan{}); err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
@@ -61,6 +59,7 @@ func TestGetSubscriptions_NoDuplicates(t *testing.T) {
 	}
 
 	seed.SeedPlans(logger, db.Postgresql)
+	seed.SeedRolesAndPermissions(logger, db.Postgresql)
 
 	var plan models.Plan
 	err := db.Postgresql.Where("name = ?", "Free").First(&plan).Error
