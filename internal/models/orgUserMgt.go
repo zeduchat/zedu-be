@@ -85,7 +85,7 @@ type UpdateMemberRequest struct {
 type OrgUserRoleInfo struct {
 	RoleID         string `json:"role_id"`
 	RoleName       string `json:"role_name"`
-	OrganisationID string `json:"organisation_id"`
+	OrganisationID string `json:"-"`
 }
 
 type ChangeMemberActiveStatus struct {

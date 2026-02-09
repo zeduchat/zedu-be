@@ -74,6 +74,7 @@ func (base *Controller) GetOrganisation(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId = userClaims["org_id"].(string)
 
 	orgData, err := service.GetOrganisation(orgId, userId, base.Db.Postgresql)
 

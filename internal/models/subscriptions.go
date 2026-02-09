@@ -248,7 +248,7 @@ func (r *OrganisationPlan) GetOrgPlanDetailsByOrgID(db *gorm.DB, orgID string) (
 	var details []OrgPlanDetails
 
 	query := `
-        SELECT p.name AS name, 
+        SELECT DISTINCT p.name AS name, 
                p.fee AS fee, 
                op.started_at AS start_date, 
                op.ended_at AS end_date,

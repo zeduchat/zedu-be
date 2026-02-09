@@ -151,5 +151,7 @@ func SeedPlans(logger *utility.Logger, db *gorm.DB) {
 				logger.Error("failed to update plan: " + err.Error())
 			}
 		}
+
+		logger.Info("Plans seeded successfully>>>>>>>>>>>>>>")
 	}
 }

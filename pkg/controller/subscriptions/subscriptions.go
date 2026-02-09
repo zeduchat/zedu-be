@@ -83,11 +83,17 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 func (base *Controller) ListSubscriptions(c *gin.Context) {
 
-	var (
-		orgID = c.Param("org_id")
-	)
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
 
-	subscriptionsData, code, err := service.ListSubscriptions(orgID, base.Db.Postgresql)
+	OrgID := orgID.(string)
+
+	subscriptionsData, code, err := service.ListSubscriptions(OrgID, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -207,11 +213,17 @@ func (base *Controller) GetCurrentSubscription(c *gin.Context) {
 
 func (base *Controller) GetSubscriptions(c *gin.Context) {
 
-	var (
-		orgID = c.Param("org_id")
-	)
 
-	subscriptionsData, code, err := service.GetSubscriptions(orgID, base.Db.Postgresql)
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	
+
+	subscriptionsData, code, err := service.GetSubscriptions(orgID.(string), base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
