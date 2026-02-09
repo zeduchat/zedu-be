@@ -20,6 +20,15 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+
+func getLagosTime() time.Time {
+	loc, _ := time.LoadLocation("Africa/Lagos")
+	if loc == nil {
+		loc = time.FixedZone("WAT", 1*60*60)
+	}
+	return time.Now().In(loc)
+}
+
 // =============================================================================
 // PRESET TESTS
 // =============================================================================
@@ -34,7 +43,7 @@ func TestGetUserGrowth_PresetToday(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 
 	// Create a user today
 	user := models.CreateUserRequestModel{
@@ -90,7 +99,7 @@ func TestGetUserGrowth_PresetYesterday(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 	yesterday := now.AddDate(0, 0, -1)
 
 	// Create a user and backdate to yesterday
@@ -162,7 +171,7 @@ func TestGetUserGrowth_PresetLast7Days(t *testing.T) {
 
 		// Backdate some users
 		if i > 0 {
-			pastDate := time.Now().AddDate(0, 0, -i*2)
+			pastDate := getLagosTime().AddDate(0, 0, -i*2)
 			db.Postgresql.Model(&models.User{}).Where("email = ?", user.Email).Update("created_at", pastDate)
 		}
 	}
@@ -241,7 +250,7 @@ func TestGetUserGrowth_PresetThisMonth(t *testing.T) {
 	}
 
 	// Verify start_date is first day of current month
-	now := time.Now()
+	now := getLagosTime()
 	expectedStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
 	if respData["start_date"].(string) != expectedStart {
 		t.Errorf("expected start_date '%s', got '%s'", expectedStart, respData["start_date"])
@@ -273,7 +282,7 @@ func TestGetUserGrowth_PresetThisYear(t *testing.T) {
 	}
 
 	// Verify start_date is Jan 1 of current year
-	now := time.Now()
+	now := getLagosTime()
 	expectedStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
 	if respData["start_date"].(string) != expectedStart {
 		t.Errorf("expected start_date '%s', got '%s'", expectedStart, respData["start_date"])
@@ -294,7 +303,7 @@ func TestGetUserGrowth_CustomDateRange(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 
 	// Create a user today
 	user := models.CreateUserRequestModel{
@@ -355,7 +364,7 @@ func TestGetUserGrowth_CustomDateRangeSingleDay(t *testing.T) {
 	r.GET("/api/v1/backoffice/dashboard/user-growth", adminCtl.GetUserGrowth)
 
 	// Same from and to date
-	today := time.Now().Format("2006-01-02")
+	today := getLagosTime().Format("2006-01-02")
 
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/dashboard/user-growth?from=%s&to=%s", today, today), nil)
 	rr := httptest.NewRecorder()
@@ -388,7 +397,7 @@ func TestGetUserGrowth_GroupByDay(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 
 	// Create users on different days
 	for i := 0; i < 3; i++ {
@@ -468,7 +477,7 @@ func TestGetUserGrowth_GroupByWeek(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 
 	// Create users across different weeks
 	for i := 0; i < 3; i++ {
@@ -536,7 +545,7 @@ func TestGetUserGrowth_GroupByMonth(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	now := time.Now()
+	now := getLagosTime()
 
 	// Create users in different months
 	for i := 0; i < 2; i++ {
@@ -719,7 +728,7 @@ func TestGetUserGrowth_BothPresetAndCustomRange(t *testing.T) {
 	r := gin.Default()
 	r.GET("/api/v1/backoffice/dashboard/user-growth", adminCtl.GetUserGrowth)
 
-	today := time.Now().Format("2006-01-02")
+	today := getLagosTime().Format("2006-01-02")
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/dashboard/user-growth?preset=today&from=%s&to=%s", today, today), nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -844,7 +853,7 @@ func TestGetUserGrowthService_PresetToday(t *testing.T) {
 	}
 
 	// Verify dates
-	now := time.Now()
+	now := getLagosTime()
 	expectedDate := now.Format("2006-01-02")
 	if result.StartDate != expectedDate || result.EndDate != expectedDate {
 		t.Errorf("expected dates to be '%s', got start='%s', end='%s'",
@@ -905,7 +914,7 @@ func TestGetUserGrowthService_WithBreakdown(t *testing.T) {
 func TestGetUserGrowthService_CustomDateRange(t *testing.T) {
 	_, _, _, db := SetupAdminTestRouter()
 
-	now := time.Now()
+	now := getLagosTime()
 	fromDate := now.AddDate(0, 0, -7)
 	toDate := now
 
@@ -1071,7 +1080,7 @@ func TestGetUserGrowth_ExcludesDeletedUsers(t *testing.T) {
 	tst.SignupUser(t, gin.Default(), authCtl, user, false)
 
 	// Soft delete the user
-	now := time.Now()
+	now := getLagosTime()
 	db.Postgresql.Model(&models.User{}).Where("email = ?", user.Email).Update("deleted_at", now)
 
 	r := gin.Default()

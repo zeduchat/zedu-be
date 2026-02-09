@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v72"
@@ -24,9 +23,9 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusNotFound, err
 	}
 
-	credit, _, err := models.GetCreditPackageByID(db, req.PackageID)
+	plan, code, err := models.GetCreditPackageByID(db, req.PackageID)
 	if err != nil {
-		return nil, http.StatusNotFound, err
+		return nil, code, err
 	}
 
 	stripeCustomerParams := &stripe.CustomerParams{
@@ -38,17 +37,17 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusBadRequest, err
 	}
 
-	priceInCents := int64(credit.Price * 100)
+	priceInCents := int64(plan.Price * 100)
 
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-					Currency: stripe.String(strings.ToLower(credit.Currency)),
+					Currency: stripe.String("usd"),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name:        stripe.String(credit.Name),
-						Description: stripe.String("Credit package with " + strconv.Itoa(credit.Credits) + " credits"),
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String("Subscription plan credits: " + strconv.Itoa(plan.Credits) + " credits"),
 					},
 					UnitAmount: stripe.Int64(priceInCents),
 				},
@@ -62,7 +61,7 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("flow", "credit_topup")
-	params.AddMetadata("package_id", req.PackageID)
+	params.AddMetadata("plan_id", req.PackageID)
 
 	session, err := session.New(params)
 	if err != nil {
@@ -94,11 +93,11 @@ func VerifyPayment(sessionID string, db *gorm.DB) (*gin.H, int, error) {
 	}
 
 	orgID := stripeSession.Metadata["org_id"]
-	packageID := stripeSession.Metadata["package_id"]
+	planID := stripeSession.Metadata["plan_id"]
 
-	if orgID == "" || packageID == "" {
+	if orgID == "" || planID == "" {
 		return nil, http.StatusBadRequest, errors.New("invalid session metadata")
 	}
 
-	return models.TopUpOrgCredit(db, orgID, packageID, &sessionID)
+	return models.TopUpOrgCredit(db, orgID, planID, &sessionID)
 }

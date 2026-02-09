@@ -15,7 +15,6 @@ import (
 
 func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gorm.DB) (*gin.H, int, *stripe.Invoice, error) {
 	var orgRepo models.Organisation
-	var planRepo models.Plan
 	var orgPlanRepo models.OrganisationPlan
 
 	org, err := orgRepo.GetOrgByID(db, req.OrgID)
@@ -32,7 +31,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		return nil, http.StatusBadRequest, nil, errors.New("session not paid")
 	}
 
-	plan, err := planRepo.GetPlanByName(db, req.PlanName)
+	plan, err := models.GetPlanByID(db, req.PlanID)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("plan not found")
 	}

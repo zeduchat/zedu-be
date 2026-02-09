@@ -2,10 +2,12 @@ package models
 
 import (
 	"errors"
+	"net/http"
 	"time"
 
 	"gorm.io/gorm"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/lib/pq"
@@ -22,14 +24,15 @@ func SetStripeMap(stripeConfig config.Stripe) {
 }
 
 type CreateSubscriptionRequest struct {
-	PlanName string `json:"plan_name" validate:"required"`
-	OrgID    string `json:"org_id" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
+	PlanID string `json:"plan_id" validate:"required"`
+	OrgID  string `json:"org_id" validate:"required"`
+	Email  string `json:"email" validate:"required,email"`
+	UserId string `json:"-"`
 }
 
 type ModifySubscriptionRequest struct {
-	OrgID    string `json:"org_id" validate:"required"`
-	PlanName string `json:"plan_name" validate:"required"`
+	OrgID  string `json:"org_id" validate:"required"`
+	PlanID string `json:"plan_id" validate:"required"`
 }
 
 type DeleteSubscriptionRequest struct {
@@ -38,7 +41,7 @@ type DeleteSubscriptionRequest struct {
 
 type CompleteSubscriptionRequest struct {
 	Email            string `json:"email"`
-	PlanName         string `json:"plan_name"`
+	PlanID           string `json:"plan_id"`
 	OrgID            string `json:"org_id"`
 	StripeCustomerID string `json:"stripe_customer_id"`
 	StripeSessionID  string `json:"stripe_session_id" validate:"required"`
@@ -76,6 +79,17 @@ type Plan struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+type PlanResponse struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Benefits    pq.StringArray `json:"benefits"`
+	Fee         int            `json:"fee"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	Credits     int            `json:"credits"`
+}
+
 type AICreditPackage struct {
 	ID          string         `gorm:"primaryKey;type:uuid" json:"id"`
 	Name        string         `gorm:"uniqueIndex;" json:"name"`
@@ -91,7 +105,7 @@ type AICreditPackage struct {
 type OrganisationPlan struct {
 	ID             string         `gorm:"primaryKey;type:uuid" json:"id,omitempty"`
 	OrganisationID string         `gorm:"not null;index" json:"organisation_id,omitempty"`
-	PlanID         string         `gorm:"not null;index" json:"plan_id,omitempty"`
+	PlanID         string         `gorm:"type:uuid;not null;index" json:"plan_id,omitempty"`
 	StartedAt      time.Time      `gorm:"column:started_at;null; autoCreateTime" json:"started_at,omitempty"`
 	EndedAt        time.Time      `gorm:"column:ended_at; null" json:"ended_at,omitempty"`
 	Status         string         `gorm:"null" json:"status,omitempty"`
@@ -99,6 +113,7 @@ type OrganisationPlan struct {
 	CreatedAt      time.Time      `gorm:"column:created_at; null; autoCreateTime" json:"created_at,omitempty"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at,omitempty"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
+	PlanDetails    Plan           `gorm:"foreignKey:PlanID;references:ID" json:"plan_details"`
 }
 
 type ProcessedStripeWebhook struct {
@@ -283,10 +298,10 @@ func (r *ProcessedStripeWebhook) MarkWebhookAsProcessed(db *gorm.DB) error {
 	return nil
 }
 
-func GetSubscriptionPlans(db *gorm.DB) (*[]Plan, error) {
-	var subPlans []Plan
+func GetSubscriptionPlans(db *gorm.DB) (*[]PlanResponse, error) {
+	var subPlans []PlanResponse
 
-	if err := db.Find(&subPlans).Error; err != nil {
+	if err := db.Model(&Plan{}).Find(&subPlans).Error; err != nil {
 		return nil, err
 	}
 
@@ -302,4 +317,30 @@ func (r *Plan) GetPlanByName(db *gorm.DB, plan_name string) (Plan, error) {
 	}
 
 	return *r, nil
+}
+
+func GetPlanByID(db *gorm.DB, planID string) (Plan, error) {
+	var plan Plan
+	err := db.Where("id = ?", planID).First(&plan).Error
+	return plan, err
+}
+
+func TopUpOrgSubscriptionCredit(db *gorm.DB, orgID, planID string, sessionID *string) (*gin.H, int, error) {
+	var plan Plan
+	if err := db.Where("id = ?", planID).First(&plan).Error; err != nil {
+		return nil, http.StatusNotFound, errors.New("plan not found")
+	}
+
+	var org Organisation
+	if err := db.Where("id = ?", orgID).First(&org).Error; err != nil {
+		return nil, http.StatusNotFound, errors.New("organisation not found")
+	}
+
+	org.CreditBalance += float64(plan.Credits)
+
+	if err := db.Save(&org).Error; err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to update organisation credits")
+	}
+
+	return &gin.H{"message": "Credits topped up successfully"}, http.StatusOK, nil
 }

@@ -18,14 +18,13 @@ import (
 
 func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	url string) (*gin.H, int, error) {
-	var org models.Organisation
 
-	org, err := org.GetOrgByID(db, req.OrgID)
+	plan, err := models.GetPlanByID(db, req.PlanID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("org not found")
+		return nil, http.StatusNotFound, errors.New("plan not found")
 	}
 
-	stripePriceID, exists := models.StripeMap[req.PlanName]
+	stripePriceID, exists := models.StripeMap[plan.Name]
 	if !exists {
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
@@ -53,7 +52,8 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	}
 
 	params.AddMetadata("flow", "subscription")
-	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("plan_id", req.PlanID)
+	params.AddMetadata("plan_name", plan.Name)
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("customer_id", stripeCustomer.ID)
 
@@ -121,13 +121,18 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 
 func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 
-	stripePriceID, exists := models.StripeMap[req.PlanName]
+	plan, err := models.GetPlanByID(db, req.PlanID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("plan not found")
+	}
+
+	stripePriceID, exists := models.StripeMap[plan.Name]
 	if !exists {
 		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
 	}
 
 	var org models.Organisation
-	org, err := org.GetOrgByID(db, req.OrgID)
+	org, err = org.GetOrgByID(db, req.OrgID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("org not found")
 	}
@@ -150,7 +155,8 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 	}
 
 	params.AddMetadata("flow", "subscription")
-	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("plan_id", req.PlanID)
+	params.AddMetadata("plan_name", plan.Name)
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("customer_id", org.StripeCustomerID)
 
@@ -241,7 +247,7 @@ func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, 
 	return currentPlans, http.StatusOK, nil
 }
 
-func GetSubscriptionPlans(db *gorm.DB) (*[]models.Plan, int, error) {
+func GetSubscriptionPlans(db *gorm.DB) (*[]models.PlanResponse, int, error) {
 
 	subscriptionPlans, err := models.GetSubscriptionPlans(db)
 	if err != nil {
