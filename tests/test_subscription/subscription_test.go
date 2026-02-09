@@ -44,16 +44,12 @@ func TestGetSubscriptions_NoDuplicates(t *testing.T) {
 	logger := tst.Setup()
 	db := storage.Connection()
 
-	db.Postgresql.Exec("DELETE FROM org_roles WHERE 1 = 1")
 	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.OrganisationPlan{})
 	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.Plan{})
 
 	if err := db.Postgresql.AutoMigrate(&models.Plan{}, &models.Organisation{}, &models.OrganisationPlan{}); err != nil {
 		t.Fatalf("Migration failed: %v", err)
 	}
-
-	seed.SeedPlans(logger, db.Postgresql)
-	seed.SeedRolesAndPermissions(logger, db.Postgresql)
 
 	var plan models.Plan
 	err := db.Postgresql.Where("name = ?", "Free").First(&plan).Error
