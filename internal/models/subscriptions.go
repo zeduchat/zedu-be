@@ -80,7 +80,7 @@ type PlanResponse struct {
 	ID          string         `json:"id"`
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
-	Benefits    pq.StringArray `json:"benefits"`
+	Benefits    pq.StringArray `gorm:"type:text[]" json:"benefits"`
 	Fee         int            `json:"fee"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -298,7 +298,7 @@ func (r *ProcessedStripeWebhook) MarkWebhookAsProcessed(db *gorm.DB) error {
 func GetSubscriptionPlans(db *gorm.DB) (*[]PlanResponse, error) {
 	var subPlans []PlanResponse
 
-	if err := db.Model(&Plan{}).Find(&subPlans).Error; err != nil {
+	if err := db.Table("plans").Where("deleted_at IS NULL").Find(&subPlans).Error; err != nil {
 		return nil, err
 	}
 
