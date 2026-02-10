@@ -219,6 +219,7 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 
 	var orgUserMgt models.OrgUserManagement
 	userRoleInfo, err := orgUserMgt.GetUserRoleInOrganisation(db, userId, orgId)
+	userRoleInfo.RoleName = strings.ToLower(userRoleInfo.RoleName)
 	if err == nil && userRoleInfo.RoleName != "" {
 		org.CurrentUserRoleInfo = userRoleInfo
 	}
