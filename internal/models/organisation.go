@@ -46,7 +46,7 @@ type Organisation struct {
 	OrgPlanID           string           `gorm:"type:varchar(100);null;index" json:"org_plan_id"`
 	OrganisationPlan    OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan,omitempty"`
 	OrganisationSlug    string           `gorm:"-" json:"organisation_slug"`
-	CurrentUserRoleInfo OrgUserRoleInfo  `gorm:"-" json:"current_user_role_info,omitempty"`
+	CurrentUserRoleInfo OrgUserRoleInfo  `gorm:"-" json:"user_role,omitempty"`
 }
 
 type CreateOrgRequestModel struct {
