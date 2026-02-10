@@ -557,19 +557,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		buzz.HostID = newParticipants[0]
 		newHostID = newParticipants[0]
 	}
-	// no participant left - end call
-	if len(newParticipants) == 0 {
-		now := time.Now().UTC()
-		buzz.BuzzEndTime = &now
-		buzz.Status = models.BuzzStatusEnded
-		buzz.IsLiveStatus = false
-		buzzEnded = true
-
-		if err := CreateBuzzSystemMessage(db, logger, &buzz, buzz.HostID, "ended"); err != nil {
-			logger.Error("failed to create system message for buzz end: %v", err)
-		}
-
-	}
 
 	buzz.ParticipantIDs = newParticipants
 
