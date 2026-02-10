@@ -529,8 +529,20 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 	buzz, status, err := validateLeaveBuzz(db, logger, buzzID, userID)
 	if err != nil {
+		logger.Info("While user %s, tried to left the call, an error: %v occured", userID, err)
+		if strings.Contains(err.Error(), "active participant") {
+			return &models.BuzzLeaveResponse{
+				BuzzID:        buzzID,
+				BuzzCode:      utility.ExtractBuzzCode(buzzID),
+				ParticipantID: userID,
+				NewHostID:     newHostID,
+				LeftAt:        time.Now().UTC(),
+				BuzzEnded:     buzzEnded,
+			}, http.StatusOK, nil
+		}
 		return nil, status, err
 	}
+
 	logger.Info("validation passed for user %s to leave buzz %s", userID, buzzID)
 
 	tx := db.Postgresql.Begin()

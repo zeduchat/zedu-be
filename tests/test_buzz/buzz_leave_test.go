@@ -74,8 +74,9 @@ func TestBuzzLeave(t *testing.T) {
 		ChannelID: channelID,
 	}
 
+	buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, token)
+
 	t.Run("LeaveBuzzSuccess", func(t *testing.T) {
-		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, token)
 		if buzzID == "" {
 			t.Fatal("failed to obtain buzzID")
 		}
@@ -98,13 +99,9 @@ func TestBuzzLeave(t *testing.T) {
 
 	/**
 		Currently only host is in the buzz,
-		if host leaves then should should end
+		if host leaves then should not end
 	**/
-	t.Run("MeetingEndedSuccess", func(t *testing.T) {
-		buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, token)
-		if buzzID == "" {
-			t.Fatal("failed to obtain buzzID")
-		}
+	t.Run("MeetingNotEndedSuccess", func(t *testing.T) {
 
 		url := fmt.Sprintf("/api/v1/buzz/%s/leave", buzzID)
 		req, err := http.NewRequest(http.MethodPost, url, nil)
@@ -124,13 +121,13 @@ func TestBuzzLeave(t *testing.T) {
 
 		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
-		if !(buzzEnded) {
-			t.Errorf("expected to call to have ended")
+		if (buzzEnded) {
+			t.Errorf("expected call to have not ended")
 		}
 
 	})
 
-	t.Run("InvalidBuzzIDReturns400", func(t *testing.T) {
+	t.Run("InvalidBuzzIDReturns404", func(t *testing.T) {
 		url := fmt.Sprintf("/api/v1/buzz/%s/leave", utility.GenerateUUID())
 		req, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {
