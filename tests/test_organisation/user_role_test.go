@@ -96,14 +96,14 @@ func TestGetOrganisationUserRole(t *testing.T) {
 					t.Fatalf("Expected data to be a map, got %T", data["data"])
 				}
 
-				currentUserRoleInfo, ok := responseData["current_user_role_info"].(map[string]any)
+				currentUserRoleInfo, ok := responseData["user_role"].(map[string]any)
 				if !ok {
-					t.Fatalf("Expected current_user_role_info to be a map, got %T", responseData["current_user_role_info"])
+					t.Fatalf("Expected user_role to be a map, got %T", responseData["user_role"])
 				}
 
 				roleID, hasRoleID := currentUserRoleInfo["role_id"]
 				if !hasRoleID {
-					t.Error("Expected current_user_role_info to contain 'role_id' field")
+					t.Error("Expected user_role to contain 'role_id' field")
 				}
 				if roleID == nil || roleID == "" {
 					t.Error("Expected role_id to have a value")
@@ -111,13 +111,21 @@ func TestGetOrganisationUserRole(t *testing.T) {
 
 				roleName, hasRoleName := currentUserRoleInfo["role_name"]
 				if !hasRoleName {
-					t.Error("Expected current_user_role_info to contain 'role_name' field")
+					t.Error("Expected user_role to contain 'role_name' field")
 				}
 				if roleName == nil || roleName == "" {
 					t.Error("Expected role_name to have a value")
 				}
 
-				t.Logf("User role info validated successfully - RoleID: %v, RoleName: %v", roleID, roleName)
+				permissions, hasPermissions := currentUserRoleInfo["permissions"]
+				if !hasPermissions {
+					t.Error("Expected user_role to contain 'permissions' field")
+				}
+				if permissions == nil {
+					t.Error("Expected permissions to not be nil")
+				}
+
+				t.Logf("User role info validated successfully - RoleID: %v, RoleName: %v, Permissions: %v", roleID, roleName, permissions)
 			}
 		})
 	}
