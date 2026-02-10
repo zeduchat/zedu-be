@@ -30639,9 +30639,8 @@ components:
         total_messages_count:
           type: number
           example: 45
-        org_role:
-          type: string
-          example: null
+        user_role:
+          $ref: "#/components/schemas/OrgUserRoleInfo"
         organisation_plan:
           type: object
           properties:
@@ -30665,6 +30664,9 @@ components:
               example: Active
             session_id:
               type: string
+            invoice_pdf_url:
+              type: string
+              format: uri
             created_at:
               type: string
               format: date-time
@@ -32824,6 +32826,22 @@ components:
                         description: Date invitation was sent (YYYY-MM-DD)
             pagination:
               $ref: "#/components/schemas/PaginationMeta"
+
+    OrgUserRoleInfo:
+      type: object
+      properties:
+        role_id:
+          type: string
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c761e527ec91
+        role_name:
+          type: string
+          example: Admin
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["read", "write"]
 
   securitySchemes:
     bearerAuth:
