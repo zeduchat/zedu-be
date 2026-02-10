@@ -10,6 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
 	"github.com/stripe/stripe-go/v72/checkout/session"
+	"github.com/stripe/stripe-go/v72/invoice"
 	"gorm.io/gorm"
 )
 
@@ -51,6 +52,22 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 		return nil, http.StatusInternalServerError, nil, errors.New("error retrieving organisation plan")
 	}
 
+	params := &stripe.InvoiceListParams{
+		Subscription: stripe.String(sesh.Subscription.ID),
+	}
+
+	i := invoice.List(params)
+
+	var invoiceItems []*stripe.Invoice
+
+	for i.Next() {
+		invoiceItems = append(invoiceItems, i.Invoice())
+	}
+
+	if err := i.Err(); err != nil || len(invoiceItems) == 0 {
+		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
+	}
+
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 
 		orgPlan = models.OrganisationPlan{
@@ -61,6 +78,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 			EndedAt:        time.Now().AddDate(0, 0, 30),
 			Status:         "Active",
 			SessionID:      req.StripeSessionID,
+			InvoicePDFURL:  invoiceItems[0].InvoicePDF,
 		}
 		org.OrgPlanID = orgPlan.ID
 		org.OrganisationPlan = orgPlan
@@ -88,6 +106,7 @@ func CompleteSubscriptionWebhook(req models.CompleteSubscriptionRequest, db *gor
 			EndedAt:        time.Now().AddDate(0, 0, 30),
 			Status:         "Active",
 			SessionID:      req.StripeSessionID,
+			InvoicePDFURL:  invoiceItems[0].InvoicePDF,
 		}
 
 		org.OrgPlanID = newOrgPlan.ID
