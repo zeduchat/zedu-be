@@ -529,8 +529,20 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 
 	buzz, status, err := validateLeaveBuzz(db, logger, buzzID, userID)
 	if err != nil {
+		logger.Info("While user %s, tried to left the call, an error: %v occured", userID, err)
+		if strings.Contains(err.Error(), "active participant") {
+			return &models.BuzzLeaveResponse{
+				BuzzID:        buzzID,
+				BuzzCode:      utility.ExtractBuzzCode(buzzID),
+				ParticipantID: userID,
+				NewHostID:     newHostID,
+				LeftAt:        time.Now().UTC(),
+				BuzzEnded:     buzzEnded,
+			}, http.StatusOK, nil
+		}
 		return nil, status, err
 	}
+
 	logger.Info("validation passed for user %s to leave buzz %s", userID, buzzID)
 
 	tx := db.Postgresql.Begin()
@@ -556,19 +568,6 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	if userID == buzz.HostID && len(newParticipants) > 0 {
 		buzz.HostID = newParticipants[0]
 		newHostID = newParticipants[0]
-	}
-	// no participant left - end call
-	if len(newParticipants) == 0 {
-		now := time.Now().UTC()
-		buzz.BuzzEndTime = &now
-		buzz.Status = models.BuzzStatusEnded
-		buzz.IsLiveStatus = false
-		buzzEnded = true
-
-		if err := CreateBuzzSystemMessage(db, logger, &buzz, buzz.HostID, "ended"); err != nil {
-			logger.Error("failed to create system message for buzz end: %v", err)
-		}
-
 	}
 
 	buzz.ParticipantIDs = newParticipants
