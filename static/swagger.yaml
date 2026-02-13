@@ -366,6 +366,9 @@ paths:
                           avatar_url:
                             type: string
                             example: "http://example.com/avatar.jpg"
+                          default_avatar_url:
+                            type: string
+                            example: "http://example.com/avatar.jpg"
                           expires_in:
                             type: string
                             format: date-time
@@ -3352,6 +3355,9 @@ paths:
                               avatar_url:
                                 type: string
                                 example: "https://example.com/avatar.jpg"
+                              default_avatar_url:
+                                type: string
+                                example: "https://example.com/avatar.jpg"
                               full_name:
                                 type: string
                                 example: "John Doe"
@@ -5153,6 +5159,7 @@ paths:
                       full_name: "John Doe"
                       email: "john@example.com"
                       avatar_url: "https://example.com/avatar.jpg"
+                      default_avatar_url: "https://example.com/avatar.jpg"
                       is_in_buzz: false
                       is_invited: false
                     - user_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
@@ -5160,6 +5167,7 @@ paths:
                       full_name: "Jane Smith"
                       email: "jane@example.com"
                       avatar_url: "https://example.com/avatar2.jpg"
+                      default_avatar_url: "https://example.com/avatar2.jpg"
                       is_in_buzz: true
                       is_invited: false
                   total: 2
@@ -7692,6 +7700,10 @@ paths:
                             type: string
                             description: URL of the user's avatar image.
                             example: ""
+                          default_avatar_url:
+                            type: string
+                            description: URL of the user's avatar image.
+                            example: ""
                           created_at:
                             type: string
                             format: date-time
@@ -9652,6 +9664,10 @@ paths:
                                 type: string
                                 format: uri
                                 example: http://profile-link.com
+                              default_avatar_url:
+                                type: string
+                                format: uri
+                                example: http://profile-link.com
                         message_count:
                           type: integer
                           example: 0
@@ -9660,6 +9676,10 @@ paths:
                           format: date-time
                           example: 0001-01-01T00:00:00Z
                         avatar_url:
+                          type: string
+                          format: uri
+                          example: ""
+                        default_avatar_url:
                           type: string
                           format: uri
                           example: ""
@@ -9809,6 +9829,10 @@ paths:
                                 type: string
                                 format: uri
                                 example: http://profile-link.com
+                              default_avatar_url:
+                                type: string
+                                format: uri
+                                example: http://profile-link.com
                         message_count:
                           type: integer
                           example: 0
@@ -9817,6 +9841,10 @@ paths:
                           format: date-time
                           example: 0001-01-01T00:00:00Z
                         avatar_url:
+                          type: string
+                          format: uri
+                          example: ""
+                        default_avatar_url:
                           type: string
                           format: uri
                           example: ""
@@ -10754,6 +10782,9 @@ paths:
                             avatar_url:
                               type: string
                               example: https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
+                            default_avatar_url:
+                              type: string
+                              example: https://media.telex.im/telexstagingbucket/public/profile_pics/profile_pic_d0b7dc73d91b.png
                             is_online:
                               type: boolean
                               example: true
@@ -11073,6 +11104,9 @@ paths:
                         avatar_url:
                           type: string
                           description: The avatar URL of the participant
+                        default_avatar_url:
+                          type: string
+                          description: The avatar URL of the participant
                         channel_type:
                           type: string
                           enum: [dm, group_dm]
@@ -11128,6 +11162,8 @@ paths:
                               email:
                                 type: string
                               avatar_url:
+                                type: string
+                              default_avatar_url:
                                 type: string
                               user_type:
                                 type: string
@@ -11218,6 +11254,8 @@ paths:
                         type: string
                         format: uuid
                       avatar_url:
+                        type: string
+                      default_avatar_url:
                         type: string
                       username:
                         type: string
@@ -11357,6 +11395,8 @@ paths:
                             email:
                               type: string
                             avatar_url:
+                              type: string
+                            default_avatar_url:
                               type: string
                             username:
                               type: string
@@ -19388,6 +19428,9 @@ paths:
                             avatar_url:
                               type: string
                               format: uri
+                            default_avatar_url:
+                              type: string
+                              format: uri
         "400":
           description: Bad request
           content:
@@ -19779,6 +19822,8 @@ paths:
                                 type: string
                               avatar_url:
                                 type: string
+                              default_avatar_url:
+                                type: string
                               email:
                                 type: string
                   pagination:
@@ -19871,6 +19916,10 @@ paths:
                               type: string
                               format: uri
                               description: URL of the participant's avatar.
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
                             email:
                               type: string
                               format: email
@@ -19886,18 +19935,22 @@ paths:
                       - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
                         username: "micahshallom"
                         avatar_url: ""
+                        default_avatar_url: ""
                         email: "micahshallom@gmail.com"
                       - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
                         username: "user1"
                         avatar_url: ""
+                        default_avatar_url: ""
                         email: "user1@gmail.com"
                       - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                         username: "user2"
                         avatar_url: ""
+                        default_avatar_url: ""
                         email: "user2@gmail.com"
                       - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b6"
                         username: "user6"
                         avatar_url: ""
+                        default_avatar_url: ""
                         email: "user6@gmail.com"
         "400":
           description: Invalid request body.
@@ -20061,6 +20114,10 @@ paths:
                               type: string
                               format: uri
                               description: URL of the participant's avatar.
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
                             email:
                               type: string
                               format: email
@@ -20076,14 +20133,17 @@ paths:
                     - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
                       username: "micahshallom"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "micahshallom@gmail.com"
                     - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
                       username: "user1"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "user1@gmail.com"
                     - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                       username: "newuser"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "newuser@gmail.com"
         "400":
           description: Invalid request or channel at maximum capacity.
@@ -20334,6 +20394,10 @@ paths:
                               type: string
                               format: uri
                               description: URL of the participant's avatar.
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              description: URL of the participant's avatar.
                             email:
                               type: string
                               format: email
@@ -20349,18 +20413,22 @@ paths:
                     - user_id: "0191be6d-4e1b-7b47-8f92-4f009762cfaa"
                       username: "micahshallom"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "micahshallom@gmail.com"
                     - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b1"
                       username: "user1"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "user1@gmail.com"
                     - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b2"
                       username: "user2"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "user2@gmail.com"
                     - user_id: "0195bbf5-87c2-779b-9609-060f6bb8f2b3"
                       username: "user3"
                       avatar_url: ""
+                      default_avatar_url: ""
                       email: "user3@gmail.com"
         "400":
           description: Invalid request or would exceed maximum capacity.
@@ -20469,6 +20537,8 @@ paths:
                     properties:
                       avatar_url:
                         type: string
+                      default_avatar_url:
+                        type: string
                       email:
                         type: string
                       username:
@@ -20569,6 +20639,8 @@ paths:
                         type: string
                         format: date-time
                       avatar_url:
+                        type: string
+                      default_avatar_url:
                         type: string
                       type:
                         type: string
@@ -20740,6 +20812,8 @@ paths:
                       thread_id:
                         type: string
                       avatar_url:
+                        type: string
+                      default_avatar_url:
                         type: string
                       edited:
                         type: boolean
@@ -20940,6 +21014,8 @@ paths:
                                 nullable: true
                               avatar_url:
                                 type: string
+                              default_avatar_url:
+                                type: string
   /group-dms/channels/{channelId}/threads:
     get:
       tags:
@@ -21014,6 +21090,8 @@ paths:
                                 type: string
                                 nullable: true
                               avatar_url:
+                                type: string
+                              default_avatar_url:
                                 type: string
 
   /search/organisation/{orgId}/:
@@ -21104,6 +21182,10 @@ paths:
                               type: string
                               format: uri
                               example: "https://example.com/avatar.jpg"
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
 
                         messages:
                           type: array
@@ -21154,6 +21236,10 @@ paths:
                                             type: string
                                             format: uri
                                             example: "https://example.com/avatar.jpg"
+                                          default_avatar_url:
+                                            type: string
+                                            format: uri
+                                            example: "https://example.com/avatar.jpg"
 
                               reply_count:
                                 type: integer
@@ -21180,6 +21266,10 @@ paths:
                                       type: string
                                       example: "Alice"
                                     avatar_url:
+                                      type: string
+                                      format: uri
+                                      example: "https://example.com/avatar.jpg"
+                                    default_avatar_url:
                                       type: string
                                       format: uri
                                       example: "https://example.com/avatar.jpg"
@@ -21303,6 +21393,10 @@ paths:
                           type: string
                           example: "kelanidarasimi4000"
                         avatar_url:
+                          type: string
+                          nullable: true
+                          example: ""
+                        default_avatar_url:
                           type: string
                           nullable: true
                           example: ""
@@ -23143,6 +23237,9 @@ paths:
                           type: string
                           example: test-org5
                         avatar_url:
+                          type: string
+                          example: "jpegs.jpegs"
+                        default_avatar_url:
                           type: string
                           example: "jpegs.jpegs"
                         created_at:
@@ -27651,6 +27748,9 @@ components:
         avatar_url:
           type: string
           example: "https://example.com/avatar.jpg"
+        default_avatar_url:
+          type: string
+          example: "https://example.com/avatar.jpg"
         org_id:
           type: string
           format: uuid
@@ -27911,6 +28011,9 @@ components:
             avatar_url:
               type: string
               format: uri
+            default_avatar_url:
+              type: string
+              format: uri
 
     OptInSchema:
       type: object
@@ -28011,6 +28114,11 @@ components:
           format: email
           example: "john@example.com"
         avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/avatar.jpg"
+        default_avatar_url:
           type: string
           format: uri
           nullable: true
@@ -28215,6 +28323,7 @@ components:
             username: "hostuser"
             full_name: "Host User"
             avatar_url: "https://example.com/avatars/host.jpg"
+            default_avatar_url: "https://example.com/avatars/host.jpg"
             joined_at: "2025-11-28T12:00:00Z"
             status: "active"
         agora_token:
@@ -28292,12 +28401,14 @@ components:
             username: "hostuser"
             full_name: "Host User"
             avatar_url: "https://example.com/avatars/host.jpg"
+            default_avatar_url: "https://example.com/avatars/host.jpg"
             joined_at: "2025-11-28T12:00:00Z"
             status: "active"
           - user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
             username: "joininguser"
             full_name: "Joining User"
             avatar_url: "https://example.com/avatars/joiner.jpg"
+            default_avatar_url: "https://example.com/avatars/joiner.jpg"
             joined_at: "2025-11-28T12:05:00Z"
             status: "active"
         agora_token:
@@ -28444,6 +28555,7 @@ components:
             username: "tolu"
             full_name: "Tolu Adebayo"
             avatar_url: "https://example.com/avatars/tolu.jpg"
+            default_avatar_url: "https://example.com/avatars/tolu.jpg"
             joined_at: "2025-11-28T10:00:00Z"
             status: "active"
             status_sticker: null
@@ -28452,6 +28564,7 @@ components:
             username: "kemi"
             full_name: "Kemi Okonkwo"
             avatar_url: "https://example.com/avatars/kemi.jpg"
+            default_avatar_url: "https://example.com/avatars/kemi.jpg"
             joined_at: "2025-11-28T10:02:15Z"
             status: "active"
             status_sticker: "raise_hand"
@@ -28505,6 +28618,8 @@ components:
         email:
           type: string
         avatar_url:
+          type: string
+        default_avatar_url:
           type: string
         type:
           type: string
@@ -28956,6 +29071,9 @@ components:
                   avatar_url:
                     type: string
                     example: ""
+                  default_avatar_url:
+                    type: string
+                    example: ""
                   userId:
                     type: string
                     example: ""
@@ -29062,6 +29180,9 @@ components:
               avatar_url:
                 type: string
                 example: "https://example.com/avatar.png"
+              default_avatar_url:
+                type: string
+                example: "https://example.com/avatar.png"
               created_at:
                 type: string
                 format: date-time
@@ -29121,6 +29242,11 @@ components:
           format: uri
           description: Updated avatar URL
           example: "https://example.com/avatar.jpg"
+        default_avatar_url:
+          type: string
+          format: uri
+          description: Updated avatar URL
+          example: "https://example.com/avatar.jpg"
 
     UpdateProfileRequest:
       type: object
@@ -29139,6 +29265,10 @@ components:
           type: string
           description: Phone number
         avatar_url:
+          type: string
+          format: uri
+          description: URL or base64-encoded image string
+        default_avatar_url:
           type: string
           format: uri
           description: URL or base64-encoded image string
@@ -29177,6 +29307,7 @@ components:
         phone: "09040008000"
         avatar_file: "avatar.jpg"
         avatar_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+        default_avatar_url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
         display_name: "username"
         timezone: "GMT + 1"
         title: "Mr"
@@ -29208,6 +29339,9 @@ components:
           type: string
           example: "What_b_Heck"
         avatar_url:
+          type: string
+          example: "img898989.png"
+        default_avatar_url:
           type: string
           example: "img898989.png"
         userId:
@@ -29294,6 +29428,9 @@ components:
                 format: date-time
                 example: "0001-01-01T00:00:00Z"
               avatar_url:
+                type: string
+                example: ""
+              default_avatar_url:
                 type: string
                 example: ""
               type:
@@ -32483,6 +32620,10 @@ components:
           type: string
           nullable: true
           description: URL to user's avatar/profile image
+        default_avatar_url:
+          type: string
+          nullable: true
+          description: URL to user's avatar/profile image
         joined_at:
           type: string
           format: date-time
@@ -32506,6 +32647,7 @@ components:
         username: "johndoe"
         full_name: "John Doe"
         avatar_url: "https://example.com/avatars/johndoe.jpg"
+        default_avatar_url: "https://example.com/avatars/johndoe.jpg"
         joined_at: "2025-11-28T22:39:03.527809Z"
         status: "active"
         status_sticker: null
@@ -32794,6 +32936,9 @@ components:
                         type: string
                         description: User email
                       avatar_url:
+                        type: string
+                        description: User avatar URL
+                      default_avatar_url:
                         type: string
                         description: User avatar URL
                       invite_count:

@@ -143,10 +143,11 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			ProfileUpdated: true,
 			IsOnboarded:    true,
 			Profile: models.Profile{
-				FullName:  username,
-				UserName:  uniqueUsername,
-				ID:        utility.GenerateUUID(),
-				AvatarURL: pictureURL,
+				FullName:         username,
+				UserName:         uniqueUsername,
+				ID:               utility.GenerateUUID(),
+				AvatarURL:        pictureURL,
+				DefaultAvatarURL: GenerateDefaultAvatarURL(),
 			},
 		}
 
@@ -226,6 +227,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			"profile_updated":           user.ProfileUpdated,
 			"is_onboarded":              user.IsOnboarded,
 			"avatar_url":                user.Profile.AvatarURL,
+			"default_avatar_url":        user.Profile.DefaultAvatarURL,
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(user.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(user.UpdatedAt.Unix())),
