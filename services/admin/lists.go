@@ -23,6 +23,7 @@ type UserListItem struct {
 	Email              string  `json:"email"`
 	Name               string  `json:"name"`
 	AvatarUrl          string  `json:"avatar_url"`
+	DefaultAvatarUrl   string  `json:"default_avatar_url"`
 	CreatedAt          string  `json:"created_at"`
 	LastLogInAt        string  `json:"last_log_in_at"`
 	LastActivityAt     string  `json:"last_activity_at"`
@@ -338,6 +339,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		}
 
 		avatarUrl := u.Profile.AvatarURL
+		defaultAvatarUrl := u.Profile.DefaultAvatarURL
 
 		var activityLength string
 		if al := user.GetActivityLength(u); al != nil {
@@ -354,6 +356,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 			Email:              u.Email,
 			Name:               u.Name,
 			AvatarUrl:          avatarUrl,
+			DefaultAvatarUrl:   defaultAvatarUrl,
 			CreatedAt:          u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			LastLogInAt:        lastLogInAt,
 			LastActivityAt:     lastActivityAt,

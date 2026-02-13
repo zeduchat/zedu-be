@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
+	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -293,8 +294,9 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			IsActive:    true,
 			CurrentOrg:  orgId,
 			Profile: models.Profile{
-				ID:       utility.GenerateUUID(),
-				UserName: name,
+				ID:               utility.GenerateUUID(),
+				UserName:         name,
+				DefaultAvatarURL: auth.GenerateDefaultAvatarURL(),
 			},
 		}
 
@@ -386,22 +388,23 @@ func saveAccessToken(tokenData *middleware.TokenDetailDTO, userID string, db *go
 func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) gin.H {
 	return gin.H{
 		"user": map[string]any{
-			"id":              user.ID,
-			"user_id":         user.ID,
-			"email":           user.Email,
-			"username":        user.Name,
-			"is_onboarded":    user.IsOnboarded,
-			"is_verified":     user.IsVerified,
-			"profile_updated": user.ProfileUpdated,
-			"first_name":      user.Profile.FirstName,
-			"last_name":       user.Profile.LastName,
-			"fullname":        user.Profile.FirstName + " " + user.Profile.LastName,
-			"phone":           user.Profile.Phone,
-			"avatar_url":      user.Profile.AvatarURL,
-			"current_org":     user.CurrentOrg,
-			"expires_in":      strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
-			"created_at":      strconv.Itoa(int(user.CreatedAt.Unix())),
-			"updated_at":      strconv.Itoa(int(user.UpdatedAt.Unix())),
+			"id":                 user.ID,
+			"user_id":            user.ID,
+			"email":              user.Email,
+			"username":           user.Name,
+			"is_onboarded":       user.IsOnboarded,
+			"is_verified":        user.IsVerified,
+			"profile_updated":    user.ProfileUpdated,
+			"first_name":         user.Profile.FirstName,
+			"last_name":          user.Profile.LastName,
+			"fullname":           user.Profile.FirstName + " " + user.Profile.LastName,
+			"phone":              user.Profile.Phone,
+			"avatar_url":         user.Profile.AvatarURL,
+			"default_avatar_url": user.Profile.DefaultAvatarURL,
+			"current_org":        user.CurrentOrg,
+			"expires_in":         strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":         strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":         strconv.Itoa(int(user.UpdatedAt.Unix())),
 		},
 		"access_token": tokenData.AccessToken,
 	}

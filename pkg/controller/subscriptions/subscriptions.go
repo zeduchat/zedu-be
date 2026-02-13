@@ -205,16 +205,17 @@ func (base *Controller) GetSubscriptions(c *gin.Context) {
 }
 
 func (base *Controller) GetSubscriptionPlans(c *gin.Context) {
+	base.Logger.Info("Fetching subscription plans")
 
 	subscriptionPlans, code, err := service.GetSubscriptionPlans(base.Db.Postgresql)
 	if err != nil {
+		base.Logger.Error("Failed to fetch subscription plans", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
-		base.Logger.Error(err.Error())
 		return
 	}
 
-	base.Logger.Info("subscription plans retreived")
+	base.Logger.Info("Subscription plans retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Subscription Plans retrieved successfully", subscriptionPlans)
 	c.JSON(http.StatusOK, rd)
 }

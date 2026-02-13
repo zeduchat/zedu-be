@@ -45,6 +45,7 @@ type DmChannelsResponse struct {
 	Name             string    `json:"username"`
 	ParticipantId    string    `json:"participant_id"`
 	AvatarUrl        string    `json:"avatar_url"`
+	DefaultAvatarUrl string    `json:"default_avatar_url"`
 	ParticipantEmail string    `json:"participant_email"`
 	ChannelType      string    `json:"channel_type"`
 	ThreadCount      int64     `json:"thread_count"`
@@ -74,20 +75,22 @@ type DmChannelMediaRequest struct {
 }
 
 type Participant struct {
-	AvatarUrl string `json:"avatar_url"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	UserType  string `json:"user_type"`
-	UserId    string `json:"user_id"`
-	IsAdmin   bool   `json:"is_admin"`
-	Title     string `json:"title"`
+	AvatarUrl        string `json:"avatar_url"`
+	DefaultAvatarUrl string `json:"default_avatar_url"`
+	Username         string `json:"username"`
+	Email            string `json:"email"`
+	UserType         string `json:"user_type"`
+	UserId           string `json:"user_id"`
+	IsAdmin          bool   `json:"is_admin"`
+	Title            string `json:"title"`
 }
 
 type GroupInCommon struct {
-	Name         string   `json:"name"`
-	AvatarURL    string   `json:"avatar_url"`
-	ChannelID    string   `json:"channel_id"`
-	Participants []string `json:"participants"`
+	Name             string   `json:"name"`
+	AvatarURL        string   `json:"avatar_url"`
+	DefaultAvatarURL string   `json:"default_avatar_url"`
+	ChannelID        string   `json:"channel_id"`
+	Participants     []string `json:"participants"`
 }
 
 type DmParticipantsResponse struct {
@@ -197,15 +200,17 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	if exists {
 		participants := []gin.H{
 			{
-				"avatar_url": userDetails.Profile.AvatarURL,
-				"username":   userDetails.Profile.UserName,
-				"email":      userDetails.Email,
-				"user_type":  "user",
-				"user_id":    dm.ParticipantId,
+				"avatar_url":         userDetails.Profile.AvatarURL,
+				"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+				"username":           userDetails.Profile.UserName,
+				"email":              userDetails.Email,
+				"user_type":          "user",
+				"user_id":            dm.ParticipantId,
 			},
 		}
 
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
+		dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		dmchanresp.Name = userDetails.Profile.UserName
 		dmchanresp.ID = existDmchan.ChannelId
 		dmchanresp.ParticipantId = *dm.ParticipantId
@@ -222,15 +227,17 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 
 	participants := []gin.H{
 		{
-			"avatar_url": userDetails.Profile.AvatarURL,
-			"username":   userDetails.Profile.UserName,
-			"email":      userDetails.Email,
-			"user_type":  "user",
-			"user_id":    dm.ParticipantId,
+			"avatar_url":         userDetails.Profile.AvatarURL,
+			"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+			"username":           userDetails.Profile.UserName,
+			"email":              userDetails.Email,
+			"user_type":          "user",
+			"user_id":            dm.ParticipantId,
 		},
 	}
 
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
+	dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 	dmchanresp.Name = userDetails.Profile.UserName
 	dmchanresp.ID = dm.ChannelId
 	dmchanresp.ParticipantId = *dm.ParticipantId
@@ -392,11 +399,12 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 			participants = []gin.H{
 				{
-					"avatar_url": userDetails.Profile.AvatarURL,
-					"username":   userDetails.Profile.UserName,
-					"email":      userDetails.Email,
-					"user_type":  "user",
-					"user_id":    dmchan.ParticipantId,
+					"avatar_url":         userDetails.Profile.AvatarURL,
+					"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+					"username":           userDetails.Profile.UserName,
+					"email":              userDetails.Email,
+					"user_type":          "user",
+					"user_id":            dmchan.ParticipantId,
 				},
 			}
 
@@ -466,13 +474,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				usernames = append(usernames, userDetails.Profile.UserName)
 
 				participants = append(participants, gin.H{
-					"avatar_url": userDetails.Profile.AvatarURL,
-					"username":   userDetails.Profile.UserName,
-					"email":      userDetails.Email,
-					"user_type":  "user",
-					"user_id":    part.UserId,
-					"is_admin":   part.UserId == dmchan.UserId,
-					"title":      part.Title,
+					"avatar_url":         userDetails.Profile.AvatarURL,
+					"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+					"username":           userDetails.Profile.UserName,
+					"email":              userDetails.Email,
+					"user_type":          "user",
+					"user_id":            part.UserId,
+					"is_admin":           part.UserId == dmchan.UserId,
+					"title":              part.Title,
 				})
 
 				if profilePic == "" {
@@ -708,11 +717,12 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 				participants := []gin.H{
 					{
-						"avatar_url": userDetails.Profile.AvatarURL,
-						"username":   userDetails.Profile.UserName,
-						"email":      userDetails.Email,
-						"user_type":  "user",
-						"user_id":    chanResp[i].UserId,
+						"avatar_url":         userDetails.Profile.AvatarURL,
+						"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+						"username":           userDetails.Profile.UserName,
+						"email":              userDetails.Email,
+						"user_type":          "user",
+						"user_id":            chanResp[i].UserId,
 					},
 				}
 
@@ -764,11 +774,12 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				userDetails, err := user.GetUserByID(db, prof.UserId)
 				if err == nil {
 					participants = append(participants, gin.H{
-						"avatar_url": userDetails.Profile.AvatarURL,
-						"username":   userDetails.Profile.UserName,
-						"email":      userDetails.Email,
-						"user_type":  "user",
-						"user_id":    prof.UserId,
+						"avatar_url":         userDetails.Profile.AvatarURL,
+						"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+						"username":           userDetails.Profile.UserName,
+						"email":              userDetails.Email,
+						"user_type":          "user",
+						"user_id":            prof.UserId,
 					})
 				}
 			}
