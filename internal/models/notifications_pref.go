@@ -29,6 +29,7 @@ var (
 	UpdatedMedia                NotificationType = "updated_media"
 	NewMessage                  NotificationType = "new_message"
 	StatusUpdate                NotificationType = "status_update"
+	ProfileStatusUpdated        NotificationType = "profile_status_updated"
 	UnReadThreadChange          NotificationType = "unread_thread_change"
 	ChannelMention              NotificationType = "channel_mention"
 	ThreadReply                 NotificationType = "thread_reply"
@@ -77,6 +78,14 @@ type ModificationDetails struct {
 	ChannelId string `json:"channel_id,omitempty"`
 	UserId    string `json:"user_id,omitempty"`
 	OrgId     string `json:"org_id,omitempty"`
+}
+
+type ProfileStatusUpdatePayload struct {
+	Text       string `json:"text"`
+	Icon       string `json:"icon"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	ProfilePic string `json:"profile_pic"`
 }
 
 type ToolCallNotification struct {
@@ -131,6 +140,9 @@ var Notification = map[NotificationType]Content{
 
 	NewMessage: Content{
 		NotificationType: NewMessage,
+	},
+	ProfileStatusUpdated: Content{
+		NotificationType: ProfileStatusUpdated,
 	},
 	UnReadThreadChange: Content{
 		NotificationType: UnReadThreadChange,

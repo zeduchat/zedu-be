@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -92,6 +93,7 @@ type UpdateProfileStatus struct {
 	StatusTimeout     string `json:"status_timeout"`
 	ClearStatus       bool   `json:"clear_status"`
 	UserId            string
+	OrgId             string
 }
 
 // PartialStatusUpdate holds optional fields for status patch requests.
@@ -212,6 +214,30 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		Where(query, req.UserId).
 		Updates(updates).Error; err != nil {
 		return errors.New("failed to update user profile")
+	}
+
+	if !req.ClearStatus {
+		publishChannel := req.OrgId
+		var user User
+		if err := db.Where("id = ?", req.UserId).First(&user).Error; err != nil {
+			return err
+		}
+
+		notification := Notification[ProfileStatusUpdated]
+		notification.Content = ProfileStatusUpdatePayload{
+			Text:       req.Text,
+			Icon:       req.Icon,
+			Username:   j.UserName,
+			Email:      user.Email,
+			ProfilePic: j.AvatarURL,
+		}
+		notification.ModificationDetails = &ModificationDetails{
+			UserId: req.UserId,
+			OrgId:  req.OrgId,
+		}
+		notification.NotificationId = utility.GenerateUUID()
+
+		go centrifuge.PublishChannel(nil, publishChannel, notification)
 	}
 
 	return nil
