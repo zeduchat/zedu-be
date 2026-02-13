@@ -32,6 +32,41 @@ type PermissionList struct {
 	CanDeleteAnyFile                bool `json:"can_delete_any_file"`
 }
 
+func (p PermissionList) ToSlice() []string {
+	var permissions []string
+	if p.CanRemovePeopleFromOrganization {
+		permissions = append(permissions, "can_remove_people_from_organization")
+	}
+	if p.CanInviteMembers {
+		permissions = append(permissions, "can_invite_members")
+	}
+	if p.CanCreateCustomRole {
+		permissions = append(permissions, "can_create_custom_role")
+	}
+	if p.CanCreateChannel {
+		permissions = append(permissions, "can_create_channel")
+	}
+	if p.CanCommentOnThreads {
+		permissions = append(permissions, "can_comment_on_threads")
+	}
+	if p.CanViewBilling {
+		permissions = append(permissions, "can_view_billing")
+	}
+	if p.CanCreateWebhooks {
+		permissions = append(permissions, "can_create_webhooks")
+	}
+	if p.CanViewChannels {
+		permissions = append(permissions, "can_view_channels")
+	}
+	if p.CanChangeUserOrgRole {
+		permissions = append(permissions, "can_change_user_org_role")
+	}
+	if p.CanDeleteAnyFile {
+		permissions = append(permissions, "can_delete_any_file")
+	}
+	return permissions
+}
+
 func (p *PermissionList) Scan(value any) error {
 	if b, ok := value.([]byte); ok {
 		return json.Unmarshal(b, &p)

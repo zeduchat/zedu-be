@@ -5016,29 +5016,20 @@ paths:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
   /subscriptions/complete:
-    post:
+    get:
       summary: Complete a subscription and retrieve associated invoices
       tags:
         - subscription
       security:
         - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                org_id:
-                  type: string
-                  format: uuid
-                  example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
-                stripe_session_id:
-                  type: string
-                  example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
-              required:
-                - org_id
-                - stripe_session_id
+      parameters:
+        - in: query
+          name: session_id
+          schema:
+            type: string
+          required: true
+          description: Stripe session ID
+          example: "cs_test_a1WVERDendXHiw3J0qA4y40V0TGd0AM2lRTGlukEEp12znwwFyuVg0eO5Z"
       responses:
         "200":
           description: Subscription completed successfully and invoices retrieved
@@ -5065,6 +5056,10 @@ paths:
                         created:
                           type: integer
                           description: Creation timestamp of the invoice
+                        invoice_pdf_url:
+                          type: string
+                          description: URL to the invoice PDF
+                          example: "https://pay.stripe.com/invoice/..."
         "400":
           description: Bad request, either the session was not paid or no subscription ID found
           content:
@@ -5485,6 +5480,12 @@ paths:
       responses:
         "200":
           description: Subscriptions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrgPlanDetails"
         "401":
           description: Unauthorized
         "404":
@@ -5510,6 +5511,12 @@ paths:
       responses:
         "200":
           description: Subscription plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanResponse"
         "401":
           description: Unauthorized
         "500":
@@ -5536,6 +5543,10 @@ paths:
       responses:
         "200":
           description: Subscriptions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgPlanDetails"
         "401":
           description: Unauthorized
         "404":
@@ -7254,12 +7265,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-  /credits/top-up:
+  /credits/purchase:
     post:
       tags:
         - credits
-      summary: Top-up organisation credit balance
-      description: Top-up organisation credit balance.
+      summary: Purchase credits for an organisation
+      description: Purchase credits for an organisation.
       security:
         - bearerAuth: []
       requestBody:
@@ -7269,19 +7280,22 @@ paths:
             schema:
               type: object
               properties:
-                org_id:
+                plan_id:
                   type: string
                   format: uuid
-                  description: The ID of the organization whose credit balance is to be topped up..
+                  description: The ID of the credit plan to purchase.
                   example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
-                package_id:
+                email:
                   type: string
-                  format: uuid
-                  description: The Credit package organisation want to purchase.
-                  example: "01918214-55e5-791b-9ebd-fa8d92d69fa1"
+                  format: email
+                  description: The email associated with the purchase.
+                  example: "user@example.com"
+              required:
+                - plan_id
+                - email
       responses:
-        "201":
-          description: Organisation credit wallet has been topped up successfully
+        "200":
+          description: Checkout Session URL generated successfully
           content:
             application/json:
               schema:
@@ -7292,10 +7306,17 @@ paths:
                     example: "success"
                   status_code:
                     type: integer
-                    example: 201
+                    example: 200
                   message:
                     type: string
-                    example: "Organisation credit wallet has been topped up successfully"
+                    example: "Checkout Session URL generated successfully"
+                  data:
+                    type: object
+                    properties:
+                      checkout_session_id:
+                        type: string
+                      checkout_session_url:
+                        type: string
         "400":
           description: Bad request
           content:
@@ -7308,12 +7329,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
-        "404":
-          description: Not found
+        "500":
+          description: Server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NotFoundErrorSchema"
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /credits/verify-payment:
+    post:
+      tags:
+        - credits
+      summary: Verify organisation credit top-up payment
+      description: Verify organisation credit top-up payment using Stripe session ID.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  description: The ID of the Stripe checkout session.
+                  example: "cs_test_a1yvVa2yYQw4Mm0JOVbRWWtjdIRcYikZTPMFWDegPDmKmlUU9gEHLAwDW5"
+              required:
+                - session_id
+      responses:
+        "200":
+          description: Payment verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Payment verified successfully"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Server error
           content:
@@ -30704,9 +30776,42 @@ components:
         total_messages_count:
           type: number
           example: 45
-        org_role:
-          type: string
-          example: null
+        user_role:
+          $ref: "#/components/schemas/OrgUserRoleInfo"
+        organisation_plan:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            organisation_id:
+              type: string
+              format: uuid
+            plan_id:
+              type: string
+              format: uuid
+            started_at:
+              type: string
+              format: date-time
+            ended_at:
+              type: string
+              format: date-time
+            status:
+              type: string
+              example: Active
+            session_id:
+              type: string
+            invoice_pdf_url:
+              type: string
+              format: uri
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            plan_details:
+              $ref: '#/components/schemas/PlanResponse'
         created_at:
           type: string
           format: date-time
@@ -31973,14 +32078,14 @@ components:
     CreateSubscriptionRequest:
       type: object
       required:
-        - plan_name
+        - plan_id
         - org_id
         - email
       properties:
-        plan_name:
+        plan_id:
           type: string
-          description: "The name of the subscription plan."
-          example: "Premium"
+          description: "The ID of the subscription plan."
+          example: "01915c5a-cc3b-7357-998e-315fcb18fceb"
         org_id:
           type: string
           description: "The unique identifier for the org."
@@ -31995,14 +32100,67 @@ components:
       type: object
       required:
         - org_id
-        - plan_name
+        - plan_id
       properties:
         org_id:
           type: string
-          description: The ID of the user modifying the subscription
-        plan_name:
+          description: The ID of the organisation
+        plan_id:
           type: string
-          description: The new name of the subscription plan
+          description: The new ID of the subscription plan
+
+    PlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        benefits:
+          type: array
+          items:
+            type: string
+        fee:
+          type: integer
+        credits:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrgPlanDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        fee:
+          type: number
+          format: float
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+        session_id:
+          type: string
+        invoice_pdf_url:
+          type: string
+          format: uri
+        organisation_created_at:
+          type: string
+          format: date-time
 
     DeleteSubscriptionRequest:
       type: object
@@ -32813,6 +32971,22 @@ components:
                         description: Date invitation was sent (YYYY-MM-DD)
             pagination:
               $ref: "#/components/schemas/PaginationMeta"
+
+    OrgUserRoleInfo:
+      type: object
+      properties:
+        role_id:
+          type: string
+          format: uuid
+          example: 01910544-d1e1-7ada-bdac-c761e527ec91
+        role_name:
+          type: string
+          example: Admin
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["read", "write"]
 
   securitySchemes:
     bearerAuth:

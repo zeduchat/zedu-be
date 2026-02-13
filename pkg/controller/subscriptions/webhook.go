@@ -23,7 +23,7 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-
+	base.Logger.Info("DEBUG: Webhook body: %s\n", string(body))
 	var event stripe.Event
 	if err := json.Unmarshal(body, &event); err != nil {
 		base.Logger.Error("Error parsing event: " + err.Error())
@@ -36,27 +36,27 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 	case "checkout.session.completed":
 		var checkoutSession stripe.CheckoutSession
 
-		err := json.Unmarshal(event.Data.Raw, &checkoutSession)
+		rawObject := event.Data.Raw
+		if len(rawObject) == 0 && event.Data.Object != nil {
+			rawObject, _ = json.Marshal(event.Data.Object)
+		}
+
+		err := json.Unmarshal(rawObject, &checkoutSession)
 		if err != nil {
 			base.Logger.Error("Error parsing webhook JSON:" + err.Error())
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Error parsing webhook JSON", nil, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}
+		base.Logger.Info("DEBUG: Webhook session ID: %s, SuccessURL: %s\n", checkoutSession.ID, checkoutSession.SuccessURL)
 
-		if !strings.HasPrefix(checkoutSession.SuccessURL, "https://telex.im") &&
-			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.telex.im") {
+		if !strings.HasPrefix(checkoutSession.SuccessURL, "https://zedu.chat") &&
+			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.zedu.chat") &&
+			!strings.HasPrefix(checkoutSession.SuccessURL, "https://staging.zedu.im") {
 			base.Logger.Info("Webhook not for telex")
 			rd := utility.BuildSuccessResponse(http.StatusOK, "Webhook not for telex", nil)
 			c.JSON(http.StatusOK, rd)
 			return
-		}
-
-		var orgEmail string
-		if checkoutSession.CustomerDetails != nil {
-			orgEmail = checkoutSession.CustomerDetails.Email
-		} else {
-			orgEmail = checkoutSession.Customer.Email
 		}
 
 		var webhookData = models.ProcessedStripeWebhook{}
@@ -77,9 +77,9 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		switch checkoutSession.Metadata["flow"] {
 		case "credit_topup":
 			org_id := checkoutSession.Metadata["org_id"]
-			package_id := checkoutSession.Metadata["package_id"]
+			plan_id := checkoutSession.Metadata["plan_id"]
 
-			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, package_id)
+			_, code, err := models.TopUpOrgCredit(base.Db.Postgresql, org_id, plan_id, &checkoutSession.ID)
 			if err != nil {
 				rd := utility.BuildErrorResponse(code, "error", "Something went wrong", err.Error(), nil)
 				c.JSON(code, rd)
@@ -88,16 +88,9 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 			}
 
 		case "subscription":
-			plan_name := checkoutSession.Metadata["plan_name"]
-			org_id := checkoutSession.Metadata["org_id"]
-			stripe_customer_id := checkoutSession.Metadata["customer_id"]
 
 			req := models.CompleteSubscriptionRequest{
-				Email:            orgEmail,
-				StripeSessionID:  checkoutSession.ID,
-				PlanName:         plan_name,
-				OrgID:            org_id,
-				StripeCustomerID: stripe_customer_id,
+				StripeSessionID: checkoutSession.ID,
 			}
 
 			_, code, _, err := service.CompleteSubscriptionWebhook(req, base.Db.Postgresql)

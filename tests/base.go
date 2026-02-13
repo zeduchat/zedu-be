@@ -57,6 +57,7 @@ func Setup() *utility.Logger {
 		minio.ConnectToMinio(logger, config.Minio)
 		agora.NewAgoraService(logger, config.Agora)
 		db := storage.Connection()
+		db.IsTest = true
 		if config.TestDatabase.Migrate {
 			logger.Info("Starting SQL migrations...")
 			success, err := RunSQLMigrations(config.TestDatabase, logger)
@@ -69,6 +70,7 @@ func Setup() *utility.Logger {
 			seed.SeedRolesAndPermissions(logger, db.Postgresql)
 			seed.SeedPlans(logger, db.Postgresql)
 			seed.SeedCreditPackages(logger, db.Postgresql)
+			seed.SeedAICreditPackages(logger, db.Postgresql)
 		}
 
 		// Initialize River client for background jobs
@@ -152,7 +154,7 @@ func SignupUser(t *testing.T, r *gin.Engine, auth auth.Controller, userSignUpDat
 	r.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
-		t.Logf("Registration failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		t.Fatalf("Registration failed with status %d. Response: %s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -174,6 +176,7 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 	r.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
+		t.Fatalf("Login failed with status %d. Response: %s", rr.Code, rr.Body.String())
 		return ""
 	}
 
@@ -300,8 +303,17 @@ func CreateOrganisation(t *testing.T, r *gin.Engine, db *storage.Database, org o
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	//get the response
+	if rr.Code != http.StatusCreated && rr.Code != http.StatusOK {
+		t.Fatalf("Organisation creation failed with status %d. Response: %s", rr.Code, rr.Body.String())
+		return "", "", ""
+	}
+
 	data := ParseResponse(rr)
+	if data["data"] == nil {
+		t.Logf("Organisation creation response has no data field. Response: %s", rr.Body.String())
+		return "", "", ""
+	}
+
 	dataM := data["data"].(map[string]any)
 	orgID := dataM["id"].(string)
 	orgName := dataM["name"].(string)

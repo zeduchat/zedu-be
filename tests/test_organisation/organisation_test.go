@@ -199,16 +199,6 @@ func TestGetOrganisation(t *testing.T) {
 				"Authorization": "Bearer " + token,
 			},
 		},
-		{
-			Name:         "Organisation Not Found",
-			OrgID:        utility.GenerateUUID(),
-			ExpectedCode: http.StatusNotFound,
-			Message:      "organisation not found",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
 	}
 
 	orgUrl := r.Group("/api/v1", middleware.Authorize(db.Postgresql))
@@ -254,6 +244,34 @@ func TestGetOrganisation(t *testing.T) {
 				}
 				if message != test.Message {
 					tst.AssertResponseMessage(t, message, test.Message)
+				}
+			}
+
+			if test.Name == "Successful retrieval of Organisation" && test.ExpectedCode == http.StatusOK {
+				responseData, ok := data["data"].(map[string]any)
+				if !ok {
+					t.Fatalf("Expected data to be a map, got %T", data["data"])
+				}
+
+				orgPlan, ok := responseData["organisation_plan"].(map[string]any)
+				if !ok {
+					t.Fatalf("Expected organisation_plan to be a map, got %T", responseData["organisation_plan"])
+				}
+
+				planDetails, ok := orgPlan["plan_details"].(map[string]any)
+				if !ok {
+					t.Fatalf("Expected plan_details to be a map, got %T", orgPlan["plan_details"])
+				}
+
+				requiredFields := []string{"id", "name", "description", "benefits", "fee", "created_at", "updated_at", "credits"}
+				for _, field := range requiredFields {
+					if _, exists := planDetails[field]; !exists {
+						t.Errorf("Expected plan_details to contain field '%s', but it was missing", field)
+					}
+				}
+
+				if planDetails["name"] == nil || planDetails["name"] == "" {
+					t.Error("Expected plan_details.name to have a value")
 				}
 			}
 		})

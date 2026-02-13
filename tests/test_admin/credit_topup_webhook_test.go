@@ -40,7 +40,7 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
-	webhookEvent := CreateTestStripeWebhookEvent(orgID, packageID, sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	webhookEvent := CreateTestStripeWebhookEvent(orgID, packageID, sessionID, "https://zedu.chat/client/settings/organisation/billing?session_id="+sessionID, "https://zedu.chat/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -60,8 +60,10 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 	assert.Equal(t, "success", response["status"])
 
 	var transaction models.CreditTransaction
-	err := db.Postgresql.Where("organisation_id = ? AND type = ?", orgID, "Top-up").First(&transaction).Error
-	assert.NoError(t, err)
+	err := db.Postgresql.Where("organisation_id = ? AND type = ?", orgID, "Top-up").Order("created_at DESC").First(&transaction).Error
+	if err != nil {
+		t.Fatalf("Failed to find credit transaction: %v. Response body: %s", err, rr.Body.String())
+	}
 	assert.Equal(t, float64(1000), transaction.Amount)
 	assert.Equal(t, float64(100.00), transaction.BalanceBefore)
 	assert.Equal(t, float64(1100.00), transaction.BalanceAfter)
@@ -69,7 +71,7 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 	var org models.Organisation
 	err = db.Postgresql.Where("id = ?", orgID).First(&org).Error
 	assert.NoError(t, err)
-	assert.Equal(t, float64(1000.00), org.CreditBalance)
+	assert.Equal(t, float64(1100.00), org.CreditBalance)
 }
 
 func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
@@ -78,7 +80,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	db := storage.Connection()
 	validator := validator.New()
 
-	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 0.00)
 	sessionID := fmt.Sprintf("cs_test_%s", utility.GenerateUUID())
 
 	webhookController := subscriptions.Controller{
@@ -91,7 +93,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
-	webhookEvent := CreateTestStripeWebhookEvent(orgID, "00000000-0000-0000-0000-000000000000", sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	webhookEvent := CreateTestStripeWebhookEvent(orgID, "00000000-0000-0000-0000-000000000000", sessionID, "https://zedu.chat/client/settings/organisation/billing?session_id="+sessionID, "https://zedu.chat/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -135,7 +137,7 @@ func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
 	// Use valid UUID format but non-existent ID to avoid PostgreSQL parse errors
-	webhookEvent := CreateTestStripeWebhookEvent("00000000-0000-0000-0000-000000000000", packageID, sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	webhookEvent := CreateTestStripeWebhookEvent("00000000-0000-0000-0000-000000000000", packageID, sessionID, "https://zedu.chat/client/settings/organisation/billing?session_id="+sessionID, "https://zedu.chat/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -179,7 +181,7 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
 
-	webhookEvent := CreateTestStripeWebhookEvent(orgID, packageID, sessionID, "https://telex.im/client/settings/organisation/billing?session_id="+sessionID, "https://telex.im/client/settings/organisation/billing")
+	webhookEvent := CreateTestStripeWebhookEvent(orgID, packageID, sessionID, "https://zedu.chat/client/settings/organisation/billing?session_id="+sessionID, "https://zedu.chat/client/settings/organisation/billing")
 
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
@@ -197,7 +199,9 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 
 	var transaction models.CreditTransaction
 	err := db.Postgresql.Where("organisation_id = ?", orgID).Order("created_at DESC").First(&transaction).Error
-	assert.NoError(t, err)
+	if err != nil {
+		t.Fatalf("Failed to find credit transaction: %v. Response body: %s", err, rr.Body.String())
+	}
 	assert.Equal(t, float64(500), transaction.Amount)
 	assert.Equal(t, float64(100.00), transaction.BalanceBefore)
 	assert.Equal(t, float64(600.00), transaction.BalanceAfter)
@@ -205,7 +209,7 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	var org models.Organisation
 	err = db.Postgresql.Where("id = ?", orgID).First(&org).Error
 	assert.NoError(t, err)
-	assert.Equal(t, float64(450.00), org.CreditBalance)
+	assert.Equal(t, float64(550.00), org.CreditBalance)
 }
 
 func CreateTestStripeWebhookEvent(orgID, packageID, sessionID, successURL, cancelURL string) map[string]any {
@@ -215,9 +219,9 @@ func CreateTestStripeWebhookEvent(orgID, packageID, sessionID, successURL, cance
 		"success_url": successURL,
 		"cancel_url":  cancelURL,
 		"metadata": map[string]string{
-			"flow":       "credit_topup",
-			"org_id":     orgID,
-			"package_id": packageID,
+			"flow":    "credit_topup",
+			"org_id":  orgID,
+			"plan_id": packageID,
 		},
 		"customer_details": map[string]any{
 			"email": fmt.Sprintf("test%s@qa.team", utility.RandomString(5)),

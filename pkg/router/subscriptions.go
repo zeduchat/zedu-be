@@ -22,9 +22,10 @@ func Subscriptions(r *gin.Engine, ApiVersion string, validator *validator.Valida
 		subscriptionUrl.POST("/create", subscription.CreateSubscription)
 		subscriptionUrl.GET("/current/:org_id", subscription.GetCurrentSubscription)
 		subscriptionUrl.GET("/list/:org_id", subscription.GetSubscriptions)
+		subscriptionUrl.GET("", subscription.ListSubscriptions)
 		subscriptionUrl.PUT("/modify", subscription.ModifySubscription)
 		subscriptionUrl.DELETE("/:org_id", subscription.DeleteSubscription)
-		subscriptionUrl.POST("/complete", subscription.CompleteSubscription)
+		subscriptionUrl.GET("/complete", subscription.CompleteSubscription)
 		subscriptionUrl.GET("/invoice/download/:session_id/:org_id", subscription.DownloadInvoice)
 		webhookUrl.POST("webhook", subscription.HandleStripeWebhook)
 	}

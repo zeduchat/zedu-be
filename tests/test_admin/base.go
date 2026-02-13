@@ -208,6 +208,20 @@ func CreateOrganizationWithCredit(t *testing.T, db *gorm.DB, creditBalance float
 		t.Fatalf("Failed to create organization %s", err)
 	}
 
+	if creditBalance > 0 {
+		transaction := models.CreditTransaction{
+			ID:             utility.GenerateUUID(),
+			OrganisationID: orgID,
+			Amount:         creditBalance,
+			BalanceBefore:  0,
+			BalanceAfter:   creditBalance,
+			Type:           "Top-up",
+		}
+		if err := db.Create(&transaction).Error; err != nil {
+			t.Fatalf("Failed to create initial credit transaction: %v", err)
+		}
+	}
+
 	return orgID
 }
 

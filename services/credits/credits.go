@@ -2,8 +2,9 @@ package credits
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
-	"strings"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v72"
@@ -22,14 +23,9 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusNotFound, err
 	}
 
-	credit, _, err := models.GetCreditPackageByID(db, req.PackageID)
+	plan, code, err := models.GetCreditPackageByID(db, req.PackageID)
 	if err != nil {
-		return nil, http.StatusNotFound, err
-	}
-
-	stripePriceID, exists := GetStripePriceID(credit.Name)
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for credit plan")
+		return nil, code, err
 	}
 
 	stripeCustomerParams := &stripe.CustomerParams{
@@ -41,11 +37,20 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 		return nil, http.StatusBadRequest, err
 	}
 
+	priceInCents := int64(plan.Price * 100)
+
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("usd"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String("Subscription plan credits: " + strconv.Itoa(plan.Credits) + " credits"),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -56,7 +61,7 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("flow", "credit_topup")
-	params.AddMetadata("package_id", req.PackageID)
+	params.AddMetadata("plan_id", req.PackageID)
 
 	session, err := session.New(params)
 	if err != nil {
@@ -70,14 +75,29 @@ func PurchaseCredits(req models.CreditTopUpRequest, db *gorm.DB, url string) (*g
 
 	return &responseData, http.StatusOK, nil
 }
+func VerifyPayment(sessionID string, db *gorm.DB) (*gin.H, int, error) {
 
-func GetStripePriceID(planName string) (string, bool) {
-	normalized := strings.ToLower(strings.TrimSpace(planName))
-	priceID, exist := models.MapPackagePriceID[normalized]
-
-	if !exist {
-		return priceID, false
+	var existingTransaction models.CreditTransaction
+	err := db.Where("stripe_session_id = ?", sessionID).First(&existingTransaction).Error
+	if err == nil {
+		return nil, http.StatusOK, nil
 	}
 
-	return priceID, true
+	stripeSession, err := session.Get(sessionID, nil)
+	if err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("failed to retrieve stripe session: %v", err)
+	}
+
+	if stripeSession.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+		return nil, http.StatusBadRequest, errors.New("payment not completed")
+	}
+
+	orgID := stripeSession.Metadata["org_id"]
+	planID := stripeSession.Metadata["plan_id"]
+
+	if orgID == "" || planID == "" {
+		return nil, http.StatusBadRequest, errors.New("invalid session metadata")
+	}
+
+	return models.TopUpOrgCredit(db, orgID, planID, &sessionID)
 }

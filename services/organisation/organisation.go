@@ -190,8 +190,8 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisation, error) {
 	var org models.Organisation
-	org, err := org.CheckOrgExists(orgId, db)
 
+	err := db.Preload("OrganisationPlan.PlanDetails").Where("id = ?", orgId).First(&org).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("organisation not found")
@@ -205,6 +205,23 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	}
 	if !isMember {
 		return nil, errors.New("user not authorised to retrieve this organisation")
+	}
+
+	if org.OrganisationPlan.ID == "" && org.OrgPlanID != "" {
+		var plan models.Plan
+		err = db.Where("id = ?", org.OrgPlanID).First(&plan).Error
+		if err == nil {
+			org.OrganisationPlan = models.OrganisationPlan{
+				PlanDetails: plan,
+			}
+		}
+	}
+
+	var orgUserMgt models.OrgUserManagement
+	userRoleInfo, err := orgUserMgt.GetUserRoleInOrganisation(db, userId, orgId)
+	userRoleInfo.RoleName = strings.ToLower(userRoleInfo.RoleName)
+	if err == nil && userRoleInfo.RoleName != "" {
+		org.CurrentUserRoleInfo = userRoleInfo
 	}
 
 	org.OrganisationSlug = slug.Make(org.Name)

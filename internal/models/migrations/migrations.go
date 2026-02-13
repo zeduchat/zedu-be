@@ -67,6 +67,7 @@ func AuthMigrationModels() []any {
 		models.GeneralAgentSkill{},
 		models.ChannelWorkflow{},
 		models.Plan{},
+		models.AICreditPackage{},
 		models.ProcessedStripeWebhook{},
 		models.Profile{},
 		models.RoleChangeConfirmation{},

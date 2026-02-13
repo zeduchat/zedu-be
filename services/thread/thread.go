@@ -234,7 +234,7 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID)
+	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID, userID)
 
 	if !exists {
 		return nil, nil, http.StatusBadRequest, errors.New("user is not a member of this channel")

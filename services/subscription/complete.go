@@ -23,14 +23,19 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 	var planRepo models.Plan
 	var orgPlanRepo models.OrganisationPlan
 
-	org, err := orgRepo.GetOrgByID(db, req.OrgID)
-	if err != nil {
-		return nil, http.StatusNotFound, nil, errors.New("org not found")
-	}
-
 	sesh, err := session.Get(req.StripeSessionID, nil)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error getting session")
+	}
+
+	orgID := sesh.Metadata["org_id"]
+	if orgID == "" {
+		return nil, http.StatusBadRequest, nil, errors.New("organisation ID not found in session metadata")
+	}
+
+	org, err := orgRepo.GetOrgByID(db, orgID)
+	if err != nil {
+		return nil, http.StatusNotFound, nil, errors.New("org not found")
 	}
 
 	theAmt := int(sesh.AmountSubtotal) / 100
@@ -47,16 +52,46 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusBadRequest, nil, errors.New("plan not found")
 	}
 
-	orgPlan, err := orgPlanRepo.GetAnOrgPlanById(db, req.OrgID)
+	orgPlan, err := orgPlanRepo.GetAnOrgPlanById(db, org.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, http.StatusInternalServerError, nil, errors.New("error retrieving organisation plan")
+	}
+
+	params := &stripe.InvoiceListParams{
+		Subscription: stripe.String(sesh.Subscription.ID),
+	}
+
+	i := invoice.List(params)
+
+	var invoiceItems []*stripe.Invoice
+
+	for i.Next() {
+		invoiceItems = append(invoiceItems, i.Invoice())
+	}
+
+	if err := i.Err(); err != nil || len(invoiceItems) == 0 {
+		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
+	}
+
+	var existingPlan models.OrganisationPlan
+	err = db.Where("session_id = ?", req.StripeSessionID).First(&existingPlan).Error
+	if err == nil {
+		now := time.Now()
+		if existingPlan.CreatedAt.Year() == now.Year() &&
+			existingPlan.CreatedAt.Month() == now.Month() &&
+			existingPlan.CreatedAt.Day() == now.Day() {
+			responseData := gin.H{
+				"invoice_items": invoiceItems,
+			}
+			return &responseData, http.StatusOK, invoiceItems[0], nil
+		}
 	}
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 
 		orgPlan = models.OrganisationPlan{
 			ID:             utility.GenerateUUID(),
-			OrganisationID: req.OrgID,
+			OrganisationID: org.ID,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
@@ -80,7 +115,7 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 
 		newOrgPlan := models.OrganisationPlan{
 			ID:             utility.GenerateUUID(),
-			OrganisationID: req.OrgID,
+			OrganisationID: org.ID,
 			PlanID:         plan.ID,
 			StartedAt:      time.Now(),
 			Status:         "Active",
@@ -97,27 +132,13 @@ func CompleteSubscription(req models.CompleteSubscriptionRequest, db *gorm.DB,
 	}
 
 	org.SubscriptionPlanId = sesh.Subscription.ID
-	org.StripeCustomerID = sesh.Customer.ID
+	if sesh.Customer != nil {
+		org.StripeCustomerID = sesh.Customer.ID
+	}
 
 	_, err = org.Update(db)
 	if err != nil {
 		return nil, http.StatusBadRequest, nil, errors.New("error updating org subscription plan")
-	}
-
-	params := &stripe.InvoiceListParams{
-		Subscription: stripe.String(sesh.Subscription.ID),
-	}
-
-	i := invoice.List(params)
-
-	var invoiceItems []*stripe.Invoice
-
-	for i.Next() {
-		invoiceItems = append(invoiceItems, i.Invoice())
-	}
-
-	if err := i.Err(); err != nil {
-		return nil, http.StatusBadRequest, nil, errors.New("error retrieving invoice")
 	}
 
 	cacheKey := "org_plan:" + org.ID

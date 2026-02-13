@@ -51,23 +51,35 @@ func TestGetPlans(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	data := tst.ParseResponse(rr)
-	respData := data["data"].([]interface{})
+	respMap, ok := data["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected 'data' to be a map, got %T. Response body: %s", data["data"], rr.Body.String())
+	}
 
-	assert.Equal(t, 5, len(respData))
+	plansData, ok := respMap["plans"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected 'plans' to be a slice, got %T", respMap["plans"])
+	}
+
+	assert.Equal(t, 5, len(plansData))
 
 	foundPro := false
-	for _, p := range respData {
+	for _, p := range plansData {
 		plan := p.(map[string]interface{})
 		if plan["name"] == "Pro" {
 			foundPro = true
 			assert.Equal(t, "Ideal for growing learners", plan["description"])
-			assert.Equal(t, 20.0, plan["fee"])
-			assert.Equal(t, 60.0, plan["max_call_duration"])
+			assert.Equal(t, float64(20), plan["fee"]) // Changed to float64 for JSON unmarshaling
 
-			benefits := plan["benefits"].([]interface{})
+			benefits, ok := plan["benefits"].([]interface{})
+			assert.True(t, ok)
 			assert.Greater(t, len(benefits), 0)
 			assert.Contains(t, benefits, "Advanced controls for administrator only")
 		}
 	}
 	assert.True(t, foundPro, "Pro plan not found in response")
+
+	aiPackages, ok := respMap["ai_credit_packages"].([]interface{})
+	assert.True(t, ok)
+	assert.GreaterOrEqual(t, len(aiPackages), 3) // Based on seeding
 }

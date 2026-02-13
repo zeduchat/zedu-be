@@ -83,9 +83,10 @@ type UpdateMemberRequest struct {
 }
 
 type OrgUserRoleInfo struct {
-	RoleID         string `json:"role_id"`
-	RoleName       string `json:"role_name"`
-	OrganisationID string `json:"organisation_id"`
+	RoleID         string   `json:"role_id"`
+	RoleName       string   `json:"role_name"`
+	Permissions    []string `json:"permissions,omitempty"`
+	OrganisationID string   `json:"-"`
 }
 
 type ChangeMemberActiveStatus struct {
@@ -308,19 +309,35 @@ func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, rol
 func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID string) (OrgUserRoleInfo, error) {
 	var userRoleInfo OrgUserRoleInfo
 
+	var result struct {
+		RoleID         string
+		OrganisationID string
+		RoleName       string
+		PermissionList PermissionList
+	}
+
 	err := db.Table("org_user_managements").
 		Select(`
         org_user_managements.role_id,
         org_user_managements.organisation_id,
-        org_roles.name AS role_name
+        org_roles.name AS role_name,
+		permissions.permission_list
     `).
 		Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
+		Joins("LEFT JOIN permissions ON org_roles.id = permissions.role_id").
 		Where("org_user_managements.user_id = ?", userID).
 		Where("org_user_managements.organisation_id = ?", orgID).
-		Scan(&userRoleInfo).Error
+		Scan(&result).Error
 
 	if err != nil {
 		return userRoleInfo, fmt.Errorf("failed to get user role in organisation: %v", err)
+	}
+
+	userRoleInfo = OrgUserRoleInfo{
+		RoleID:         result.RoleID,
+		RoleName:       result.RoleName,
+		OrganisationID: result.OrganisationID,
+		Permissions:    result.PermissionList.ToSlice(),
 	}
 
 	return userRoleInfo, nil

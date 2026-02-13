@@ -19,16 +19,10 @@ import (
 
 func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	url string) (*gin.H, int, error) {
-	var org models.Organisation
 
-	org, err := org.GetOrgByID(db, req.OrgID)
+	plan, err := models.GetPlanByID(db, req.PlanID)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("org not found")
-	}
-
-	stripePriceID, exists := models.StripeMap[req.PlanName]
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
+		return nil, http.StatusNotFound, errors.New("plan not found")
 	}
 
 	stripeCustomerParams := &stripe.CustomerParams{
@@ -40,11 +34,22 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 		return nil, http.StatusBadRequest, errors.New("failed to create Stripe customer")
 	}
 
+	priceInCents := int64(plan.Fee * 100)
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(stripeCustomer.ID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("usd"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String(plan.Description),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
+						Interval: stripe.String("month"),
+					},
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -54,7 +59,8 @@ func CreateSubscription(req models.CreateSubscriptionRequest, db *gorm.DB,
 	}
 
 	params.AddMetadata("flow", "subscription")
-	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("plan_id", req.PlanID)
+	params.AddMetadata("plan_name", plan.Name)
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("customer_id", stripeCustomer.ID)
 
@@ -122,13 +128,13 @@ func ListSubscriptions(customerID string, db *gorm.DB) (*gin.H, int, error) {
 
 func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url string) (*gin.H, int, error) {
 
-	stripePriceID, exists := models.StripeMap[req.PlanName]
-	if !exists {
-		return nil, http.StatusBadRequest, errors.New("missing StripePriceID for subscription plan")
+	plan, err := models.GetPlanByID(db, req.PlanID)
+	if err != nil {
+		return nil, http.StatusNotFound, errors.New("plan not found")
 	}
 
 	var org models.Organisation
-	org, err := org.GetOrgByID(db, req.OrgID)
+	org, err = org.GetOrgByID(db, req.OrgID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("org not found")
 	}
@@ -137,11 +143,22 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 		return nil, http.StatusBadRequest, errors.New("org does not have a Stripe customer ID")
 	}
 
+	priceInCents := int64(plan.Fee * 100)
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(org.StripeCustomerID),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
-				Price:    stripe.String(stripePriceID),
+				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
+					Currency: stripe.String("usd"),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name:        stripe.String(plan.Name),
+						Description: stripe.String(plan.Description),
+					},
+					UnitAmount: stripe.Int64(priceInCents),
+					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
+						Interval: stripe.String("month"),
+					},
+				},
 				Quantity: stripe.Int64(1),
 			},
 		},
@@ -151,7 +168,8 @@ func ModifySubscription(req models.ModifySubscriptionRequest, db *gorm.DB, url s
 	}
 
 	params.AddMetadata("flow", "subscription")
-	params.AddMetadata("plan_name", req.PlanName)
+	params.AddMetadata("plan_id", req.PlanID)
+	params.AddMetadata("plan_name", plan.Name)
 	params.AddMetadata("org_id", req.OrgID)
 	params.AddMetadata("customer_id", org.StripeCustomerID)
 
@@ -242,7 +260,8 @@ func GetSubscriptions(customerID string, db *gorm.DB) ([]models.OrgPlanDetails, 
 	return currentPlans, http.StatusOK, nil
 }
 
-func GetSubscriptionPlans(db *gorm.DB) (*[]models.Plan, int, error) {
+func GetSubscriptionPlans(db *gorm.DB) (*[]models.PlanResponse, int, error) {
+
 	subscriptionPlans, err := models.GetSubscriptionPlans(db)
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve subscription plans: %w", err)
