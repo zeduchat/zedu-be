@@ -29,6 +29,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 		adminAuthUrl.GET("/plans", admin.GetPlans)
 		adminAuthUrl.GET("/dashboard/user-growth", admin.GetUserGrowth)
+		adminAuthUrl.GET("/admins/invitation/dashboard", admin.GetInvitationDashboard)
 	}
 
 	// Super admin only endpoints
