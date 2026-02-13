@@ -146,6 +146,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
 			"phone":                     userData.Profile.Phone,
 			"avatar_url":                userData.Profile.AvatarURL,
+			"default_avatar_url":        userData.Profile.DefaultAvatarURL,
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),

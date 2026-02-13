@@ -148,9 +148,10 @@ type ChannelInfoResponse struct {
 }
 
 type UserMsgProfile struct {
-	FullName  string `json:"full_name"`
-	AvatarURL string `json:"avatar_url"`
-	Email     string `json:"email"`
+	FullName         string `json:"full_name"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	Email            string `json:"email"`
 }
 
 type MessagesResp []struct {

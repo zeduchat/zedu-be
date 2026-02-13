@@ -22,6 +22,7 @@ type Profile struct {
 	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
 	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
 	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
+	DefaultAvatarURL  string         `gorm:"type:varchar(255)" json:"default_avatar_url"`
 	Userid            string         `gorm:"type:uuid;unique" json:"user_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -49,6 +50,7 @@ type ProfileSummary struct {
 	FullName          string   `json:"full_name"`
 	UserName          string   `json:"username"`
 	AvatarURL         string   `json:"avatar_url"`
+	DefaultAvatarURL  string   `json:"default_avatar_url"`
 	UserId            string   `json:"user_id"`
 	Deactivated       bool     `json:"deactivated"`
 	CreatedAt         string   `json:"created_at"`

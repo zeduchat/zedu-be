@@ -316,19 +316,56 @@ func SendFileToUsersDM(db *storage.Database, logger *utility.Logger, extReq requ
 			continue
 		}
 
-		// Verify recipient exists and is in same organization
+		// Verify recipient exists in organization (not deactivated)
+		// Users belong to orgs through org_user_managements join table
+		var orgUserMgt models.OrgUserManagement
+		if err := db.Postgresql.
+			Where("user_id = ? AND organisation_id = ? AND is_deactivated = ?", recipientID, orgID, false).
+			First(&orgUserMgt).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// User either doesn't exist, not in org, or is deactivated
+				// Check if user exists at all
+				var userCheck models.User
+				userExistsErr := db.Postgresql.Where("id = ?", recipientID).First(&userCheck).Error
+				if errors.Is(userExistsErr, gorm.ErrRecordNotFound) {
+					recipients = append(recipients, models.DMRecipientInfo{
+						UserID:  recipientID,
+						Success: false,
+						Error:   "user not found",
+					})
+				} else {
+					// User exists but not in this org or deactivated
+					recipients = append(recipients, models.DMRecipientInfo{
+						UserID:  recipientID,
+						Success: false,
+						Error:   "user not found or not in organization",
+					})
+				}
+			} else {
+				recipients = append(recipients, models.DMRecipientInfo{
+					UserID:  recipientID,
+					Success: false,
+					Error:   "failed to verify user membership",
+				})
+			}
+			continue
+		}
+
+		// Get recipient user details with profile
 		var recipient models.User
-		if err := db.Postgresql.Where("id = ? AND organisation_id = ?", recipientID, orgID).First(&recipient).Error; err != nil {
+		if err := db.Postgresql.Preload("Profile").Where("id = ?", recipientID).First(&recipient).Error; err != nil {
 			recipients = append(recipients, models.DMRecipientInfo{
 				UserID:  recipientID,
 				Success: false,
-				Error:   "user not found or not in organization",
+				Error:   "user profile not found",
 			})
 			continue
 		}
 
 		// Get or create DM channel
 		dmChannel := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			ChannelId:     utility.GenerateUUID(),
 			UserId:        senderID,
 			OrgId:         orgID,
 			ChatType:      "user",

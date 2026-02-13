@@ -238,6 +238,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		FullName:          userProfile.Profile.FullName,
 		UserName:          userProfile.Profile.UserName,
 		AvatarURL:         userProfile.Profile.AvatarURL,
+		DefaultAvatarURL:  userProfile.Profile.DefaultAvatarURL,
 		UserId:            userProfile.Profile.Userid,
 		Deactivated:       userProfile.Deactivated,
 		ProfileUpdated:    userProfile.ProfileUpdated,

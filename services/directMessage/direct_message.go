@@ -253,12 +253,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		resp.GroupsInCommon = groupsInCommon
 
 		resp.Participants = append(resp.Participants, models.Participant{
-			AvatarUrl: userDetails.Profile.AvatarURL,
-			Username:  userDetails.Profile.UserName,
-			Email:     userDetails.Email,
-			UserType:  "user",
-			UserId:    *dmchannel.ParticipantId,
-			Title:     userDetails.Profile.Title,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+			Username:         userDetails.Profile.UserName,
+			Email:            userDetails.Email,
+			UserType:         "user",
+			UserId:           *dmchannel.ParticipantId,
+			Title:            userDetails.Profile.Title,
 		})
 
 	}
@@ -389,6 +390,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 					resp.Name = userName
 					resp.AvatarUrl = userDetails.Profile.AvatarURL
+					resp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 					resp.ParticipantId = *dm.ParticipantId
 					resp.ParticipantEmail = userDetails.Email
 				}

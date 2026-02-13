@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -263,7 +264,7 @@ func GetSubscriptionPlans(db *gorm.DB) (*[]models.PlanResponse, int, error) {
 
 	subscriptionPlans, err := models.GetSubscriptionPlans(db)
 	if err != nil {
-		return nil, http.StatusNotFound, errors.New("failed to retrieve subscription plans")
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to retrieve subscription plans: %w", err)
 	}
 
 	return subscriptionPlans, http.StatusOK, nil

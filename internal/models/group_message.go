@@ -43,10 +43,11 @@ type AddParticipantsRequest struct {
 }
 
 type ParticipantInfo struct {
-	UserId    string `json:"user_id"`
-	Name      string `json:"username"`
-	AvatarUrl string `json:"avatar_url"`
-	Email     string `json:"email"`
+	UserId           string `json:"user_id"`
+	Name             string `json:"username"`
+	AvatarUrl        string `json:"avatar_url"`
+	DefaultAvatarUrl string `json:"default_avatar_url"`
+	Email            string `json:"email"`
 }
 
 type GroupDMChannelsResponse struct {
@@ -102,6 +103,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			partInfo.UserId = part.UserId
 			partInfo.Name = userDetails.Profile.UserName
 			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 			partInfo.Email = userDetails.Email
 
 			gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
@@ -128,6 +130,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		partInfo.UserId = participantID
 		partInfo.Name = userDetails.Profile.UserName
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
 
 		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
@@ -316,6 +319,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		partInfo.UserId = part.UserId
 		partInfo.Name = userDetails.Profile.UserName
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
 
 		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
@@ -437,6 +441,7 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		partInfo.UserId = part.UserId
 		partInfo.Name = userDetails.Profile.UserName
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
 
 		addParticipantsResp.Participants = append(addParticipantsResp.Participants, partInfo)
@@ -512,6 +517,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 			partInfo.UserId = part.UserId
 			partInfo.Name = userDetails.Profile.UserName
 			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
+			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 			partInfo.Email = userDetails.Email
 
 			allPartsInfo = append(allPartsInfo, partInfo)

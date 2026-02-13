@@ -749,11 +749,12 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 				participants := []gin.H{
 					{
-						"avatar_url": userDetails.Profile.AvatarURL,
-						"username":   userDetails.Profile.UserName,
-						"email":      userDetails.Email,
-						"user_type":  "user",
-						"user_id":    ids.UserID,
+						"avatar_url":         userDetails.Profile.AvatarURL,
+						"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+						"username":           userDetails.Profile.UserName,
+						"email":              userDetails.Email,
+						"user_type":          "user",
+						"user_id":            ids.UserID,
 					},
 					{
 						"avatar_url": agents[i].Avatar,

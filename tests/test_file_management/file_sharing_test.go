@@ -204,12 +204,27 @@ func TestFileSharing(t *testing.T) {
 		secondUserEmail = secondUser.Email
 
 		orgID := user.Organisations[0].ID
-		var org models.Organisation
-		db.Postgresql.Where("id = ?", orgID).First(&org)
 
-		err := secondUserDB.AddUserToOrganisation(db.Postgresql, &secondUserDB, []interface{}{&org})
-		if err != nil {
-			t.Fatalf("Failed to add second user to organization: %v", err)
+		// Get an existing role from the organization
+		var orgRole models.OrgRole
+		if err := db.Postgresql.Where("organisation_id = ?", orgID).First(&orgRole).Error; err != nil {
+			// If no org-specific role, get a default role
+			if err := db.Postgresql.Where("name = ?", "Administrator").First(&orgRole).Error; err != nil {
+				t.Fatalf("Failed to find a role for the user: %v", err)
+			}
+		}
+
+		// Create OrgUserManagement record to properly add user to organization
+		orgUserMgt := models.OrgUserManagement{
+			UserID:         secondUserID,
+			OrganisationID: orgID,
+			RoleID:         orgRole.ID,
+			Status:         "active",
+			IsDeactivated:  false,
+		}
+
+		if err := db.Postgresql.Create(&orgUserMgt).Error; err != nil {
+			t.Fatalf("Failed to create org_user_managements record: %v", err)
 		}
 	})
 
@@ -407,7 +422,7 @@ func TestFileSharing(t *testing.T) {
 
 		if recipient["success"] != nil {
 			if !recipient["success"].(bool) {
-				t.Log("Note: Recipient send failed due to known bug in sharing service (organisation_id column doesn't exist in users table)")
+				t.Logf("Note: Recipient send failed with error: %v (DM message sending requires additional setup)", recipient["error"])
 			}
 		}
 	})
@@ -446,6 +461,44 @@ func TestFileSharing(t *testing.T) {
 		}
 		if !file.IsShareable {
 			t.Error("File is_shareable not updated in database")
+		}
+	})
+
+	t.Run("SendFileToDM_UserNotFound", func(t *testing.T) {
+		nonExistentUserID := uuid.New().String()
+
+		reqBody := map[string]interface{}{
+			"recipient_ids": []string{nonExistentUserID},
+			"note":          "This should fail",
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/files/%s/send-dm", fileID), &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+
+		if data["failed_sends"].(float64) != 1 {
+			t.Errorf("Expected 1 failed send, got %v", data["failed_sends"])
+		}
+
+		recipients := data["recipients"].([]interface{})
+		recipient := recipients[0].(map[string]interface{})
+
+		if recipient["success"].(bool) != false {
+			t.Error("Expected recipient success to be false")
+		}
+
+		if recipient["error"].(string) != "user not found" {
+			t.Errorf("Expected error 'user not found', got '%v'", recipient["error"])
 		}
 	})
 }
