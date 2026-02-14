@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "bac4d2e8-b3ea-4eda-a92b-8a0bec8c2950",
-    "name": "MAIN Telex_BE API",
+    "name": "MAIN Zedu_BE API",
     "description": "This API provides functionalities for telex_be\n\nContact Support:\n Email: support@example.com",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "37859074",

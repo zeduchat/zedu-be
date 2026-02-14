@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Telex_BE Swagger
+  title: Zedu_BE Swagger
   description: |-
     This API provides functionalities for telex_be
   termsOfService: http://example.com/terms/
@@ -76,7 +76,7 @@ tags:
     description: API for group direct message
   - name: Bots
     description: API endpoints for bots
-  - name: TelexAI
+  - name: ZeduAI
     description: "Endpoints for interacting with the AI proxy service, enabling chat completions"
   - name: File Management
     description: API for uploading and retrieving files
@@ -88,7 +88,7 @@ tags:
     description: API endpoints for managing notification preferences
   - name: General-Invitation
     description: API endpoints for organisation general invitation
-  - name: TelexAI
+  - name: ZeduAI
     description: API endpoints for telex AI
   - name: Logs
     description: API endpoints for retrieving server logs
@@ -4781,7 +4781,7 @@ paths:
       tags:
         - shares
       summary: Buy shares
-      description: Purchase shares on Telex
+      description: Purchase shares on Zedu
       security:
         - bearerAuth: []
       requestBody:
@@ -7489,7 +7489,7 @@ paths:
                               example: "a351f47cea15f91ca16a3b18a04a8c22"
                             is_telex_user:
                               type: boolean
-                              description: Indicates whether the invited user is already a Telex user.
+                              description: Indicates whether the invited user is already a Zedu user.
                               example: false
                             invitation_link:
                               type: string
@@ -12051,7 +12051,7 @@ paths:
                         app_logo:
                           type: string
                           description: URL to the app's logo.
-                          example: https://media.tifi.tv/telexbucket/public/logos/slack.png
+                          example: https://media.zedu.chat/public/email-static/slack.png
                         app_description:
                           type: string
                           description: A brief description of the application.
@@ -12547,13 +12547,13 @@ paths:
                           type: array
                           items:
                             type: string
-                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Zedu."
                         bot_user:
                           type: object
                           properties:
                             display_name:
                               type: string
-                              example: "Telex"
+                              example: "Zedu"
                             always_online:
                               type: boolean
                               example: false
@@ -12565,7 +12565,7 @@ paths:
                           example: "https://slack.com"
                         app_logo:
                           type: string
-                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                          example: "https://media.zedu.chat/public/email-static/slack.png"
                         app_name:
                           type: string
                           example: "Slack"
@@ -12695,13 +12695,13 @@ paths:
                           type: array
                           items:
                             type: string
-                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Telex."
+                            example: "Share and manage access to your Slack workspace — either to view, reply, or leave comments — from within Zedu."
                         bot_user:
                           type: object
                           properties:
                             display_name:
                               type: string
-                              example: "Telex"
+                              example: "Zedu"
                             always_online:
                               type: boolean
                               example: false
@@ -12713,7 +12713,7 @@ paths:
                           example: "https://slack.com"
                         app_logo:
                           type: string
-                          example: "https://media.tifi.tv/telexbucket/public/logos/slack.png"
+                          example: "https://media.zedu.chat/public/email-static/slack.png"
                         app_name:
                           type: string
                           example: "Slack"
@@ -21507,9 +21507,9 @@ paths:
   /telexai/chat:
     post:
       tags:
-        - TelexAI
+        - ZeduAI
       summary: Chat completions with optional tool calling
-      description: Chat with TelexAI using supported models and optional tool/function calling.
+      description: Chat with ZeduAI using supported models and optional tool/function calling.
       operationId: chatWithTools
       requestBody:
         required: true
@@ -21665,7 +21665,7 @@ paths:
   /telexai/models:
     get:
       tags:
-        - TelexAI
+        - ZeduAI
       summary: List all available models
       parameters:
         - in: header
@@ -21728,9 +21728,9 @@ paths:
   /telexai/models/tools:
     get:
       tags:
-        - TelexAI
+        - ZeduAI
       summary: Get models that support tool calling
-      description: Returns a list of TelexAI models that support function/tool calling capabilities.
+      description: Returns a list of ZeduAI models that support function/tool calling capabilities.
       operationId: listToolModels
       responses:
         "200":
