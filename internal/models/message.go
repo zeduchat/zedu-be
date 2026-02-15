@@ -516,7 +516,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 
 	var messageData any
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, MessageIndexName, query, &messageData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{MessageIndexName}, query, &messageData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch message records, error: %v", err)

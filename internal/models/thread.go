@@ -863,7 +863,7 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 
 	var threadData any
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName}, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, http.StatusInternalServerError, fmt.Errorf("failed to fetch thread records, error: %v", err)
@@ -918,7 +918,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 
 	var threadData any
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName}, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
@@ -1006,6 +1006,16 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 					},
 					{
 						"nested": map[string]any{
+							"path": "mentions",
+							"query": map[string]any{
+								"match": map[string]any{
+									"mentions.id.keyword": userId,
+								},
+							},
+						},
+					},
+					{
+						"nested": map[string]any{
 							"path": "messages",
 							"query": map[string]any{
 								"term": map[string]any{
@@ -1038,7 +1048,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		},
 	}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName, MessageIndexName}, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
@@ -1095,7 +1105,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		},
 	}
 
-	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName}, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
@@ -1259,7 +1269,7 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 		"size": limit,
 	}
 
-	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, ThreadIndexName, query, &threadData, c)
+	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName}, query, &threadData, c)
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
