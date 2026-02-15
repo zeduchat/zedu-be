@@ -1,6 +1,6 @@
-# Telex API
+# Zedu API
 
-The **Telex API** is a scalable Go-based backend service that integrates multiple data sources and technologies such as PostgreSQL, Redis, MinIO, MongoDB, Firebase, RabbitMQ, TypeSense, and Stripe. It also supports background jobs, external service integration, and real-time notifications.
+The **Zedu API** is a scalable Go-based backend service that integrates multiple data sources and technologies such as PostgreSQL, Redis, MinIO, MongoDB, Firebase, RabbitMQ, TypeSense, and Stripe. It also supports background jobs, external service integration, and real-time notifications.
 
 
 ## 🚀 Features
