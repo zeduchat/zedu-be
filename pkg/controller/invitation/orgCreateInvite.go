@@ -150,6 +150,7 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 		"errors": errs,
 	}
 
+	base.Logger.Info("Invitations created successfully", response)
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Invitations created successfully", response)
 	c.JSON(http.StatusCreated, rd)
 }
