@@ -66,53 +66,57 @@ type MessageDocument struct {
 }
 
 var MessageMapping = map[string]any{
-	"properties": map[string]any{
-		"id":          map[string]string{"type": "keyword"},
-		"channels_id": map[string]string{"type": "keyword"},
-		"user_id":     map[string]string{"type": "keyword"},
-		"org_id":      map[string]string{"type": "keyword"},
-		"username":    map[string]string{"type": "keyword"},
-		"user_type":   map[string]string{"type": "keyword"},
-		"thread_id":   map[string]string{"type": "keyword"},
-		"avatar_url":  map[string]string{"type": "text"},
-		"edited":      map[string]string{"type": "boolean"},
-		"message":     map[string]string{"type": "text"},
-		"full_name":   map[string]string{"type": "text"},
-		"email":       map[string]string{"type": "text"},
-		"created_at": map[string]string{
-			"type":   "date",
-			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
-		},
-		"media": map[string]any{
-			"type":       "nested",
-			"properties": MediaMapping,
-		},
-		"mention": map[string]any{
-			"type":       "nested",
-			"properties": MentionMapping,
-		},
-		"updated_at": map[string]string{
-			"type":   "date",
-			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
-		},
-		"deleted_at": map[string]string{
-			"type":   "date",
-			"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
-		},
-		"is_pinned": map[string]string{
-			"type": "boolean",
-		},
-		"is_saved": map[string]string{
-			"type": "boolean",
-		},
-		"pinned_details": map[string]any{
-			"type":       "nested",
-			"properties": PinnedDetailsMapping,
-		},
-		"reactions": map[string]any{
-			"type":       "nested",
-			"properties": ReactionMapping,
-		},
+	"id":          map[string]string{"type": "keyword"},
+	"channels_id": map[string]string{"type": "keyword"},
+	"user_id":     map[string]string{"type": "keyword"},
+	"org_id":      map[string]string{"type": "keyword"},
+	"username":    map[string]string{"type": "keyword"},
+	"user_type":   map[string]string{"type": "keyword"},
+	"thread_id":   map[string]string{"type": "keyword"},
+	"avatar_url":  map[string]string{"type": "text"},
+	"edited":      map[string]string{"type": "boolean"},
+	"message":     map[string]string{"type": "text"},
+	"full_name":   map[string]string{"type": "text"},
+	"email":       map[string]string{"type": "text"},
+	"created_at": map[string]string{
+		"type":   "date",
+		"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+	},
+	"media": map[string]any{
+		"type":       "nested",
+		"properties": MediaMapping,
+	},
+	"mention": map[string]any{
+		"type":       "nested",
+		"properties": MentionMapping,
+	},
+	"updated_at": map[string]string{
+		"type":   "date",
+		"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+	},
+	"deleted_at": map[string]string{
+		"type":   "date",
+		"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+	},
+	"is_pinned": map[string]string{
+		"type": "boolean",
+	},
+	"is_saved": map[string]string{
+		"type": "boolean",
+	},
+	"pinned_details": map[string]any{
+		"type":       "nested",
+		"properties": PinnedDetailsMapping,
+	},
+	"reactions": map[string]any{
+		"type":       "nested",
+		"properties": ReactionMapping,
+	},
+}
+
+var Message_mapping = map[string]any{
+	"mappings": map[string]any{
+		"properties": MessageMapping,
 	},
 }
 

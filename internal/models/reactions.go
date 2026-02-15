@@ -41,11 +41,9 @@ type ReactionDetails struct {
 }
 
 var ReactionMapping = map[string]any{
-	"properties": map[string]any{
-		"reaction":       map[string]string{"type": "text"},
-		"reaction_id":    map[string]string{"type": "text"},
-		"reaction_count": map[string]string{"type": "integer"},
-	},
+	"reaction":       map[string]string{"type": "text"},
+	"reaction_id":    map[string]string{"type": "text"},
+	"reaction_count": map[string]string{"type": "integer"},
 }
 
 func (m *Reaction) CreateThreadReaction(db *gorm.DB) (int, bool, error) {

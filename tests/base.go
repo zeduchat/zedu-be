@@ -71,6 +71,7 @@ func Setup() *utility.Logger {
 			seed.SeedPlans(logger, db.Postgresql)
 			seed.SeedCreditPackages(logger, db.Postgresql)
 			seed.SeedAICreditPackages(logger, db.Postgresql)
+			seed.SeedIndex(logger, db.Elastic)
 		}
 
 		// Initialize River client for background jobs

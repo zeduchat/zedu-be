@@ -41,5 +41,7 @@ func SetupThreadsRoutes(r *gin.Engine, threadController *thread.Controller) {
 		threadController.GetUserSingleThreads)
 	r.GET("/api/v1/threads/channels/:channel_id", middleware.Authorize(threadController.Db.Postgresql),
 		threadController.GetAllChannelThreads)
+	r.GET("/api/v1/threads/organisations/:org_id", middleware.Authorize(threadController.Db.Postgresql),
+		threadController.GetAllUserOrgThreads)
 
 }

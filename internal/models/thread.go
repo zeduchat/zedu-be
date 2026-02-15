@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -108,50 +109,34 @@ type ForwardedMessageMetadata struct {
 }
 
 var MediaMapping = map[string]any{
-	"mappings": map[string]any{
-		"properties": map[string]any{
-			"id":        map[string]string{"type": "text"},
-			"file_name": map[string]string{"type": "keyword"},
-			"file_type": map[string]string{"type": "text"},
-			"file_link": map[string]string{"type": "text"},
-		},
-	},
+	"id":        map[string]string{"type": "text"},
+	"file_name": map[string]string{"type": "keyword"},
+	"file_type": map[string]string{"type": "text"},
+	"file_link": map[string]string{"type": "text"},
 }
 
 var MentionMapping = map[string]any{
-	"mappings": map[string]any{
-		"properties": map[string]any{
-			"id":   map[string]string{"type": "text"},
-			"type": map[string]string{"type": "text"},
-		},
-	},
+	"id":   map[string]string{"type": "text"},
+	"type": map[string]string{"type": "text"},
 }
 
 var PinnedDetailsMapping = map[string]any{
-	"mappings": map[string]any{
-		"properties": map[string]any{
-			"username": map[string]string{"type": "keyword"},
-			"email":    map[string]string{"type": "keyword"},
-		},
-	},
+	"username": map[string]string{"type": "keyword"},
+	"email":    map[string]string{"type": "keyword"},
 }
 
 var ForwardedMessageMetadataMapping = map[string]interface{}{
-	"mappings": map[string]interface{}{
-		"properties": map[string]interface{}{
-			"original_message_id":        map[string]string{"type": "text"},
-			"original_sender_id":         map[string]string{"type": "text"},
-			"original_sender_name":       map[string]string{"type": "text"},
-			"original_content":           map[string]string{"type": "text"},
-			"original_sender_username":   map[string]string{"type": "text"},
-			"original_sender_avatar_url": map[string]string{"type": "text"},
-			"original_channel_id":        map[string]string{"type": "text"},
-			"original_channel_name":      map[string]string{"type": "text"},
-			"original_created_at":        map[string]string{"type": "date"},
-			"original_channel_type":      map[string]string{"type": "keyword"}, // Indicates if the original channel is a public channel, private channel, or DM
-			"is_thread":                  map[string]string{"type": "boolean"},
-		},
-	},
+	"original_message_id":        map[string]string{"type": "text"},
+	"original_sender_id":         map[string]string{"type": "text"},
+	"original_sender_name":       map[string]string{"type": "text"},
+	"original_content":           map[string]string{"type": "text"},
+	"original_sender_username":   map[string]string{"type": "text"},
+	"original_sender_avatar_url": map[string]string{"type": "text"},
+	"original_channel_id":        map[string]string{"type": "text"},
+	"original_channel_name":      map[string]string{"type": "text"},
+	"original_created_at":        map[string]string{"type": "date"},
+	"original_channel_type":      map[string]string{"type": "keyword"},
+	"is_thread":                  map[string]string{"type": "boolean"},
 }
 
 var Thread_mapping = map[string]any{
@@ -180,7 +165,7 @@ var Thread_mapping = map[string]any{
 			"message_count": map[string]string{"type": "integer"},
 			"last_reply": map[string]string{
 				"type":   "date",
-				"format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
+				"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 			},
 			"avatar_url":     map[string]string{"type": "text"},
 			"type":           map[string]string{"type": "keyword"},
@@ -972,9 +957,9 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return nil, nil, fmt.Errorf("organisation does not exist")
 	}
 
-	err := db.Model(&Channels{}).
-		Select("channels.id").
-		Where("channels.organisation_id = ?", organisationID).
+	err := db.Model(&UserChannels{}).
+		Select("channels_id").
+		Where("user_id = ?", userId).
 		Find(&channelIDs).Error
 
 	if err != nil {
@@ -998,20 +983,38 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 				"must": []map[string]any{
 					{
 						"terms": map[string]any{
-							"channels_id.keyword": channelIDs,
-						},
-					},
-					{
-						"term": map[string]any{
-							"user_id.keyword": userId,
-						},
-					},
-					{
-						"exists": map[string]any{
-							"field": "messages",
+							"channels_id": channelIDs,
 						},
 					},
 				},
+				"should": []map[string]any{
+					{
+						"term": map[string]any{
+							"user_id": userId,
+						},
+					},
+					{
+						"nested": map[string]any{
+							"path": "mentions",
+							"query": map[string]any{
+								"match": map[string]any{
+									"mentions.id": userId,
+								},
+							},
+						},
+					},
+					{
+						"nested": map[string]any{
+							"path": "messages",
+							"query": map[string]any{
+								"term": map[string]any{
+									"messages.user_id": userId,
+								},
+							},
+						},
+					},
+				},
+				"minimum_should_match": 1,
 			},
 		},
 		"sort": []map[string]any{
@@ -1103,6 +1106,23 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return nil, pagR, err
 	}
 
+	dmChannelNames := map[string]string{}
+	for _, dmChanId := range dmChannelIds {
+		var dmChan DmChannels
+		if postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", dmChanId, userId) {
+			if dmChan.ParticipantId != nil {
+				var u User
+				if userDetails, err := u.GetUserByID(db, *dmChan.ParticipantId); err == nil {
+					name := userDetails.Profile.UserName
+					if name == "" {
+						name = strings.Split(userDetails.Email, "@")[0]
+					}
+					dmChannelNames[dmChanId] = name
+				}
+			}
+		}
+	}
+
 	for _, thread := range threads {
 		usernames := map[string]bool{}
 		participants := ""
@@ -1134,6 +1154,11 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			participants = fmt.Sprintf("%s and you", strings.Join(userList, ", "))
 		}
 
+		channelName := thread.ChannelName
+		if name, ok := dmChannelNames[thread.ChannelsID]; ok {
+			channelName = name
+		}
+
 		threadDoc := ThreadDocument{
 			ID:                       thread.ID,
 			ChannelsID:               thread.ChannelsID,
@@ -1149,7 +1174,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			UserType:                 thread.UserType,
 			Type:                     thread.Type,
 			Content:                  thread.Content,
-			ChannelName:              thread.ChannelName,
+			ChannelName:              channelName,
 			ChannelType:              thread.ChannelType,
 			CurrentStatus:            thread.CurrentStatus,
 			FullName:                 thread.FullName,
@@ -1168,13 +1193,20 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			ForwardedMessageMetadata: thread.ForwardedMessageMetadata,
 		}
 
-		// Add to response
 		result = append(result, ThreadWithMessagesResponse{
 			ThreadMessages: []ThreadDocument{threadDoc},
-			ChannelName:    thread.ChannelName,
+			ChannelName:    channelName,
 			Participants:   participants,
 		})
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		if len(result[i].ThreadMessages) == 0 || len(result[j].ThreadMessages) == 0 {
+			return false
+		}
+		return result[i].ThreadMessages[0].CreatedAt.After(result[j].ThreadMessages[0].CreatedAt)
+	})
+
 
 	return result, pagR, nil
 }
