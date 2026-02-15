@@ -500,7 +500,7 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 	query := map[string]any{
 		"query": map[string]any{
 			"term": map[string]any{
-				"thread_id.keyword": ThreadID,
+				"thread_id": ThreadID,
 			},
 		},
 		"from": from,
@@ -583,7 +583,7 @@ func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *s
 		},
 		"query": map[string]any{
 			"term": map[string]any{
-				"user_id.keyword": m.UserID,
+				"user_id": m.UserID,
 			},
 		},
 	}

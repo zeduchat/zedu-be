@@ -146,6 +146,7 @@ var Thread_mapping = map[string]any{
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
 			"org_id":      map[string]string{"type": "keyword"},
+			"thread_id":   map[string]string{"type": "keyword"},
 			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
@@ -380,7 +381,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 				"must": []map[string]any{
 					{
 						"terms": map[string]any{
-							"channels_id.keyword": channelIDs,
+							"channels_id": channelIDs,
 						},
 					},
 				},
@@ -393,7 +394,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 						"must": []map[string]any{
 							{
 								"term": map[string]any{
-									"status.keyword": "success",
+									"status": "success",
 								},
 							},
 						},
@@ -416,7 +417,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 						"must": []map[string]any{
 							{
 								"term": map[string]any{
-									"status.keyword": "error",
+									"status": "error",
 								},
 							},
 						},
@@ -439,7 +440,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 						"must": []map[string]any{
 							{
 								"term": map[string]any{
-									"current_status.keyword": "completed",
+									"current_status": "completed",
 								},
 							},
 						},
@@ -462,7 +463,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 						"must": []map[string]any{
 							{
 								"term": map[string]any{
-									"type.keyword": "thread",
+									"type": "thread",
 								},
 							},
 						},
@@ -769,12 +770,12 @@ func (t *ThreadDocument) CheckUserThreadExists() (bool, int, error) {
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": t.ChannelsID,
+							"channels_id": t.ChannelsID,
 						},
 					},
 					{
 						"term": map[string]any{
-							"user_id.keyword": t.UserId,
+							"user_id": t.UserId,
 						},
 					},
 				},
@@ -846,7 +847,7 @@ func (t *Threads) GetAllThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, 
 	query := map[string]any{
 		"query": map[string]any{
 			"term": map[string]any{
-				"channels_id.keyword": channelID,
+				"channels_id": channelID,
 			},
 		},
 		"from": from,
@@ -893,12 +894,12 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 					{
 						"term": map[string]any{
-							"type.keyword": "thread",
+							"type": "thread",
 						},
 					},
 				},
@@ -1207,7 +1208,6 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return result[i].ThreadMessages[0].CreatedAt.After(result[j].ThreadMessages[0].CreatedAt)
 	})
 
-
 	return result, pagR, nil
 }
 
@@ -1232,12 +1232,12 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"user_id.keyword": userID,
+							"user_id": userID,
 						},
 					},
 					{
 						"term": map[string]any{
-							"org_id.keyword": orgID,
+							"org_id": orgID,
 						},
 					},
 				},
@@ -1518,7 +1518,7 @@ func (t *ThreadDocument) UpdateThreadUserProfile(logger *utility.Logger, mu *syn
 		},
 		"query": map[string]any{
 			"term": map[string]any{
-				"user_id.keyword": t.UserId,
+				"user_id": t.UserId,
 			},
 		},
 	}
@@ -1538,7 +1538,7 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 	query := map[string]any{
 		"query": map[string]any{
 			"term": map[string]any{
-				"thread_id.keyword": threadID,
+				"thread_id": threadID,
 			},
 		},
 		"from": 0,

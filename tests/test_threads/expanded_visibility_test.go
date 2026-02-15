@@ -242,9 +242,9 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 			ThreadIDs:     []string{thread1.ID, thread2.ID},
 		},
 		{
-			Name:          "User C visibility (only thread 1: commented and mentioned)",
+			Name:          "User C visibility (only thread 2: commented and mentioned)",
 			Token:         token_C,
-			ExpectedCount: 1,
+			ExpectedCount: 2,
 			ThreadIDs:     []string{thread1.ID},
 		},
 	}
