@@ -30,6 +30,7 @@ var (
 	NewMessage                  NotificationType = "new_message"
 	StatusUpdate                NotificationType = "status_update"
 	ProfileStatusUpdated        NotificationType = "profile_status_updated"
+	UserPresenceChanged         NotificationType = "user_presence_changed"
 	UnReadThreadChange          NotificationType = "unread_thread_change"
 	ChannelMention              NotificationType = "channel_mention"
 	ThreadReply                 NotificationType = "thread_reply"
@@ -88,6 +89,11 @@ type ProfileStatusUpdatePayload struct {
 	ProfilePic string `json:"profile_pic"`
 }
 
+type UserPresenceChangedPayload struct {
+	Presence string `json:"presence"`
+	UserID   string `json:"user_id"`
+}
+
 type ToolCallNotification struct {
 	ToolName  string                 `json:"tool_name"`
 	Arguments map[string]interface{} `json:"arguments"`
@@ -143,6 +149,9 @@ var Notification = map[NotificationType]Content{
 	},
 	ProfileStatusUpdated: Content{
 		NotificationType: ProfileStatusUpdated,
+	},
+	UserPresenceChanged: Content{
+		NotificationType: UserPresenceChanged,
 	},
 	UnReadThreadChange: Content{
 		NotificationType: UnReadThreadChange,

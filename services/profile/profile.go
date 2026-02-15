@@ -257,6 +257,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		WorkspaceID:       userProfile.Profile.WorkspaceID,
 		Track:             userProfile.Profile.Track,
 		Links:             []string(userProfile.Profile.Links),
+		Presence:          userProfile.Profile.Presence,
 	}
 }
 
@@ -483,4 +484,58 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 	}
 
 	return status, http.StatusOK, nil
+}
+
+func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var profile models.Profile
+
+	if req.Presence != "online" && req.Presence != "away" {
+		return http.StatusBadRequest, fmt.Errorf("invalid presence status")
+	}
+
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, fmt.Errorf("profile not found")
+		}
+		return http.StatusInternalServerError, err
+	}
+
+	if err := db.Model(&profile).Update("presence", req.Presence).Error; err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update presence: %w", err)
+	}
+
+	if logger != nil {
+		logger.Info("presence updated", "user_id", req.UserID, "presence", req.Presence)
+
+		notification := models.Notification[models.UserPresenceChanged]
+		notification.NotificationId = utility.GenerateUUID()
+		notification.Content = models.UserPresenceChangedPayload{
+			UserID:   req.UserID,
+			Presence: req.Presence,
+		}
+		notification.ModificationDetails = &models.ModificationDetails{
+			UserId: req.UserID,
+			OrgId:  req.OrgID,
+		}
+
+		channelID := fmt.Sprintf("org:%s", req.OrgID)
+		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+			logger.Error("failed to publish presence update event", "error", err, "channel_id", channelID)
+		}
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetUserPresence(userID string, db *gorm.DB) (string, int, error) {
+	var profile models.Profile
+
+	if err := db.Select("presence").Where("userid = ?", userID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", http.StatusNotFound, fmt.Errorf("profile not found")
+		}
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to fetch presence: %w", err)
+	}
+
+	return profile.Presence, http.StatusOK, nil
 }
