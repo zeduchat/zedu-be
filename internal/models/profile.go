@@ -240,6 +240,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			Email:         user.Email,
 			ProfilePic:    j.AvatarURL,
 			StatusTimeout: req.StatusTimeout,
+			Online:        req.Online,
 		}
 		notification.ModificationDetails = &ModificationDetails{
 			UserId: req.UserId,

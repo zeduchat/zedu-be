@@ -87,6 +87,7 @@ type ProfileStatusUpdatePayload struct {
 	Email         string `json:"email"`
 	ProfilePic    string `json:"profile_pic"`
 	StatusTimeout string `json:"status_timeout"`
+	Online        bool   `json:"online"`
 }
 
 type ToolCallNotification struct {
