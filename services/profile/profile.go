@@ -257,7 +257,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		WorkspaceID:       userProfile.Profile.WorkspaceID,
 		Track:             userProfile.Profile.Track,
 		Links:             []string(userProfile.Profile.Links),
-		IsActive:          userProfile.Profile.IsActive,
+		Online:            userProfile.Profile.Online,
 	}
 }
 
@@ -535,5 +535,5 @@ func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
 		return false, http.StatusInternalServerError, fmt.Errorf("failed to fetch presence: %w", err)
 	}
 
-	return profile.IsActive, http.StatusOK, nil
+	return profile.Online, http.StatusOK, nil
 }
