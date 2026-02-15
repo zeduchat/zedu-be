@@ -232,7 +232,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			"created_at":                strconv.Itoa(int(user.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(user.UpdatedAt.Unix())),
 			"organisation":              org,
-			"online":                    user.Profile.IsActive,
+			"online":                    user.Profile.Online,
 		},
 		"access_token":            tokenData.AccessToken,
 		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),

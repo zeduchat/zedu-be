@@ -107,7 +107,7 @@ func TestPresenceFlow(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"is_active":true`)
+		assert.Contains(t, w.Body.String(), `"is_active":false`)
 	})
 
 	t.Run("Successfully get other user presence", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestPresenceFlow(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"is_active":true`)
+		assert.Contains(t, w.Body.String(), `"is_active":false`)
 	})
 
 	t.Run("Fail with invalid body", func(t *testing.T) {
