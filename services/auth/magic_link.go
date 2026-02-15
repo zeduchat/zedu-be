@@ -151,7 +151,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"organisation":              org,
-			"online":                    userData.Profile.Online,
+			"online":                    userData.Profile.IsActive,
 		},
 		"access_token":            tokenData.AccessToken,
 		"notification_token":      access_token.SubAccessToken,

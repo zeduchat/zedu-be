@@ -24,6 +24,9 @@ func (SavedMessagesRemainderJobArgs) Kind() string { return "remainder_job" }
 
 func (w *SavedMessagesRemainderJobArgs) InsertRemainderJob(ctx context.Context, db *storage.Database, remainderTime time.Time) (*rivertype.JobInsertResult, error) {
 	client := storage.DB.River
+	if client == nil {
+		return nil, nil
+	}
 	insertRes, err := client.Insert(ctx, w, &river.InsertOpts{
 		MaxAttempts: 5,
 		ScheduledAt: remainderTime,

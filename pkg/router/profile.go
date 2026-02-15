@@ -20,6 +20,9 @@ func Profile(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	profileUrl := r.Group(fmt.Sprintf("%v/profile", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		profileUrl.POST("/change-status", userProfile.ChangeProfileStatus)
+		profileUrl.POST("/presence", userProfile.ChangeProfilePresence)
+		profileUrl.GET("/presence", userProfile.GetProfilePresence)
+		profileUrl.GET("/presence/:user_id", userProfile.GetProfilePresence)
 		profileUrl.GET("", userProfile.GetUserProfile)
 		profileUrl.GET("/:user_id", userProfile.GetUserProfile)
 		profileUrl.PATCH("", middleware.CheckIsDeactivated(db.Postgresql), userProfile.UpdateProfile)

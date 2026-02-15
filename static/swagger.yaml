@@ -7189,6 +7189,148 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /profile/presence:
+    post:
+      tags:
+        - Profile
+      summary: Update user presence status
+      description: Allows authenticated users to update their presence status (online/offline).
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserPresenceRequest"
+      responses:
+        "200":
+          description: Presence updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    get:
+      tags:
+        - Profile
+      summary: Get current user presence
+      description: Retrieve the presence status of the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User presence retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      is_active:
+                        type: boolean
+                        example: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /profile/presence/{user_id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user presence by ID
+      description: Retrieve the presence status of a specific user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          schema:
+            type: string
+          required: true
+          description: User ID
+      responses:
+        "200":
+          description: User presence retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      is_active:
+                        type: boolean
+                        example: false
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /credits/packages:
     get:
       tags:
@@ -9623,7 +9765,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /threads/recent:
     get:
@@ -29565,6 +29706,20 @@ components:
             format: uri
           example: ["https://portfolio.com", "https://linkedin.com/in/toyosi"]
           description: List of user profile links
+        is_active:
+          type: boolean
+          example: true
+          description: User's online status
+
+    UpdateUserPresenceRequest:
+      type: object
+      properties:
+        is_active:
+          type: boolean
+          example: false
+          description: "User presence status (true=online, false=offline)"
+      required:
+        - is_active
 
     NotFoundErrorSchema:
       type: object
@@ -31002,7 +31157,7 @@ components:
               type: string
               format: date-time
             plan_details:
-              $ref: '#/components/schemas/PlanResponse'
+              $ref: "#/components/schemas/PlanResponse"
         created_at:
           type: string
           format: date-time

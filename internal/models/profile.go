@@ -39,7 +39,7 @@ type Profile struct {
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
-	Online            bool           `gorm:"type:boolean;default:true" json:"online"`
+	IsActive          bool           `gorm:"type:boolean;default:false" json:"is_active"`
 }
 
 type ProfileSummary struct {
@@ -70,7 +70,7 @@ type ProfileSummary struct {
 	WorkspaceID       string   `json:"workspace_id"`
 	Track             string   `json:"track"`
 	Links             []string `json:"links"`
-	Online            bool     `json:"online"`
+	IsActive          bool     `json:"is_active"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -120,6 +120,12 @@ type SetStatusRequest struct {
 	Expiry     *int64  `json:"expiry,omitempty" validate:"omitempty,min=0"`
 	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
 	UserID     string  `json:"-"`
+}
+
+type UpdateUserPresenceRequest struct {
+	IsActive bool   `json:"is_active" validate:"boolean"`
+	UserID   string `json:"-"`
+	OrgID    string `json:"-"`
 }
 
 // UserStatus represents the persisted status for responses.
