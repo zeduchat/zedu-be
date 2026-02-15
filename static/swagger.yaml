@@ -7148,6 +7148,10 @@ paths:
                   type: bool
                   description: set to true to clear current status feilds
                   example: true
+                online:
+                  type: bool
+                  description: set user online status (true for online, false for away)
+                  example: true
 
       responses:
         "200":

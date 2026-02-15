@@ -94,6 +94,7 @@ type UpdateProfileStatus struct {
 	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 	ClearStatus       bool   `json:"clear_status"`
+	Online            bool   `json:"online"`
 	UserId            string
 	OrgId             string
 }
@@ -190,7 +191,7 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	return j, nil
 }
 
-func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
+func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logger *utility.Logger) error {
 
 	query := "userid = ?"
 
@@ -212,11 +213,15 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		updates["status_timeout"] = ""
 	}
 
+	updates["online"] = req.Online
+
 	if err := db.Model(&Profile{}).
 		Where(query, req.UserId).
 		Updates(updates).Error; err != nil {
 		return errors.New("failed to update user profile")
 	}
+
+	logger.Info("Updated user profile status %v", updates)
 
 	if !req.ClearStatus {
 		publishChannel := req.OrgId
@@ -239,7 +244,8 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		}
 		notification.NotificationId = utility.GenerateUUID()
 
-		go centrifuge.PublishChannel(nil, publishChannel, notification)
+		centrifuge.PublishChannel(logger, publishChannel, notification)
+		logger.Info("Publised user profile status to centrifugo for user %s", req.UserId)
 	}
 
 	return nil
