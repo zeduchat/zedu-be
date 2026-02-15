@@ -282,9 +282,9 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
 	query := c.Query("query")
-	includeBots := true
-	if c.Query("include_bots") == "false" {
-		includeBots = false
+	includeBots := false
+	if c.Query("include_bots") == "true" {
+		includeBots = true
 	}
 
 	if _, err := uuid.Parse(orgId); err != nil {
