@@ -45,6 +45,11 @@ func (m *MongoStore) IsClientAvailable() bool {
 }
 
 func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB, store *MongoStore) {
+	if MongoConfig.Mongo_URI == "" {
+		logger.Info("⏭️ MongoDB URI not configured, skipping connection")
+		fmt.Println("⏭️ MongoDB URI not configured, skipping connection")
+		return
+	}
 	clientOptions := options.Client().ApplyURI(MongoConfig.Mongo_URI)
 	clientOptions.SetConnectTimeout(10 * time.Second)
 
@@ -84,6 +89,9 @@ func ConnectMongoDB(logger *utility.Logger, MongoConfig config.MongoDB, store *M
 }
 
 func MonitorMongoConnection(logger *utility.Logger, MongoConfig config.MongoDB, store *MongoStore) {
+	if MongoConfig.Mongo_URI == "" {
+		return
+	}
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
