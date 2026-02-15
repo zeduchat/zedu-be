@@ -39,6 +39,7 @@ type Profile struct {
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
+	Online            bool           `gorm:"type:boolean;default:true" json:"online"`
 }
 
 type ProfileSummary struct {
@@ -94,7 +95,7 @@ type UpdateProfileStatus struct {
 	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 	ClearStatus       bool   `json:"clear_status"`
-	Online            bool   `json:"online"`
+	Online            bool   `json:"online" validate:"required"`
 	UserId            string
 	OrgId             string
 }
