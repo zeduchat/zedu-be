@@ -392,7 +392,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 		entities     []models.UserInOrgResponse
 		pagination   = postgresql.GetPagination(c)
 		offset       = (pagination.Page - 1) * pagination.Limit
-		searchTerm   = queryParams["query"].(string)
+		searchTerm   = strings.ToLower(queryParams["query"].(string))
+		roleFilter   = strings.ToLower(queryParams["role"].(string))
 		includeBots  = queryParams["include_bots"].(bool)
 		likeTerm     = "%" + searchTerm + "%"
 	)
@@ -424,10 +425,17 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 			  u.name ILIKE ? OR 
 			  u.email ILIKE ? OR 
 			  p.user_name ILIKE ? OR 
-			  p.phone ILIKE ?
+			  p.phone ILIKE ? OR
+			  p.first_name ILIKE ? OR
+			  p.last_name ILIKE ?
 		  )
 	`)
-	args = append(args, orgId, likeTerm, likeTerm, likeTerm, likeTerm)
+	args = append(args, orgId, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm)
+
+	if roleFilter != "" {
+		queryBuilder.WriteString(" AND org.name ILIKE ?")
+		args = append(args, "%"+roleFilter+"%")
+	}
 
 	// --- Optionally add bot query ---
 	if includeBots {
@@ -476,6 +484,7 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 		CurrentPage:     pagination.Page,
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
+		TotalItems:      totalCount,
 	}
 
 	return entities, paginationResponse, nil

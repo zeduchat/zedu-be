@@ -1651,7 +1651,7 @@ paths:
     get:
       tags:
         - organisation
-      summary: Retrieve users and Agents in an organisationssssssssssssssss
+      summary: Retrieve users and Agents in an organisations
       description: |
         Retrieves all users and optionally Agents in an organisation. Supports search filtering and bot inclusion/exclusion.
       operationId: getOrganisationUsersAndBots
@@ -1663,17 +1663,23 @@ paths:
             type: string
           description: ID of the organisation
         - in: query
-          name: query
+          name: search
           required: false
           schema:
             type: string
-          description: Optional search term to filter users/bots by name, email, or username
+          description: Optional search term to filter users by name, email, or username
+        - in: query
+          name: role
+          required: false
+          schema:
+            type: string
+          description: Optional role to filter users by role
         - in: query
           name: include_bots
           required: false
           schema:
             type: boolean
-            default: true
+            default: false
           description: Whether to include Agents in the response (default is true)
       responses:
         "200":
