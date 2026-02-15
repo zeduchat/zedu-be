@@ -136,6 +136,7 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	if !user.CheckUserExists(db, user_id) {
 		return http.StatusUnauthorized, errors.New("user does not exist")
 	}
+	user.ID = user_id
 
 	if !adminUser.CheckUserExists(db, adminUserID) {
 		return http.StatusUnauthorized, errors.New("admin user does not exist")
