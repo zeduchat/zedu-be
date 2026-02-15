@@ -1296,8 +1296,13 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMe
 				},
 				"filter": []map[string]any{
 					{
-						"exists": map[string]any{
-							"field": "media",
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
 						},
 					},
 				},
