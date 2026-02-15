@@ -43,6 +43,14 @@ type SendInvitationLink struct {
 	OrganisationName string `json:"organisation_name" validate:"required"`
 }
 
+type SendBuzzInvitationEmail struct {
+	Email       string `json:"email" validate:"required"`
+	InviteeName string `json:"invitee_name" validate:"required"`
+	InviterName string `json:"inviter_name" validate:"required"`
+	BuzzCode    string `json:"buzz_code" validate:"required"`
+	JoinLink    string `json:"join_link" validate:"required"`
+}
+
 type SendMagicLink struct {
 	Email     string `json:"email"  validate:"required"`
 	MagicLink string `json:"magic_link"  validate:"required"`

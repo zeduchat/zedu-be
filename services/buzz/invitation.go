@@ -9,10 +9,13 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -168,6 +171,9 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		if err := publishInvitationEvent(logger, invitation, inviterProfile.UserName); err != nil {
 			logger.Error("failed to publish invitation event: %v", err)
 		}
+
+		// Send buzz invitation email asynchronously
+		sendBuzzInvitationEmail(db, logger, inviteeID, inviterProfile.UserName, buzz.ID)
 
 		successfulInvites = append(successfulInvites, inviteeID)
 	}
@@ -348,5 +354,41 @@ func publishInvitationResponseEvent(logger *utility.Logger, invitation models.Bu
 
 	if err := centrifuge.PublishChannel(logger, invitation.ChannelID, notification); err != nil {
 		logger.Error("failed to publish invitation response event: %v", err)
+	}
+}
+
+// sendBuzzInvitationEmail sends a buzz invitation email to a user asynchronously via Redis queue
+func sendBuzzInvitationEmail(db *storage.Database, logger *utility.Logger, inviteeID, inviterName, buzzID string) {
+	var inviteeUser models.User
+	if err := db.Postgresql.Where("id = ?", inviteeID).First(&inviteeUser).Error; err != nil {
+		logger.Error("failed to fetch invitee user for email: %v", err)
+		return
+	}
+
+	var inviteeProfile models.Profile
+	if err := db.Postgresql.Where("userid = ?", inviteeID).First(&inviteeProfile).Error; err != nil {
+		logger.Error("failed to fetch invitee profile for email: %v", err)
+		return
+	}
+
+	buzzCode := utility.ExtractBuzzCode(buzzID)
+	configData := config.GetConfig()
+	joinLink := fmt.Sprintf("%s/client/buzz/%s", configData.App.FRONTEND_URL, buzzCode)
+
+	inviteeName := inviteeProfile.UserName
+	if inviteeProfile.FirstName != "" {
+		inviteeName = inviteeProfile.FirstName
+	}
+
+	reqData := models.SendBuzzInvitationEmail{
+		Email:       inviteeUser.Email,
+		InviteeName: inviteeName,
+		InviterName: inviterName,
+		BuzzCode:    buzzCode,
+		JoinLink:    joinLink,
+	}
+
+	if err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendBuzzInvitationEmail, reqData); err != nil {
+		logger.Error("failed to enqueue buzz invitation email for user %s: %v", inviteeID, err)
 	}
 }
