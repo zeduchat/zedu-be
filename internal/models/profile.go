@@ -39,7 +39,7 @@ type Profile struct {
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
-	Presence          string         `gorm:"type:varchar(255);default:'online'" json:"presence"`
+	IsActive          bool           `gorm:"type:boolean;default:false" json:"is_active"`
 }
 
 type ProfileSummary struct {
@@ -70,7 +70,7 @@ type ProfileSummary struct {
 	WorkspaceID       string   `json:"workspace_id"`
 	Track             string   `json:"track"`
 	Links             []string `json:"links"`
-	Presence          string   `json:"presence"`
+	IsActive          bool     `json:"is_active"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -122,7 +122,7 @@ type SetStatusRequest struct {
 }
 
 type UpdateUserPresenceRequest struct {
-	Presence string `json:"presence" validate:"required,oneof=online away"`
+	IsActive bool   `json:"is_active" validate:"boolean"`
 	UserID   string `json:"-"`
 	OrgID    string `json:"-"`
 }

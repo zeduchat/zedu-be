@@ -7190,7 +7190,7 @@ paths:
       tags:
         - Profile
       summary: Update user presence status
-      description: Allows authenticated users to update their presence status (online/away).
+      description: Allows authenticated users to update their presence status (online/offline).
       security:
         - bearerAuth: []
       requestBody:
@@ -7257,9 +7257,9 @@ paths:
                   data:
                     type: object
                     properties:
-                      presence:
-                        type: string
-                        example: "online"
+                      is_active:
+                        type: boolean
+                        example: true
         "401":
           description: Unauthorized
           content:
@@ -7305,9 +7305,9 @@ paths:
                   data:
                     type: object
                     properties:
-                      presence:
-                        type: string
-                        example: "away"
+                      is_active:
+                        type: boolean
+                        example: false
         "401":
           description: Unauthorized
           content:
@@ -9761,7 +9761,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-
 
   /threads/recent:
     get:
@@ -29700,21 +29699,23 @@ components:
           type: array
           items:
             type: string
-        presence:
-          type: string
-          example: "online"
-          description: User's presence status
+            format: uri
+          example: ["https://portfolio.com", "https://linkedin.com/in/toyosi"]
+          description: List of user profile links
+        is_active:
+          type: boolean
+          example: true
+          description: User's online status
 
     UpdateUserPresenceRequest:
       type: object
       properties:
-        presence:
-          type: string
-          example: "away"
-          description: "User presence status (online, away)"
+        is_active:
+          type: boolean
+          example: false
+          description: "User presence status (true=online, false=offline)"
       required:
-        - presence
-
+        - is_active
 
     NotFoundErrorSchema:
       type: object
@@ -31152,7 +31153,7 @@ components:
               type: string
               format: date-time
             plan_details:
-              $ref: '#/components/schemas/PlanResponse'
+              $ref: "#/components/schemas/PlanResponse"
         created_at:
           type: string
           format: date-time

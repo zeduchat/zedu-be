@@ -90,8 +90,8 @@ type ProfileStatusUpdatePayload struct {
 }
 
 type UserPresenceChangedPayload struct {
-	Presence string `json:"presence"`
 	UserID   string `json:"user_id"`
+	IsActive bool   `json:"is_active"`
 }
 
 type ToolCallNotification struct {
