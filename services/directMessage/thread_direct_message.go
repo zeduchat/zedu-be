@@ -532,11 +532,6 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 		Title:       fmt.Sprintf("Notification from user %s", feed.UserName),
 	}
 
-	err = push_notifications.PushFCMToUser(pushReq, logger, db.Postgresql)
-	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
-	}
-
 	creditUsed := models.CalculateCreditCost(len(req.Content), 0)
 
 	if req.OperationPrice != nil && *req.OperationPrice > 0 {

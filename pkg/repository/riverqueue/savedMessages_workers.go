@@ -84,7 +84,7 @@ func (w *SavedMessagesRemainderWorker) Work(ctx context.Context, job *river.Job[
 		Payload:     notification,
 	}
 
-	err = push_notifications.PushFCMToUser(pushRequest, logger, w.db)
+	err = push_notifications.PushOneSignalToUser(pushRequest, logger, w.db)
 	if err != nil {
 		logger.Error("Failed to send push notification for saved message remainder to user %s: %v", content.UserId, err)
 		return err

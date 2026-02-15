@@ -18,7 +18,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
-	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/firebase"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/rabbitmq"
 	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
@@ -52,7 +51,6 @@ func main() {
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
-	firebase.ConnectFirebase(logger, configuration.Firebase)
 	onesignal.ConnectOneSignal(logger, configuration.OneSignal)
 	mongodb.StartMongoDBConnection(logger, config.Config.MongoDB)
 	webpush.NewPushClient(logger, configuration.WebPush)
