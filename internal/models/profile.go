@@ -240,11 +240,12 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 
 		notification := Notification[ProfileStatusUpdated]
 		notification.Content = ProfileStatusUpdatePayload{
-			Text:       req.Text,
-			Icon:       req.Icon,
-			Username:   j.UserName,
-			Email:      user.Email,
-			ProfilePic: j.AvatarURL,
+			Text:          req.Text,
+			Icon:          req.Icon,
+			Username:      j.UserName,
+			Email:         user.Email,
+			ProfilePic:    j.AvatarURL,
+			StatusTimeout: req.StatusTimeout,
 		}
 		notification.ModificationDetails = &ModificationDetails{
 			UserId: req.UserId,
