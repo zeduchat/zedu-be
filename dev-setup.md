@@ -1,6 +1,6 @@
-# Telex Backend - Docker Setup
+# Zedu Backend - Docker Setup
 
-This guide explains how to run the Telex backend application and its dependencies using Docker and Docker Compose.
+This guide explains how to run the Zedu backend application and its dependencies using Docker and Docker Compose.
 
 ### Prerequisites
 
