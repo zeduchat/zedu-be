@@ -295,9 +295,13 @@ func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bo
 		"is_deactivated": status,
 	}
 
-	_, err := postgresql.UpdateFields(db, &oum, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+	result, err := postgresql.UpdateFields(db, &oum, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
 	if err != nil {
 		return fmt.Errorf("unable to update field: %w", err)
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("failed to update status: user not found in organisation")
 	}
 
 	return nil
@@ -321,7 +325,7 @@ func (user *User) ActivateUser(db *gorm.DB, userId string) error {
 }
 
 func (u *User) CheckUserExists(db *gorm.DB, userID string) bool {
-	return postgresql.CheckExists(db, &u, "id = ?", userID)
+	return postgresql.CheckExists(db, u, "id = ?", userID)
 }
 
 func ValidateUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, []string, error) {
