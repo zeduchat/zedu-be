@@ -281,7 +281,8 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 
 func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	orgId := c.Param("org_id")
-	query := c.Query("query")
+	query := c.Query("search")
+	role := c.Query("role")
 	includeBots := false
 	if c.Query("include_bots") == "true" {
 		includeBots = true
@@ -308,6 +309,7 @@ func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	queryParams := map[string]any{
 		"query":        query,
 		"include_bots": includeBots,
+		"role":         role,
 	}
 
 	users, paginationResponse, err := service.GetUsersBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, queryParams)
