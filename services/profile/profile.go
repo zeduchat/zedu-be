@@ -257,6 +257,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		WorkspaceID:       userProfile.Profile.WorkspaceID,
 		Track:             userProfile.Profile.Track,
 		Links:             []string(userProfile.Profile.Links),
+		Online:            userProfile.Profile.Online,
 	}
 }
 

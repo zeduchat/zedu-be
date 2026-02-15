@@ -81,11 +81,12 @@ type ModificationDetails struct {
 }
 
 type ProfileStatusUpdatePayload struct {
-	Text       string `json:"text"`
-	Icon       string `json:"icon"`
-	Username   string `json:"username"`
-	Email      string `json:"email"`
-	ProfilePic string `json:"profile_pic"`
+	Text          string `json:"text"`
+	Icon          string `json:"icon"`
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	ProfilePic    string `json:"profile_pic"`
+	StatusTimeout string `json:"status_timeout"`
 }
 
 type ToolCallNotification struct {
