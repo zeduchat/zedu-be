@@ -90,7 +90,7 @@ func buildMentionsQuery(userID, orgID string, activeChannels map[string]time.Tim
 				"must": []any{
 					map[string]any{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 					map[string]any{
@@ -113,7 +113,7 @@ func buildMentionsQuery(userID, orgID string, activeChannels map[string]time.Tim
 				"filter": []any{
 					map[string]any{
 						"term": map[string]any{
-							"org_id.keyword": orgID,
+							"org_id": orgID,
 						},
 					},
 					map[string]any{

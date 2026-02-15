@@ -1084,7 +1084,7 @@ func (r *DmChannels) GetLastMessageByChannelId(db *gorm.DB, channelId string) st
 	query := map[string]any{
 		"query": map[string]any{
 			"term": map[string]any{
-				"channels_id.keyword": channelId,
+				"channels_id": channelId,
 			},
 		},
 		"size": 1,
@@ -1148,7 +1148,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": dm.ChannelId,
+							"channels_id": dm.ChannelId,
 						},
 					},
 				},
@@ -1290,14 +1290,19 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMe
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": dm.ChannelId,
+							"channels_id": dm.ChannelId,
 						},
 					},
 				},
 				"filter": []map[string]any{
 					{
-						"exists": map[string]any{
-							"field": "media",
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
 						},
 					},
 				},

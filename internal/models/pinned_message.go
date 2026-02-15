@@ -189,7 +189,7 @@ func GetPinnedThreadMsgs(db *storage.Database, channelsId string) ([]Threads, er
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelsId,
+							"channels_id": channelsId,
 						},
 					},
 					{
@@ -224,7 +224,7 @@ func GetPinnedReplyMsgs(db *storage.Database, channelsId string) ([]MessageDocum
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelsId,
+							"channels_id": channelsId,
 						},
 					},
 					{

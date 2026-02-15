@@ -83,6 +83,7 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	req.UserId = userId
+	req.OrgId = userClaims["org_id"].(string)
 
 	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
 	if err != nil {

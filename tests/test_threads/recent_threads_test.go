@@ -202,7 +202,6 @@ func TestGetUserRecentThreads(t *testing.T) {
 			if test.ExpectedCode == http.StatusOK {
 				dataField := data["data"]
 				if dataField != nil {
-					t.Logf("Retrieved threads data: %v", dataField)
 
 					threads, ok := dataField.([]interface{})
 					if ok && len(threads) >= 2 {

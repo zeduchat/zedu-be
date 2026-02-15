@@ -117,7 +117,7 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 		threadID := utility.GenerateUUID()
 		messageContent := "Hello, this is a test message!"
 		thread := map[string]any{
-			"id":          threadID,
+			"thread_id":   threadID,
 			"channels_id": dmChannelID,
 			"user_id":     user1.ID,
 			"org_id":      org.ID,
@@ -295,7 +295,7 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 		threadID := utility.GenerateUUID()
 		groupMessageContent := "Hello from the group!"
 		thread := map[string]any{
-			"id":          threadID,
+			"thread_id":   threadID,
 			"channels_id": groupDMChannelID,
 			"user_id":     user1.ID,
 			"org_id":      org.ID,
@@ -361,9 +361,10 @@ func TestGetDmChannelsPreviewMessage(t *testing.T) {
 
 				if previewMessage != groupMessageContent {
 					t.Errorf("Expected preview_message to be '%s', got '%s'", groupMessageContent, previewMessage)
-				}
+				} else {
 
-				t.Logf("✅ Group DM preview message is not empty: '%s'", previewMessage)
+					t.Logf("✅ Group DM preview message is not empty: '%s'", previewMessage)
+				}
 
 				previewThread, ok := channel["preview_thread"].([]interface{})
 				if !ok {

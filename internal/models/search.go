@@ -278,12 +278,12 @@ func initializeQuery() map[string]any {
 }
 func addOrgOrChannelFilter(boolQuery map[string]any, orgID string, channelIDs []string) {
 	shouldClauses := []any{
-		map[string]any{"term": map[string]any{"org_id.keyword": orgID}},
+		map[string]any{"term": map[string]any{"org_id": orgID}},
 	}
 
 	if len(channelIDs) > 0 {
 		shouldClauses = append(shouldClauses, map[string]any{
-			"terms": map[string]any{"channels_id.keyword": channelIDs},
+			"terms": map[string]any{"channels_id": channelIDs},
 		})
 	}
 
@@ -752,7 +752,7 @@ func FetchReplyUsersForThreads(es *elasticsearch.Client, threadIDs []string) (ma
 				"aggs": map[string]any{
 					"distinct_users": map[string]any{
 						"terms": map[string]any{
-							"field": "user_id.keyword",
+							"field": "user_id",
 							"size":  100, // Adjust based on expected max users per thread
 						},
 						"aggs": map[string]any{
