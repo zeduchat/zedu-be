@@ -63,7 +63,7 @@ func GetPagination(c *gin.Context) Pagination {
 	}
 }
 
-func SelectWithPagination(Client *elasticsearch.Client, indexName string, query map[string]any, reciever *any, c *gin.Context) (*PaginationResponse, error) {
+func SelectWithPagination(Client *elasticsearch.Client, indexName []string, query map[string]any, reciever *any, c *gin.Context) (*PaginationResponse, error) {
 
 	pag := GetPagination(c)
 
@@ -76,7 +76,7 @@ func SelectWithPagination(Client *elasticsearch.Client, indexName string, query 
 
 	res, err := Client.Search(
 		Client.Search.WithContext(ctx),
-		Client.Search.WithIndex(indexName),
+		Client.Search.WithIndex(indexName...),
 		Client.Search.WithBody(bytes.NewReader(body)),
 	)
 	if err != nil {

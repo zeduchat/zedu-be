@@ -60,14 +60,14 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]any {
 				"must": []any{
 					map[string]any{
 						"terms": map[string]any{
-							"channels_id.keyword": chanIds,
+							"channels_id": chanIds,
 						},
 					},
 				},
 				"must_not": []any{
 					map[string]any{
 						"term": map[string]any{
-							"user_id.keyword": userId,
+							"user_id": userId,
 						},
 					},
 				},
@@ -81,12 +81,12 @@ func queryElasticForDms(chanIds []string, userId, orgId string) map[string]any {
 			},
 		},
 		"collapse": map[string]any{
-			"field": "user_id.keyword",
+			"field": "user_id",
 		},
 		"aggs": map[string]any{
 			"unique_users": map[string]any{
 				"terms": map[string]any{
-					"field": "user_id.keyword",
+					"field": "user_id",
 					"size":  100,
 				},
 				"aggs": map[string]any{

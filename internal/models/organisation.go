@@ -834,12 +834,12 @@ func FetchLastMessageTime(db *storage.Database, channelID string) (time.Time, er
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 					{
 						"term": map[string]any{
-							"type.keyword": "thread",
+							"type": "thread",
 						},
 					},
 				},

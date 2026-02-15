@@ -264,7 +264,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
 	var userProfile models.Profile
 
-	if err := userProfile.UpdateProfileStatus(db, req); err != nil {
+	if err := userProfile.UpdateProfileStatus(db, req, logger); err != nil {
 		return http.StatusBadRequest, err
 	}
 

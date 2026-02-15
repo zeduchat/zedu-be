@@ -24,14 +24,18 @@ func CreateIndex(client *elasticsearch.Client, indexName string, mapping any, lo
 
 		// Create index
 		body, _ := json.Marshal(mapping)
-		_, err = client.Indices.Create(indexName, client.Indices.Create.WithBody(bytes.NewReader(body)))
+		res, err = client.Indices.Create(indexName, client.Indices.Create.WithBody(bytes.NewReader(body)))
+		logger.Info("%v", res)
 		if err != nil {
 			logger.Error("an error occurred while creating index: %v", err)
 			return err
 		}
-	}
 
-	logger.Info(fmt.Sprintf("Index %s exist, resulted in %v", indexName, res.StatusCode))
+		logger.Info(fmt.Sprintf("Index %s created successfully\n", indexName))
+	} else {
+
+		logger.Info(fmt.Sprintf("Index %s exist, resulted in %v", indexName, res.StatusCode))
+	}
 
 	return nil
 }
