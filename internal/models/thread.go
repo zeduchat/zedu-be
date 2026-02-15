@@ -508,7 +508,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 				"must": []map[string]any{
 					{
 						"terms": map[string]any{
-							"channels_id.keyword": channelIDs,
+							"channels_id": channelIDs,
 						},
 					},
 					{
@@ -525,17 +525,17 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		"aggs": map[string]any{
 			"channels": map[string]any{
 				"terms": map[string]any{
-					"field": "channels_id.keyword",
+					"field": "channels_id",
 				},
 				"aggs": map[string]any{
 					"channel_name": map[string]any{
 						"terms": map[string]any{
-							"field": "channel_name.keyword",
+							"field": "channel_name",
 						},
 					},
 					"thread_count": map[string]any{
 						"value_count": map[string]any{
-							"field": "thread_id.keyword",
+							"field": "thread_id",
 						},
 					},
 					"success_count": map[string]any{
@@ -544,7 +544,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 								"must": []map[string]any{
 									{
 										"term": map[string]any{
-											"status.keyword": "success",
+											"status": "success",
 										},
 									},
 								},
@@ -557,7 +557,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 								"must": []map[string]any{
 									{
 										"term": map[string]any{
-											"status.keyword": "error",
+											"status": "error",
 										},
 									},
 								},
@@ -570,7 +570,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 								"must": []map[string]any{
 									{
 										"term": map[string]any{
-											"status.keyword": "other",
+											"status": "other",
 										},
 									},
 								},
@@ -1331,12 +1331,12 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 					},
 					{
 						"term": map[string]any{
-							"type.keyword": "thread",
+							"type": "thread",
 						},
 					},
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 				},
@@ -1403,7 +1403,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 					},
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 				},

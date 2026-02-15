@@ -1373,7 +1373,7 @@ func GetChannelUnreadCount(db *storage.Database, channelID, userID string, lastR
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": channelID,
+							"channels_id": channelID,
 						},
 					},
 					{
@@ -1429,7 +1429,7 @@ func (c *Channels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMedia
 				"must": []map[string]any{
 					{
 						"term": map[string]any{
-							"channels_id.keyword": c.ID,
+							"channels_id": c.ID,
 						},
 					},
 				},
