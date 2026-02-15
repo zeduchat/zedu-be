@@ -29705,10 +29705,6 @@ components:
           example: "online"
           description: User's presence status
 
-            format: uri
-          example: ["https://portfolio.com", "https://linkedin.com/in/toyosi"]
-          description: List of user profile links
-
     UpdateUserPresenceRequest:
       type: object
       properties:
