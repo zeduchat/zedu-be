@@ -197,7 +197,7 @@ func TestChangeMemberActiveStatus(t *testing.T) {
 	}
 
 	// --- Critical assertion: verify the DB state after reactivation ---
-	t.Run("Verify member is_deactivated=false after reactivation", func(t *testing.T) {
+	t.Run("Verify member is_deactivated=false and status=active after reactivation", func(t *testing.T) {
 		var oum models.OrgUserManagement
 		err := db.Postgresql.Where("user_id = ? AND organisation_id = ?", memberUserID, orgId).First(&oum).Error
 		if err != nil {
@@ -205,6 +205,9 @@ func TestChangeMemberActiveStatus(t *testing.T) {
 		}
 		if oum.IsDeactivated {
 			t.Errorf("BUG: member is still deactivated after reactivation request. is_deactivated=%v, expected false", oum.IsDeactivated)
+		}
+		if oum.Status != "active" {
+			t.Errorf("BUG: member status not updated after reactivation. status=%q, expected \"active\"", oum.Status)
 		}
 	})
 }

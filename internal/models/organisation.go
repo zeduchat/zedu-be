@@ -81,6 +81,7 @@ type UserInOrgResponse struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	EntityType  string    `json:"entity_type"` // "user" or "bot"
+	Online      bool      `json:"online"`
 }
 
 type OrgMetricsResponse struct {
@@ -463,7 +464,7 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at ").
+		Select("users.id, users.email, profiles.phone as phone, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
 		Joins("JOIN profiles ON profiles.userid = users.id").
 		Where("user_organisations.organisation_id = ?", orgId).

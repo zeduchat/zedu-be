@@ -399,8 +399,9 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 					Email:     u.Email,
 					AvatarUrl: u.Profile.AvatarURL,
 					Title:     u.Profile.Title,
-					UserType:  "user", // Default to user
+					UserType:  "user",
 					IsAdmin:   isAdmin,
+					Online:    u.Profile.Online,
 				})
 			}
 		}
@@ -466,7 +467,7 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 	}
 
 	var err = db.Table("messages").
-		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
+		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, profiles.default_avatar_url, users.email").
 		Joins("left join profiles on profiles.userid = messages.user_id").
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.channels_id = ?", channelID).

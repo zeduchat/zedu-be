@@ -48,6 +48,7 @@ type ParticipantInfo struct {
 	AvatarUrl        string `json:"avatar_url"`
 	DefaultAvatarUrl string `json:"default_avatar_url"`
 	Email            string `json:"email"`
+	Online           bool   `json:"online"`
 }
 
 type GroupDMChannelsResponse struct {
@@ -105,6 +106,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 			partInfo.Email = userDetails.Email
+			partInfo.Online = userDetails.Profile.Online
 
 			gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
 		}
@@ -132,6 +134,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
+		partInfo.Online = userDetails.Profile.Online
 
 		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
 
@@ -321,6 +324,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
+		partInfo.Online = userDetails.Profile.Online
 
 		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
 	}
@@ -443,6 +447,7 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 		partInfo.Email = userDetails.Email
+		partInfo.Online = userDetails.Profile.Online
 
 		addParticipantsResp.Participants = append(addParticipantsResp.Participants, partInfo)
 	}
@@ -519,6 +524,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
 			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 			partInfo.Email = userDetails.Email
+			partInfo.Online = userDetails.Profile.Online
 
 			allPartsInfo = append(allPartsInfo, partInfo)
 		}

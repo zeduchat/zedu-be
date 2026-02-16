@@ -196,11 +196,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 		// Custom struct to hold the joined query results
 		type ParticipantWithProfile struct {
-			UserId    string
-			Title     string
-			AvatarURL string
-			UserName  string
-			Email     string
+			UserId           string
+			Title            string
+			AvatarURL        string
+			DefaultAvatarURL string
+			UserName         string
+			Email            string
+			Online           bool
 		}
 
 		var participantsWithProfile []ParticipantWithProfile
@@ -211,8 +213,10 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 				cp.user_id,
 				COALESCE(p.title, '') as title,
 				COALESCE(p.avatar_url, '') as avatar_url,
+				COALESCE(p.default_avatar_url, '') as default_avatar_url,
 				COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-				u.email
+				u.email,
+				p.online
 			`).
 			Joins("JOIN users u ON u.id = cp.user_id").
 			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
@@ -225,13 +229,15 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 		for _, part := range participantsWithProfile {
 			resp.Participants = append(resp.Participants, models.Participant{
-				AvatarUrl: part.AvatarURL,
-				Username:  part.UserName,
-				Email:     part.Email,
-				UserType:  "user",
-				UserId:    part.UserId,
-				IsAdmin:   part.UserId == dmchannel.UserId,
-				Title:     part.Title,
+				AvatarUrl:        part.AvatarURL,
+				DefaultAvatarUrl: part.DefaultAvatarURL,
+				Username:         part.UserName,
+				Email:            part.Email,
+				UserType:         "user",
+				UserId:           part.UserId,
+				IsAdmin:          part.UserId == dmchannel.UserId,
+				Title:            part.Title,
+				Online:           part.Online,
 			})
 		}
 	case "dm":
@@ -260,6 +266,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			UserType:         "user",
 			UserId:           *dmchannel.ParticipantId,
 			Title:            userDetails.Profile.Title,
+			Online:           userDetails.Profile.Online,
 		})
 
 	}
@@ -397,10 +404,11 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 			}
 		case "group_dm":
 			type ParticipantWithProfile struct {
-				UserId    string
-				AvatarURL string
-				UserName  string
-				Email     string
+				UserId           string
+				AvatarURL        string
+				DefaultAvatarURL string
+				UserName         string
+				Email            string
 			}
 
 			var participantsWithProfile []ParticipantWithProfile
@@ -408,6 +416,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 				Select(`
 					cp.user_id,
 					COALESCE(p.avatar_url, '') as avatar_url,
+					COALESCE(p.default_avatar_url, '') as default_avatar_url,
 					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
 					u.email
 				`).
@@ -419,12 +428,16 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 			if err == nil {
 				usernames := []string{}
 				profilePic := ""
+				defaultProfilePic := ""
 				email := ""
 
 				for _, part := range participantsWithProfile {
 					usernames = append(usernames, part.UserName)
 					if profilePic == "" {
 						profilePic = part.AvatarURL
+					}
+					if defaultProfilePic == "" {
+						defaultProfilePic = part.DefaultAvatarURL
 					}
 					if email == "" {
 						email = part.Email
@@ -433,6 +446,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 				resp.Name = strings.Join(usernames, ", ")
 				resp.AvatarUrl = profilePic
+				resp.DefaultAvatarUrl = defaultProfilePic
 				resp.ParticipantEmail = email
 			}
 		}

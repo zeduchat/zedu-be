@@ -124,7 +124,7 @@ type SetStatusRequest struct {
 }
 
 type UpdateUserPresenceRequest struct {
-	IsActive bool   `json:"is_active" validate:"boolean"`
+	IsActive bool   `json:"online" validate:"boolean"`
 	UserID   string `json:"-"`
 	OrgID    string `json:"-"`
 }
@@ -135,6 +135,7 @@ type UserStatus struct {
 	Emoji      string `json:"emoji"`
 	Expiry     int64  `json:"expiry"`
 	Visibility string `json:"visibility"`
+	Online     bool   `json:"online"`
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
