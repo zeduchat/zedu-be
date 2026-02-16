@@ -343,6 +343,7 @@ type ThreadWithMessagesResponse struct {
 	ThreadMessages []ThreadDocument `json:"thread_messages"`
 	ChannelName    string           `json:"channel_name"`
 	Participants   string           `json:"participants"`
+	PrevieMessage  string           `json:"previe_message"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -1169,6 +1170,11 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		if name, ok := dmChannelNames[thread.ChannelsID]; ok {
 			channelName = name
 		}
+		previeMessage := ""
+
+		if len(messages) > 0 {
+			previeMessage = messages[len(messages)-1].Content
+		}
 
 		threadDoc := ThreadDocument{
 			ID:                       thread.ID,
@@ -1208,6 +1214,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			ThreadMessages: []ThreadDocument{threadDoc},
 			ChannelName:    channelName,
 			Participants:   participants,
+			PrevieMessage:  previeMessage,
 		})
 	}
 
