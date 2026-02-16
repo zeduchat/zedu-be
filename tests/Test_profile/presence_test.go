@@ -49,7 +49,7 @@ func TestPresenceFlow(t *testing.T) {
 	profile := models.Profile{
 		ID:        utility.GenerateUUID(),
 		Userid:    user.ID,
-		IsActive:  false,
+		Online:    false,
 		FirstName: "Test",
 		LastName:  "User",
 		UserName:  fmt.Sprintf("testuser_%s", currUUID),
@@ -65,7 +65,7 @@ func TestPresenceFlow(t *testing.T) {
 	token := tests.GetLoginToken(t, router, *authController, loginData)
 
 	t.Run("Successfully change presence to online", func(t *testing.T) {
-		reqBody := `{"is_active": true}`
+		reqBody := `{"online": true}`
 		req, _ := http.NewRequest("POST", "/api/v1/profile/presence", bytes.NewBuffer([]byte(reqBody)))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		req.Header.Set("Content-Type", "application/json")
@@ -77,11 +77,11 @@ func TestPresenceFlow(t *testing.T) {
 
 		var updatedProfile models.Profile
 		db.Where("id = ?", profile.ID).First(&updatedProfile)
-		assert.Equal(t, true, updatedProfile.IsActive)
+		assert.Equal(t, true, updatedProfile.Online)
 	})
 
 	t.Run("Successfully change presence to offline", func(t *testing.T) {
-		reqBody := `{"is_active": false}`
+		reqBody := `{"online": false}`
 		req, _ := http.NewRequest("POST", "/api/v1/profile/presence", bytes.NewBuffer([]byte(reqBody)))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		req.Header.Set("Content-Type", "application/json")
@@ -93,12 +93,12 @@ func TestPresenceFlow(t *testing.T) {
 
 		var updatedProfile models.Profile
 		db.Where("id = ?", profile.ID).First(&updatedProfile)
-		assert.Equal(t, false, updatedProfile.IsActive)
+		assert.Equal(t, false, updatedProfile.Online)
 	})
 
 	t.Run("Successfully get own presence", func(t *testing.T) {
 		// Set to online first
-		db.Model(&profile).Update("is_active", true)
+		db.Model(&profile).Update("online", true)
 
 		req, _ := http.NewRequest("GET", "/api/v1/profile/presence", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -107,12 +107,12 @@ func TestPresenceFlow(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"is_active":false`)
+		assert.Contains(t, w.Body.String(), `"online":true`)
 	})
 
 	t.Run("Successfully get other user presence", func(t *testing.T) {
 		// Set to online first
-		db.Model(&profile).Update("is_active", true)
+		db.Model(&profile).Update("online", true)
 
 		req, _ := http.NewRequest("GET", "/api/v1/profile/presence/"+user.ID, nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -121,11 +121,11 @@ func TestPresenceFlow(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), `"is_active":false`)
+		assert.Contains(t, w.Body.String(), `"online":true`)
 	})
 
 	t.Run("Fail with invalid body", func(t *testing.T) {
-		reqBody := `{"is_active": "invalid"}` // Invalid type
+		reqBody := `{"online": "invalid"}` // Invalid type
 		req, _ := http.NewRequest("POST", "/api/v1/profile/presence", bytes.NewBuffer([]byte(reqBody)))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 		req.Header.Set("Content-Type", "application/json")
