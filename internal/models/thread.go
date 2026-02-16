@@ -340,10 +340,12 @@ type UpdateThreadMessage struct {
 }
 
 type ThreadWithMessagesResponse struct {
-	ThreadMessages []ThreadDocument `json:"thread_messages"`
-	ChannelName    string           `json:"channel_name"`
-	Participants   string           `json:"participants"`
-	PrevieMessage  string           `json:"previe_message"`
+	ThreadMessages  []ThreadDocument `json:"thread_messages"`
+	ChannelName     string           `json:"channel_name"`
+	Participants    string           `json:"participants"`
+	PrevieMessage   string           `json:"previe_message"`
+	SenderAvatarURL string           `json:"sender_avatar_url"`
+	ChannelType     string           `json:"channel_type"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -1118,22 +1120,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return nil, pagR, err
 	}
 
-	dmChannelNames := map[string]string{}
-	for _, dmChanId := range dmChannelIds {
-		var dmChan DmChannels
-		if postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", dmChanId, userId) {
-			if dmChan.ParticipantId != nil {
-				var u User
-				if userDetails, err := u.GetUserByID(db, *dmChan.ParticipantId); err == nil {
-					name := userDetails.Profile.UserName
-					if name == "" {
-						name = strings.Split(userDetails.Email, "@")[0]
-					}
-					dmChannelNames[dmChanId] = name
-				}
-			}
-		}
-	}
+	dmChannelNames := GetDmChannelNames(db, dmChannelIds, userId)
 
 	for _, thread := range threads {
 		usernames := map[string]bool{}
@@ -1215,10 +1202,12 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		}
 
 		result = append(result, ThreadWithMessagesResponse{
-			ThreadMessages: []ThreadDocument{threadDoc},
-			ChannelName:    channelName,
-			Participants:   participants,
-			PrevieMessage:  previeMessage,
+			ThreadMessages:  []ThreadDocument{threadDoc},
+			ChannelName:     channelName,
+			Participants:    participants,
+			PrevieMessage:   previeMessage,
+			SenderAvatarURL: thread.AvatarURL,
+			ChannelType:     thread.ChannelType,
 		})
 	}
 
@@ -1585,4 +1574,46 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 	}
 
 	return messages, nil, nil
+}
+
+func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[string]string {
+	dmChannelNames := map[string]string{}
+	for _, dmChanId := range dmChannelIds {
+		var dmChan DmChannels
+		if postgresql.CheckExists(db, &dmChan, "channel_id = ?", dmChanId) {
+			if dmChan.ChannelType == "group_dm" {
+				var chanParts []ChannelParticipant
+				err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChanId)
+				if err == nil && len(chanParts) > 0 {
+					usernames := []string{}
+					var u User
+					for _, part := range chanParts {
+						if part.UserId == userId {
+							continue
+						}
+						if userDetails, err := u.GetUserByID(db, part.UserId); err == nil {
+							name := userDetails.Profile.UserName
+							if name == "" {
+								name = strings.Split(userDetails.Email, "@")[0]
+							}
+							usernames = append(usernames, name)
+						}
+					}
+					if len(usernames) > 0 {
+						dmChannelNames[dmChanId] = strings.Join(usernames, ", ")
+					}
+				}
+			} else if dmChan.ParticipantId != nil {
+				var u User
+				if userDetails, err := u.GetUserByID(db, *dmChan.ParticipantId); err == nil {
+					name := userDetails.Profile.UserName
+					if name == "" {
+						name = strings.Split(userDetails.Email, "@")[0]
+					}
+					dmChannelNames[dmChanId] = name
+				}
+			}
+		}
+	}
+	return dmChannelNames
 }
