@@ -327,6 +327,7 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	if logger != nil {
@@ -415,6 +416,7 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	if logger != nil {
@@ -456,6 +458,7 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 				Emoji:      "",
 				Expiry:     0,
 				Visibility: "public",
+				Online:     false,
 			}, http.StatusOK, nil
 		}
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
@@ -481,6 +484,7 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	return status, http.StatusOK, nil
@@ -497,7 +501,7 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 		return http.StatusInternalServerError, err
 	}
 
-	if err := db.Model(&profile).Update("is_active", req.IsActive).Error; err != nil {
+	if err := db.Model(&profile).Update("online", req.IsActive).Error; err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update presence: %w", err)
 	}
 
@@ -507,8 +511,8 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 		notification := models.Notification[models.UserPresenceChanged]
 		notification.NotificationId = utility.GenerateUUID()
 		notification.Content = models.UserPresenceChangedPayload{
-			UserID:   req.UserID,
-			IsActive: req.IsActive,
+			UserID: req.UserID,
+			Online: req.IsActive,
 		}
 		notification.ModificationDetails = &models.ModificationDetails{
 			UserId: req.UserID,
@@ -528,7 +532,7 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
 	var profile models.Profile
 
-	if err := db.Select("is_active").Where("userid = ?", userID).First(&profile).Error; err != nil {
+	if err := db.Select("online").Where("userid = ?", userID).First(&profile).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, http.StatusNotFound, fmt.Errorf("profile not found")
 		}

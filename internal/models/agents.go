@@ -755,6 +755,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 						"email":              userDetails.Email,
 						"user_type":          "user",
 						"user_id":            ids.UserID,
+						"online":             userDetails.Profile.Online,
 					},
 					{
 						"avatar_url": agents[i].Avatar,

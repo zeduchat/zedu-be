@@ -401,6 +401,7 @@ func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) g
 			"phone":              user.Profile.Phone,
 			"avatar_url":         user.Profile.AvatarURL,
 			"default_avatar_url": user.Profile.DefaultAvatarURL,
+			"online":             user.Profile.Online,
 			"current_org":        user.CurrentOrg,
 			"expires_in":         strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":         strconv.Itoa(int(user.CreatedAt.Unix())),

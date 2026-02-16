@@ -277,10 +277,7 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 }
 
 func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
-	var (
-		oum      OrgUserManagement
-		oumCheck OrgUserManagement
-	)
+	var oumCheck OrgUserManagement
 
 	exists := postgresql.CheckExists(db, &oumCheck, "user_id = ? AND organisation_id = ?", user.ID, org_id)
 	if !exists {
@@ -291,11 +288,17 @@ func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bo
 		return nil
 	}
 
-	update := map[string]any{
-		"is_deactivated": status,
+	statusStr := "active"
+	if status {
+		statusStr = "inactive"
 	}
 
-	result, err := postgresql.UpdateFields(db, &oum, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
+	update := map[string]any{
+		"is_deactivated": status,
+		"status":         statusStr,
+	}
+
+	result, err := postgresql.UpdateFields(db, &oumCheck, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
 	if err != nil {
 		return fmt.Errorf("unable to update field: %w", err)
 	}

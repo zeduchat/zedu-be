@@ -415,7 +415,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 			END AS status,
 			org.name AS role,
 			o.is_deactivated,
-			'user' AS entity_type
+			'user' AS entity_type,
+			p.online
 		FROM org_user_managements o
 		JOIN users u ON u.id = o.user_id
 		LEFT JOIN profiles p ON p.userid = u.id
@@ -454,7 +455,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 				END AS status,
 				'bot' AS role,
 				false AS is_deactivated,
-				'bot' AS entity_type
+				'bot' AS entity_type,
+				oi.is_active AS online
 			FROM organisation_integrations oi
 			WHERE oi.org_id = ? AND oi.is_archived = false
 			  AND (oi.app_name ILIKE ?)

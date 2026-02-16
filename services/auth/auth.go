@@ -429,6 +429,7 @@ func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	responseData = gin.H{
 		"status": status,
+		"online": user.Profile.Online,
 	}
 
 	return responseData, http.StatusOK, nil

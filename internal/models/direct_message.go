@@ -83,6 +83,7 @@ type Participant struct {
 	UserId           string `json:"user_id"`
 	IsAdmin          bool   `json:"is_admin"`
 	Title            string `json:"title"`
+	Online           bool   `json:"online"`
 }
 
 type GroupInCommon struct {
@@ -206,6 +207,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 				"email":              userDetails.Email,
 				"user_type":          "user",
 				"user_id":            dm.ParticipantId,
+				"online":             userDetails.Profile.Online,
 			},
 		}
 
@@ -233,6 +235,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 			"email":              userDetails.Email,
 			"user_type":          "user",
 			"user_id":            dm.ParticipantId,
+			"online":             userDetails.Profile.Online,
 		},
 	}
 
@@ -405,6 +408,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					"email":              userDetails.Email,
 					"user_type":          "user",
 					"user_id":            dmchan.ParticipantId,
+					"online":             userDetails.Profile.Online,
 				},
 			}
 
@@ -439,6 +443,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				AvatarURL string
 				UserName  string
 				Email     string
+				Online    bool
 			}
 
 			var participantsWithProfile []ParticipantWithProfile
@@ -449,7 +454,8 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					COALESCE(p.title, '') as title,
 					COALESCE(p.avatar_url, '') as avatar_url,
 					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-					u.email
+					u.email,
+					p.online
 				`).
 				Joins("JOIN users u ON u.id = cp.user_id").
 				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
@@ -482,6 +488,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					"user_id":            part.UserId,
 					"is_admin":           part.UserId == dmchan.UserId,
 					"title":              part.Title,
+					"online":             userDetails.Profile.Online,
 				})
 
 				if profilePic == "" {
@@ -592,6 +599,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				ID:               r.ChannelId,
 				Name:             userDetails.Profile.UserName,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
+				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
 				ParticipantId:    *dmChan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
 				ChannelType:      "dm",
@@ -723,6 +731,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 						"email":              userDetails.Email,
 						"user_type":          "user",
 						"user_id":            chanResp[i].UserId,
+						"online":             userDetails.Profile.Online,
 					},
 				}
 
@@ -780,6 +789,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 						"email":              userDetails.Email,
 						"user_type":          "user",
 						"user_id":            prof.UserId,
+						"online":             userDetails.Profile.Online,
 					})
 				}
 			}

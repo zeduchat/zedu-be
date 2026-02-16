@@ -332,6 +332,6 @@ func (base *Controller) GetProfilePresence(c *gin.Context) {
 	}
 
 	base.Logger.Info("User presence retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User presence retrieved successfully", gin.H{"is_active": presence})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User presence retrieved successfully", gin.H{"online": presence})
 	c.JSON(code, rd)
 }

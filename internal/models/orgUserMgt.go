@@ -363,7 +363,8 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             org_roles.name AS role,
             org_user_managements.status,
             users.created_at,
-            'user' AS entity_type
+            'user' AS entity_type,
+            profiles.online
         `).
 		Joins("JOIN org_user_managements ON org_user_managements.user_id = users.id").
 		Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
