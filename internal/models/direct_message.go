@@ -424,6 +424,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ID:               dmchan.ChannelId,
 				Name:             userDetails.Profile.UserName,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
+				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
 				ParticipantId:    *dmchan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
 				ChannelType:      "dm",
@@ -464,6 +465,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 			usernames := []string{}
 			profilePic := ""
+			defaultAvatar := ""
 			email := ""
 
 			for _, part := range participantsWithProfile {
@@ -495,6 +497,10 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					profilePic = userDetails.Profile.AvatarURL
 				}
 
+				if defaultAvatar == "" {
+					defaultAvatar = userDetails.Profile.DefaultAvatarURL
+				}
+
 				if email == "" {
 					email = userDetails.Email
 				}
@@ -515,6 +521,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ID:               dmchan.ChannelId,
 				Name:             strings.Join(usernames, ", "),
 				AvatarUrl:        profilePic,
+				DefaultAvatarUrl: defaultAvatar,
 				ParticipantEmail: email,
 				ChannelType:      "group_dm",
 				LastThreadId:     chanParti.LastThreadId,
@@ -625,6 +632,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 
 			usernames := []string{}
 			profilePic := ""
+			defaultAvatar := ""
 			email := ""
 
 			for _, part := range chanPart {
@@ -641,6 +649,10 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 
 				if profilePic == "" {
 					profilePic = userDetails.Profile.AvatarURL
+				}
+
+				if defaultAvatar == "" {
+					defaultAvatar = userDetails.Profile.DefaultAvatarURL
 				}
 
 				if email == "" {
@@ -661,6 +673,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				ID:               r.ChannelId,
 				Name:             strings.Join(usernames, ", "),
 				AvatarUrl:        profilePic,
+				DefaultAvatarUrl: defaultAvatar,
 				ParticipantEmail: email,
 				ChannelType:      "group_dm",
 				LastThreadId:     chanParti.LastThreadId,
@@ -746,6 +759,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				chanResp[i].PreviewMessage = previewMessage
 				chanResp[i].PreviewThread = previewThread
 				chanResp[i].Participants = participants
+				chanResp[i].DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 			}
 
 			return chanResp, nil
@@ -773,6 +787,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 			usernames := []string{}
 			profilePic := ""
+			defaultAvatar := ""
 			participants := []gin.H{}
 			for _, prof := range userProfiles {
 				usernames = append(usernames, prof.UserName)
@@ -782,6 +797,10 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 				userDetails, err := user.GetUserByID(db, prof.UserId)
 				if err == nil {
+					if defaultAvatar == "" {
+						defaultAvatar = userDetails.Profile.DefaultAvatarURL
+					}
+
 					participants = append(participants, gin.H{
 						"avatar_url":         userDetails.Profile.AvatarURL,
 						"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
@@ -843,6 +862,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				chanResp[i].PreviewMessage = previewMessage
 				chanResp[i].PreviewThread = previewThread
 				chanResp[i].Participants = participants
+				chanResp[i].DefaultAvatarUrl = defaultAvatar
 			}
 
 			return chanResp, nil
