@@ -1144,6 +1144,10 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			continue
 		}
 
+		if len(messages) == 0 {
+			continue
+		}
+
 		for _, msg := range messages {
 			if msg.UserID == userId {
 				continue
