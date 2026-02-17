@@ -12,7 +12,6 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/internal/models/seed"
 	"github.com/hngprojects/telex_be/pkg/controller/subscriptions"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -23,14 +22,6 @@ func TestGetSubscriptionPlans(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	validatorRef := validator.New()
 	db := storage.Connection()
-
-	// Force migration to ensure new fields are present
-	if err := db.Postgresql.AutoMigrate(&models.Plan{}); err != nil {
-		t.Fatalf("Migration failed: %v", err)
-	}
-
-	// Seed plans
-	seed.SeedPlans(logger, db.Postgresql)
 
 	// Check what's actually in DB
 	var allPlans []models.Plan
