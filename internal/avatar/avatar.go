@@ -17,8 +17,13 @@ func GenerateDefaultAvatarURL(userID string) string {
 	n := (checksum % 7) + 1
 	conf := config.GetConfig()
 	endpoint := ""
+	bucketName := "telexstagingbucket"
+
 	if conf != nil {
 		endpoint = conf.Minio.MinioEndpoint
+		if conf.App.Mode == "prod" {
+			bucketName = "telexprodbucket"
+		}
 	}
-	return fmt.Sprintf("https://%s/default_avatars/default_avatar_%d.png", endpoint, n)
+	return fmt.Sprintf("https://%s/%s/public/default_avatars/default_avatar_%d.png", endpoint, bucketName, n)
 }
