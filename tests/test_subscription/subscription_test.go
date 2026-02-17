@@ -44,7 +44,6 @@ func TestGetSubscriptions_NoDuplicates(t *testing.T) {
 	logger := tst.Setup()
 	db := storage.Connection()
 	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.OrganisationPlan{})
-	db.Postgresql.Unscoped().Where("1 = 1").Delete(&models.Plan{})
 
 	if err := db.Postgresql.AutoMigrate(&models.Plan{}, &models.OrganisationPlan{}); err != nil {
 		t.Fatalf("Migration failed: %v", err)

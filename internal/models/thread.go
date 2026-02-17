@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -58,6 +59,7 @@ type Threads struct {
 	Reactions                []ReactionDetails         `gorm:"-" json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `gorm:"-" json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `gorm:"-" json:"preview_reply,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -95,6 +97,7 @@ type ThreadDocument struct {
 	Reactions                []ReactionDetails         `json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `json:"preview_reply,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
@@ -1292,6 +1295,7 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
+	var message Message
 
 	var searchResult struct {
 		Hits struct {
@@ -1313,6 +1317,18 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 	for i, hit := range searchResult.Hits.Hits {
 		threads[i] = hit.Source
 		threads[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[i].UserId)
+		threads[i].PreviewReply = make([]MessageDocument, 0)
+		if threads[i].MessageCount > 0 {
+			messageCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+			msg, _, _ := message.GetAllMessagesByThreadID(messageCtx, threads[i].ID)
+			threads[i].PreviewReply = msg
+		}
 	}
 
 	return
