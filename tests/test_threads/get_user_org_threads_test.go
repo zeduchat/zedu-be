@@ -42,9 +42,23 @@ func TestGetUserOrgThreads(t *testing.T) {
 		UserName:    fmt.Sprintf("test_username%v", currUUID),
 	}
 
+	otherUserSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("testuser2%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "test2",
+		LastName:    "user2",
+		Password:    "password",
+		UserName:    fmt.Sprintf("test_other_username%v", currUUID),
+	}
+
 	loginData := models.LoginRequestModel{
 		Email:    userSignUpData.Email,
 		Password: userSignUpData.Password,
+	}
+
+	otherUserLoginData := models.LoginRequestModel{
+		Email:    otherUserSignUpData.Email,
+		Password: otherUserSignUpData.Password,
 	}
 
 	authCtrl := auth.Controller{
@@ -59,13 +73,16 @@ func TestGetUserOrgThreads(t *testing.T) {
 
 	r := gin.Default()
 	tst.SignupUser(t, r, authCtrl, userSignUpData, false)
+	tst.SignupUser(t, gin.Default(), authCtrl, otherUserSignUpData, false)
 
 	channelCtrl := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	orgCtrl := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
 	threadCtrl := thread.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	token := tst.GetLoginToken(t, r, authCtrl, loginData)
+	otherUserToken := tst.GetLoginToken(t, gin.Default(), authCtrl, otherUserLoginData)
 	userID := tst.GetUserIDFromToken(t, token, db)
+	otherUserID := tst.GetUserIDFromToken(t, otherUserToken, db)
 
 	createOrgData := models.CreateOrgRequestModel{
 		Name:        fmt.Sprintf("TestTeam%s", currUUID),
@@ -86,6 +103,16 @@ func TestGetUserOrgThreads(t *testing.T) {
 	}
 
 	channelId, _ := tst.CreateChannels(t, r, channelCtrl, db, createChannelsData, token)
+	uc := models.UserChannels{
+		ChannelsID: channelId,
+		UserID:     otherUserID,
+		Username:   otherUserSignUpData.UserName,
+		OrgId:      orgId,
+	}
+	err := db.Postgresql.Create(&uc).Error
+	if err != nil {
+		t.Fatalf("Failed to add user %s to channel: %v", otherUserID, err)
+	}
 
 	now := time.Now().UTC()
 
@@ -103,12 +130,13 @@ func TestGetUserOrgThreads(t *testing.T) {
 		UpdatedAt:      now.Add(-2 * time.Hour),
 		Messages: []models.MessageDocument{
 			{
-				ID:        utility.GenerateUUID(),
-				Content:   "msg in oldest",
-				UserID:    userID,
-				Username:  userSignUpData.UserName,
-				ThreadID:  uuid.Nil,
-				CreatedAt: now.Add(-2 * time.Hour),
+				ID:         utility.GenerateUUID(),
+				Content:    "msg in oldest",
+				UserID:     userID,
+				Username:   userSignUpData.UserName,
+				ThreadID:   uuid.Nil,
+				CreatedAt:  now.Add(-2 * time.Hour),
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -128,12 +156,13 @@ func TestGetUserOrgThreads(t *testing.T) {
 		UpdatedAt:      now.Add(-1 * time.Hour),
 		Messages: []models.MessageDocument{
 			{
-				ID:        utility.GenerateUUID(),
-				Content:   "msg in middle",
-				UserID:    userID,
-				Username:  userSignUpData.UserName,
-				ThreadID:  uuid.Nil,
-				CreatedAt: now.Add(-1 * time.Hour),
+				ID:         utility.GenerateUUID(),
+				Content:    "msg in middle",
+				UserID:     userID,
+				Username:   userSignUpData.UserName,
+				ThreadID:   uuid.Nil,
+				CreatedAt:  now.Add(-1 * time.Hour),
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -153,12 +182,13 @@ func TestGetUserOrgThreads(t *testing.T) {
 		UpdatedAt:      now,
 		Messages: []models.MessageDocument{
 			{
-				ID:        utility.GenerateUUID(),
-				Content:   "msg in newest",
-				UserID:    userID,
-				Username:  userSignUpData.UserName,
-				ThreadID:  uuid.Nil,
-				CreatedAt: now,
+				ID:         utility.GenerateUUID(),
+				Content:    "msg in newest",
+				UserID:     userID,
+				Username:   userSignUpData.UserName,
+				ThreadID:   uuid.Nil,
+				CreatedAt:  now,
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -184,12 +214,13 @@ func TestGetUserOrgThreads(t *testing.T) {
 		},
 		Messages: []models.MessageDocument{
 			{
-				ID:        utility.GenerateUUID(),
-				Content:   "hey you were mentioned",
-				UserID:    "00000000-0000-0000-0000-000000000000",
-				Username:  "other_user",
-				ThreadID:  uuid.Nil,
-				CreatedAt: now.Add(1 * time.Hour),
+				ID:         utility.GenerateUUID(),
+				Content:    "hey you were mentioned",
+				UserID:     otherUserID,
+				Username:   otherUserSignUpData.UserName,
+				ThreadID:   uuid.Nil,
+				CreatedAt:  now.Add(1 * time.Hour),
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -198,6 +229,11 @@ func TestGetUserOrgThreads(t *testing.T) {
 	for _, td := range []models.ThreadDocument{thread1, thread2, thread3, mentionThread} {
 		if err := td.CreateThread(db, logger); err != nil {
 			t.Fatalf("Failed to create test thread: %v", err)
+		}
+		for _, msg := range td.Messages {
+			if _, err := msg.CreateMessage(db, logger); err != nil {
+				t.Fatalf("Failed to create test message: %v", err)
+			}
 		}
 	}
 

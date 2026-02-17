@@ -1605,7 +1605,11 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 				}
 			} else if dmChan.ParticipantId != nil {
 				var u User
-				if userDetails, err := u.GetUserByID(db, *dmChan.ParticipantId); err == nil {
+				targetUserId := *dmChan.ParticipantId
+				if targetUserId == userId {
+					targetUserId = dmChan.UserId
+				}
+				if userDetails, err := u.GetUserByID(db, targetUserId); err == nil {
 					name := userDetails.Profile.UserName
 					if name == "" {
 						name = strings.Split(userDetails.Email, "@")[0]
