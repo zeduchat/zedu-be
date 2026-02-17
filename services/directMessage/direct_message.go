@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -196,13 +197,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 		// Custom struct to hold the joined query results
 		type ParticipantWithProfile struct {
-			UserId           string
-			Title            string
-			AvatarURL        string
-			DefaultAvatarURL string
-			UserName         string
-			Email            string
-			Online           bool
+			UserId    string
+			Title     string
+			AvatarURL string
+
+			UserName string
+			Email    string
+			Online   bool
 		}
 
 		var participantsWithProfile []ParticipantWithProfile
@@ -213,7 +214,6 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 				cp.user_id,
 				COALESCE(p.title, '') as title,
 				COALESCE(p.avatar_url, '') as avatar_url,
-				COALESCE(p.default_avatar_url, '') as default_avatar_url,
 				COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
 				u.email,
 				p.online
@@ -376,7 +376,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 					resp.Name = p.Username
 					resp.AvatarUrl = userDetails.Profile.AvatarURL
-					resp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
+					resp.DefaultAvatarUrl = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 					resp.ParticipantId = *dm.ParticipantId
 					resp.ParticipantEmail = userDetails.Email
 					resp.Participants = []models.Participant{models.NewParticipant(userDetails, false, "user")}
@@ -384,13 +384,13 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 			}
 		case "group_dm":
 			type ParticipantWithProfile struct {
-				UserId           string
-				AvatarURL        string
-				DefaultAvatarURL string
-				UserName         string
-				Email            string
-				Title            string
-				Online           bool
+				UserId    string
+				AvatarURL string
+
+				UserName string
+				Email    string
+				Title    string
+				Online   bool
 			}
 
 			var participantsWithProfile []ParticipantWithProfile
@@ -398,7 +398,6 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 				Select(`
 					cp.user_id,
 					COALESCE(p.avatar_url, '') as avatar_url,
-					COALESCE(p.default_avatar_url, '') as default_avatar_url,
 					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
 					u.email,
 					COALESCE(p.title, '') as title,
@@ -428,7 +427,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 						profilePic = partUserDetails.Profile.AvatarURL
 					}
 					if defaultProfilePic == "" {
-						defaultProfilePic = partUserDetails.Profile.DefaultAvatarURL
+						defaultProfilePic = avatar.GenerateDefaultAvatarURL(partUserDetails.ID)
 					}
 					if email == "" {
 						email = partUserDetails.Email

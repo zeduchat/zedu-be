@@ -487,19 +487,20 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: threadResp.ChannelsID,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: threadResp.AvatarURL,
-		Type:      threadResp.Type,
-		Content:   threadResp.Content,
-		ThreadId:  req.ThreadId,
-		Email:     threadResp.Email,
-		UserType:  threadResp.UserType,
-		UserName:  user.Profile.UserName,
-		FullName:  user.Profile.FullName,
-		OrgId:     threadResp.OrganisationID,
-		UserId:    threadResp.UserId,
-		Media:     threadResp.Media,
+		ChannelID:        threadResp.ChannelsID,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        threadResp.AvatarURL,
+		DefaultAvatarUrl: threadResp.DefaultAvatarURL,
+		Type:             threadResp.Type,
+		Content:          threadResp.Content,
+		ThreadId:         req.ThreadId,
+		Email:            threadResp.Email,
+		UserType:         threadResp.UserType,
+		UserName:         user.Profile.UserName,
+		FullName:         user.Profile.FullName,
+		OrgId:            threadResp.OrganisationID,
+		UserId:           threadResp.UserId,
+		Media:            threadResp.Media,
 	}
 
 	notification := models.Notification[models.Updated]

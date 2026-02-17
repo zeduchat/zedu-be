@@ -17,6 +17,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -143,11 +144,10 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			ProfileUpdated: true,
 			IsOnboarded:    true,
 			Profile: models.Profile{
-				FullName:         username,
-				UserName:         uniqueUsername,
-				ID:               utility.GenerateUUID(),
-				AvatarURL:        pictureURL,
-				DefaultAvatarURL: GenerateDefaultAvatarURL(),
+				FullName:  username,
+				UserName:  uniqueUsername,
+				ID:        utility.GenerateUUID(),
+				AvatarURL: pictureURL,
 			},
 		}
 
@@ -227,7 +227,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 			"profile_updated":           user.ProfileUpdated,
 			"is_onboarded":              user.IsOnboarded,
 			"avatar_url":                user.Profile.AvatarURL,
-			"default_avatar_url":        user.Profile.DefaultAvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(user.ID),
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(user.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(user.UpdatedAt.Unix())),

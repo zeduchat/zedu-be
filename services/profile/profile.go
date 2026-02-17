@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -238,7 +239,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		FullName:          userProfile.Profile.FullName,
 		UserName:          userProfile.Profile.UserName,
 		AvatarURL:         userProfile.Profile.AvatarURL,
-		DefaultAvatarURL:  userProfile.Profile.DefaultAvatarURL,
+		DefaultAvatarURL:  avatar.GenerateDefaultAvatarURL(userProfile.ID),
 		UserId:            userProfile.Profile.Userid,
 		Deactivated:       userProfile.Deactivated,
 		ProfileUpdated:    userProfile.ProfileUpdated,
