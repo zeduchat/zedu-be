@@ -15,6 +15,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
@@ -156,6 +157,7 @@ type UserMsgProfile struct {
 
 type MessagesResp []struct {
 	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
 	Edited    bool      `json:"edited"`
 	Message   string    `json:"message"`
 	Username  string    `json:"username"`
@@ -449,13 +451,17 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 	}
 
 	var err = db.Table("messages").
-		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, profiles.default_avatar_url, users.email").
+		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
 		Joins("left join profiles on profiles.userid = messages.user_id").
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.channels_id = ?", channelID).
 		Scan(&messagesResp).Error
 	if err != nil {
 		return messagesResp, err
+	}
+
+	for i, msg := range messagesResp {
+		messagesResp[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(msg.UserID)
 	}
 
 	return messagesResp, nil
