@@ -400,6 +400,18 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 					resp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
 					resp.ParticipantId = *dm.ParticipantId
 					resp.ParticipantEmail = userDetails.Email
+					resp.Participants = []models.Participant{
+						{
+							AvatarUrl:        userDetails.Profile.AvatarURL,
+							DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+							Username:         userName,
+							Email:            userDetails.Email,
+							UserType:         "user",
+							UserId:           *dm.ParticipantId,
+							Title:            userDetails.Profile.Title,
+							Online:           userDetails.Profile.Online,
+						},
+					}
 				}
 			}
 		case "group_dm":
@@ -409,6 +421,8 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 				DefaultAvatarURL string
 				UserName         string
 				Email            string
+				Title            string
+				Online           bool
 			}
 
 			var participantsWithProfile []ParticipantWithProfile
@@ -418,7 +432,9 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 					COALESCE(p.avatar_url, '') as avatar_url,
 					COALESCE(p.default_avatar_url, '') as default_avatar_url,
 					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-					u.email
+					u.email,
+					COALESCE(p.title, '') as title,
+					COALESCE(p.online, false) as online
 				`).
 				Joins("JOIN users u ON u.id = cp.user_id").
 				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
@@ -430,6 +446,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 				profilePic := ""
 				defaultProfilePic := ""
 				email := ""
+				var participants []models.Participant
 
 				for _, part := range participantsWithProfile {
 					usernames = append(usernames, part.UserName)
@@ -442,12 +459,24 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 					if email == "" {
 						email = part.Email
 					}
+					participants = append(participants, models.Participant{
+						AvatarUrl:        part.AvatarURL,
+						DefaultAvatarUrl: part.DefaultAvatarURL,
+						Username:         part.UserName,
+						Email:            part.Email,
+						UserType:         "user",
+						UserId:           part.UserId,
+						IsAdmin:          part.UserId == dm.UserId,
+						Title:            part.Title,
+						Online:           part.Online,
+					})
 				}
 
 				resp.Name = strings.Join(usernames, ", ")
 				resp.AvatarUrl = profilePic
 				resp.DefaultAvatarUrl = defaultProfilePic
 				resp.ParticipantEmail = email
+				resp.Participants = participants
 			}
 		}
 

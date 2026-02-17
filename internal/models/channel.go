@@ -394,14 +394,15 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 				}
 
 				participants = append(participants, Participant{
-					UserId:    u.ID,
-					Username:  username,
-					Email:     u.Email,
-					AvatarUrl: u.Profile.AvatarURL,
-					Title:     u.Profile.Title,
-					UserType:  "user",
-					IsAdmin:   isAdmin,
-					Online:    u.Profile.Online,
+					UserId:           u.ID,
+					Username:         username,
+					Email:            u.Email,
+					AvatarUrl:        u.Profile.AvatarURL,
+					DefaultAvatarUrl: u.Profile.DefaultAvatarURL,
+					Title:            u.Profile.Title,
+					UserType:         "user",
+					IsAdmin:          isAdmin,
+					Online:           u.Profile.Online,
 				})
 			}
 		}
