@@ -67,8 +67,8 @@ func (base *Controller) GetUserGroupDMs(c *gin.Context) {
 
 	resp, statusCode, err := dm.GetUserGroupDMs(req, base.Db.Postgresql, c)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), err, nil)
+		c.JSON(statusCode, rd)
 		return
 	}
 

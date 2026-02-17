@@ -75,15 +75,64 @@ type DmChannelMediaRequest struct {
 }
 
 type Participant struct {
-	AvatarUrl        string `json:"avatar_url"`
-	DefaultAvatarUrl string `json:"default_avatar_url"`
-	Username         string `json:"username"`
-	Email            string `json:"email"`
-	UserType         string `json:"user_type"`
-	UserId           string `json:"user_id"`
-	IsAdmin          bool   `json:"is_admin"`
-	Title            string `json:"title"`
-	Online           bool   `json:"online"`
+	UserId            string   `json:"user_id"`
+	Username          string   `json:"username"`
+	Email             string   `json:"email"`
+	Phone             string   `json:"phone"`
+	FirstName         string   `json:"first_name"`
+	LastName          string   `json:"last_name"`
+	FullName          string   `json:"full_name"`
+	DisplayName       string   `json:"display_name"`
+	AvatarUrl         string   `json:"avatar_url"`
+	DefaultAvatarUrl  string   `json:"default_avatar_url"`
+	Title             string   `json:"title"`
+	NamePronunciation string   `json:"name_pronunciation"`
+	Timezone          string   `json:"timezone"`
+	Icon              string   `json:"icon"`
+	Text              string   `json:"text"`
+	PauseNotification bool     `json:"pause_notification"`
+	StatusTimeout     string   `json:"status_timeout"`
+	WorkspaceID       string   `json:"workspace_id"`
+	Track             string   `json:"track"`
+	Links             []string `json:"links"`
+	Online            bool     `json:"online"`
+	IsActive          bool     `json:"is_active"`
+	UserType          string   `json:"user_type"`
+	IsAdmin           bool     `json:"is_admin"`
+}
+
+// NewParticipant builds a full Participant from a User (with Profile preloaded).
+func NewParticipant(u User, isAdmin bool, userType string) Participant {
+	username := u.Profile.UserName
+	if username == "" {
+		username = u.Name
+	}
+	return Participant{
+		UserId:            u.ID,
+		Username:          username,
+		Email:             u.Email,
+		Phone:             u.Profile.Phone,
+		FirstName:         u.Profile.FirstName,
+		LastName:          u.Profile.LastName,
+		FullName:          u.Profile.FullName,
+		DisplayName:       u.Profile.DisplayName,
+		AvatarUrl:         u.Profile.AvatarURL,
+		DefaultAvatarUrl:  u.Profile.DefaultAvatarURL,
+		Title:             u.Profile.Title,
+		NamePronunciation: u.Profile.NamePronunciation,
+		Timezone:          u.Profile.Timezone,
+		Icon:              u.Profile.Icon,
+		Text:              u.Profile.Text,
+		PauseNotification: u.Profile.PauseNotification,
+		StatusTimeout:     u.Profile.StatusTimeout,
+		WorkspaceID:       u.Profile.WorkspaceID,
+		Track:             u.Profile.Track,
+		Links:             u.Profile.Links,
+		Online:            u.Profile.Online,
+		IsActive:          u.Profile.IsActive,
+		UserType:          userType,
+		IsAdmin:           isAdmin,
+	}
 }
 
 type GroupInCommon struct {
@@ -193,28 +242,15 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		return dmchanresp, errors.New("participant does not exist")
 	}
 
-	if userDetails.Profile.UserName == "" {
-		userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-	}
+	participant := NewParticipant(userDetails, false, "user")
 
 	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ? AND org_id = ?", dm.UserId, *dm.ParticipantId, dm.OrgId)
 	if exists {
-		participants := []Participant{
-			{
-				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-				Username:         userDetails.Profile.UserName,
-				Email:            userDetails.Email,
-				UserType:         "user",
-				UserId:           *dm.ParticipantId,
-				Title:            userDetails.Profile.Title,
-				Online:           userDetails.Profile.Online,
-			},
-		}
+		participants := []Participant{participant}
 
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 		dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-		dmchanresp.Name = userDetails.Profile.UserName
+		dmchanresp.Name = participant.Username
 		dmchanresp.ID = existDmchan.ChannelId
 		dmchanresp.ParticipantId = *dm.ParticipantId
 		dmchanresp.ParticipantEmail = userDetails.Email
@@ -228,22 +264,11 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		return dmchanresp, err
 	}
 
-	participants := []Participant{
-		{
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-			Username:         userDetails.Profile.UserName,
-			Email:            userDetails.Email,
-			UserType:         "user",
-			UserId:           *dm.ParticipantId,
-			Title:            userDetails.Profile.Title,
-			Online:           userDetails.Profile.Online,
-		},
-	}
+	participants := []Participant{participant}
 
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
 	dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-	dmchanresp.Name = userDetails.Profile.UserName
+	dmchanresp.Name = participant.Username
 	dmchanresp.ID = dm.ChannelId
 	dmchanresp.ParticipantId = *dm.ParticipantId
 	dmchanresp.ParticipantEmail = userDetails.Email
@@ -398,22 +423,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				return nil, paginationResp, err
 			}
 
-			if userDetails.Profile.UserName == "" {
-				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-			}
-
-			participants = []Participant{
-				{
-					AvatarUrl:        userDetails.Profile.AvatarURL,
-					DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-					Username:         userDetails.Profile.UserName,
-					Email:            userDetails.Email,
-					UserType:         "user",
-					UserId:           *dmchan.ParticipantId,
-					Title:            userDetails.Profile.Title,
-					Online:           userDetails.Profile.Online,
-				},
-			}
+			participants = []Participant{NewParticipant(userDetails, false, "user")}
 
 			previewMessage := ""
 			if len(previewThread) > 0 {
@@ -425,7 +435,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
-				Name:             userDetails.Profile.UserName,
+				Name:             participants[0].Username,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
 				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
 				ParticipantId:    *dmchan.ParticipantId,
@@ -478,23 +488,10 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 					return nil, paginationResp, err
 				}
 
-				if userDetails.Profile.UserName == "" {
-					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-				}
+				p := NewParticipant(userDetails, part.UserId == dmchan.UserId, "user")
+				usernames = append(usernames, p.Username)
 
-				usernames = append(usernames, userDetails.Profile.UserName)
-
-				participants = append(participants, Participant{
-					AvatarUrl:        userDetails.Profile.AvatarURL,
-					DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-					Username:         userDetails.Profile.UserName,
-					Email:            userDetails.Email,
-					UserType:         "user",
-					UserId:           part.UserId,
-					IsAdmin:          part.UserId == dmchan.UserId,
-					Title:            part.Title,
-					Online:           userDetails.Profile.Online,
-				})
+				participants = append(participants, p)
 
 				if profilePic == "" {
 					profilePic = userDetails.Profile.AvatarURL
@@ -601,13 +598,11 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				return res, err
 			}
 
-			if userDetails.Profile.UserName == "" {
-				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-			}
+			participant := NewParticipant(userDetails, false, "user")
 
 			res = DmChannelsResponse{
 				ID:               r.ChannelId,
-				Name:             userDetails.Profile.UserName,
+				Name:             participant.Username,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
 				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
 				ParticipantId:    *dmChan.ParticipantId,
@@ -616,18 +611,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				LastThreadId:     dmChan.LastThreadId,
 				ThreadCount:      dmChan.ThreadCount,
 				LastReadAt:       dmChan.LastReadAt,
-				Participants: []Participant{
-					{
-						AvatarUrl:        userDetails.Profile.AvatarURL,
-						DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-						Username:         userDetails.Profile.UserName,
-						Email:            userDetails.Email,
-						UserType:         "user",
-						UserId:           *dmChan.ParticipantId,
-						Title:            userDetails.Profile.Title,
-						Online:           userDetails.Profile.Online,
-					},
-				},
+				Participants:     []Participant{participant},
 			}
 
 			return res, nil
@@ -657,23 +641,10 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 					return res, err
 				}
 
-				if userDetails.Profile.UserName == "" {
-					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-				}
+				p := NewParticipant(userDetails, part.UserId == r.UserId, "user")
+				usernames = append(usernames, p.Username)
 
-				usernames = append(usernames, userDetails.Profile.UserName)
-
-				participants = append(participants, Participant{
-					AvatarUrl:        userDetails.Profile.AvatarURL,
-					DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-					Username:         userDetails.Profile.UserName,
-					Email:            userDetails.Email,
-					UserType:         "user",
-					UserId:           part.UserId,
-					IsAdmin:          part.UserId == r.UserId,
-					Title:            userDetails.Profile.Title,
-					Online:           userDetails.Profile.Online,
-				})
+				participants = append(participants, p)
 
 				if profilePic == "" {
 					profilePic = userDetails.Profile.AvatarURL
@@ -761,22 +732,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 					continue
 				}
 
-				if userDetails.Profile.UserName == "" {
-					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-				}
-
-				participants := []Participant{
-					{
-						AvatarUrl:        userDetails.Profile.AvatarURL,
-						DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-						Username:         userDetails.Profile.UserName,
-						Email:            userDetails.Email,
-						UserType:         "user",
-						UserId:           chanResp[i].UserId,
-						Title:            userDetails.Profile.Title,
-						Online:           userDetails.Profile.Online,
-					},
-				}
+				participants := []Participant{NewParticipant(userDetails, false, "user")}
 
 				previewMessage := ""
 				if len(previewThread) > 0 {
@@ -831,16 +787,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 						defaultAvatar = userDetails.Profile.DefaultAvatarURL
 					}
 
-					participants = append(participants, Participant{
-						AvatarUrl:        userDetails.Profile.AvatarURL,
-						DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-						Username:         userDetails.Profile.UserName,
-						Email:            userDetails.Email,
-						UserType:         "user",
-						UserId:           prof.UserId,
-						Title:            userDetails.Profile.Title,
-						Online:           userDetails.Profile.Online,
-					})
+					participants = append(participants, NewParticipant(userDetails, false, "user"))
 				}
 			}
 			sort.Strings(usernames)

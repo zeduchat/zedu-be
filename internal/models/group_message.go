@@ -88,20 +88,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 				continue
 			}
 
-			if userDetails.Profile.UserName == "" {
-				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-			}
-			gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
-				UserId:           part.UserId,
-				Username:         userDetails.Profile.UserName,
-				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-				Email:            userDetails.Email,
-				Online:           userDetails.Profile.Online,
-				UserType:         "user",
-				IsAdmin:          part.UserId == dm.UserId,
-				Title:            userDetails.Profile.Title,
-			})
+			gpdmchanresp.Participants = append(gpdmchanresp.Participants, NewParticipant(userDetails, part.UserId == dm.UserId, "user"))
 		}
 		return gpdmchanresp, http.StatusOK, nil
 	}
@@ -118,21 +105,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			continue
 		}
 
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-		}
-
-		gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
-			UserId:           participantID,
-			Username:         userDetails.Profile.UserName,
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-			Email:            userDetails.Email,
-			Online:           userDetails.Profile.Online,
-			UserType:         "user",
-			IsAdmin:          participantID == dm.UserId,
-			Title:            userDetails.Profile.Title,
-		})
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, NewParticipant(userDetails, participantID == dm.UserId, "user"))
 
 		// Add the participant to the channel
 		chParts.ID = utility.GenerateUUID()
@@ -311,20 +284,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 			continue
 		}
 
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-		}
-		gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
-			UserId:           part.UserId,
-			Username:         userDetails.Profile.UserName,
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-			Email:            userDetails.Email,
-			Online:           userDetails.Profile.Online,
-			UserType:         "user",
-			IsAdmin:          part.UserId == existDM.UserId,
-			Title:            userDetails.Profile.Title,
-		})
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, NewParticipant(userDetails, part.UserId == existDM.UserId, "user"))
 	}
 
 	return gpdmchanresp, http.StatusOK, nil
@@ -436,20 +396,7 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 			continue
 		}
 
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-		}
-		addParticipantsResp.Participants = append(addParticipantsResp.Participants, Participant{
-			UserId:           part.UserId,
-			Username:         userDetails.Profile.UserName,
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-			Email:            userDetails.Email,
-			Online:           userDetails.Profile.Online,
-			UserType:         "user",
-			IsAdmin:          part.UserId == existDM.UserId,
-			Title:            userDetails.Profile.Title,
-		})
+		addParticipantsResp.Participants = append(addParticipantsResp.Participants, NewParticipant(userDetails, part.UserId == existDM.UserId, "user"))
 	}
 
 	return addParticipantsResp, http.StatusOK, nil
@@ -515,20 +462,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 				return nil, paginationResp, err
 			}
 
-			if userDetails.Profile.UserName == "" {
-				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-			}
-			allPartsInfo = append(allPartsInfo, Participant{
-				UserId:           part.UserId,
-				Username:         userDetails.Profile.UserName,
-				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-				Email:            userDetails.Email,
-				Online:           userDetails.Profile.Online,
-				UserType:         "user",
-				IsAdmin:          part.UserId == dmchan.UserId,
-				Title:            userDetails.Profile.Title,
-			})
+			allPartsInfo = append(allPartsInfo, NewParticipant(userDetails, part.UserId == dmchan.UserId, "user"))
 		}
 
 		gpDMChansResp = append(gpDMChansResp, GroupDMChannelsResponse{

@@ -383,27 +383,8 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 
 		if err == nil {
 			for _, u := range channelUsers {
-				isAdmin := false
-				if u.ID == channel.OwnerId {
-					isAdmin = true
-				}
-
-				username := u.Profile.UserName
-				if username == "" {
-					username = u.Name
-				}
-
-				participants = append(participants, Participant{
-					UserId:           u.ID,
-					Username:         username,
-					Email:            u.Email,
-					AvatarUrl:        u.Profile.AvatarURL,
-					DefaultAvatarUrl: u.Profile.DefaultAvatarURL,
-					Title:            u.Profile.Title,
-					UserType:         "user",
-					IsAdmin:          isAdmin,
-					Online:           u.Profile.Online,
-				})
+				isAdmin := u.ID == channel.OwnerId
+				participants = append(participants, NewParticipant(u, isAdmin, "user"))
 			}
 		}
 	}
