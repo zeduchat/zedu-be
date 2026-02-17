@@ -97,6 +97,7 @@ type ThreadDocument struct {
 	Reactions                []ReactionDetails         `json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `json:"preview_reply,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
