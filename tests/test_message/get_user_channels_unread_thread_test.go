@@ -152,16 +152,16 @@ func TestGetUserChannelsUnreadThread(t *testing.T) {
 		} else {
 			t.Logf("✅ Participants array has %d participant(s)", len(channel.Participants))
 			participant := channel.Participants[0]
-			if _, exists := participant["username"]; !exists {
+			if participant.Username == "" {
 				t.Error("Participant missing username field")
 			}
-			if _, exists := participant["email"]; !exists {
+			if participant.Email == "" {
 				t.Error("Participant missing email field")
 			}
-			if _, exists := participant["user_id"]; !exists {
+			if participant.UserId == "" {
 				t.Error("Participant missing user_id field")
 			}
-			t.Logf("✅ Participant: username=%v, email=%v", participant["username"], participant["email"])
+			t.Logf("✅ Participant: username=%v, email=%v", participant.Username, participant.Email)
 		}
 
 		if len(channel.PreviewThread) == 0 {
@@ -280,16 +280,16 @@ func TestGetUserChannelsUnreadThread(t *testing.T) {
 				} else {
 					t.Logf("✅ Participants array has %d participants as expected", len(channel.Participants))
 					for i, participant := range channel.Participants {
-						if _, exists := participant["username"]; !exists {
+						if participant.Username == "" {
 							t.Errorf("Participant %d missing username field", i)
 						}
-						if _, exists := participant["email"]; !exists {
+						if participant.Email == "" {
 							t.Errorf("Participant %d missing email field", i)
 						}
-						if _, exists := participant["user_id"]; !exists {
+						if participant.UserId == "" {
 							t.Errorf("Participant %d missing user_id field", i)
 						}
-						t.Logf("✅ Participant %d: username=%v, email=%v", i, participant["username"], participant["email"])
+						t.Logf("✅ Participant %d: username=%v, email=%v", i, participant.Username, participant.Email)
 					}
 				}
 

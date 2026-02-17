@@ -255,6 +255,9 @@ func GetUserGroupDMs(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Cont
 		"default_avatar_url": userProfile.DefaultAvatarURL,
 		"username":           userProfile.UserName,
 		"email":              user.Email,
+		"user_type":          "user",
+		"user_id":            req.UserId,
+		"title":              userProfile.Title,
 		"online":             userProfile.Online,
 	}
 

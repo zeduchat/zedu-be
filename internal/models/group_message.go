@@ -42,25 +42,16 @@ type AddParticipantsRequest struct {
 	OrgId     string   `json:"org_id"`
 }
 
-type ParticipantInfo struct {
-	UserId           string `json:"user_id"`
-	Name             string `json:"username"`
-	AvatarUrl        string `json:"avatar_url"`
-	DefaultAvatarUrl string `json:"default_avatar_url"`
-	Email            string `json:"email"`
-	Online           bool   `json:"online"`
-}
-
 type GroupDMChannelsResponse struct {
-	ChannelId    string            `json:"channel_id"`
-	ChannelType  string            `json:"channel_type"` // "group_dm"
-	Participants []ParticipantInfo `json:"participants"` // List of all participants (excluding initiator)
+	ChannelId    string        `json:"channel_id"`
+	ChannelType  string        `json:"channel_type"` // "group_dm"
+	Participants []Participant `json:"participants"` // List of all participants (excluding initiator)
 }
 
 type AddParticipantsResponse struct {
-	ChannelId      string            `json:"channel_id"`
-	ChannelType    string            `json:"channel_type"`
-	Participants   []ParticipantInfo `json:"participants"`
+	ChannelId      string        `json:"channel_id"`
+	ChannelType    string        `json:"channel_type"`
+	Participants   []Participant `json:"participants"`
 	AddedCount     int               `json:"added_count"`
 	SkippedCount   int               `json:"skipped_count"`
 	SkippedUserIds []string          `json:"skipped_user_ids,omitempty"`
@@ -74,7 +65,6 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 		existDmchan  DmChannels
 		chParts      ChannelParticipant
 		chPartsResp  []ChannelParticipant
-		partInfo     ParticipantInfo
 	)
 
 	if len(req.Participants) < 2 {
@@ -87,7 +77,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 	if exists {
 		gpdmchanresp.ChannelId = existDmchan.ChannelId
 		gpdmchanresp.ChannelType = existDmchan.ChannelType
-		gpdmchanresp.Participants = []ParticipantInfo{}
+		gpdmchanresp.Participants = []Participant{}
 		err := postgresql.SelectAllFromDb(db, "", &chPartsResp, "channel_id = ?", existDmchan.ChannelId)
 		if err != nil {
 			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to get participants for group DM channel %s", existDmchan.ChannelId)
@@ -101,14 +91,17 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			if userDetails.Profile.UserName == "" {
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
-			partInfo.UserId = part.UserId
-			partInfo.Name = userDetails.Profile.UserName
-			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
-			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-			partInfo.Email = userDetails.Email
-			partInfo.Online = userDetails.Profile.Online
-
-			gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+			gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
+				UserId:           part.UserId,
+				Username:         userDetails.Profile.UserName,
+				AvatarUrl:        userDetails.Profile.AvatarURL,
+				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+				Email:            userDetails.Email,
+				Online:           userDetails.Profile.Online,
+				UserType:         "user",
+				IsAdmin:          part.UserId == dm.UserId,
+				Title:            userDetails.Profile.Title,
+			})
 		}
 		return gpdmchanresp, http.StatusOK, nil
 	}
@@ -129,14 +122,17 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		partInfo.UserId = participantID
-		partInfo.Name = userDetails.Profile.UserName
-		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
-		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-		partInfo.Email = userDetails.Email
-		partInfo.Online = userDetails.Profile.Online
-
-		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
+			UserId:           participantID,
+			Username:         userDetails.Profile.UserName,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+			Email:            userDetails.Email,
+			Online:           userDetails.Profile.Online,
+			UserType:         "user",
+			IsAdmin:          participantID == dm.UserId,
+			Title:            userDetails.Profile.Title,
+		})
 
 		// Add the participant to the channel
 		chParts.ID = utility.GenerateUUID()
@@ -245,7 +241,6 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		chanPart                     ChannelParticipant
 		remainingChannelParticipants []ChannelParticipant
 		gpdmchanresp                 GroupDMChannelsResponse
-		partInfo                     ParticipantInfo
 	)
 
 	_, err := user.GetUserByID(db, dm.UserId)
@@ -308,7 +303,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 
 	gpdmchanresp.ChannelId = dm.ChannelId
 	gpdmchanresp.ChannelType = existDM.ChannelType
-	gpdmchanresp.Participants = []ParticipantInfo{}
+	gpdmchanresp.Participants = []Participant{}
 
 	for _, part := range remainingChannelParticipants {
 		userDetails, err := user.GetUserByID(db, part.UserId)
@@ -319,14 +314,17 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		if userDetails.Profile.UserName == "" {
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
-		partInfo.UserId = part.UserId
-		partInfo.Name = userDetails.Profile.UserName
-		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
-		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-		partInfo.Email = userDetails.Email
-		partInfo.Online = userDetails.Profile.Online
-
-		gpdmchanresp.Participants = append(gpdmchanresp.Participants, partInfo)
+		gpdmchanresp.Participants = append(gpdmchanresp.Participants, Participant{
+			UserId:           part.UserId,
+			Username:         userDetails.Profile.UserName,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+			Email:            userDetails.Email,
+			Online:           userDetails.Profile.Online,
+			UserType:         "user",
+			IsAdmin:          part.UserId == existDM.UserId,
+			Title:            userDetails.Profile.Title,
+		})
 	}
 
 	return gpdmchanresp, http.StatusOK, nil
@@ -339,7 +337,6 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		chanPart                     ChannelParticipant
 		remainingChannelParticipants []ChannelParticipant
 		addParticipantsResp          AddParticipantsResponse
-		partInfo                     ParticipantInfo
 	)
 
 	exists := postgresql.CheckExists(db, &existDM, "channel_id = ?", req.ChannelId)
@@ -423,7 +420,7 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 
 	addParticipantsResp.ChannelId = req.ChannelId
 	addParticipantsResp.ChannelType = existDM.ChannelType
-	addParticipantsResp.Participants = []ParticipantInfo{}
+	addParticipantsResp.Participants = []Participant{}
 	addParticipantsResp.AddedCount = addedCount
 	addParticipantsResp.SkippedCount = len(skippedDuplicates) + len(invalidUserIds)
 	if len(skippedDuplicates) > 0 {
@@ -442,14 +439,17 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 		if userDetails.Profile.UserName == "" {
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 		}
-		partInfo.UserId = part.UserId
-		partInfo.Name = userDetails.Profile.UserName
-		partInfo.AvatarUrl = userDetails.Profile.AvatarURL
-		partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-		partInfo.Email = userDetails.Email
-		partInfo.Online = userDetails.Profile.Online
-
-		addParticipantsResp.Participants = append(addParticipantsResp.Participants, partInfo)
+		addParticipantsResp.Participants = append(addParticipantsResp.Participants, Participant{
+			UserId:           part.UserId,
+			Username:         userDetails.Profile.UserName,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+			Email:            userDetails.Email,
+			Online:           userDetails.Profile.Online,
+			UserType:         "user",
+			IsAdmin:          part.UserId == existDM.UserId,
+			Title:            userDetails.Profile.Title,
+		})
 	}
 
 	return addParticipantsResp, http.StatusOK, nil
@@ -501,8 +501,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 
 		var (
 			chanPart     []ChannelParticipant
-			partInfo     ParticipantInfo
-			allPartsInfo []ParticipantInfo
+			allPartsInfo []Participant
 		)
 
 		err = postgresql.SelectAllFromDb(db, "", &chanPart, "channel_id = ?", dmchan.ChannelId)
@@ -519,14 +518,17 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 			if userDetails.Profile.UserName == "" {
 				userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 			}
-			partInfo.UserId = part.UserId
-			partInfo.Name = userDetails.Profile.UserName
-			partInfo.AvatarUrl = userDetails.Profile.AvatarURL
-			partInfo.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
-			partInfo.Email = userDetails.Email
-			partInfo.Online = userDetails.Profile.Online
-
-			allPartsInfo = append(allPartsInfo, partInfo)
+			allPartsInfo = append(allPartsInfo, Participant{
+				UserId:           part.UserId,
+				Username:         userDetails.Profile.UserName,
+				AvatarUrl:        userDetails.Profile.AvatarURL,
+				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+				Email:            userDetails.Email,
+				Online:           userDetails.Profile.Online,
+				UserType:         "user",
+				IsAdmin:          part.UserId == dmchan.UserId,
+				Title:            userDetails.Profile.Title,
+			})
 		}
 
 		gpDMChansResp = append(gpDMChansResp, GroupDMChannelsResponse{

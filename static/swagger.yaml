@@ -3536,6 +3536,8 @@ paths:
       tags:
         - organisation
       summary: Activate or deactivate a user in an organisation
+      security:
+        - bearerAuth: []
       description: Allows an organisation admin to activate or deactivate a member of the organisation.
       operationId: updateUserStatus
       parameters:
