@@ -14,10 +14,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -41,22 +43,22 @@ type DmChannels struct {
 }
 
 type DmChannelsResponse struct {
-	ID               string    `json:"channel_id"`
-	Name             string    `json:"username"`
-	ParticipantId    string    `json:"participant_id"`
-	AvatarUrl        string    `json:"avatar_url"`
-	DefaultAvatarUrl string    `json:"default_avatar_url"`
-	ParticipantEmail string    `json:"participant_email"`
-	ChannelType      string    `json:"channel_type"`
-	ThreadCount      int64     `json:"thread_count"`
-	LastThreadId     string    `json:"last_thread_id"`
-	LastReadAt       time.Time `json:"last_read_at"`
-	UserId           string    `json:"-"`
-	PreviewMessage   string    `json:"preview_message"`
-	PreviewThread    []Threads `gorm:"-" json:"preview_thread"`
+	ID               string        `json:"channel_id"`
+	Name             string        `json:"username"`
+	ParticipantId    string        `json:"participant_id"`
+	AvatarUrl        string        `json:"avatar_url"`
+	DefaultAvatarUrl string        `json:"default_avatar_url"`
+	ParticipantEmail string        `json:"participant_email"`
+	ChannelType      string        `json:"channel_type"`
+	ThreadCount      int64         `json:"thread_count"`
+	LastThreadId     string        `json:"last_thread_id"`
+	LastReadAt       time.Time     `json:"last_read_at"`
+	UserId           string        `json:"-"`
+	PreviewMessage   string        `json:"preview_message"`
+	PreviewThread    []Threads     `gorm:"-" json:"preview_thread"`
 	Participants     []Participant `gorm:"-" json:"participants,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	IsFavourite      bool      `gorm:"-" json:"is_favourite"`
+	CreatedAt        time.Time     `json:"created_at"`
+	IsFavourite      bool          `gorm:"-" json:"is_favourite"`
 }
 
 type DmChannelsRequest struct {
@@ -117,7 +119,7 @@ func NewParticipant(u User, isAdmin bool, userType string) Participant {
 		FullName:          u.Profile.FullName,
 		DisplayName:       u.Profile.DisplayName,
 		AvatarUrl:         u.Profile.AvatarURL,
-		DefaultAvatarUrl:  u.Profile.DefaultAvatarURL,
+		DefaultAvatarUrl:  avatar.GenerateDefaultAvatarURL(u.ID),
 		Title:             u.Profile.Title,
 		NamePronunciation: u.Profile.NamePronunciation,
 		Timezone:          u.Profile.Timezone,
@@ -249,7 +251,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		participants := []Participant{participant}
 
 		dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
-		dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
+		dmchanresp.DefaultAvatarUrl = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 		dmchanresp.Name = participant.Username
 		dmchanresp.ID = existDmchan.ChannelId
 		dmchanresp.ParticipantId = *dm.ParticipantId
@@ -267,7 +269,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	participants := []Participant{participant}
 
 	dmchanresp.AvatarUrl = userDetails.Profile.AvatarURL
-	dmchanresp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
+	dmchanresp.DefaultAvatarUrl = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 	dmchanresp.Name = participant.Username
 	dmchanresp.ID = dm.ChannelId
 	dmchanresp.ParticipantId = *dm.ParticipantId
@@ -437,7 +439,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				ID:               dmchan.ChannelId,
 				Name:             participants[0].Username,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+				DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(userDetails.ID),
 				ParticipantId:    *dmchan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
 				ChannelType:      "dm",
@@ -498,7 +500,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				}
 
 				if defaultAvatar == "" {
-					defaultAvatar = userDetails.Profile.DefaultAvatarURL
+					defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 				}
 
 				if email == "" {
@@ -604,7 +606,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				ID:               r.ChannelId,
 				Name:             participant.Username,
 				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
+				DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(userDetails.ID),
 				ParticipantId:    *dmChan.ParticipantId,
 				ParticipantEmail: userDetails.Email,
 				ChannelType:      "dm",
@@ -651,7 +653,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				}
 
 				if defaultAvatar == "" {
-					defaultAvatar = userDetails.Profile.DefaultAvatarURL
+					defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 				}
 
 				if email == "" {
@@ -745,7 +747,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				chanResp[i].PreviewMessage = previewMessage
 				chanResp[i].PreviewThread = previewThread
 				chanResp[i].Participants = participants
-				chanResp[i].DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
+				chanResp[i].DefaultAvatarUrl = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 			}
 
 			return chanResp, nil
@@ -784,7 +786,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				userDetails, err := user.GetUserByID(db, prof.UserId)
 				if err == nil {
 					if defaultAvatar == "" {
-						defaultAvatar = userDetails.Profile.DefaultAvatarURL
+						defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 					}
 
 					participants = append(participants, NewParticipant(userDetails, false, "user"))

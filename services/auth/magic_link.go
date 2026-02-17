@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -146,7 +147,7 @@ func VerifyMagicLinkToken(req models.VerifyMagicLinkRequest, db *gorm.DB, c *gin
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
 			"phone":                     userData.Profile.Phone,
 			"avatar_url":                userData.Profile.AvatarURL,
-			"default_avatar_url":        userData.Profile.DefaultAvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),

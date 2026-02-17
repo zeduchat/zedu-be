@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -35,6 +36,7 @@ type Threads struct {
 	MessageCount             int64                     `gorm:"type:int;" json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarURL         string                    `json:"default_avatar_url"`
 	Type                     string                    `gorm:"default:thread" json:"type"`
 	Content                  string                    `gorm:"type:text;index" json:"message"`
 	ChannelName              string                    `json:"channel_name,omitempty"`
@@ -71,6 +73,7 @@ type ThreadDocument struct {
 	MessageCount             int64                     `json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarURL         string                    `json:"default_avatar_url"`
 	UserType                 string                    `json:"user_type"`
 	Type                     string                    `json:"type"`
 	Content                  string                    `json:"message"`
@@ -95,17 +98,18 @@ type ThreadDocument struct {
 }
 
 type ForwardedMessageMetadata struct {
-	OriginalMessageID       string    `json:"original_message_id"`
-	OriginalSenderID        string    `json:"original_sender_id"`
-	OriginalSenderName      string    `json:"original_sender_name"`
-	OriginalSenderUsername  string    `json:"original_sender_username"`
-	OriginalSenderAvatarURL string    `json:"original_sender_avatar_url"`
-	OriginalChannelID       string    `json:"original_channel_id"`
-	OriginalChannelName     string    `json:"original_channel_name"`
-	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
-	OriginalCreatedAt       time.Time `json:"original_created_at"`
-	OriginalContent         string    `json:"original_content"`
-	IsThread                bool      `json:"is_thread"`
+	OriginalMessageID              string    `json:"original_message_id"`
+	OriginalSenderID               string    `json:"original_sender_id"`
+	OriginalSenderName             string    `json:"original_sender_name"`
+	OriginalSenderUsername         string    `json:"original_sender_username"`
+	OriginalSenderAvatarURL        string    `json:"original_sender_avatar_url"`
+	OriginalSenderDefaultAvatarURL string    `json:"original_sender_default_avatar_url"`
+	OriginalChannelID              string    `json:"original_channel_id"`
+	OriginalChannelName            string    `json:"original_channel_name"`
+	OriginalChannelType            string    `json:"original_channel_type"` // public, private, or DM
+	OriginalCreatedAt              time.Time `json:"original_created_at"`
+	OriginalContent                string    `json:"original_content"`
+	IsThread                       bool      `json:"is_thread"`
 }
 
 var MediaMapping = map[string]any{
@@ -300,6 +304,7 @@ type FeedMessageRequest struct {
 	UpdatedAt                string                    `json:"updated_at"`
 	Email                    string                    `json:"email"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarUrl         string                    `json:"default_avatar_url"`
 	MessageId                string                    `json:"message_id,omitempty"`
 	Type                     string                    `json:"type"`
 	Content                  string                    `json:"message"`
@@ -340,12 +345,13 @@ type UpdateThreadMessage struct {
 }
 
 type ThreadWithMessagesResponse struct {
-	ThreadMessages  []ThreadDocument `json:"thread_messages"`
-	ChannelName     string           `json:"channel_name"`
-	Participants    string           `json:"participants"`
-	PrevieMessage   string           `json:"previe_message"`
-	SenderAvatarURL string           `json:"sender_avatar_url"`
-	ChannelType     string           `json:"channel_type"`
+	ThreadMessages         []ThreadDocument `json:"thread_messages"`
+	ChannelName            string           `json:"channel_name"`
+	Participants           string           `json:"participants"`
+	PrevieMessage          string           `json:"previe_message"`
+	SenderAvatarURL        string           `json:"sender_avatar_url"`
+	SenderDefaultAvatarURL string           `json:"sender_default_avatar_url"`
+	ChannelType            string           `json:"channel_type"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -1202,12 +1208,13 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		}
 
 		result = append(result, ThreadWithMessagesResponse{
-			ThreadMessages:  []ThreadDocument{threadDoc},
-			ChannelName:     channelName,
-			Participants:    participants,
-			PrevieMessage:   previeMessage,
-			SenderAvatarURL: thread.AvatarURL,
-			ChannelType:     thread.ChannelType,
+			ThreadMessages:         []ThreadDocument{threadDoc},
+			ChannelName:            channelName,
+			Participants:           participants,
+			PrevieMessage:          previeMessage,
+			SenderAvatarURL:        thread.AvatarURL,
+			SenderDefaultAvatarURL: avatar.GenerateDefaultAvatarURL(thread.UserId),
+			ChannelType:            thread.ChannelType,
 		})
 	}
 
@@ -1305,6 +1312,7 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 
 	for i, hit := range searchResult.Hits.Hits {
 		threads[i] = hit.Source
+		threads[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[i].UserId)
 	}
 
 	return
@@ -1483,6 +1491,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	for ind, bucket := range result {
 		threads[ind] = bucket.TopThreadHits.Hits.Hits[0].Source
 		threads[ind].Count = bucket.DocCount
+		threads[ind].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[ind].UserId) // Note: Thread struct field might be UserID or UserId? Threads struct uses 'Username' etc. Wait, check Threads struct definition.
 	}
 
 	return threads, pagR, http.StatusOK, nil

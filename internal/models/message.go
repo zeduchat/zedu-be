@@ -12,6 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -41,28 +42,29 @@ type Message struct {
 }
 
 type MessageDocument struct {
-	ID             string            `json:"id,omitempty"`
-	Content        string            `json:"message"`
-	OrganisationID string            `json:"org_id"`
-	ChannelsID     string            `json:"channels_id"`
-	UserID         string            `json:"user_id"`
-	Username       string            `json:"username"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt    `json:"-"`
-	AgentMessage   bool              `json:"-"`
-	UserType       string            `json:"user_type"`
-	ThreadID       uuid.UUID         `json:"thread_id"`
-	AvatarURL      string            `json:"avatar_url"`
-	Edited         bool              `json:"edited"`
-	FullName       string            `json:"full_name"`
-	Email          string            `json:"email"`
-	Media          []File            `json:"media,omitempty"`
-	IsPinned       bool              `json:"is_pinned"`
-	IsSaved        bool              `json:"is_saved"`
-	Mentions       []Mention         `json:"mentions,omitempty"`
-	PinnedDetails  PinnedDetails     `json:"pinned_details,omitempty"`
-	Reactions      []ReactionDetails `json:"reactions"`
+	ID               string            `json:"id,omitempty"`
+	Content          string            `json:"message"`
+	OrganisationID   string            `json:"org_id"`
+	ChannelsID       string            `json:"channels_id"`
+	UserID           string            `json:"user_id"`
+	Username         string            `json:"username"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt    `json:"-"`
+	AgentMessage     bool              `json:"-"`
+	UserType         string            `json:"user_type"`
+	ThreadID         uuid.UUID         `json:"thread_id"`
+	AvatarURL        string            `json:"avatar_url"`
+	DefaultAvatarURL string            `json:"default_avatar_url"`
+	Edited           bool              `json:"edited"`
+	FullName         string            `json:"full_name"`
+	Email            string            `json:"email"`
+	Media            []File            `json:"media,omitempty"`
+	IsPinned         bool              `json:"is_pinned"`
+	IsSaved          bool              `json:"is_saved"`
+	Mentions         []Mention         `json:"mentions,omitempty"`
+	PinnedDetails    PinnedDetails     `json:"pinned_details,omitempty"`
+	Reactions        []ReactionDetails `json:"reactions"`
 }
 
 var MessageMapping = map[string]any{
@@ -556,6 +558,7 @@ func UnmarshalMessageResponse(messageData any) (messages []MessageDocument, err 
 
 	for i, hit := range searchResult.Hits.Hits {
 		messages[i] = hit.Source
+		messages[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(messages[i].UserID)
 	}
 
 	return
