@@ -282,7 +282,7 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, db, userID, threadID)
+	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, threadID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
