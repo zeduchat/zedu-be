@@ -418,6 +418,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			previewThread = threads
 		}
 
+		previewMessage := ""
+		if len(previewThread) > 0 {
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
+		}
+
 		switch dmchan.ChannelType {
 		case "dm", "":
 			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
@@ -426,14 +431,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			}
 
 			participants = []Participant{NewParticipant(userDetails, false, "user")}
-
-			previewMessage := ""
-			if len(previewThread) > 0 {
-				previewMessage = previewThread[0].Content
-				if previewMessage == "" && len(previewThread[0].Media) > 0 {
-					previewMessage = previewThread[0].Media[0].FileType
-				}
-			}
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
@@ -516,8 +513,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			if !exist {
 				return nil, paginationResp, fmt.Errorf("user not found in channel")
 			}
-
-			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
@@ -738,10 +733,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 				previewMessage := ""
 				if len(previewThread) > 0 {
-					previewMessage = previewThread[0].Content
-					if previewMessage == "" && len(previewThread[0].Media) > 0 {
-						previewMessage = previewThread[0].Media[0].FileType
-					}
+					previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 				}
 
 				chanResp[i].PreviewMessage = previewMessage
@@ -833,10 +825,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 			for i := range chanResp {
 				previewMessage := ""
 				if len(previewThread) > 0 {
-					previewMessage = previewThread[0].Content
-					if previewMessage == "" && len(previewThread[0].Media) > 0 {
-						previewMessage = previewThread[0].Media[0].FileType
-					}
+					previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 				}
 
 				chanResp[i].PreviewMessage = previewMessage
