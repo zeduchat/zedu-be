@@ -811,8 +811,7 @@ func UpdateFileLastAccessedAt(db *gorm.DB, fileID string) {
 	}
 }
 
-// UpdateFilesMetadata updates channel_id and/or message_id for files attached to messages
-func UpdateFilesMetadata(db *gorm.DB, fileIDs []string, channelID, messageID string) error {
+func UpdateFilesMetadata(db *gorm.DB, logger *utility.Logger, fileIDs []string, channelID, messageID string) error {
 	if len(fileIDs) == 0 {
 		return nil
 	}
@@ -834,6 +833,11 @@ func UpdateFilesMetadata(db *gorm.DB, fileIDs []string, channelID, messageID str
 		Updates(updates).Error
 
 	if err != nil {
+		logger.Error("Failed to update file metadata",
+			"file_ids", fileIDs,
+			"channel_id", channelID,
+			"message_id", messageID,
+			"error", err)
 		return fmt.Errorf("failed to update file metadata: %w", err)
 	}
 

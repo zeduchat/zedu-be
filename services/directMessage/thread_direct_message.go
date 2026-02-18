@@ -93,7 +93,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
+		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -241,7 +241,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
+		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	publishfeed := models.FeedMessageRequest{
@@ -731,7 +731,7 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 }
 
 // updateAttachedFilesMetadata updates channel_id and message_id for files attached to a DM message
-func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channelID, messageID string) {
+func updateAttachedFilesMetadata(db *storage.Database, logger *utility.Logger, fileIDs []string, channelID, messageID string) {
 	if len(fileIDs) == 0 {
 		return
 	}
@@ -754,6 +754,10 @@ func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channel
 
 	if err != nil {
 		// Log error but don't fail the DM send
-		fmt.Printf("Failed to update file metadata for DM: %v\n", err)
+		logger.Error("Failed to update file metadata for DM",
+			"file_ids", fileIDs,
+			"channel_id", channelID,
+			"message_id", messageID,
+			"error", err)
 	}
 }

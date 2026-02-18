@@ -112,14 +112,13 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, err
 	}
 
-	// Update file metadata with channel and message IDs
 	if len(req.Media) > 0 {
 		fileIDs := make([]string, len(req.Media))
 		for i, file := range req.Media {
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
+		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -310,8 +309,8 @@ func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
 	return nil
 }
 
-// updateAttachedFilesMetadata updates channel_id and message_id for files attached to a message
-func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channelID, messageID string) {
+
+func updateAttachedFilesMetadata(db *storage.Database, logger *utility.Logger, fileIDs []string, channelID, messageID string) {
 	if len(fileIDs) == 0 {
 		return
 	}
@@ -333,8 +332,11 @@ func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channel
 		Updates(updates).Error
 
 	if err != nil {
-		// Log error but don't fail the message send
-		fmt.Printf("Failed to update file metadata: %v\n", err)
+		logger.Error("Failed to update file metadata",
+			"file_ids", fileIDs,
+			"channel_id", channelID,
+			"message_id", messageID,
+			"error", err)
 	}
 }
 
