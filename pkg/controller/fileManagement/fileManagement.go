@@ -419,20 +419,19 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 func (base *Controller) GetFolders(c *gin.Context) {
 	claims, _ := c.Get("userClaims")
 	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
 	orgID := userClaims["org_id"].(string)
 
 	pagination := postgresql.GetPagination(c)
 	page, limit := pagination.Page, pagination.Limit
 
 	queryParams := make(map[string]string)
-	for k, v := range c.Request.URL.Query() {
-		if len(v) > 0 {
-			queryParams[k] = v[0]
-		}
-	}
+	queryParams["owner"] = c.Query("owner")
+	queryParams["mode"] = c.Query("mode")
 
 	folders, paginationResponse, err := services.GetFolders(base.Db.Postgresql, models.GetFoldersParams{
 		OrgID:       orgID,
+		UserID:      userID,
 		Page:        page,
 		Limit:       limit,
 		QueryParams: queryParams,

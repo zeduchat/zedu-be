@@ -18578,6 +18578,16 @@ paths:
         - bearerAuth: []
       parameters:
         - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [all, mine, trash]
+          description: |
+            Filter mode for folders:
+            - **all** (default): All non-deleted folders in the organisation
+            - **mine**: Only folders created by the current user
+            - **trash**: Only soft-deleted folders
+        - in: query
           name: page
           schema:
             type: integer

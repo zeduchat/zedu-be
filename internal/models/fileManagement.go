@@ -97,6 +97,7 @@ type GetFilesParams struct {
 
 type GetFoldersParams struct {
 	OrgID       string
+	UserID      string
 	Page        int
 	Limit       int
 	QueryParams map[string]string

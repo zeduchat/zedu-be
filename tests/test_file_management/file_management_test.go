@@ -492,6 +492,211 @@ func TestFileManagement(t *testing.T) {
 			t.Errorf("File in folder should be permanently deleted")
 		}
 	})
+
+	t.Run("GetFoldersModeMine", func(t *testing.T) {
+
+		// Create another user
+		otherUUID := uuid.New().String()
+		otherUserSignUpData := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("other%v@qa.team", otherUUID),
+			FirstName:   "Other",
+			LastName:    "User",
+			PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+			Password:    "password123",
+			UserName:    fmt.Sprintf("other_user%v", otherUUID),
+		}
+
+		// tests.SignupUser registers the route, which causes a panic if called twice on the same router.
+		// Since the route is already registered by the parent test, we just make the request directly.
+		var signUpBody bytes.Buffer
+		json.NewEncoder(&signUpBody).Encode(otherUserSignUpData)
+		reqSignUp, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/register", &signUpBody)
+		reqSignUp.Header.Set("Content-Type", "application/json")
+
+		rrSignUp := httptest.NewRecorder()
+		r.ServeHTTP(rrSignUp, reqSignUp)
+
+		if rrSignUp.Code != http.StatusCreated && rrSignUp.Code != http.StatusOK {
+			t.Fatalf("Registration failed with status %d. Response: %s", rrSignUp.Code, rrSignUp.Body.String())
+		}
+
+		// tests.GetLoginToken also registers the route, causing panic. Inline login logic.
+		var loginBody bytes.Buffer
+		loginData := models.LoginRequestModel{
+			Email:    otherUserSignUpData.Email,
+			Password: otherUserSignUpData.Password,
+		}
+
+		json.NewEncoder(&loginBody).Encode(loginData)
+		reqLogin, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", &loginBody)
+		reqLogin.Header.Set("Content-Type", "application/json")
+
+		rrLogin := httptest.NewRecorder()
+		r.ServeHTTP(rrLogin, reqLogin)
+
+		if rrLogin.Code != http.StatusOK {
+			t.Fatalf("Login failed with status %d. Response: %s", rrLogin.Code, rrLogin.Body.String())
+		}
+
+		loginResp := tests.ParseResponse(rrLogin)
+		loginDataM := loginResp["data"].(map[string]interface{})
+		otherToken := loginDataM["access_token"].(string)
+
+		// Create folder with other user
+		reqBody := map[string]string{
+			"name": "Other User Folder",
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/folders", &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", otherToken))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+		if rr.Code != http.StatusCreated {
+			t.Fatalf("Failed to create folder for other user: %s", rr.Body.String())
+		}
+
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		otherFolderID := data["id"].(string)
+
+		// Create a folder for the main user (since previous tests might have deleted the shared folderID)
+		reqBodyMain := map[string]string{
+			"name": "Main User Folder",
+		}
+		var bMain bytes.Buffer
+		json.NewEncoder(&bMain).Encode(reqBodyMain)
+
+		reqMain, _ := http.NewRequest(http.MethodPost, "/api/v1/files/folders", &bMain)
+		reqMain.Header.Set("Content-Type", "application/json")
+		reqMain.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rrMain := httptest.NewRecorder()
+		r.ServeHTTP(rrMain, reqMain)
+		if rrMain.Code != http.StatusCreated {
+			t.Fatalf("Failed to create folder for main user: %s", rrMain.Body.String())
+		}
+
+		respMain := tests.ParseResponse(rrMain)
+		dataMain := respMain["data"].(map[string]interface{})
+		mainFolderID := dataMain["id"].(string)
+
+		// Request with mode=mine using main user token
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("mode", "mine")
+		u.RawQuery = q.Encode()
+
+		reqMine, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		reqMine.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rrMine := httptest.NewRecorder()
+		r.ServeHTTP(rrMine, reqMine)
+
+		tests.AssertStatusCode(t, rrMine.Code, http.StatusOK)
+		respMine := tests.ParseResponse(rrMine)
+		dataMine := respMine["data"].(map[string]interface{})
+		foldersMine := dataMine["folders"].([]interface{})
+
+		// Verify that Other User Folder is not present
+		for _, f := range foldersMine {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == otherFolderID {
+				t.Error("Found other user's folder in mode=mine results")
+			}
+		}
+
+		// Verify that main user's folder is present
+		foundMain := false
+		for _, f := range foldersMine {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == mainFolderID {
+				foundMain = true
+				break
+			}
+		}
+		if !foundMain {
+			t.Error("Expected main user's folder in mode=mine results")
+		}
+	})
+
+	t.Run("GetFoldersModeTrash", func(t *testing.T) {
+		// Create a temporary folder to delete
+		reqBody := map[string]string{
+			"name": "Trash Test Folder",
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(reqBody)
+
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/folders", &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		trashFolderID := data["id"].(string)
+
+		// Soft delete the folder
+		reqDel, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/folders/%s", trashFolderID), nil)
+		reqDel.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+		rrDel := httptest.NewRecorder()
+		r.ServeHTTP(rrDel, reqDel)
+		tests.AssertStatusCode(t, rrDel.Code, http.StatusOK)
+
+		// Request with mode=trash
+		u, _ := url.Parse("/api/v1/files/folders")
+		q := u.Query()
+		q.Set("mode", "trash")
+		u.RawQuery = q.Encode()
+
+		reqTrash, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		reqTrash.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rrTrash := httptest.NewRecorder()
+		r.ServeHTTP(rrTrash, reqTrash)
+
+		tests.AssertStatusCode(t, rrTrash.Code, http.StatusOK)
+		respTrash := tests.ParseResponse(rrTrash)
+		dataTrash := respTrash["data"].(map[string]interface{})
+		foldersTrash := dataTrash["folders"].([]interface{})
+
+		// Verify that the deleted folder is present
+		foundTrash := false
+		for _, f := range foldersTrash {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == trashFolderID {
+				foundTrash = true
+				break
+			}
+		}
+		if !foundTrash {
+			t.Error("Expected deleted folder in mode=trash results")
+		}
+
+		//  Request with default mode (all)
+		reqAll, _ := http.NewRequest(http.MethodGet, "/api/v1/files/folders", nil)
+		reqAll.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+		rrAll := httptest.NewRecorder()
+		r.ServeHTTP(rrAll, reqAll)
+
+		tests.AssertStatusCode(t, rrAll.Code, http.StatusOK)
+		respAll := tests.ParseResponse(rrAll)
+		dataAll := respAll["data"].(map[string]interface{})
+		foldersAll := dataAll["folders"].([]interface{})
+
+		// Verify that the deleted folder is not present in default mode
+		for _, f := range foldersAll {
+			folder := f.(map[string]interface{})
+			if folder["id"].(string) == trashFolderID {
+				t.Error("Found deleted folder in default mode results")
+			}
+		}
+	})
 }
 
 func TestFileFilters(t *testing.T) {

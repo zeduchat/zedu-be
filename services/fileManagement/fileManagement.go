@@ -295,6 +295,18 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id").
 		Where("folders.organisation_id = ?", params.OrgID)
 
+	// mode options: all, mine, trash
+	mode := queryParams["mode"]
+
+	switch mode {
+	case "mine":
+		query = query.Where("folders.user_id = ?", params.UserID).Where("folders.deleted_at IS NULL")
+	case "trash":
+		query = query.Unscoped().Where("folders.deleted_at IS NOT NULL")
+	default:
+		query = query.Where("folders.deleted_at IS NULL")
+	}
+
 	if owner, ok := queryParams["owner"]; ok && owner != "" {
 		query = query.Where("profiles.full_name ILIKE ?", "%"+owner+"%")
 	}
@@ -317,11 +329,16 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 	}
 	var folderCounts []FolderCount
 
-	err = db.Model(&models.File{}).
+	fileCountQuery := db.Model(&models.File{}).
 		Select("folder_id, count(*) as count").
 		Where("organisation_id = ? AND folder_id IS NOT NULL", params.OrgID).
-		Group("folder_id").
-		Scan(&folderCounts).Error
+		Group("folder_id")
+
+	if mode == "trash" {
+		fileCountQuery = fileCountQuery.Unscoped()
+	}
+
+	err = fileCountQuery.Scan(&folderCounts).Error
 
 	if err != nil {
 		return folders, paginationResponse, err
