@@ -812,7 +812,18 @@ func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, media
 						},
 					},
 				},
-				"filter": []map[string]any{},
+				"filter": []map[string]any{
+					{
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		"_source": []string{"media", "user_id", "created_at"},
