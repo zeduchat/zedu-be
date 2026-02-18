@@ -1163,11 +1163,11 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 					},
 				},
 				"filter": []map[string]any{
-					{
-						"exists": map[string]any{
-							"field": "media",
-						},
-					},
+					// {
+					// 	"exists": map[string]any{
+					// 		"field": "media",
+					// 	},
+					// },
 				},
 			},
 		},
@@ -1250,7 +1250,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 
 			// Apply type filter if specified
 			if mediaType != "" {
-				if !matchesMediaType(file.MimeType, mediaType) {
+				if !MatchesMediaType(file.MimeType, mediaType) {
 					continue
 				}
 			}
@@ -1404,34 +1404,6 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMe
 	}
 
 	return allMedia, len(allMedia), nil
-}
-
-func matchesMediaType(mimeType, mediaType string) bool {
-	switch mediaType {
-	case "images":
-		return len(mimeType) >= 6 && mimeType[:6] == "image/"
-	case "videos":
-		return len(mimeType) >= 6 && mimeType[:6] == "video/"
-	case "audio":
-		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
-	case "documents":
-		return containsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
-	default:
-		return true
-	}
-}
-
-func containsAny(s string, substrs []string) bool {
-	for _, sub := range substrs {
-		if len(s) >= len(sub) {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (dm *DmChannels) GetDMsWithUnread(db *gorm.DB, userID string) (map[string]time.Time, error) {
