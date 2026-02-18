@@ -1581,7 +1581,7 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
-					"order": "asc",
+					"order": "desc",
 				},
 			},
 		},
