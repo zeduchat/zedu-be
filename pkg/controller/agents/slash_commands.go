@@ -219,3 +219,17 @@ func (base *Controller) GetAllOrgSlashCommands(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation slashcommands retrieved successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetDefaultSlashCommands(c *gin.Context) {
+	response, err := agents.GetDefaultSlashCommands(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to get default slashcommands", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to get default slashcommands", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Default slashcommands retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Default slashcommands retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+}

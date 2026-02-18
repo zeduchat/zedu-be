@@ -72,3 +72,15 @@ func DeleteAgentSlashCommand(db *gorm.DB, ids map[string]string) error {
 	}
 	return nil
 }
+
+func GetDefaultSlashCommands(db *gorm.DB) ([]models.SlashCommand, error) {
+	var (
+		slashCommand models.SlashCommand
+	)
+
+	response, err := slashCommand.GetDefaultSlashCommands(db)
+	if err != nil {
+		return response, err
+	}
+	return response, nil
+}

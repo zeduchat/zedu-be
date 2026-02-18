@@ -19,6 +19,7 @@ type SlashCommand struct {
 	Description   string     `gorm:"column:description; type:varchar(255);" json:"description"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt     *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	IsDefault     bool       `gorm:"column:is_default; default:false;" json:"is_default"`
 }
 
 type AddSlashCommandRequest struct {
@@ -104,4 +105,15 @@ func (sc *SlashCommand) DeleteSlashCommand(db *gorm.DB, ids map[string]string) e
 		return fmt.Errorf("failed to delete slash command: %v", err)
 	}
 	return nil
+}
+
+func (sc *SlashCommand) GetDefaultSlashCommands(db *gorm.DB) ([]SlashCommand, error) {
+	var (
+		slashCommands []SlashCommand
+	)
+	err := postgresql.SelectAllFromDb(db, "", &slashCommands, "is_default = ?", true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default slash commands: %v", err)
+	}
+	return slashCommands, nil
 }
