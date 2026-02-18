@@ -112,6 +112,16 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, err
 	}
 
+	// Update file metadata with channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
+
 	feed := models.FeedMessageRequest{
 		ChannelID:   req.ChannelsID,
 		UserName:    utility.ThisOrThat(profile.UserName, req.AgentName),
@@ -298,6 +308,34 @@ func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+// updateAttachedFilesMetadata updates channel_id and message_id for files attached to a message
+func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channelID, messageID string) {
+	if len(fileIDs) == 0 {
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if channelID != "" {
+		updates["channel_id"] = channelID
+	}
+	if messageID != "" {
+		updates["message_id"] = messageID
+	}
+
+	if len(updates) == 0 {
+		return
+	}
+
+	err := db.Postgresql.Model(&models.File{}).
+		Where("id IN ?", fileIDs).
+		Updates(updates).Error
+
+	if err != nil {
+		// Log error but don't fail the message send
+		fmt.Printf("Failed to update file metadata: %v\n", err)
+	}
 }
 
 func SearchChannel(channelID, searchWords string, db *gorm.DB, c *gin.Context, typesenseDb *typesense.Client) (*[]map[string]any, int, error) {

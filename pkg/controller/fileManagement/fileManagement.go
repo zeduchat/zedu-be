@@ -1,14 +1,12 @@
 package fileManagement
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -21,7 +19,6 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	services "github.com/hngprojects/telex_be/services/fileManagement"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -282,36 +279,22 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 		return
 	}
 
-	canDelete := false
-	if file.UserID == userID {
-		canDelete = true
-	} else {
-		roleID, ok := userClaims["role_id"].(string)
-		if ok && roleID != "" {
-			cacheKey := "role_permissions_" + roleID
-			cachedPermissions, err := rd.RedisGet(base.Db.Redis, cacheKey)
-			if err == nil && len(cachedPermissions) > 0 {
-				var permissionList models.PermissionList
-				if err := json.Unmarshal(cachedPermissions, &permissionList); err == nil {
-					if models.OrgUserHasPermission(permissionList, "can_delete_any_file") {
-						canDelete = true
-					}
-				}
-			} else {
-				var orgRole models.OrgRole
-				permissions, err := orgRole.GetAOrgRoleById(base.Db.Postgresql, roleID)
-				if err == nil {
-					rd.RedisSet(base.Db.Redis, cacheKey, permissions.Permissions.PermissionList, 24*time.Hour)
-					if models.OrgUserHasPermission(permissions.Permissions.PermissionList, "can_delete_any_file") {
-						canDelete = true
-					}
-				}
-			}
+	// Check edit permission (deletion requires edit permission)
+	hasEditPermission, permErr := services.CheckFileEditPermission(base.Db.Postgresql, fileId, userID, orgID)
+	if permErr != nil {
+		if errors.Is(permErr, services.ErrFileNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
 		}
+		base.Logger.Error("failed to check file edit permission", permErr)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to verify permissions", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
 	}
 
-	if !canDelete {
-		base.Logger.Error("you do not have permission to delete this file")
+	if !hasEditPermission {
+		base.Logger.Info("User denied delete permission", "file_id", fileId, "user_id", userID)
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to delete this file", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
@@ -366,6 +349,27 @@ func (base *Controller) UpdateFileName(c *gin.Context) {
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Check edit permission before proceeding
+	hasEditPermission, permErr := services.CheckFileEditPermission(base.Db.Postgresql, fileID, userID, orgID)
+	if permErr != nil {
+		if errors.Is(permErr, services.ErrFileNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		base.Logger.Error("failed to check file edit permission", permErr)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to verify permissions", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	if !hasEditPermission {
+		base.Logger.Info("User denied edit permission", "file_id", fileID, "user_id", userID)
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to modify this file", nil)
+		c.JSON(http.StatusForbidden, rd)
 		return
 	}
 
@@ -544,6 +548,17 @@ func (base *Controller) MoveFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
 	var req struct {
 		FolderID string `json:"folder_id"`
 	}
@@ -559,12 +574,34 @@ func (base *Controller) MoveFile(c *gin.Context) {
 		return
 	}
 
+	// Check edit permission before proceeding
+	hasEditPermission, permErr := services.CheckFileEditPermission(base.Db.Postgresql, fileID, userID, orgID)
+	if permErr != nil {
+		if errors.Is(permErr, services.ErrFileNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		base.Logger.Error("failed to check file edit permission", permErr)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to verify permissions", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	if !hasEditPermission {
+		base.Logger.Info("User denied move permission", "file_id", fileID, "user_id", userID)
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to move this file", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	file, err := services.MoveFile(base.Db.Postgresql, fileID, req.FolderID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to move file", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
+
 	rd := utility.BuildSuccessResponse(http.StatusOK, "File moved successfully", file)
 	c.JSON(http.StatusOK, rd)
 }

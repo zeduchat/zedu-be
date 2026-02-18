@@ -86,6 +86,16 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
+
 	feed := models.FeedMessageRequest{
 		ChannelID:   req.ChannelsID,
 		UserName:    profile.UserName,
@@ -222,6 +232,16 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
+	}
+
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		updateAttachedFilesMetadata(db, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	publishfeed := models.FeedMessageRequest{
@@ -708,4 +728,32 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 	logger.Info("Pushed to RabbitMQ for integration: %s", routing_key)
 
 	return &feed, http.StatusCreated, nil
+}
+
+// updateAttachedFilesMetadata updates channel_id and message_id for files attached to a DM message
+func updateAttachedFilesMetadata(db *storage.Database, fileIDs []string, channelID, messageID string) {
+	if len(fileIDs) == 0 {
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if channelID != "" {
+		updates["channel_id"] = channelID
+	}
+	if messageID != "" {
+		updates["message_id"] = messageID
+	}
+
+	if len(updates) == 0 {
+		return
+	}
+
+	err := db.Postgresql.Model(&models.File{}).
+		Where("id IN ?", fileIDs).
+		Updates(updates).Error
+
+	if err != nil {
+		// Log error but don't fail the DM send
+		fmt.Printf("Failed to update file metadata for DM: %v\n", err)
+	}
 }

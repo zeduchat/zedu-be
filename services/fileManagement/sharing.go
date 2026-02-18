@@ -19,12 +19,14 @@ import (
 )
 
 var (
-	ErrFileShareNotFound  = errors.New("file share not found")
-	ErrShareExpired       = errors.New("file share has expired")
-	ErrAccessDenied       = errors.New("access denied to this file")
-	ErrInvalidShareLink   = errors.New("invalid share link")
-	ErrCannotShareOwnFile = errors.New("cannot share file with yourself")
-	ErrUserNotInOrg       = errors.New("user is not in same organization")
+	ErrFileShareNotFound    = errors.New("file share not found")
+	ErrShareExpired         = errors.New("file share has expired")
+	ErrAccessDenied         = errors.New("access denied to this file")
+	ErrInvalidShareLink     = errors.New("invalid share link")
+	ErrCannotShareOwnFile   = errors.New("cannot share file with yourself")
+	ErrUserNotInOrg         = errors.New("user is not in same organization")
+	ErrFileNotFound         = errors.New("file not found")
+	ErrEditPermissionDenied = errors.New("user does not have edit permission")
 )
 
 type CreateFileShareParams struct {
@@ -279,6 +281,55 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 	}
 
 	return false, "no_access", ErrAccessDenied
+}
+
+// CheckFileEditPermission determines if a user can edit a file
+// Returns true if user:
+// - Is the file owner, OR
+// - Has role permission to delete any file, OR
+// - Has at least one active share with edit permission
+func CheckFileEditPermission(db *gorm.DB, fileID, userID, orgID string) (bool, error) {
+	// Check if file exists
+	var file models.File
+	if err := db.Where("id = ?", fileID).First(&file).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, ErrFileNotFound
+		}
+		return false, fmt.Errorf("failed to fetch file: %w", err)
+	}
+
+	// Owner can always edit
+	if file.UserID == userID {
+		return true, nil
+	}
+
+	// Check if user has role-based permission to edit/delete any file
+	var user models.User
+	if err := db.Where("id = ?", userID).First(&user).Error; err == nil {
+		if user.OrgRoleID != nil {
+			var permission models.Permission
+			if err := db.Where("role_id = ?", *user.OrgRoleID).First(&permission).Error; err == nil {
+				if permission.PermissionList.CanDeleteAnyFile {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	// Check for active shares with edit permission
+	var shareCount int64
+	err := db.Model(&models.FileShare{}).
+		Where("file_id = ? AND organisation_id = ?", fileID, orgID).
+		Where("permission_type = ?", "edit").
+		Where("(expires_at IS NULL OR expires_at > ?)", time.Now().UTC()).
+		Count(&shareCount).Error
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check file shares: %w", err)
+	}
+
+	// User has edit permission if any share grants it (OR logic)
+	return shareCount > 0, nil
 }
 
 // SendFileToUsersDM sends file to multiple users via DM
