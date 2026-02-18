@@ -976,10 +976,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		}
 		previewMessage := ""
 		if len(previewThread) > 0 {
-			previewMessage = previewThread[0].Content
-			if previewMessage == "" && len(previewThread[0].Media) > 0 {
-				previewMessage = previewThread[0].Media[0].FileType
-			}
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 		}
 		chanResp[i].PreviewMessage = previewMessage
 		parts := strings.Split(chanResp[i].ID, "-")
