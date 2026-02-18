@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/hngprojects/telex_be/utility"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/tests"
@@ -20,7 +20,7 @@ import (
 func TestFileManagement(t *testing.T) {
 	r, _, authController, db := SetupFileManagementTestRouter()
 
-	currUUID := uuid.New().String()
+	currUUID := utility.GenerateUUID()
 	userSignUpData := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("testfm%v@qa.team", currUUID),
 		FirstName:   "Test",
@@ -496,7 +496,7 @@ func TestFileManagement(t *testing.T) {
 	t.Run("GetFoldersModeMine", func(t *testing.T) {
 
 		// Create another user
-		otherUUID := uuid.New().String()
+		otherUUID := utility.GenerateUUID()
 		otherUserSignUpData := models.CreateUserRequestModel{
 			Email:       fmt.Sprintf("other%v@qa.team", otherUUID),
 			FirstName:   "Other",
@@ -702,7 +702,7 @@ func TestFileManagement(t *testing.T) {
 func TestFileFilters(t *testing.T) {
 	r, _, authController, db := SetupFileManagementTestRouter()
 
-	currUUID := uuid.New().String()
+	currUUID := utility.GenerateUUID()
 	userSignUpData := models.CreateUserRequestModel{
 		Email:       fmt.Sprintf("testfilters%v@qa.team", currUUID),
 		FirstName:   "Test",
