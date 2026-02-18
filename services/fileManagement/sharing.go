@@ -289,9 +289,9 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 // - Has role permission to delete any file, OR
 // - Has at least one active share with edit permission
 func CheckFileEditPermission(db *gorm.DB, fileID, userID, orgID string) (bool, error) {
-	// Check if file exists
+	// Check if file exists (include soft-deleted files for permanent delete operations)
 	var file models.File
-	if err := db.Where("id = ?", fileID).First(&file).Error; err != nil {
+	if err := db.Unscoped().Where("id = ?", fileID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, ErrFileNotFound
 		}
