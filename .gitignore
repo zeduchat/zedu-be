@@ -57,3 +57,4 @@ firebase_service.json
 telexbe
 telexbe_staging
 
+*.code-workspace
