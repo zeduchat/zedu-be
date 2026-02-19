@@ -27,6 +27,7 @@ type InvitationStats struct {
 	SentTodayPercent     float64 `json:"sent_today_percent"`
 	Yesterday            int64   `json:"yesterday"`
 	ThisWeek             int64   `json:"this_week"`
+	InvitesConversion    float64 `json:"invites_conversion"`
 }
 
 type GrowthTrendPoint struct {
@@ -59,7 +60,6 @@ type InvitationFilter struct {
 	TopLimit     int
 }
 
-
 func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter) (InvitationDashboardResponse, postgresql.PaginationResponse, int, error) {
 	var response InvitationDashboardResponse
 	pagination := postgresql.GetPagination(c)
@@ -78,11 +78,18 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
 
 		var currentMonthCount, lastMonthCount int64
+		var acceptedCount int64
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			db.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
 		}()
 
 		wg.Add(1)
@@ -130,6 +137,12 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 			stats.SentTodayPercent = 100
 		}
 
+		if stats.TotalInvitationsSent > 0 {
+			stats.InvitesConversion = float64(acceptedCount) / float64(stats.TotalInvitationsSent) * 100
+		} else {
+			stats.InvitesConversion = 0
+		}
+
 		response.Stats = stats
 	}
 
@@ -152,7 +165,6 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 
 	return response, paginationResponse, http.StatusOK, nil
 }
-
 
 func getGrowthTrends(db *gorm.DB, now time.Time) []GrowthTrendPoint {
 	trends := make([]GrowthTrendPoint, 0, 6)
