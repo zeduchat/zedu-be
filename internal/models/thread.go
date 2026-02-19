@@ -1173,7 +1173,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		previeMessage := ""
 
 		if len(messages) > 0 {
-			previeMessage = messages[len(messages)-1].Content
+			previeMessage = BuildPreviewMessage(messages[0].Content, messages[0].Media)
 		}
 
 		threadDoc := ThreadDocument{
@@ -1581,7 +1581,7 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
-					"order": "asc",
+					"order": "desc",
 				},
 			},
 		},
