@@ -576,6 +576,7 @@ func (base *Controller) GetFiles(c *gin.Context) {
 
 	queryParams := make(map[string]string)
 	queryParams["mode"] = c.Query("mode")
+	queryParams["owner"] = c.Query("owner")
 
 	folderID := c.Query("folder_id")
 	if folderID != "" && !utility.IsValidUUID(folderID) {

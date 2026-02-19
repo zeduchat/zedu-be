@@ -308,7 +308,7 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 	}
 
 	if owner, ok := queryParams["owner"]; ok && owner != "" {
-		query = query.Where("profiles.full_name ILIKE ?", "%"+owner+"%")
+		query = query.Where("profiles.full_name ILIKE ? OR profiles.user_name ILIKE ?", "%"+owner+"%", "%"+owner+"%")
 	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -674,6 +674,10 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 		// "all" or default: view all files in org (that are not deleted)
 
 		query = query.Where("files.deleted_at IS NULL")
+	}
+
+	if owner, ok := queryParams["owner"]; ok && owner != "" {
+		query = query.Where("profiles.full_name ILIKE ? OR profiles.user_name ILIKE ?", "%"+owner+"%", "%"+owner+"%")
 	}
 
 	if folderID, ok := queryParams["folder_id"]; ok && folderID != "" {

@@ -19135,6 +19135,13 @@ paths:
             type: string
             format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: owner
+          in: query
+          required: false
+          description: Filter by owner name or username (case-insensitive partial match on full name or username)
+          schema:
+            type: string
+          example: "john"
         - name: search
           in: query
           required: false

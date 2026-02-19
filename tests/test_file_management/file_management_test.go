@@ -1025,6 +1025,58 @@ func TestFileFilters(t *testing.T) {
 		}
 	})
 
+	t.Run("GetFileOwnerFilter", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("owner", "Test")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) == 0 {
+			t.Error("Expected files matching owner 'Test', got 0")
+		}
+
+		// verify each returned file belongs to matched owner
+		for _, f := range files {
+			file := f.(map[string]interface{})
+			if file["id"] == imageFileID || file["id"] == docFileID || file["id"] == videoFileID {
+				return
+			}
+		}
+	})
+
+	t.Run("GetFileOwnerFilter_NoMatch", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("owner", "NonExistentOwnerXYZ")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) != 0 {
+			t.Errorf("Expected 0 files matching owner 'NonExistentOwnerXYZ', got %d", len(files))
+		}
+	})
+
 	t.Run("Cleanup", func(t *testing.T) {
 		db.Postgresql.Unscoped().Delete(&models.File{}, "id IN ?", []string{imageFileID, docFileID, videoFileID})
 	})
