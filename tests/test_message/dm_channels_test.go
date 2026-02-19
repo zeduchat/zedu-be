@@ -1031,6 +1031,9 @@ func TestGetDmChannelMedia(t *testing.T) {
 		}
 
 		t.Logf("✅ Found %d media files", len(data))
+		if len(data) == 0 {
+			t.Fatal("Expected media files, but got 0")
+		}
 
 		// Check pagination exists
 		pagination, hasPagination := response["pagination"].(map[string]interface{})
