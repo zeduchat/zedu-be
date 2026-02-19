@@ -34070,6 +34070,10 @@ components:
                     this_week:
                       type: integer
                       description: Number of invitations sent this week
+                    invites_conversion:
+                      type: number
+                      format: float
+                      description: Conversion percentage of invitations (accepted / total * 100)
                 growth_trends:
                   type: array
                   description: Last 6 months of invitation data
