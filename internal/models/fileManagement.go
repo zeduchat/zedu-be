@@ -97,6 +97,7 @@ type GetFilesParams struct {
 
 type GetFoldersParams struct {
 	OrgID       string
+	UserID      string
 	Page        int
 	Limit       int
 	QueryParams map[string]string
@@ -459,4 +460,33 @@ func ValidateShareExpiration(expiresAt *time.Time) error {
 	}
 
 	return nil
+}
+
+// MatchesMediaType checks if a mimeType matches the requested mediaType
+func MatchesMediaType(mimeType, mediaType string) bool {
+	switch mediaType {
+	case "images":
+		return len(mimeType) >= 6 && mimeType[:6] == "image/"
+	case "videos":
+		return len(mimeType) >= 6 && mimeType[:6] == "video/"
+	case "audio":
+		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
+	case "documents":
+		return ContainsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
+	default:
+		return true
+	}
+}
+
+func ContainsAny(s string, substrs []string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
