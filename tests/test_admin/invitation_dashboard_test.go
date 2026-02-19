@@ -366,3 +366,125 @@ func TestGetInvitationDashboardService_WithInvitation(t *testing.T) {
 	db.Postgresql.Delete(&invitation)
 	db.Postgresql.Delete(&org)
 }
+
+func TestGetInvitationDashboard_InvitesConversionPresent(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	adminCtl := admin.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+
+	r := gin.Default()
+	r.GET("/api/v1/backoffice/admins/invitations/dashboard", adminCtl.GetInvitationDashboard)
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/admins/invitations/dashboard?include_stats=true", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	data := tst.ParseResponse(rr)
+	respData := data["data"].(map[string]any)
+	stats := respData["stats"].(map[string]any)
+
+	// Verify invites_conversion field exists
+	if _, ok := stats["invites_conversion"]; !ok {
+		t.Error("missing 'invites_conversion' in stats")
+	}
+
+	// Verify it's a valid number (>=0)
+	conversionVal := stats["invites_conversion"].(float64)
+	if conversionVal < 0 {
+		t.Errorf("expected invites_conversion to be >= 0, got %v", conversionVal)
+	}
+}
+
+func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
+	_, authCtl, _, db := SetupAdminTestRouter()
+
+	currUUID := utility.GenerateUUID()
+	user1 := models.CreateUserRequestModel{
+		Email:       "conversion-test-" + currUUID + "@qa.team",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "ConversionTest",
+		LastName:    "User",
+		Password:    "password",
+		UserName:    "conversion-test-" + currUUID,
+	}
+
+	tst.SignupUser(t, gin.Default(), *authCtl, user1, false)
+
+	token := tst.GetLoginToken(t, gin.Default(), *authCtl, models.LoginRequestModel{Email: user1.Email, Password: user1.Password})
+	uid := tst.GetUserIDFromToken(t, token, db)
+
+	// Create test organization
+	orgID := utility.GenerateUUID()
+	org := models.Organisation{
+		ID:      orgID,
+		Name:    "Conversion Test Org",
+		Email:   "conversion-test@org.com",
+		Type:    "business",
+		Country: "NG",
+		OwnerID: uid,
+	}
+	db.Postgresql.Create(&org)
+
+	roleID := utility.GenerateUUID()
+
+	// Create 10 invitations: 7 "invited", 3 "accepted"
+	var createdInvitations []models.Invitation
+	for i := 0; i < 10; i++ {
+		status := "invited"
+		if i < 3 {
+			status = "accepted"
+		}
+
+		invitation := models.Invitation{
+			ID:             utility.GenerateUUID(),
+			Email:          fmt.Sprintf("user%d-conversion@example.com", i),
+			Status:         status,
+			OrganisationID: orgID,
+			InvitedBy:      uid,
+			CreatedAt:      time.Now(),
+			ExpiresAt:      time.Now().Add(24 * time.Hour),
+			Role:           roleID,
+		}
+		db.Postgresql.Create(&invitation)
+		createdInvitations = append(createdInvitations, invitation)
+	}
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/?page=1&limit=10", nil)
+	c, _ := gin.CreateTestContext(rr)
+	c.Request = req
+
+	filter := adminSvc.InvitationFilter{
+		IncludeStats: true,
+		TopLimit:     5,
+	}
+
+	response, _, code, err := adminSvc.GetInvitationDashboard(db.Postgresql, c, filter)
+	if err != nil {
+		t.Fatalf("GetInvitationDashboard service returned error: %v", err)
+	}
+	if code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, code)
+	}
+
+	// Verify conversion calculation: 3 accepted / 10 total = 30%
+	expectedConversion := 30.0
+	actualConversion := response.Stats.InvitesConversion
+
+	// Allow small floating point difference
+	diff := actualConversion - expectedConversion
+	if diff < -0.01 || diff > 0.01 {
+		t.Errorf("expected invites_conversion to be ~%.2f, got %.2f", expectedConversion, actualConversion)
+	}
+
+	// Cleanup
+	for _, inv := range createdInvitations {
+		db.Postgresql.Delete(&inv)
+	}
+	db.Postgresql.Delete(&org)
+}
