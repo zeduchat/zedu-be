@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -307,6 +309,40 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
 	}
 
+	ctx := context.Background()
+	if profile.RiverJobID != nil && storage.DB.River != nil {
+		_, cancelErr := storage.DB.River.JobCancel(ctx, *profile.RiverJobID)
+		if cancelErr != nil {
+			logger.Error("failed to cancel existing clear status job %d: %v", *profile.RiverJobID, cancelErr)
+		} else {
+			logger.Info("Cancelled existing clear status job %d", *profile.RiverJobID)
+		}
+	}
+
+	if req.Expiry != nil && *req.Expiry > 0 {
+		jobArgs := &models.ClearUserStatusJobArgs{
+			UserID: req.UserID,
+			OrgID:  "",
+		}
+		scheduledAt := time.Unix(*req.Expiry, 0)
+		insertRes, err := jobArgs.InsertClearStatusJob(ctx, storage.DB, scheduledAt)
+		if err != nil {
+			logger.Error("failed to insert clear status job: %v", err)
+		} else {
+			if err := db.Model(&models.Profile{}).
+				Where("userid = ?", req.UserID).
+				Update("river_job_id", insertRes.Job.ID).Error; err != nil {
+				logger.Error("failed to update river_job_id: %v", err)
+			}
+		}
+	} else if req.Expiry != nil && *req.Expiry == 0 {
+		if err := db.Model(&models.Profile{}).
+			Where("userid = ?", req.UserID).
+			Update("river_job_id", nil).Error; err != nil {
+			logger.Error("failed to clear river_job_id: %v", err)
+		}
+	}
+
 	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
 	}
@@ -394,6 +430,40 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		Where("userid = ?", req.UserID).
 		Updates(updates).Error; err != nil {
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
+	}
+
+	ctx := context.Background()
+	if profile.RiverJobID != nil && storage.DB.River != nil {
+		_, cancelErr := storage.DB.River.JobCancel(ctx, *profile.RiverJobID)
+		if cancelErr != nil {
+			logger.Error("failed to cancel existing clear status job %d: %v", *profile.RiverJobID, cancelErr)
+		} else {
+			logger.Info("Cancelled existing clear status job %d", *profile.RiverJobID)
+		}
+	}
+
+	if req.Expiry != nil && *req.Expiry > 0 {
+		jobArgs := &models.ClearUserStatusJobArgs{
+			UserID: req.UserID,
+			OrgID:  "",
+		}
+		scheduledAt := time.Unix(*req.Expiry, 0)
+		insertRes, err := jobArgs.InsertClearStatusJob(ctx, storage.DB, scheduledAt)
+		if err != nil {
+			logger.Error("failed to insert clear status job: %v", err)
+		} else {
+			if err := db.Model(&models.Profile{}).
+				Where("userid = ?", req.UserID).
+				Update("river_job_id", insertRes.Job.ID).Error; err != nil {
+				logger.Error("failed to update river_job_id: %v", err)
+			}
+		}
+	} else {
+		if err := db.Model(&models.Profile{}).
+			Where("userid = ?", req.UserID).
+			Update("river_job_id", nil).Error; err != nil {
+			logger.Error("failed to clear river_job_id: %v", err)
+		}
 	}
 
 	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {

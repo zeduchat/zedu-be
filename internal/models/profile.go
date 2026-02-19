@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -10,18 +11,19 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
 type Profile struct {
-	ID        string `gorm:"type:uuid;primary_key" json:"profile_id"`
-	FirstName string `gorm:"column:first_name; type:text; not null" json:"first_name"`
-	LastName  string `gorm:"column:last_name; type:text;not null" json:"last_name"`
-	FullName  string `gorm:"column:full_name; type:text;" json:"full_name"`
-	UserName  string `gorm:"column:user_name; type:text;" json:"username"`
-	Phone     string `gorm:"type:varchar(255)" json:"phone"`
-	AvatarURL string `gorm:"type:varchar(255)" json:"avatar_url"`
+	ID                string         `gorm:"type:uuid;primary_key" json:"profile_id"`
+	FirstName         string         `gorm:"column:first_name; type:text; not null" json:"first_name"`
+	LastName          string         `gorm:"column:last_name; type:text;not null" json:"last_name"`
+	FullName          string         `gorm:"column:full_name; type:text;" json:"full_name"`
+	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
+	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
+	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
 	Userid            string         `gorm:"type:uuid;unique" json:"user_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -35,6 +37,7 @@ type Profile struct {
 	PauseNotification bool           `gorm:"type:boolean;default:false" json:"pause_notification"`
 	StatusTimeout     string         `gorm:"type:varchar(255)" json:"status_timeout"`
 	StatusVisibility  string         `gorm:"type:varchar(255);default:'public'" json:"status_visibility"`
+	RiverJobID        *int64         `gorm:"type:bigint;index" json:"river_job_id,omitempty"`
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
@@ -220,6 +223,16 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		updates["text"] = ""
 		updates["icon"] = ""
 		updates["status_timeout"] = ""
+		ctx := context.Background()
+		if j.RiverJobID != nil && storage.DB.River != nil {
+			_, cancelErr := storage.DB.River.JobCancel(ctx, *j.RiverJobID)
+			if cancelErr != nil {
+				logger.Error("failed to cancel clear status job %d: %v", *j.RiverJobID, cancelErr)
+			} else {
+				logger.Info("Cancelled clear status job %d", *j.RiverJobID)
+			}
+		}
+		updates["river_job_id"] = nil
 	}
 
 	updates["online"] = req.Online
