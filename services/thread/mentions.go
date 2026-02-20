@@ -18,6 +18,7 @@ import (
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
+	"github.com/hngprojects/telex_be/services/utils"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
 )
@@ -118,7 +119,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+		_ = utils.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -307,37 +308,6 @@ func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
 	}
 
 	return nil
-}
-
-
-func updateAttachedFilesMetadata(db *storage.Database, logger *utility.Logger, fileIDs []string, channelID, messageID string) {
-	if len(fileIDs) == 0 {
-		return
-	}
-
-	updates := map[string]interface{}{}
-	if channelID != "" {
-		updates["channel_id"] = channelID
-	}
-	if messageID != "" {
-		updates["message_id"] = messageID
-	}
-
-	if len(updates) == 0 {
-		return
-	}
-
-	err := db.Postgresql.Model(&models.File{}).
-		Where("id IN ?", fileIDs).
-		Updates(updates).Error
-
-	if err != nil {
-		logger.Error("Failed to update file metadata",
-			"file_ids", fileIDs,
-			"channel_id", channelID,
-			"message_id", messageID,
-			"error", err)
-	}
 }
 
 func SearchChannel(channelID, searchWords string, db *gorm.DB, c *gin.Context, typesenseDb *typesense.Client) (*[]map[string]any, int, error) {

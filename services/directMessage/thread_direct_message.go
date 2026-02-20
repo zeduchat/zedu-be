@@ -24,6 +24,7 @@ import (
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
+	"github.com/hngprojects/telex_be/services/utils"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -93,7 +94,7 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+		_ = utils.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -241,7 +242,7 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 			fileIDs[i] = file.ID
 		}
 
-		updateAttachedFilesMetadata(db, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+		_ = utils.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	publishfeed := models.FeedMessageRequest{
@@ -728,36 +729,4 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 	logger.Info("Pushed to RabbitMQ for integration: %s", routing_key)
 
 	return &feed, http.StatusCreated, nil
-}
-
-// updateAttachedFilesMetadata updates channel_id and message_id for files attached to a DM message
-func updateAttachedFilesMetadata(db *storage.Database, logger *utility.Logger, fileIDs []string, channelID, messageID string) {
-	if len(fileIDs) == 0 {
-		return
-	}
-
-	updates := map[string]interface{}{}
-	if channelID != "" {
-		updates["channel_id"] = channelID
-	}
-	if messageID != "" {
-		updates["message_id"] = messageID
-	}
-
-	if len(updates) == 0 {
-		return
-	}
-
-	err := db.Postgresql.Model(&models.File{}).
-		Where("id IN ?", fileIDs).
-		Updates(updates).Error
-
-	if err != nil {
-		// Log error but don't fail the DM send
-		logger.Error("Failed to update file metadata for DM",
-			"file_ids", fileIDs,
-			"channel_id", channelID,
-			"message_id", messageID,
-			"error", err)
-	}
 }
