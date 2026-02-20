@@ -13,8 +13,8 @@ import (
 func GenerateDefaultAvatarURL(userID string) string {
 	// Calculate CRC32 checksum of the userID
 	checksum := crc32.ChecksumIEEE([]byte(userID))
-	// Map to 1-7 range
-	n := (checksum % 7) + 1
+	// Map to 1-30 range
+	n := (checksum % 30) + 1
 	conf := config.GetConfig()
 	endpoint := ""
 	bucketName := "telexstagingbucket"
