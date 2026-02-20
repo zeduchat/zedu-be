@@ -5028,6 +5028,119 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Slash Commands
+      summary: Process a slash command
+      description: |
+        Processes a slash command and executes the corresponding action.
+        This endpoint accepts various slash commands for managing channel members and permissions.
+        Available commands include:
+        - `/add-to-channel #channel @user1 @user2` - Add one or more users to a channel
+        - `/add-to-all-org-channels @user` - Add a user to all organization channels
+        - `/remove-from-channel #channel @user` - Remove a user from a channel
+        - `/banish-from-channel #channel1 #channel2 @user1 @user2` - Remove users from multiple channels
+        - `/promote #channel @user1 @user2 #channel2` - Promote users to channel admin
+        - `/demote #channel @user1 @user2 #channel2` - Demote users from channel admin
+        - `/restore-channels @user1 @user2` - Restore deleted channels for users
+        - `/export-members #channel` - Export channel members list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: The slash command to process
+                  example: "/add-to-channel #engineering-channel @bugsbouncy"
+            examples:
+              add_to_channel:
+                summary: Add users to a channel
+                value:
+                  command: "/add-to-channel #engineering-channel @bugsbouncy"
+              add_to_all_org_channels:
+                summary: Add user to all organization channels
+                value:
+                  command: "/add-to-all-org-channels @bugsbouncy"
+              remove_from_channel:
+                summary: Remove user from channel
+                value:
+                  command: "/remove-from-channel #engineering-channel @bugsbunny"
+              banish_from_channel:
+                summary: Remove users from multiple channels
+                value:
+                  command: "/banish-from-channel #general #engineering-channel @bugsbouncy @anotheruser"
+              promote:
+                summary: Promote users in channels
+                value:
+                  command: "/promote #management @bugsbouncy @anotheruser #engineering-channel #support"
+              demote:
+                summary: Demote users in channels
+                value:
+                  command: "/demote #general @bugsbouncy @anotheruser #management-channel"
+              restore_channels:
+                summary: Restore deleted channels for users
+                value:
+                  command: "/restore-channels @bugsbouncy @anotheruser"
+              export_members:
+                summary: Export channel members
+                value:
+                  command: "/export-members #engineering-channel"
+      responses:
+        "200":
+          description: Slash command processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Command processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      result:
+                        type: string
+                        example: "Users added to channel successfully"
+                      affected_users:
+                        type: array
+                        items:
+                          type: string
+                        example: ["bugsbouncy", "anotheruser"]
+                      affected_channels:
+                        type: array
+                        items:
+                          type: string
+                        example: ["engineering-channel"]
+        "400":
+          description: Bad request - Invalid command format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - Channel or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /contact:
     post:
