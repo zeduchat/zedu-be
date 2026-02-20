@@ -24,7 +24,6 @@ import (
 	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/user"
-	"github.com/hngprojects/telex_be/services/utils"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -94,7 +93,8 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 			fileIDs[i] = file.ID
 		}
 
-		_ = utils.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -242,7 +242,8 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 			fileIDs[i] = file.ID
 		}
 
-		_ = utils.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	publishfeed := models.FeedMessageRequest{
