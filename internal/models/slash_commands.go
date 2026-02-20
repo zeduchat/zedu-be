@@ -11,8 +11,8 @@ import (
 
 type SlashCommand struct {
 	ID            string     `gorm:"type:uuid;primary_key" json:"id"`
-	OrgID         string     `gorm:"type:uuid;" json:"org_id"`
-	IntegrationID string     `gorm:"type:uuid;" json:"integration_id"`
+	OrgID         *string    `gorm:"type:uuid;" json:"org_id,omitempty"`
+	IntegrationID *string    `gorm:"type:uuid;" json:"integration_id,omitempty"`
 	Command       string     `gorm:"column:command; type:varchar(255);" json:"command"`
 	ProcessingURL string     `gorm:"column:processing_url; type:varchar(255);" json:"processing_url"`
 	CreatedAt     time.Time  `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
@@ -32,6 +32,12 @@ type UpdateSlashCommandRequest struct {
 	Command       string `json:"command"`
 	ProcessingURL string `json:"processing_url"`
 	Description   string `json:"description"`
+}
+
+type ProcessSlashCommandRequest struct {
+	Command  string                 `json:"command" validate:"required"`
+	Context  map[string]interface{} `json:"context"`
+	Metadata map[string]interface{} `json:"metadata"`
 }
 
 func (sc *SlashCommand) CreateSlashCommand(db *gorm.DB) (SlashCommand, error) {

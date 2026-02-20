@@ -53,6 +53,12 @@ func SeedDefaultSlashCommands(logger *utility.Logger, db *gorm.DB) {
 			IsDefault: true,
 			Description: "Demote users from specified channels to a target channel",
 		},
+		{
+			ID:        utility.GenerateUUID(),
+			Command:   "/add-to-all-org-channels @username",
+			IsDefault: true,
+			Description: "Add a user to all organization channels",
+		},
 	}
 
 	for _, cmd := range defaultCommands {

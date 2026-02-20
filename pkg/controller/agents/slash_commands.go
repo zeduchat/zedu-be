@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -231,5 +232,55 @@ func (base *Controller) GetDefaultSlashCommands(c *gin.Context) {
 
 	base.Logger.Info("Default slashcommands retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Default slashcommands retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) ProcessSlashCommand(c *gin.Context) {
+	var (
+		req models.ProcessSlashCommandRequest
+	)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Invalid request body")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err := base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Validation failed")
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	// Get organization ID from authenticated user's context
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	// Initialize context map if nil
+	if req.Context == nil {
+		req.Context = make(map[string]interface{})
+	}
+
+	// Add invoker's organization ID to context
+	req.Context["org_id"] = orgID.(string)
+
+	response, err := agents.ProcessSlashCommand(base.Db.Postgresql, req)
+	if err != nil {
+		base.Logger.Error("Failed to process slash command", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to process slash command", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	base.Logger.Info("Slash command processed successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Slash command processed successfully", response)
 	c.JSON(http.StatusOK, rd)
 }

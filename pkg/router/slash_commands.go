@@ -8,6 +8,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/controller/agents"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -16,10 +17,10 @@ func SlashCommands(r *gin.Engine, ApiVersion string, validator *validator.Valida
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	agentsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	// Public endpoint to fetch default slash commands
-	slashCommandsUrl := r.Group(fmt.Sprintf("%v/slash-commands", ApiVersion))
+	slashCommandsUrl := r.Group(fmt.Sprintf("%v/slash-commands", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		slashCommandsUrl.GET("", agentsCtrl.GetDefaultSlashCommands)
+		slashCommandsUrl.POST("/process", agentsCtrl.ProcessSlashCommand)
 	}
 
 	return r
