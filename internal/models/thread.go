@@ -1048,8 +1048,21 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 					},
 				},
 				"minimum_should_match": 1,
+				"filter": []map[string]any{
+					{
+						"nested": map[string]any{
+							"path": "messages",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "messages.id",
+								},
+							},
+						},
+					},
+				},
 			},
 		},
+
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]string{
