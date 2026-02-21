@@ -44,6 +44,17 @@ func (base *Controller) ChangeGeneralInviteStatus(c *gin.Context) {
 		return
 	}
 	userId := userID.(string)
+	
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	orgId := orgID.(string)
+
+	req.OrganisationID = orgId
 
 	code, err := invitation.ChangeGeneralInviteStatus(base.Db.Postgresql, req, base.Logger, userId)
 	if err != nil {

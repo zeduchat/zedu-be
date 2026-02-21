@@ -19,13 +19,13 @@ func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *uti
 		invite models.GeneralInvitation
 	)
 
-	exists := postgresql.CheckExists(db, &invite, "token = ?", req.InvitationID)
+	exists := postgresql.CheckExists(db, &invite, "organisation_id = ? AND active_status = ?", req.OrganisationID, true)
 	if !exists {
-		return http.StatusNotFound, errors.New("invitation does not exists")
+		return http.StatusNotFound, errors.New("no active invitation found for this organisation")
 	}
 
 	if userID != invite.InvitedBy {
-		return http.StatusUnauthorized, errors.New("only invitees can change invitation status")
+		return http.StatusUnauthorized, errors.New("only the inviter can change invitation status")
 	}
 
 	err := invite.ChangeGeneralInviteStatus(db, req)
