@@ -276,37 +276,37 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 	return nil
 }
 
-func (user *User) ChangeMemberActiveStatus(db *gorm.DB, org_id string, status bool) error {
-	var oumCheck OrgUserManagement
+func (user *User) ActivateOrgMember(db *gorm.DB, orgID string) error {
+	result := db.Model(&OrgUserManagement{}).
+		Where("user_id = ? AND organisation_id = ?", user.ID, orgID).
+		Updates(map[string]any{
+			"is_deactivated": false,
+			"status":         "active",
+		})
 
-	exists := postgresql.CheckExists(db, &oumCheck, "user_id = ? AND organisation_id = ?", user.ID, org_id)
-	if !exists {
+	if result.Error != nil {
+		return fmt.Errorf("failed to activate member: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
 		return errors.New("user does not exist in organisation")
 	}
+	return nil
+}
 
-	if status == oumCheck.IsDeactivated {
-		return nil
+func (user *User) DeactivateOrgMember(db *gorm.DB, orgID string) error {
+	result := db.Model(&OrgUserManagement{}).
+		Where("user_id = ? AND organisation_id = ?", user.ID, orgID).
+		Updates(map[string]any{
+			"is_deactivated": true,
+			"status":         "inactive",
+		})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to deactivate member: %w", result.Error)
 	}
-
-	statusStr := "active"
-	if status {
-		statusStr = "inactive"
-	}
-
-	update := map[string]any{
-		"is_deactivated": status,
-		"status":         statusStr,
-	}
-
-	result, err := postgresql.UpdateFields(db, &oumCheck, update, "user_id = ? AND organisation_id = ?", user.ID, org_id)
-	if err != nil {
-		return fmt.Errorf("unable to update field: %w", err)
-	}
-
 	if result.RowsAffected == 0 {
-		return errors.New("failed to update status: user not found in organisation")
+		return errors.New("user does not exist in organisation")
 	}
-
 	return nil
 }
 

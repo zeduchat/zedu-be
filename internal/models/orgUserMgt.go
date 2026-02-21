@@ -90,7 +90,7 @@ type OrgUserRoleInfo struct {
 }
 
 type ChangeMemberActiveStatus struct {
-	Activate bool `gorm:"activate" json:"activate"`
+	Activate bool `json:"active" validate:"boolean"`
 }
 
 type UpdateMemberRoleRequest struct {
