@@ -60,7 +60,7 @@ func (i *GeneralInvitation) CreateShareableInvite(db *gorm.DB, req ShareableInvi
 
 func (i *GeneralInvitation) ChangeGeneralInviteStatus(db *gorm.DB, req ChangeStatus) error {
 	result := db.Model(&GeneralInvitation{}).
-		Where("organisation_id = ?", req.OrganisationID).
+		Where("id = ?", i.ID).
 		Update("active_status", req.Status)
 
 	if result.Error != nil {
