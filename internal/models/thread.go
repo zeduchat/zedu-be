@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -58,6 +59,7 @@ type Threads struct {
 	Reactions                []ReactionDetails         `gorm:"-" json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `gorm:"-" json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `gorm:"-" json:"preview_reply,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -95,6 +97,7 @@ type ThreadDocument struct {
 	Reactions                []ReactionDetails         `json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `json:"preview_reply,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
@@ -978,7 +981,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 	err = db.Model(&DmChannels{}).
 		Select("dm_channels.channel_id").
-		Where("dm_channels.user_id = ? AND dm_channels.org_id = ?", userId, organisationID).
+		Where("dm_channels.org_id = ?", organisationID).
+		Where(`
+			(dm_channels.channel_type = 'group_dm' AND EXISTS (
+				SELECT 1 FROM channel_participants 
+				WHERE channel_participants.channel_id = dm_channels.channel_id 
+				AND channel_participants.user_id = ? 
+				AND channel_participants.deleted_at IS NULL
+			)) 
+			OR 
+			(dm_channels.user_id = ? AND (dm_channels.channel_type = 'dm' OR dm_channels.channel_type = ''))
+		`, userId, userId).
 		Find(&dmChannelIds).Error
 
 	if err != nil {
@@ -1170,7 +1183,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		previeMessage := ""
 
 		if len(messages) > 0 {
-			previeMessage = messages[len(messages)-1].Content
+			previeMessage = BuildPreviewMessage(messages[0].Content, messages[0].Media)
 		}
 
 		threadDoc := ThreadDocument{
@@ -1292,6 +1305,7 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
+	var message Message
 
 	var searchResult struct {
 		Hits struct {
@@ -1313,6 +1327,18 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 	for i, hit := range searchResult.Hits.Hits {
 		threads[i] = hit.Source
 		threads[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[i].UserId)
+		threads[i].PreviewReply = make([]MessageDocument, 0)
+		if threads[i].MessageCount > 0 {
+			messageCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+			msg, _, _ := message.GetAllMessagesByThreadID(messageCtx, threads[i].ID)
+			threads[i].PreviewReply = msg
+		}
 	}
 
 	return
@@ -1565,7 +1591,7 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
-					"order": "asc",
+					"order": "desc",
 				},
 			},
 		},

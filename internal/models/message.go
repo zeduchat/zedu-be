@@ -487,10 +487,9 @@ func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, m
 	return c, firstErr
 }
 
-func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
+func (t *Message) GetAllMessagesByThreadID(c *gin.Context, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument
-		thread   ThreadDocument
 	)
 
 	pag := elastic.GetPagination(c)
@@ -522,11 +521,6 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, db *gorm.DB, userId, 
 
 	if err != nil {
 		return nil, pagR, fmt.Errorf("failed to fetch message records, error: %v", err)
-	}
-
-	err = thread.GetThreadById(ThreadID)
-	if err != nil {
-		return nil, pagR, err
 	}
 
 	messages, err = UnmarshalMessageResponse(messageData)

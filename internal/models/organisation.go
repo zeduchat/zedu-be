@@ -335,12 +335,9 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		}
 		previewMessage := ""
 		if len(previewThread) > 0 {
-			previewMessage = previewThread[0].Content
-			if previewMessage == "" && len(previewThread[0].Media) > 0 {
-				previewMessage = previewThread[0].Media[0].FileType
-			}
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 		}
-
+		chanResp[i].PreviewMessage = previewMessage
 	}
 	query = db.Postgresql.Table("channels").
 		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
