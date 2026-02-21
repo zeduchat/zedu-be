@@ -40,6 +40,116 @@ type ProcessSlashCommandRequest struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
+// Slash command response types
+
+type FailedUser struct {
+	Username string `json:"username"`
+	Error    string `json:"error"`
+}
+
+type SkippedChannel struct {
+	Channel string `json:"channel"`
+	Reason  string `json:"reason"`
+}
+
+type AddToChannelResponse struct {
+	Status      string       `json:"status"`
+	Message     string       `json:"message"`
+	Channel     string       `json:"channel"`
+	AddedUsers  []string     `json:"added_users"`
+	FailedUsers []FailedUser `json:"failed_users"`
+	AddedCount  int          `json:"added_count"`
+	FailedCount int          `json:"failed_count"`
+}
+
+type RemoveFromChannelResponse struct {
+	Status        string       `json:"status"`
+	Message       string       `json:"message"`
+	Channel       string       `json:"channel"`
+	RemovedUsers  []string     `json:"removed_users"`
+	FailedUsers   []FailedUser `json:"failed_users"`
+	RemovedCount  int          `json:"removed_count"`
+	FailedCount   int          `json:"failed_count"`
+}
+
+type BanishResult struct {
+	Username     string   `json:"username"`
+	Status       string   `json:"status"`
+	RemovedFrom  []string `json:"removed_from,omitempty"`
+	AddedTo      string   `json:"added_to,omitempty"`
+	Error        string   `json:"error,omitempty"`
+}
+
+type BanishFromChannelResponse struct {
+	Status         string         `json:"status"`
+	Message        string         `json:"message"`
+	TargetChannel  string         `json:"target_channel"`
+	Results        []BanishResult `json:"results"`
+}
+
+type RestoreResult struct {
+	Username          string   `json:"username"`
+	Status            string   `json:"status"`
+	RestoredChannels  []string `json:"restored_channels,omitempty"`
+	RestoredCount     int      `json:"restored_count,omitempty"`
+	Message           string   `json:"message,omitempty"`
+	Error             string   `json:"error,omitempty"`
+}
+
+type RestoreChannelsResponse struct {
+	Status  string          `json:"status"`
+	Message string          `json:"message"`
+	Results []RestoreResult `json:"results"`
+}
+
+type ExportMembersData struct {
+	ChannelName   string `json:"channel_name"`
+	MemberCount   int    `json:"member_count"`
+	CSVContent    string `json:"csv_content"`
+	ContentType   string `json:"content_type"`
+	FileSuggested string `json:"file_suggested"`
+}
+
+type ExportMembersResponse struct {
+	Status  string              `json:"status"`
+	Message string              `json:"message"`
+	Data    ExportMembersData   `json:"data"`
+}
+
+type PromoteDemoteResult struct {
+	Username     string   `json:"username"`
+	Status       string   `json:"status"`
+	RemovedFrom  []string `json:"removed_from,omitempty"`
+	PromotedTo   string   `json:"promoted_to,omitempty"`
+	DemotedTo    string   `json:"demoted_to,omitempty"`
+	Error        string   `json:"error,omitempty"`
+}
+
+type PromoteResponse struct {
+	Status         string             `json:"status"`
+	Message        string             `json:"message"`
+	TargetChannel  string             `json:"target_channel"`
+	Results        []PromoteDemoteResult `json:"results"`
+}
+
+type DemoteResponse struct {
+	Status         string             `json:"status"`
+	Message        string             `json:"message"`
+	TargetChannel  string             `json:"target_channel"`
+	Results        []PromoteDemoteResult `json:"results"`
+}
+
+type AddToAllOrgChannelsResponse struct {
+	Status          string            `json:"status"`
+	Message         string            `json:"message"`
+	Username        string            `json:"username"`
+	AddedChannels   []string          `json:"added_channels"`
+	AddedCount      int               `json:"added_count"`
+	SkippedChannels []SkippedChannel  `json:"skipped_channels"`
+	SkippedCount    int               `json:"skipped_count"`
+	OrganisationID  string            `json:"organisation_id"`
+}
+
 func (sc *SlashCommand) CreateSlashCommand(db *gorm.DB) (SlashCommand, error) {
 	err := postgresql.CreateOneRecord(db, &sc)
 	if err != nil {

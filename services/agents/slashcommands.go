@@ -92,7 +92,7 @@ func GetDefaultSlashCommands(db *gorm.DB) ([]models.SlashCommand, error) {
 	return response, nil
 }
 
-func ProcessSlashCommand(db *gorm.DB, req models.ProcessSlashCommandRequest) (map[string]interface{}, error) {
+func ProcessSlashCommand(db *gorm.DB, req models.ProcessSlashCommandRequest) (interface{}, error) {
 	// Parse the command to extract command type and arguments
 	commandType, args, err := parseSlashCommand(req.Command)
 	if err != nil {
@@ -222,40 +222,40 @@ func getUserByUsername(db *gorm.DB, username string) (*models.User, error) {
 }
 
 // handleAddToChannel adds users to a channel
-func handleAddToChannel(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChannelResponse, error) {
 	channelName := args["target_channel"]
 	usersStr := args["users"]
 
 	if channelName == "" {
-		return nil, fmt.Errorf("channel name is required")
+		return models.AddToChannelResponse{}, fmt.Errorf("channel name is required")
 	}
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.AddToChannelResponse{}, fmt.Errorf("at least one user is required")
 	}
 
 	// Get channel
 	var channel models.Channels
 	exists := postgresql.CheckExists(db, &channel, "name = ?", channelName)
 	if !exists {
-		return nil, fmt.Errorf("channel not found: %s", channelName)
+		return models.AddToChannelResponse{}, fmt.Errorf("channel not found: %s", channelName)
 	}
 
 	// Get channel details
 	err := db.Where("name = ?", channelName).First(&channel).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get channel: %v", err)
+		return models.AddToChannelResponse{}, fmt.Errorf("failed to get channel: %v", err)
 	}
 
 	users := strings.Split(usersStr, ",")
 	addedUsers := []string{}
-	failedUsers := []map[string]string{}
+	failedUsers := []models.FailedUser{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			failedUsers = append(failedUsers, map[string]string{
-				"username": username,
-				"error":    err.Error(),
+			failedUsers = append(failedUsers, models.FailedUser{
+				Username: username,
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -264,9 +264,9 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (map[string]interfa
 		var userChannel models.UserChannels
 		exists := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channel.ID, user.ID)
 		if exists {
-			failedUsers = append(failedUsers, map[string]string{
-				"username": username,
-				"error":    "user already in channel",
+			failedUsers = append(failedUsers, models.FailedUser{
+				Username: username,
+				Error:    "user already in channel",
 			})
 			continue
 		}
@@ -280,9 +280,9 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (map[string]interfa
 
 		_, err = channel.AddUserToChannel(db, req)
 		if err != nil {
-			failedUsers = append(failedUsers, map[string]string{
-				"username": username,
-				"error":    err.Error(),
+			failedUsers = append(failedUsers, models.FailedUser{
+				Username: username,
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -290,46 +290,46 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (map[string]interfa
 		addedUsers = append(addedUsers, username)
 	}
 
-	return map[string]interface{}{
-		"status":       "completed",
-		"message":      fmt.Sprintf("Add to channel operation completed"),
-		"channel":      channelName,
-		"added_users":  addedUsers,
-		"failed_users": failedUsers,
-		"added_count":  len(addedUsers),
-		"failed_count": len(failedUsers),
+	return models.AddToChannelResponse{
+		Status:      "completed",
+		Message:     "Add to channel operation completed",
+		Channel:     channelName,
+		AddedUsers:  addedUsers,
+		FailedUsers: failedUsers,
+		AddedCount:  len(addedUsers),
+		FailedCount: len(failedUsers),
 	}, nil
 }
 
 // handleRemoveFromChannel removes users from a channel
-func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (models.RemoveFromChannelResponse, error) {
 	channelName := args["target_channel"]
 	usersStr := args["users"]
 
 	if channelName == "" {
-		return nil, fmt.Errorf("channel name is required")
+		return models.RemoveFromChannelResponse{}, fmt.Errorf("channel name is required")
 	}
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.RemoveFromChannelResponse{}, fmt.Errorf("at least one user is required")
 	}
 
 	// Get channel
 	var channel models.Channels
 	err := db.Where("name = ?", channelName).First(&channel).Error
 	if err != nil {
-		return nil, fmt.Errorf("channel not found: %s", channelName)
+		return models.RemoveFromChannelResponse{}, fmt.Errorf("channel not found: %s", channelName)
 	}
 
 	users := strings.Split(usersStr, ",")
 	removedUsers := []string{}
-	failedUsers := []map[string]string{}
+	failedUsers := []models.FailedUser{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			failedUsers = append(failedUsers, map[string]string{
-				"username": username,
-				"error":    err.Error(),
+			failedUsers = append(failedUsers, models.FailedUser{
+				Username: username,
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -337,9 +337,9 @@ func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (map[string]in
 		// Remove user from channel
 		err = channel.RemoveUserFromChannels(db, channel.ID, user.ID)
 		if err != nil {
-			failedUsers = append(failedUsers, map[string]string{
-				"username": username,
-				"error":    err.Error(),
+			failedUsers = append(failedUsers, models.FailedUser{
+				Username: username,
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -347,35 +347,35 @@ func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (map[string]in
 		removedUsers = append(removedUsers, username)
 	}
 
-	return map[string]interface{}{
-		"status":        "completed",
-		"message":       fmt.Sprintf("Remove from channel operation completed"),
-		"channel":       channelName,
-		"removed_users": removedUsers,
-		"failed_users":  failedUsers,
-		"removed_count": len(removedUsers),
-		"failed_count":  len(failedUsers),
+	return models.RemoveFromChannelResponse{
+		Status:        "completed",
+		Message:       "Remove from channel operation completed",
+		Channel:       channelName,
+		RemovedUsers:  removedUsers,
+		FailedUsers:   failedUsers,
+		RemovedCount:  len(removedUsers),
+		FailedCount:   len(failedUsers),
 	}, nil
 }
 
 // handleBanishFromChannel removes users from specified channels and adds them to a target channel
-func handleBanishFromChannel(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleBanishFromChannel(db *gorm.DB, args map[string]string) (models.BanishFromChannelResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
 
 	if targetChannelName == "" {
-		return nil, fmt.Errorf("target channel name is required")
+		return models.BanishFromChannelResponse{}, fmt.Errorf("target channel name is required")
 	}
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.BanishFromChannelResponse{}, fmt.Errorf("at least one user is required")
 	}
 
 	// Get target channel
 	var targetChannel models.Channels
 	err := db.Where("name = ?", targetChannelName).First(&targetChannel).Error
 	if err != nil {
-		return nil, fmt.Errorf("target channel not found: %s", targetChannelName)
+		return models.BanishFromChannelResponse{}, fmt.Errorf("target channel not found: %s", targetChannelName)
 	}
 
 	users := strings.Split(usersStr, ",")
@@ -384,15 +384,15 @@ func handleBanishFromChannel(db *gorm.DB, args map[string]string) (map[string]in
 		sourceChannels = strings.Split(sourceChannelsStr, ",")
 	}
 
-	results := []map[string]interface{}{}
+	results := []models.BanishResult{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "failed",
-				"error":    err.Error(),
+			results = append(results, models.BanishResult{
+				Username: username,
+				Status:   "failed",
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -445,40 +445,40 @@ func handleBanishFromChannel(db *gorm.DB, args map[string]string) (map[string]in
 			_, _ = targetChannel.AddUserToChannel(db, req)
 		}
 
-		results = append(results, map[string]interface{}{
-			"username":     username,
-			"status":       "success",
-			"removed_from": removedFrom,
-			"added_to":     targetChannelName,
+		results = append(results, models.BanishResult{
+			Username:    username,
+			Status:      "success",
+			RemovedFrom: removedFrom,
+			AddedTo:     targetChannelName,
 		})
 	}
 
-	return map[string]interface{}{
-		"status":         "completed",
-		"message":        "Banish from channel operation completed",
-		"target_channel": targetChannelName,
-		"results":        results,
+	return models.BanishFromChannelResponse{
+		Status:        "completed",
+		Message:       "Banish from channel operation completed",
+		TargetChannel: targetChannelName,
+		Results:       results,
 	}, nil
 }
 
 // handleRestoreChannels restores channel access for users by re-adding them to previously banished channels
-func handleRestoreChannels(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleRestoreChannels(db *gorm.DB, args map[string]string) (models.RestoreChannelsResponse, error) {
 	usersStr := args["users"]
 
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.RestoreChannelsResponse{}, fmt.Errorf("at least one user is required")
 	}
 
 	users := strings.Split(usersStr, ",")
-	results := []map[string]interface{}{}
+	results := []models.RestoreResult{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "failed",
-				"error":    err.Error(),
+			results = append(results, models.RestoreResult{
+				Username: username,
+				Status:   "failed",
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -487,19 +487,19 @@ func handleRestoreChannels(db *gorm.DB, args map[string]string) (map[string]inte
 		var history models.UserChannelHistory
 		banishedChannelIDs, err := history.GetBanishedChannelIDs(db, user.ID)
 		if err != nil {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "failed",
-				"error":    fmt.Sprintf("failed to get banished channels: %v", err),
+			results = append(results, models.RestoreResult{
+				Username: username,
+				Status:   "failed",
+				Error:    fmt.Sprintf("failed to get banished channels: %v", err),
 			})
 			continue
 		}
 
 		if len(banishedChannelIDs) == 0 {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "success",
-				"message":  "No banished channels found to restore",
+			results = append(results, models.RestoreResult{
+				Username: username,
+				Status:   "success",
+				Message:  "No banished channels found to restore",
 			})
 			continue
 		}
@@ -547,35 +547,35 @@ func handleRestoreChannels(db *gorm.DB, args map[string]string) (map[string]inte
 			}
 		}
 
-		results = append(results, map[string]interface{}{
-			"username":          username,
-			"status":            "success",
-			"restored_channels": restoredChannels,
-			"restored_count":    len(restoredChannels),
+		results = append(results, models.RestoreResult{
+			Username:         username,
+			Status:           "success",
+			RestoredChannels: restoredChannels,
+			RestoredCount:    len(restoredChannels),
 		})
 	}
 
-	return map[string]interface{}{
-		"status":  "completed",
-		"message": "Restore channels operation completed",
-		"results": results,
+	return models.RestoreChannelsResponse{
+		Status:  "completed",
+		Message: "Restore channels operation completed",
+		Results: results,
 	}, nil
 }
 
 // handleExportMembers exports channel members as CSV
 // Exports: name, email, and role for all members in a channel
-func handleExportMembers(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleExportMembers(db *gorm.DB, args map[string]string) (models.ExportMembersResponse, error) {
 	channelName := args["channel"]
 
 	if channelName == "" {
-		return nil, fmt.Errorf("channel name is required")
+		return models.ExportMembersResponse{}, fmt.Errorf("channel name is required")
 	}
 
 	// Get the channel by name
 	var channel models.Channels
 	err := db.Where("name = ?", channelName).First(&channel).Error
 	if err != nil {
-		return nil, fmt.Errorf("channel not found: %s", channelName)
+		return models.ExportMembersResponse{}, fmt.Errorf("channel not found: %s", channelName)
 	}
 
 	// Get all users in the channel
@@ -587,14 +587,14 @@ func handleExportMembers(db *gorm.DB, args map[string]string) (map[string]interf
 		Find(&users).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch channel members: %v", err)
+		return models.ExportMembersResponse{}, fmt.Errorf("failed to fetch channel members: %v", err)
 	}
 
 	if len(users) == 0 {
-		return map[string]interface{}{
-			"status":  "completed",
-			"message": "No members found in channel",
-			"data":    []string{},
+		return models.ExportMembersResponse{
+			Status:  "completed",
+			Message: "No members found in channel",
+			Data:    models.ExportMembersData{},
 		}, nil
 	}
 
@@ -610,15 +610,15 @@ func handleExportMembers(db *gorm.DB, args map[string]string) (map[string]interf
 	// Combine all lines into a single CSV string
 	csvContent := strings.Join(csvLines, "\n")
 
-	return map[string]interface{}{
-		"status":  "completed",
-		"message": fmt.Sprintf("Exported %d members from channel '%s'", len(users), channelName),
-		"data": map[string]interface{}{
-			"channel_name":   channelName,
-			"member_count":   len(users),
-			"csv_content":    csvContent,
-			"content_type":   "text/csv",
-			"file_suggested": fmt.Sprintf("%s_members.csv", channelName),
+	return models.ExportMembersResponse{
+		Status:  "completed",
+		Message: fmt.Sprintf("Exported %d members from channel '%s'", len(users), channelName),
+		Data: models.ExportMembersData{
+			ChannelName:   channelName,
+			MemberCount:   len(users),
+			CSVContent:    csvContent,
+			ContentType:   "text/csv",
+			FileSuggested: fmt.Sprintf("%s_members.csv", channelName),
 		},
 	}, nil
 }
@@ -636,39 +636,39 @@ func getRoleString(role int) string {
 }
 
 // handlePromote promotes users from specified channels to a target channel
-func handlePromote(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handlePromote(db *gorm.DB, args map[string]string) (models.PromoteResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
 
 	if targetChannelName == "" {
-		return nil, fmt.Errorf("target channel name is required")
+		return models.PromoteResponse{}, fmt.Errorf("target channel name is required")
 	}
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.PromoteResponse{}, fmt.Errorf("at least one user is required")
 	}
 	if sourceChannelsStr == "" {
-		return nil, fmt.Errorf("at least one source channel is required")
+		return models.PromoteResponse{}, fmt.Errorf("at least one source channel is required")
 	}
 
 	// Get target channel
 	var targetChannel models.Channels
 	err := db.Where("name = ?", targetChannelName).First(&targetChannel).Error
 	if err != nil {
-		return nil, fmt.Errorf("target channel not found: %s", targetChannelName)
+		return models.PromoteResponse{}, fmt.Errorf("target channel not found: %s", targetChannelName)
 	}
 
 	users := strings.Split(usersStr, ",")
 	sourceChannels := strings.Split(sourceChannelsStr, ",")
-	results := []map[string]interface{}{}
+	results := []models.PromoteDemoteResult{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "failed",
-				"error":    err.Error(),
+			results = append(results, models.PromoteDemoteResult{
+				Username: username,
+				Status:   "failed",
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -704,66 +704,66 @@ func handlePromote(db *gorm.DB, args map[string]string) (map[string]interface{},
 			}
 			_, err = targetChannel.AddUserToChannel(db, req)
 			if err != nil {
-				results = append(results, map[string]interface{}{
-					"username":     username,
-					"status":       "partial_success",
-					"removed_from": removedFrom,
-					"error":        fmt.Sprintf("failed to add to target channel: %v", err),
+				results = append(results, models.PromoteDemoteResult{
+					Username:     username,
+					Status:       "partial_success",
+					RemovedFrom:  removedFrom,
+					Error:        fmt.Sprintf("failed to add to target channel: %v", err),
 				})
 				continue
 			}
 		}
 
-		results = append(results, map[string]interface{}{
-			"username":     username,
-			"status":       "success",
-			"removed_from": removedFrom,
-			"promoted_to":  targetChannelName,
+		results = append(results, models.PromoteDemoteResult{
+			Username:    username,
+			Status:      "success",
+			RemovedFrom: removedFrom,
+			PromotedTo:  targetChannelName,
 		})
 	}
 
-	return map[string]interface{}{
-		"status":         "completed",
-		"message":        "Promote operation completed",
-		"target_channel": targetChannelName,
-		"results":        results,
+	return models.PromoteResponse{
+		Status:        "completed",
+		Message:       "Promote operation completed",
+		TargetChannel: targetChannelName,
+		Results:       results,
 	}, nil
 }
 
 // handleDemote demotes users from specified channels to a target channel
-func handleDemote(db *gorm.DB, args map[string]string) (map[string]interface{}, error) {
+func handleDemote(db *gorm.DB, args map[string]string) (models.DemoteResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
 
 	if targetChannelName == "" {
-		return nil, fmt.Errorf("target channel name is required")
+		return models.DemoteResponse{}, fmt.Errorf("target channel name is required")
 	}
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.DemoteResponse{}, fmt.Errorf("at least one user is required")
 	}
 	if sourceChannelsStr == "" {
-		return nil, fmt.Errorf("at least one source channel is required")
+		return models.DemoteResponse{}, fmt.Errorf("at least one source channel is required")
 	}
 
 	// Get target channel
 	var targetChannel models.Channels
 	err := db.Where("name = ?", targetChannelName).First(&targetChannel).Error
 	if err != nil {
-		return nil, fmt.Errorf("target channel not found: %s", targetChannelName)
+		return models.DemoteResponse{}, fmt.Errorf("target channel not found: %s", targetChannelName)
 	}
 
 	users := strings.Split(usersStr, ",")
 	sourceChannels := strings.Split(sourceChannelsStr, ",")
-	results := []map[string]interface{}{}
+	results := []models.PromoteDemoteResult{}
 
 	for _, username := range users {
 		user, err := getUserByUsername(db, username)
 		if err != nil {
-			results = append(results, map[string]interface{}{
-				"username": username,
-				"status":   "failed",
-				"error":    err.Error(),
+			results = append(results, models.PromoteDemoteResult{
+				Username: username,
+				Status:   "failed",
+				Error:    err.Error(),
 			})
 			continue
 		}
@@ -799,43 +799,43 @@ func handleDemote(db *gorm.DB, args map[string]string) (map[string]interface{}, 
 			}
 			_, err = targetChannel.AddUserToChannel(db, req)
 			if err != nil {
-				results = append(results, map[string]interface{}{
-					"username":     username,
-					"status":       "partial_success",
-					"removed_from": removedFrom,
-					"error":        fmt.Sprintf("failed to add to target channel: %v", err),
+				results = append(results, models.PromoteDemoteResult{
+					Username:     username,
+					Status:       "partial_success",
+					RemovedFrom:  removedFrom,
+					Error:        fmt.Sprintf("failed to add to target channel: %v", err),
 				})
 				continue
 			}
 		}
 
-		results = append(results, map[string]interface{}{
-			"username":     username,
-			"status":       "success",
-			"removed_from": removedFrom,
-			"demoted_to":   targetChannelName,
+		results = append(results, models.PromoteDemoteResult{
+			Username:    username,
+			Status:      "success",
+			RemovedFrom: removedFrom,
+			DemotedTo:   targetChannelName,
 		})
 	}
 
-	return map[string]interface{}{
-		"status":         "completed",
-		"message":        "Demote operation completed",
-		"target_channel": targetChannelName,
-		"results":        results,
+	return models.DemoteResponse{
+		Status:        "completed",
+		Message:       "Demote operation completed",
+		TargetChannel: targetChannelName,
+		Results:       results,
 	}, nil
 }
 
 // handleAddToAllOrgChannels adds a user to all organization channels
-func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandRequest, args map[string]string) (map[string]interface{}, error) {
+func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandRequest, args map[string]string) (models.AddToAllOrgChannelsResponse, error) {
 	usersStr := args["users"]
 
 	if usersStr == "" {
-		return nil, fmt.Errorf("at least one user is required")
+		return models.AddToAllOrgChannelsResponse{}, fmt.Errorf("at least one user is required")
 	}
 
 	users := strings.Split(usersStr, ",")
 	if len(users) != 1 {
-		return nil, fmt.Errorf("this command only accepts one username")
+		return models.AddToAllOrgChannelsResponse{}, fmt.Errorf("this command only accepts one username")
 	}
 
 	username := users[0]
@@ -843,46 +843,51 @@ func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandReques
 	// Get the invoker's organization ID from context
 	orgIDInterface, ok := req.Context["org_id"]
 	if !ok || orgIDInterface == nil {
-		return nil, fmt.Errorf("organization context is required")
+		return models.AddToAllOrgChannelsResponse{}, fmt.Errorf("organization context is required")
 	}
 
 	orgID, ok := orgIDInterface.(string)
 	if !ok || orgID == "" {
-		return nil, fmt.Errorf("invalid organization context")
+		return models.AddToAllOrgChannelsResponse{}, fmt.Errorf("invalid organization context")
 	}
 
 	// Get the user to be added
 	user, err := getUserByUsername(db, username)
 	if err != nil {
-		return nil, err
+		return models.AddToAllOrgChannelsResponse{}, err
 	}
 
 	// Get all channels in the invoker's organization
 	var channels []models.Channels
 	err = db.Where("organisation_id = ?", orgID).Find(&channels).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch organization channels: %v", err)
+		return models.AddToAllOrgChannelsResponse{}, fmt.Errorf("failed to fetch organization channels: %v", err)
 	}
 
 	if len(channels) == 0 {
-		return map[string]interface{}{
-			"status":  "completed",
-			"message": "No channels found in organization",
-			"results": []map[string]interface{}{},
+		return models.AddToAllOrgChannelsResponse{
+			Status:         "completed",
+			Message:        "No channels found in organization",
+			Username:       username,
+			AddedChannels:  []string{},
+			AddedCount:     0,
+			SkippedChannels: []models.SkippedChannel{},
+			SkippedCount:   0,
+			OrganisationID: orgID,
 		}, nil
 	}
 
 	addedChannels := []string{}
-	skippedChannels := []map[string]string{}
+	skippedChannels := []models.SkippedChannel{}
 
 	for _, channel := range channels {
 		// Check if user is already in channel
 		var userChannel models.UserChannels
 		exists := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", channel.ID, user.ID)
 		if exists {
-			skippedChannels = append(skippedChannels, map[string]string{
-				"channel": channel.Name,
-				"reason":  "already a member",
+			skippedChannels = append(skippedChannels, models.SkippedChannel{
+				Channel: channel.Name,
+				Reason:  "already a member",
 			})
 			continue
 		}
@@ -896,9 +901,9 @@ func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandReques
 
 		_, err = channel.AddUserToChannel(db, joinReq)
 		if err != nil {
-			skippedChannels = append(skippedChannels, map[string]string{
-				"channel": channel.Name,
-				"reason":  err.Error(),
+			skippedChannels = append(skippedChannels, models.SkippedChannel{
+				Channel: channel.Name,
+				Reason:  err.Error(),
 			})
 			continue
 		}
@@ -906,14 +911,14 @@ func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandReques
 		addedChannels = append(addedChannels, channel.Name)
 	}
 
-	return map[string]interface{}{
-		"status":          "completed",
-		"message":         fmt.Sprintf("Added %s to all organization channels", username),
-		"username":        username,
-		"added_channels":  addedChannels,
-		"added_count":     len(addedChannels),
-		"skipped_channels": skippedChannels,
-		"skipped_count":   len(skippedChannels),
-		"organisation_id": orgID,
+	return models.AddToAllOrgChannelsResponse{
+		Status:          "completed",
+		Message:         fmt.Sprintf("Added %s to all organization channels", username),
+		Username:        username,
+		AddedChannels:   addedChannels,
+		AddedCount:      len(addedChannels),
+		SkippedChannels: skippedChannels,
+		SkippedCount:    len(skippedChannels),
+		OrganisationID:  orgID,
 	}, nil
 }
