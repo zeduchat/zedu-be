@@ -10,6 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
@@ -122,22 +123,23 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 												SendAgentNotification(req, logger)
 												processingFinishedSent = true
 												feed := models.FeedMessageRequest{
-													ChannelID:   req.ChannelID,
-													UserName:    orgAgent.AppName,
-													CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-													AvatarURL:   orgAgent.AppLogo,
-													Type:        "message",
-													Content:     fullContent.String(),
-													ThreadId:    req.ThreadId,
-													Email:       "agent",
-													FullName:    orgAgent.AppName,
-													UserId:      *channel.ParticipantId,
-													Media:       req.Media,
-													UserType:    "bot",
-													State:       req.State,
-													ChannelType: "DM",
-													OrgId:       req.OrgId,
-													ChannelName: orgAgent.AppName,
+													ChannelID:        req.ChannelID,
+													UserName:         orgAgent.AppName,
+													CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+													AvatarURL:        orgAgent.AppLogo,
+													DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(*channel.ParticipantId),
+													Type:             "message",
+													Content:          fullContent.String(),
+													ThreadId:         req.ThreadId,
+													Email:            "agent",
+													FullName:         orgAgent.AppName,
+													UserId:           *channel.ParticipantId,
+													Media:            req.Media,
+													UserType:         "bot",
+													State:            req.State,
+													ChannelType:      "DM",
+													OrgId:            req.OrgId,
+													ChannelName:      orgAgent.AppName,
 												}
 
 												err = centrifuge.PublishChannel(logger, req.ChannelID, feed)
@@ -150,19 +152,20 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 											fullContent.WriteString(content)
 
 											feed := models.FeedMessageRequest{
-												ChannelID: req.ChannelID,
-												UserName:  orgAgent.AppName,
-												CreatedAt: time.Now().UTC().Format(time.RFC3339),
-												AvatarURL: orgAgent.AppLogo,
-												Type:      "message",
-												Content:   fullContent.String(),
-												ThreadId:  req.ThreadId,
-												Email:     "agent",
-												FullName:  orgAgent.AppName,
-												UserId:    *channel.ParticipantId,
-												Media:     req.Media,
-												UserType:  "bot",
-												State:     req.State,
+												ChannelID:        req.ChannelID,
+												UserName:         orgAgent.AppName,
+												CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+												AvatarURL:        orgAgent.AppLogo,
+												DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(*channel.ParticipantId),
+												Type:             "message",
+												Content:          fullContent.String(),
+												ThreadId:         req.ThreadId,
+												Email:            "agent",
+												FullName:         orgAgent.AppName,
+												UserId:           *channel.ParticipantId,
+												Media:            req.Media,
+												UserType:         "bot",
+												State:            req.State,
 											}
 
 											notification := models.Notification[models.AgentUpdate]
@@ -259,19 +262,20 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 												fullContent.WriteString(content)
 
 												feed := models.FeedMessageRequest{
-													ChannelID: req.ChannelID,
-													UserName:  orgAgent.AppName,
-													CreatedAt: time.Now().UTC().Format(time.RFC3339),
-													AvatarURL: orgAgent.AppLogo,
-													Type:      "message",
-													Content:   fullContent.String(),
-													ThreadId:  req.ThreadId,
-													Email:     "agent",
-													FullName:  orgAgent.AppName,
-													UserId:    *channel.ParticipantId,
-													Media:     req.Media,
-													UserType:  "bot",
-													State:     req.State,
+													ChannelID:        req.ChannelID,
+													UserName:         orgAgent.AppName,
+													CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+													AvatarURL:        orgAgent.AppLogo,
+													DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(*channel.ParticipantId),
+													Type:             "message",
+													Content:          fullContent.String(),
+													ThreadId:         req.ThreadId,
+													Email:            "agent",
+													FullName:         orgAgent.AppName,
+													UserId:           *channel.ParticipantId,
+													Media:            req.Media,
+													UserType:         "bot",
+													State:            req.State,
 												}
 
 												notification := models.Notification[models.AgentUpdate]

@@ -12,6 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -84,23 +85,24 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	messageDoc := models.MessageDocument{
-		ID:             utility.GenerateUUID(),
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsId,
-		UserID:         req.UserId,
-		ThreadID:       threadId,
-		AgentMessage:   agent_message,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		AvatarURL:      profile.AvatarURL,
-		Edited:         false,
-		UserType:       userType,
-		Username:       utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:       utility.ThisOrThat(profile.FullName, req.AgentName),
-		Email:          user.Email,
-		Media:          req.Media,
-		Mentions:       req.Mentions,
-		OrganisationID: channels.OrganisationID,
+		ID:               utility.GenerateUUID(),
+		Content:          req.Content,
+		ChannelsID:       req.ChannelsId,
+		UserID:           req.UserId,
+		ThreadID:         threadId,
+		AgentMessage:     agent_message,
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Edited:           false,
+		UserType:         userType,
+		Username:         utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:         utility.ThisOrThat(profile.FullName, req.AgentName),
+		Email:            user.Email,
+		Media:            req.Media,
+		Mentions:         req.Mentions,
+		OrganisationID:   channels.OrganisationID,
 	}
 
 	updateResp, err := messageDoc.CreateMessage(db, logger)
@@ -109,21 +111,22 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsId,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt: messageDoc.UpdatedAt.String(),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     user.Email,
-		UserType:  userType,
-		UserName:  utility.ThisOrThat(profile.UserName, req.AgentName),
-		FullName:  utility.ThisOrThat(profile.FullName, req.AgentName),
-		OrgId:     channels.OrganisationID,
-		UserId:    req.UserId,
-		Media:     req.Media,
-		Id:        messageDoc.ID,
+		ChannelID:        req.ChannelsId,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:        messageDoc.UpdatedAt.String(),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         req.ThreadId,
+		Email:            user.Email,
+		UserType:         userType,
+		UserName:         utility.ThisOrThat(profile.UserName, req.AgentName),
+		FullName:         utility.ThisOrThat(profile.FullName, req.AgentName),
+		OrgId:            channels.OrganisationID,
+		UserId:           req.UserId,
+		Media:            req.Media,
+		Id:               messageDoc.ID,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -270,21 +273,22 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsId,
-		CreatedAt: newMsg.CreatedAt.String(),
-		UpdatedAt: newMsg.UpdatedAt.String(),
-		AvatarURL: user.Profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     user.Email,
-		UserType:  newMsg.UserType,
-		UserName:  user.Profile.UserName,
-		FullName:  user.Profile.FullName,
-		OrgId:     req.OrgId,
-		UserId:    req.UserId,
-		Media:     newMsg.Media,
-		Id:        req.MessageId,
+		ChannelID:        req.ChannelsId,
+		CreatedAt:        newMsg.CreatedAt.String(),
+		UpdatedAt:        newMsg.UpdatedAt.String(),
+		AvatarURL:        user.Profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         req.ThreadId,
+		Email:            user.Email,
+		UserType:         newMsg.UserType,
+		UserName:         user.Profile.UserName,
+		FullName:         user.Profile.FullName,
+		OrgId:            req.OrgId,
+		UserId:           req.UserId,
+		Media:            newMsg.Media,
+		Id:               req.MessageId,
 	}
 
 	notification := models.Notification[models.Updated]
