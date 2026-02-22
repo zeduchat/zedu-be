@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net/http"
@@ -349,6 +350,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
 	recentDm := c.Query("recent_dm") == "true"
+	search := c.Query("search") // this search enters username, firstname, lastname or part of email
 	limit := 10
 
 	pagination := postgresql.GetPagination(c)
@@ -370,20 +372,47 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
         )
     `
 
+	args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		queryString += `
+            AND EXISTS (
+                SELECT 1 FROM users u
+                LEFT JOIN profiles p ON p.userid = u.id
+                WHERE (
+                    (u.id = dm_channels.participant_id)
+                    OR
+                    EXISTS (
+                        SELECT 1 FROM channel_participants cp 
+                        WHERE cp.channel_id = dm_channels.channel_id 
+                        AND cp.user_id = u.id
+                    )
+                )
+                AND u.id != ?
+                AND (
+                    u.email ILIKE ? OR 
+                    p.user_name ILIKE ? OR 
+                    p.first_name ILIKE ? OR 
+                    p.last_name ILIKE ?
+                )
+            )
+        `
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
 	if recentDm {
 		queryString += `
 			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
 		`
 		orderBy = "interacted_at"
 		order = "desc"
-		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 
 		// Override pagination to fetch top 10 most recent only
 		pagination.Limit = limit
 	} else {
 		orderBy = "created_at"
 		order = "desc"
-		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 	}
 
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -532,11 +561,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 		}
 
-		slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
-			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
-		})
-
 	}
+
+	slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+		if c := cmp.Compare(b.ThreadCount, a.ThreadCount); c != 0 {
+			return c
+		}
+		return b.CreatedAt.Compare(a.CreatedAt)
+	})
 
 	return dmChansResp, paginationResp, nil
 }
