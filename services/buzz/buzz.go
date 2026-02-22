@@ -335,9 +335,14 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	// Generate Agora token BEFORE adding user to buzz (using userID as UID)
 	// This way if token generation fails, we haven't polluted the database
-	// Use constant for token expiration (4 hours)
+	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+
+	if remainingTime == 0 {
+		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
+	}
+
 	logger.Info("generating Agora RTC token for user %s in buzz %s", userID, buzzID)
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
+	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
 	if err != nil {
 		logger.Error("join buzz failed - Agora token generation error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -924,7 +929,14 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		logger.Error(errorAgoraNotInitialized)
 		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
 	}
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
+
+	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+
+	if remainingTime == 0 {
+		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
+	}
+
+	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
 	if err != nil {
 		logger.Error("buzz creation failed - Agora token generation error for host %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
