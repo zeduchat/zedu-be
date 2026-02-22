@@ -15,7 +15,7 @@ import (
 
 const (
 	// DefaultTokenExpirationSeconds is the default token expiration time (4 hours - matches max buzz duration)
-	DefaultTokenExpirationSeconds = 14400
+	DefaultTokenExpirationSeconds = 5400 // 1 hour 30 minutes
 )
 
 // AgoraService handles Agora RTC token generation
