@@ -93,6 +93,8 @@ type PushNotificationRecord struct {
 	Type                NotificationType    `json:"type"`
 	ModificationDetails ModificationDetails `json:"modificaion_details"`
 	NotificationId      string              `json:"notification_id"`
+	UserIds             []string            `json:"user_ids"`
+	OrgId               string              `json:"org_id"`
 }
 
 type NotificationProcessPayload struct {
@@ -101,6 +103,7 @@ type NotificationProcessPayload struct {
 	ChannelId    string
 	UserId       string
 	ChannelType  ChannelType
+	UserIds      []string
 }
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {
