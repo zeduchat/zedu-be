@@ -16,4 +16,5 @@ type IDS struct {
 	OwnerID        string `json:"owner_id"`
 	Type           string `json:"type"`
 	WorkflowID     string `json:"workflow_id"`
+	Search         string `json:"search"`
 }
