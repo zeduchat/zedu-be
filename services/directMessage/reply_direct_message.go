@@ -23,6 +23,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		profile models.Profile
 		user    models.User
 		channel models.DmChannels
+		threads models.ThreadDocument
 	)
 
 	threadId, err := uuid.FromString(req.ThreadId)
@@ -130,6 +131,11 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	}
 
 	logger.Info("added notification to queue for channel %s", req.ChannelsId)
+
+	threads.ID = req.ThreadId
+	threads.OrganisationID = channel.OrgId
+
+	thread.TrackThreadNotification(req.UserId, req.ChannelsId, channel.OrgId, &threads, logger)
 
 	return &messageDoc, http.StatusCreated, nil
 }

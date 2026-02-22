@@ -945,6 +945,70 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
+func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
+	var thread ThreadDocument
+	err := thread.GetThreadById(t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if thread.OrganisationID != t.OrganisationID {
+		return nil, fmt.Errorf("thread does not belong to the organisation")
+	}
+
+	userIDsMap := make(map[string]struct{})
+
+	if thread.UserId != "" {
+		userIDsMap[thread.UserId] = struct{}{}
+	}
+
+	for _, m := range thread.Mentions {
+		if m.ID != "" && m.Type == "user" {
+			userIDsMap[m.ID] = struct{}{}
+		}
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id": t.ID,
+			},
+		},
+		"size": 10000,
+	}
+
+	var messageData any
+	err = elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	messages, err := UnmarshalMessageResponse(messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range messages {
+		if msg.UserID != "" {
+			userIDsMap[msg.UserID] = struct{}{}
+		}
+		for _, m := range msg.Mentions {
+			if m.ID != "" && m.Type == "user" {
+				userIDsMap[m.ID] = struct{}{}
+			}
+		}
+	}
+
+	participantIDs := make([]string, 0, len(userIDsMap))
+	for userID := range userIDsMap {
+		if userID != userId {
+			participantIDs = append(participantIDs, userID)
+		}
+	}
+
+	return participantIDs, nil
+}
+
 func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
 	var (
 		threads      []Threads
