@@ -86,6 +86,14 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Resolve role_id if missing or invalid
+		if _, roleOk := claims["role_id"].(string); !roleOk {
+			var membership models.OrgUserManagement
+			if err := db.Where("user_id = ? AND organisation_id = ?", userID, org_id).First(&membership).Error; err == nil && membership.RoleID != "" {
+				claims["role_id"] = membership.RoleID
+			}
+		}
+
 		// check if access id exists and fetch it
 		accessID, ok := claims["access_uuid"].(string) //convert the interface to string
 		if !ok {

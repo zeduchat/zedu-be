@@ -15,10 +15,7 @@ import (
 )
 
 func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (int, error) {
-	var (
-		invite models.GeneralInvitation
-		oum    models.OrgUserManagement
-	)
+	var invite models.GeneralInvitation
 
 	// Fetch the most recent invitation for this org
 	err := db.Where("organisation_id = ?", req.OrganisationID).
@@ -26,15 +23,6 @@ func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *uti
 		First(&invite).Error
 	if err != nil {
 		return http.StatusNotFound, errors.New("no invitation found for this organisation")
-	}
-
-	// Check if the user is an org owner or admin
-	if !oum.CheckIsOrganisationAdmin(db, models.IDS{OrganisationID: req.OrganisationID, OwnerID: userID}) {
-		var org models.Organisation
-		org, orgErr := org.CheckOrgExists(req.OrganisationID, db)
-		if orgErr != nil || org.OwnerID != userID {
-			return http.StatusForbidden, errors.New("only an admin or owner can change invitation status")
-		}
 	}
 
 	err = invite.ChangeGeneralInviteStatus(db, req)

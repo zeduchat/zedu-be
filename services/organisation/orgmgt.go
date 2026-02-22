@@ -213,11 +213,6 @@ func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
 		r   models.OrgRole
 	)
 
-	is_admin := oum.CheckIsOrganisationAdmin(db, ids)
-	if !is_admin {
-		return http.StatusForbidden, errors.New("user is not authorized to modify role")
-	}
-
 	exists := r.CheckExists(db, ids.RoleID)
 	if !exists {
 		return http.StatusNotFound, errors.New("provided role does not exist")

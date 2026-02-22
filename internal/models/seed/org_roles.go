@@ -75,6 +75,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanCreateWebhooks:               true,
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            true,
+			CanManageGeneralInviteLink:      true,
 		}
 	case "Guest":
 		permission.PermissionList = models.PermissionList{
@@ -111,6 +112,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanCreateWebhooks:               true,
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            true,
+			CanManageGeneralInviteLink:      true,
 		}
 	case "Project Lead":
 		permission.PermissionList = models.PermissionList{
@@ -123,6 +125,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanCreateWebhooks:               false,
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            true,
+			CanManageGeneralInviteLink:      true,
 		}
 	}
 

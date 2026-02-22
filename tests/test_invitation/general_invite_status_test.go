@@ -20,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -33,6 +34,8 @@ func setupOrgWithGeneralInvite(t *testing.T) (string, string, string) {
 	gin.SetMode(gin.TestMode)
 	validatorRef := validator.New()
 	db := storage.Connection()
+
+	ensurePermissionSeeded(t, db)
 
 	uuid := utility.GenerateUUID()
 	signUp := models.CreateUserRequestModel{
@@ -116,13 +119,38 @@ func getDefaultRole(t *testing.T, db *storage.Database) string {
 	return role.ID
 }
 
+// ensurePermissionSeeded updates the Administrator role's permissions to include
+// can_manage_general_invite_link if not already set (needed for test DB where
+// seeds may have run before this permission existed).
+func ensurePermissionSeeded(t *testing.T, db *storage.Database) {
+	t.Helper()
+	var adminRole models.OrgRole
+	if err := db.Postgresql.Where("name = ?", "Administrator").First(&adminRole).Error; err != nil {
+		t.Fatalf("failed to find Administrator role: %v", err)
+	}
+	var perm models.Permission
+	if err := db.Postgresql.Where("role_id = ?", adminRole.ID).First(&perm).Error; err != nil {
+		t.Fatalf("failed to find permission for Administrator role: %v", err)
+	}
+	if !perm.PermissionList.CanManageGeneralInviteLink {
+		perm.PermissionList.CanManageGeneralInviteLink = true
+		db.Postgresql.Save(&perm)
+	}
+	// Invalidate Redis cache so PermissionMiddleware picks up the updated permissions
+	rd.RedisDelete(db.Redis, "role_permissions_"+adminRole.ID)
+}
+
 // callChangeGeneralInviteStatus calls POST /invite/general/change-status
+// with PermissionMiddleware enforcing can_manage_general_invite_link
 func callChangeGeneralInviteStatus(t *testing.T, db *storage.Database, invCtrl inviteCtrl.Controller, token string, status bool) *httptest.ResponseRecorder {
 	t.Helper()
 
 	r := gin.Default()
 	invUrl := r.Group("/api/v1/invite", middleware.Authorize(db.Postgresql))
-	invUrl.POST("/general/change-status", invCtrl.ChangeGeneralInviteStatus)
+	invUrl.POST("/general/change-status",
+		middleware.PermissionMiddleware(db.Postgresql, db.Redis, "can_manage_general_invite_link"),
+		invCtrl.ChangeGeneralInviteStatus,
+	)
 
 	body := map[string]bool{"status": status}
 	var b bytes.Buffer

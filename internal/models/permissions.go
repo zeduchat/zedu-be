@@ -30,6 +30,7 @@ type PermissionList struct {
 	CanViewChannels                 bool `json:"can_view_channels"`
 	CanChangeUserOrgRole            bool `json:"can_change_user_org_role"`
 	CanDeleteAnyFile                bool `json:"can_delete_any_file"`
+	CanManageGeneralInviteLink      bool `json:"can_manage_general_invite_link"`
 }
 
 func (p PermissionList) ToSlice() []string {
@@ -63,6 +64,9 @@ func (p PermissionList) ToSlice() []string {
 	}
 	if p.CanDeleteAnyFile {
 		permissions = append(permissions, "can_delete_any_file")
+	}
+	if p.CanManageGeneralInviteLink {
+		permissions = append(permissions, "can_manage_general_invite_link")
 	}
 	return permissions
 }
@@ -102,6 +106,7 @@ func OrgUserHasPermission(permissionList PermissionList, permission string) bool
 		"can_view_channels":                   permissionList.CanViewChannels,
 		"can_change_user_org_role":            permissionList.CanChangeUserOrgRole,
 		"can_delete_any_file":                 permissionList.CanDeleteAnyFile,
+		"can_manage_general_invite_link":      permissionList.CanManageGeneralInviteLink,
 	}
 
 	if allowed, exists := permissionMap[permission]; exists && allowed {

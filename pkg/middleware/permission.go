@@ -20,11 +20,13 @@ func PermissionMiddleware(db *gorm.DB, rdb *redis.Client, requiredPermission str
 		userClaims := common.GetAllUserClaims(c)
 		roleID, ok := userClaims["role_id"].(string)
 
-		if !ok {
+		if !ok || roleID == "" {
 			r := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Missing role", nil)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, r)
 			return
 		}
+
+		var permissionList models.PermissionList
 
 		cacheKey := "role_permissions_" + roleID
 		cachedPermissions, err := rd.RedisGet(rdb, cacheKey)
@@ -37,21 +39,21 @@ func PermissionMiddleware(db *gorm.DB, rdb *redis.Client, requiredPermission str
 				return
 			}
 
-			rd.RedisSet(rdb, cacheKey, permissions.Permissions.PermissionList, 24*time.Hour)
+			permissionList = permissions.Permissions.PermissionList
+			rd.RedisSet(rdb, cacheKey, permissionList, 24*time.Hour)
 		} else {
-			var permissionList models.PermissionList
 			err = json.Unmarshal(cachedPermissions, &permissionList)
 			if err != nil {
 				r := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Internal Server Error", "Failed to load permissions", nil)
 				c.AbortWithStatusJSON(http.StatusInternalServerError, r)
 				return
 			}
+		}
 
-			if !models.OrgUserHasPermission(permissionList, requiredPermission) {
-				r := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have the required permissions", nil)
-				c.AbortWithStatusJSON(http.StatusForbidden, r)
-				return
-			}
+		if !models.OrgUserHasPermission(permissionList, requiredPermission) {
+			r := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have the required permissions", nil)
+			c.AbortWithStatusJSON(http.StatusForbidden, r)
+			return
 		}
 
 		c.Next()
