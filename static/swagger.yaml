@@ -3241,6 +3241,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          in: query
+          required: false
+          description: Search channels by name.
+          schema:
+            type: string
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -11521,6 +11527,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          required: false
+          description: Search DM channels by participant details (email, username, first name, last name).
+          schema:
+            type: string
       responses:
         "200":
           description: Dm channels retrieved successfully
