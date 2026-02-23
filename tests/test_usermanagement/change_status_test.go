@@ -121,6 +121,42 @@ func getDefaultRoleID(t *testing.T, db *storage.Database) string {
 	return role.ID
 }
 
+// helper to call PATCH /:org_id/users/:user_id/status and return the response
+func callChangeStatus(t *testing.T, db *storage.Database, orgCtrl organisation.Controller, orgID, userID, token string, active bool) *httptest.ResponseRecorder {
+	t.Helper()
+
+	r := gin.Default()
+	orgUrl := r.Group("/api/v1/organisations", middleware.Authorize(db.Postgresql))
+	orgUrl.PATCH("/:org_id/users/:user_id/status", orgCtrl.ChangeMemberActiveStatus)
+
+	body := map[string]bool{"active": active}
+	var b bytes.Buffer
+	json.NewEncoder(&b).Encode(body)
+
+	reqURI := url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users/%s/status", orgID, userID)}
+	req, err := http.NewRequest(http.MethodPatch, reqURI.String(), &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	return rr
+}
+
+// helper to read org_user_managements row and return is_deactivated, status
+func getOrgMemberState(t *testing.T, db *storage.Database, userID, orgID string) (bool, string) {
+	t.Helper()
+	var oum models.OrgUserManagement
+	err := db.Postgresql.Where("user_id = ? AND organisation_id = ?", userID, orgID).First(&oum).Error
+	if err != nil {
+		t.Fatalf("failed to query OrgUserManagement: %v", err)
+	}
+	return oum.IsDeactivated, oum.Status
+}
+
 func TestChangeMemberActiveStatus(t *testing.T) {
 	orgId, adminToken, memberUserID, _ := setupTwoUsersInOrg(t)
 
@@ -133,81 +169,83 @@ func TestChangeMemberActiveStatus(t *testing.T) {
 		Logger:    logger,
 	}
 
-	tests := []struct {
-		Name         string
-		RequestBody  models.ChangeMemberActiveStatus
-		ExpectedCode int
-		Message      string
-		UserID       string
-		OrgID        string
-		Token        string
-	}{
-		{
-			Name:         "Deactivate member - should succeed",
-			RequestBody:  models.ChangeMemberActiveStatus{Activate: false},
-			ExpectedCode: http.StatusOK,
-			Message:      "success",
-			UserID:       memberUserID,
-			OrgID:        orgId,
-			Token:        adminToken,
-		},
-		{
-			Name:         "Reactivate member - should succeed and actually update",
-			RequestBody:  models.ChangeMemberActiveStatus{Activate: true},
-			ExpectedCode: http.StatusOK,
-			Message:      "success",
-			UserID:       memberUserID,
-			OrgID:        orgId,
-			Token:        adminToken,
-		},
-	}
+	// 1. Deactivate the member
+	t.Run("Deactivate member", func(t *testing.T) {
+		rr := callChangeStatus(t, db, orgCtrl, orgId, memberUserID, adminToken, false)
 
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			r := gin.Default()
-			orgUrl := r.Group("/api/v1/organisations", middleware.Authorize(db.Postgresql))
-			orgUrl.PATCH("/:org_id/users/:user_id/status", orgCtrl.ChangeMemberActiveStatus)
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+		data := tst.ParseResponse(rr)
+		tst.AssertResponseMessage(t, data["message"].(string), "success")
 
-			var b bytes.Buffer
-			json.NewEncoder(&b).Encode(test.RequestBody)
-
-			reqURI := url.URL{Path: fmt.Sprintf("/api/v1/organisations/%s/users/%s/status", test.OrgID, test.UserID)}
-			req, err := http.NewRequest(http.MethodPatch, reqURI.String(), &b)
-			if err != nil {
-				t.Fatal(err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("Authorization", "Bearer "+test.Token)
-
-			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
-
-			tst.AssertStatusCode(t, rr.Code, test.ExpectedCode)
-			data := tst.ParseResponse(rr)
-			code := int(data["status_code"].(float64))
-			tst.AssertStatusCode(t, code, test.ExpectedCode)
-
-			if test.Message != "" {
-				message := data["message"]
-				if message != nil {
-					tst.AssertResponseMessage(t, message.(string), test.Message)
-				}
-			}
-		})
-	}
-
-	// --- Critical assertion: verify the DB state after reactivation ---
-	t.Run("Verify member is_deactivated=false and status=active after reactivation", func(t *testing.T) {
-		var oum models.OrgUserManagement
-		err := db.Postgresql.Where("user_id = ? AND organisation_id = ?", memberUserID, orgId).First(&oum).Error
-		if err != nil {
-			t.Fatalf("failed to query OrgUserManagement: %v", err)
+		// verify the response says "deactivated"
+		dataStr, ok := data["data"].(string)
+		if !ok || dataStr != "user deactivated successfully" {
+			t.Errorf("expected response data 'user deactivated successfully', got %q", dataStr)
 		}
-		if oum.IsDeactivated {
-			t.Errorf("BUG: member is still deactivated after reactivation request. is_deactivated=%v, expected false", oum.IsDeactivated)
+	})
+
+	// 2. Verify DB state after deactivation
+	t.Run("Verify DB state after deactivation", func(t *testing.T) {
+		isDeactivated, status := getOrgMemberState(t, db, memberUserID, orgId)
+		if !isDeactivated {
+			t.Errorf("expected is_deactivated=true after deactivation, got %v", isDeactivated)
 		}
-		if oum.Status != "active" {
-			t.Errorf("BUG: member status not updated after reactivation. status=%q, expected \"active\"", oum.Status)
+		if status != "inactive" {
+			t.Errorf("expected status='inactive' after deactivation, got %q", status)
+		}
+	})
+
+	// 3. Reactivate the member
+	t.Run("Reactivate member", func(t *testing.T) {
+		rr := callChangeStatus(t, db, orgCtrl, orgId, memberUserID, adminToken, true)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+		data := tst.ParseResponse(rr)
+		tst.AssertResponseMessage(t, data["message"].(string), "success")
+
+		// verify the response says "activated"
+		dataStr, ok := data["data"].(string)
+		if !ok || dataStr != "user activated successfully" {
+			t.Errorf("expected response data 'user activated successfully', got %q", dataStr)
+		}
+	})
+
+	// 4. Verify DB state after reactivation
+	t.Run("Verify DB state after reactivation", func(t *testing.T) {
+		isDeactivated, status := getOrgMemberState(t, db, memberUserID, orgId)
+		if isDeactivated {
+			t.Errorf("BUG: is_deactivated still true after reactivation")
+		}
+		if status != "active" {
+			t.Errorf("BUG: status=%q after reactivation, expected 'active'", status)
+		}
+	})
+
+	// 5. Deactivate again to confirm toggle works repeatedly
+	t.Run("Deactivate again after reactivation", func(t *testing.T) {
+		rr := callChangeStatus(t, db, orgCtrl, orgId, memberUserID, adminToken, false)
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		isDeactivated, status := getOrgMemberState(t, db, memberUserID, orgId)
+		if !isDeactivated {
+			t.Errorf("expected is_deactivated=true after second deactivation, got %v", isDeactivated)
+		}
+		if status != "inactive" {
+			t.Errorf("expected status='inactive' after second deactivation, got %q", status)
+		}
+	})
+
+	// 6. Reactivate again to confirm full cycle
+	t.Run("Reactivate again after second deactivation", func(t *testing.T) {
+		rr := callChangeStatus(t, db, orgCtrl, orgId, memberUserID, adminToken, true)
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		isDeactivated, status := getOrgMemberState(t, db, memberUserID, orgId)
+		if isDeactivated {
+			t.Errorf("BUG: is_deactivated still true after second reactivation")
+		}
+		if status != "active" {
+			t.Errorf("BUG: status=%q after second reactivation, expected 'active'", status)
 		}
 	})
 }
@@ -225,23 +263,57 @@ func TestChangeMemberActiveStatus_SelfChange(t *testing.T) {
 		Logger:    logger,
 	}
 
-	r := gin.Default()
-	orgUrl := r.Group("/api/v1/organisations", middleware.Authorize(db.Postgresql))
-	orgUrl.PATCH("/:org_id/users/:user_id/status", orgCtrl.ChangeMemberActiveStatus)
-
-	// We use any orgId here since the self-check should fail before DB lookup
-	reqBody := models.ChangeMemberActiveStatus{Activate: false}
-	var b bytes.Buffer
-	json.NewEncoder(&b).Encode(reqBody)
-
-	// Use a dummy orgId - the self-check triggers before org validation
-	req, _ := http.NewRequest(http.MethodPatch,
-		fmt.Sprintf("/api/v1/organisations/%s/users/%s/status", utility.GenerateUUID(), adminUserID), &b)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+adminToken)
-
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
-
+	rr := callChangeStatus(t, db, orgCtrl, utility.GenerateUUID(), adminUserID, adminToken, false)
 	tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+}
+
+func TestChangeMemberActiveStatus_NonAdmin(t *testing.T) {
+	orgId, _, memberUserID, memberToken := setupTwoUsersInOrg(t)
+
+	db := storage.Connection()
+	logger := tst.Setup()
+
+	orgCtrl := organisation.Controller{
+		Db:        db,
+		Validator: validator.New(),
+		Logger:    logger,
+	}
+
+	// a non-admin member should not be able to deactivate another member
+	rr := callChangeStatus(t, db, orgCtrl, orgId, memberUserID, memberToken, false)
+	tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+}
+
+func TestChangeMemberActiveStatus_InvalidUserID(t *testing.T) {
+	orgId, adminToken, _, _ := setupTwoUsersInOrg(t)
+
+	db := storage.Connection()
+	logger := tst.Setup()
+
+	orgCtrl := organisation.Controller{
+		Db:        db,
+		Validator: validator.New(),
+		Logger:    logger,
+	}
+
+	rr := callChangeStatus(t, db, orgCtrl, orgId, "not-a-uuid", adminToken, false)
+	tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+}
+
+func TestChangeMemberActiveStatus_NonExistentUser(t *testing.T) {
+	orgId, adminToken, _, _ := setupTwoUsersInOrg(t)
+
+	db := storage.Connection()
+	logger := tst.Setup()
+
+	orgCtrl := organisation.Controller{
+		Db:        db,
+		Validator: validator.New(),
+		Logger:    logger,
+	}
+
+	rr := callChangeStatus(t, db, orgCtrl, orgId, utility.GenerateUUID(), adminToken, false)
+	if rr.Code == http.StatusOK {
+		t.Errorf("expected error status for non-existent user, got 200")
+	}
 }

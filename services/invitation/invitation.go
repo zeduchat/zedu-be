@@ -17,18 +17,27 @@ import (
 func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (int, error) {
 	var (
 		invite models.GeneralInvitation
+		oum    models.OrgUserManagement
 	)
 
-	exists := postgresql.CheckExists(db, &invite, "token = ?", req.InvitationID)
-	if !exists {
-		return http.StatusNotFound, errors.New("invitation does not exists")
+	// Fetch the most recent invitation for this org
+	err := db.Where("organisation_id = ?", req.OrganisationID).
+		Order("created_at DESC").
+		First(&invite).Error
+	if err != nil {
+		return http.StatusNotFound, errors.New("no invitation found for this organisation")
 	}
 
-	if userID != invite.InvitedBy {
-		return http.StatusUnauthorized, errors.New("only invitees can change invitation status")
+	// Check if the user is an org owner or admin
+	if !oum.CheckIsOrganisationAdmin(db, models.IDS{OrganisationID: req.OrganisationID, OwnerID: userID}) {
+		var org models.Organisation
+		org, orgErr := org.CheckOrgExists(req.OrganisationID, db)
+		if orgErr != nil || org.OwnerID != userID {
+			return http.StatusForbidden, errors.New("only an admin or owner can change invitation status")
+		}
 	}
 
-	err := invite.ChangeGeneralInviteStatus(db, req)
+	err = invite.ChangeGeneralInviteStatus(db, req)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
 	}

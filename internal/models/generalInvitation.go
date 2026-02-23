@@ -28,8 +28,8 @@ type ShareableInviteRequest struct {
 }
 
 type ChangeStatus struct {
-	Status       bool   `json:"status" validate:"required"`
-	InvitationID string `gorm:"type:uuid" json:"invitation_id" validate:"required"`
+	Status         bool   `json:"status"`
+	OrganisationID string `json:"-"`
 }
 
 type ShareableInviteResponse struct {
@@ -59,17 +59,16 @@ func (i *GeneralInvitation) CreateShareableInvite(db *gorm.DB, req ShareableInvi
 }
 
 func (i *GeneralInvitation) ChangeGeneralInviteStatus(db *gorm.DB, req ChangeStatus) error {
-	updates := map[string]any{
-		"active_status": req.Status,
-	}
+	result := db.Model(&GeneralInvitation{}).
+		Where("id = ?", i.ID).
+		Update("active_status", req.Status)
 
-	result, err := postgresql.UpdateFields(db, &i, updates, "token = ?", req.InvitationID)
-	if err != nil {
-		return fmt.Errorf("failed to update general invitation status: %s", err)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update general invitation status: %s", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		return errors.New("invitation not found")
+		return errors.New("no general invitations found for this organisation")
 	}
 
 	return nil

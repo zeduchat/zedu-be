@@ -153,6 +153,15 @@ func (h *Buzz) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+func (h *Buzz) GetRemainingTime(maxDurationInSeconds int) uint32 {
+	elapsed := time.Since(h.CreatedAt).Seconds()
+	remaining := float64(maxDurationInSeconds) - elapsed
+	if remaining < 0 {
+		return 0
+	}
+	return uint32(remaining)
+}
+
 func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 	if hp.ID == "" {
 		hp.ID = utility.GenerateUUID()
