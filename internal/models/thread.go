@@ -356,6 +356,7 @@ type ThreadWithMessagesResponse struct {
 	SenderAvatarURL        string           `json:"sender_avatar_url"`
 	SenderDefaultAvatarURL string           `json:"sender_default_avatar_url"`
 	ChannelType            string           `json:"channel_type"`
+	ThreadId               string           `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -1299,6 +1300,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		}
 
 		result = append(result, ThreadWithMessagesResponse{
+			ThreadId:               threadDoc.ID,
 			ThreadMessages:         []ThreadDocument{threadDoc},
 			ChannelName:            channelName,
 			Participants:           participants,

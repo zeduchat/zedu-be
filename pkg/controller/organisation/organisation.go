@@ -123,6 +123,7 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 	ids := models.IDS{
 		UserID:         userId,
 		OrganisationID: orgID,
+		Search:         c.Query("search"),
 	}
 
 	respData, paginationResponse, code, err := organisation.GetAllChannelssInTeam(base.Db, c, ids)
