@@ -3097,6 +3097,26 @@ paths:
             type: string
             format: uuid
           description: ID of the organisation to check for the channel.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search channels by name.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page.
       responses:
         "200":
           description: Get all channels in an organisation
@@ -29426,38 +29446,82 @@ components:
           type: string
           example: "channels fetched successfully"
         data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+              name:
+                type: string
+                example: "hackers"
+              description:
+                type: string
+                example: "this room is meant for hackers"
+              organisation_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              is_private:
+                type: boolean
+                example: false
+              owner_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              archived:
+                type: boolean
+                example: false
+              group_id:
+                type: string
+                format: uuid
+                nullable: true
+                example: null
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-27T15:28:20.499875+01:00"
+              last_thread_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              access:
+                type: boolean
+                example: true
+              member_avatars:
+                type: array
+                items:
+                  type: string
+                example: ["https://example.com/avatar1.jpg"]
+              members_count:
+                type: integer
+                example: 10
+              last_post_time:
+                type: string
+                example: "5 minutes ago"
+              unread_count:
+                type: integer
+                example: 0
+              channel_slug:
+                type: string
+                example: "hackers-a158cc0f7e3a"
+        pagination:
           type: object
           properties:
-            additional_info:
-              type: object
-              properties:
-                channels_count:
-                  type: integer
-                  example: 1
-                totalmessage_count:
-                  type: integer
-                  example: 1
-            channels:
-              type: array
-              items:
-                type: object
-                properties:
-                  channels_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
-                  name:
-                    type: string
-                    example: "hackers"
-                  description:
-                    type: string
-                    example: "this room is meant for hackers"
-                  organisation_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
-                  owner_id:
-                    type: string
+            current_page:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 10
+            total_items:
+              type: integer
+              example: 1
                     format: uuid
                     example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
                   users:
