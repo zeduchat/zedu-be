@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
@@ -55,11 +54,10 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
-		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
 			"text":   "In a meeting",
 			"emoji":  "📅",
-			"expiry": expiry,
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -80,8 +78,8 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 		if profile.RiverJobID == nil {
 			t.Fatalf("expected river_job_id to be set, got nil")
 		}
-		if profile.StatusTimeout != fmt.Sprintf("%d", expiry) {
-			t.Fatalf("expected status_timeout %d, got %s", expiry, profile.StatusTimeout)
+		if profile.StatusTimeout == "" {
+			t.Fatalf("expected status_timeout to be set, got empty string")
 		}
 	})
 
@@ -125,10 +123,9 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
-		firstExpiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
 			"text":   "Initial status",
-			"expiry": firstExpiry,
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -151,10 +148,9 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 			t.Fatalf("expected first job_id to be set")
 		}
 
-		newExpiry := time.Now().Add(1 * time.Hour).Unix()
 		payload = map[string]any{
 			"text":   "Updated status",
-			"expiry": newExpiry,
+			"expiry": "1 hour",
 		}
 		body, _ = json.Marshal(payload)
 

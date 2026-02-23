@@ -110,7 +110,7 @@ type UpdateProfileStatus struct {
 type PartialStatusUpdate struct {
 	Text       *string `json:"text"`
 	Emoji      *string `json:"emoji"`
-	Expiry     *int64  `json:"expiry"`
+	Expiry     *string `json:"expiry"`
 	Visibility *string `json:"visibility"`
 	UserID     string  `json:"-"`
 }
@@ -120,7 +120,7 @@ type PartialStatusUpdate struct {
 type SetStatusRequest struct {
 	Text       string  `json:"text" validate:"required,min=1,max=255"`
 	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace,emoji"`
-	Expiry     *int64  `json:"expiry,omitempty" validate:"omitempty,min=0"`
+	Expiry     *string `json:"expiry,omitempty" validate:"omitempty,status_expiry"`
 	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
 	UserID     string  `json:"-"`
 }

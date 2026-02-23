@@ -245,7 +245,6 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 func (base *Controller) SetUserStatus(c *gin.Context) {
 	var req models.SetStatusRequest
 
-	
 	userClaims := common.GetAllUserClaims(c)
 	userID, ok := userClaims["user_id"].(string)
 	userIdParam := c.Param("user_id")
@@ -359,10 +358,6 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 		if !utility.IsValidEmoji(*req.Emoji) {
 			return http.StatusBadRequest, errors.New("emoji must be a valid Unicode emoji")
 		}
-	}
-
-	if req.Expiry != nil && *req.Expiry < 0 {
-		return http.StatusBadRequest, errors.New("expiry must be a non-negative unix timestamp (seconds)")
 	}
 
 	if req.Visibility != nil {

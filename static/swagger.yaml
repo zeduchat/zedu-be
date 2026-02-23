@@ -28247,16 +28247,21 @@ components:
           maxLength: 64
           example: ":spiral_calendar_pad:"
         expiry:
-          type: integer
-          format: int64
-          description: Unix timestamp in seconds after which the status expires
-          example: 1715107200
+          type: string
+          description: Human-readable expiry time in user's timezone. Case-insensitive.
+          enum:
+          - "30 minutes"
+          - "1 hour"
+          - "Today"
+          - "This week"
+          - "Don't remove"
+          example: "Today"
         visibility:
           type: string
           enum:
-            - public
-            - contacts
-            - private
+          - public
+          - contacts
+          - private
           description: Status visibility level
           example: "public"
 

@@ -285,6 +285,21 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
 	}
 
+	var expiryTimestamp int64
+	if req.Expiry != nil && *req.Expiry != "" {
+		var err error
+		expiryTimestamp, err = parseStatusExpiry(*req.Expiry, profile.Timezone)
+		if err != nil {
+			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+		}
+
+		if strings.ToLower(strings.TrimSpace(*req.Expiry)) == "don't remove" ||
+			strings.ToLower(strings.TrimSpace(*req.Expiry)) == "dont remove" ||
+			strings.ToLower(strings.TrimSpace(*req.Expiry)) == "do not remove" {
+			expiryTimestamp = 0
+		}
+	}
+
 	updates := map[string]any{}
 	if req.Text != nil {
 		updates["text"] = *req.Text
@@ -293,7 +308,11 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		updates["icon"] = *req.Emoji
 	}
 	if req.Expiry != nil {
-		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
+		if expiryTimestamp > 0 {
+			updates["status_timeout"] = strconv.FormatInt(expiryTimestamp, 10)
+		} else {
+			updates["status_timeout"] = ""
+		}
 	}
 	if req.Visibility != nil {
 		updates["status_visibility"] = *req.Visibility
@@ -319,12 +338,12 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		}
 	}
 
-	if req.Expiry != nil && *req.Expiry > 0 {
+	if req.Expiry != nil && expiryTimestamp > 0 {
 		jobArgs := &models.ClearUserStatusJobArgs{
 			UserID: req.UserID,
 			OrgID:  "",
 		}
-		scheduledAt := time.Unix(*req.Expiry, 0)
+		scheduledAt := time.Unix(expiryTimestamp, 0)
 		insertRes, err := jobArgs.InsertClearStatusJob(ctx, storage.DB, scheduledAt)
 		if err != nil {
 			logger.Error("failed to insert clear status job: %v", err)
@@ -335,7 +354,7 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 				logger.Error("failed to update river_job_id: %v", err)
 			}
 		}
-	} else if req.Expiry != nil && *req.Expiry == 0 {
+	} else if req.Expiry != nil {
 		if err := db.Model(&models.Profile{}).
 			Where("userid = ?", req.UserID).
 			Update("river_job_id", nil).Error; err != nil {
@@ -392,6 +411,67 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 	return status, http.StatusOK, nil
 }
 
+
+func parseStatusExpiry(expiryStr, timezone string) (int64, error) {
+	if expiryStr == "" {
+		return 0, nil
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(expiryStr))
+	now := time.Now()
+
+	var loc *time.Location
+	if timezone != "" {
+		var err error
+		loc, err = time.LoadLocation(timezone)
+		if err != nil {
+			loc = time.UTC
+		}
+	} else {
+		loc = time.UTC
+	}
+
+	nowInTz := now.In(loc)
+
+	switch normalized {
+	case "30 minutes", "30 minute":
+		return nowInTz.Add(30 * time.Minute).Unix(), nil
+
+	case "1 hour", "1 hr":
+		return nowInTz.Add(1 * time.Hour).Unix(), nil
+
+	case "today":
+		endOfDay := time.Date(
+			nowInTz.Year(),
+			nowInTz.Month(),
+			nowInTz.Day(),
+			23, 59, 59, 0,
+			loc,
+		)
+		return endOfDay.Unix(), nil
+
+	case "this week":
+		daysUntilSunday := (7 - int(nowInTz.Weekday())) % 7
+		if daysUntilSunday == 0 {
+			daysUntilSunday = 7
+		}
+		endOfWeek := time.Date(
+			nowInTz.Year(),
+			nowInTz.Month(),
+			nowInTz.Day(),
+			23, 59, 59, 0,
+			loc,
+		).AddDate(0, 0, daysUntilSunday)
+		return endOfWeek.Unix(), nil
+
+	case "don't remove", "dont remove", "do not remove":
+		return 0, nil
+
+	default:
+		return 0, fmt.Errorf("invalid expiry value: %s", expiryStr)
+	}
+}
+
 // SetUserStatus sets a new status for a user and returns the saved status.
 // Text is required; emoji, expiry, and visibility are optional.
 func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
@@ -404,6 +484,21 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
 	}
 
+	var expiryTimestamp int64
+	if req.Expiry != nil && *req.Expiry != "" {
+		var err error
+		expiryTimestamp, err = parseStatusExpiry(*req.Expiry, profile.Timezone)
+		if err != nil {
+			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+		}
+
+		if strings.ToLower(strings.TrimSpace(*req.Expiry)) == "don't remove" ||
+			strings.ToLower(strings.TrimSpace(*req.Expiry)) == "dont remove" ||
+			strings.ToLower(strings.TrimSpace(*req.Expiry)) == "do not remove" {
+			expiryTimestamp = 0
+		}
+	}
+
 	updates := map[string]any{
 		"text": req.Text,
 	}
@@ -414,8 +509,8 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		updates["icon"] = ""
 	}
 
-	if req.Expiry != nil {
-		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
+	if expiryTimestamp > 0 {
+		updates["status_timeout"] = strconv.FormatInt(expiryTimestamp, 10)
 	} else {
 		updates["status_timeout"] = ""
 	}
@@ -442,12 +537,12 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		}
 	}
 
-	if req.Expiry != nil && *req.Expiry > 0 {
+	if expiryTimestamp > 0 {
 		jobArgs := &models.ClearUserStatusJobArgs{
 			UserID: req.UserID,
 			OrgID:  "",
 		}
-		scheduledAt := time.Unix(*req.Expiry, 0)
+		scheduledAt := time.Unix(expiryTimestamp, 0)
 		insertRes, err := jobArgs.InsertClearStatusJob(ctx, storage.DB, scheduledAt)
 		if err != nil {
 			logger.Error("failed to insert clear status job: %v", err)
