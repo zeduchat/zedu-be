@@ -644,6 +644,7 @@ func (base *Controller) GetUserChannels(c *gin.Context) {
 	ids := models.IDS{
 		OrganisationID: org_id,
 		UserID:         userId,
+		Search:         c.Query("search"),
 	}
 
 	userchannels, err := channel.GetUserChannels(base.Db, ids)

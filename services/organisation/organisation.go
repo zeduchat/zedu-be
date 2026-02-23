@@ -226,6 +226,19 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 
 	org.OrganisationSlug = slug.Make(org.Name)
 
+	// Check if the org has an active general invite link
+	var generalInvite models.GeneralInvitation
+	err = db.Where("organisation_id = ?", orgId).Order("created_at DESC").First(&generalInvite).Error
+	if err == nil {
+		if generalInvite.ActiveStatus {
+			org.InviteLinkStatus = "enabled"
+		} else {
+			org.InviteLinkStatus = "disabled"
+		}
+	} else {
+		org.InviteLinkStatus = "disabled"
+	}
+
 	return &org, nil
 }
 

@@ -6,6 +6,10 @@ import (
 	"regexp"
 	"strings"
 
+	"net/http"
+	"net/url"
+
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -77,12 +81,14 @@ func ProcessNotification(req Job, logger *utility.Logger) error {
 		ChannelId:    notification.ChannelId,
 		UserId:       feed.UserId,
 		ChannelType:  notification.ChannelType,
+		UserIds:      notification.UserIds,
 	}
 
 	typeCall := map[models.ChannelType]func(db *gorm.DB, notification models.NotificationProcessPayload, logger *utility.Logger) error{
 		models.Channel:        ChannelNotification,
 		models.DMChannel:      DMNotification,
 		models.GroupDMChannel: DMNotification,
+		models.ThreadChannel:  ThreadNotification,
 	}
 
 	err = typeCall[notification.ChannelType](db, processPayload, logger)
@@ -285,4 +291,46 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 	}
 
 	return typeCall[notifPayload.ChannelType]()
+}
+
+func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
+
+	var (
+		orgId   = notifPayload.OrgId
+		userIds = notifPayload.UserIds
+	)
+
+	for _, userId := range userIds {
+		threadCtx := &gin.Context{
+			Request: &http.Request{
+				URL: &url.URL{
+					RawQuery: "page=1&limit=10",
+				},
+			},
+		}
+
+		var t models.Threads
+		t.UserId = userId
+		t.OrganisationID = orgId
+
+		res, _, err := t.GetUserThreadsByOrganization(threadCtx, db, logger)
+		if err != nil {
+			logger.Error("Error fetching user threads for user %s: %v", userId, err)
+			continue
+		}
+
+		notifPayload.Notification.Content = res
+		notifPayload.Notification.NotificationId = utility.GenerateUUID()
+
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, userId), notifPayload.Notification)
+		if err != nil {
+			logger.Error("Error publishing thread notification for user %s: %v", userId, err)
+		}
+
+		logger.Info("published thread notification to user %s", userId)
+	}
+
+	logger.Info("published thread notification to %d users", len(userIds))
+
+	return nil
 }

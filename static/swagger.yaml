@@ -3241,6 +3241,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          in: query
+          required: false
+          description: Search channels by name.
+          schema:
+            type: string
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -11521,6 +11527,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          required: false
+          description: Search DM channels by participant details (email, username, first name, last name).
+          schema:
+            type: string
       responses:
         "200":
           description: Dm channels retrieved successfully
@@ -22411,6 +22423,7 @@ paths:
       tags:
         - General-Invitation
       summary: Change the status of a general invitation
+      description: Disables or enables the general invite link for the organisation. The organisation is determined from the authenticated user's context. Only the user who created the invite can change its status.
       requestBody:
         required: true
         content:
@@ -22419,14 +22432,11 @@ paths:
               type: object
               required:
                 - status
-                - invitation_id
               properties:
                 status:
                   type: boolean
-                  example: true
-                invitation_id:
-                  type: string
-                  example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
+                  description: The new status of the invitation (`true` for active, `false` for disabled).
+                  example: false
       responses:
         "200":
           description: Invitation status updated successfully
@@ -22444,6 +22454,10 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+        "401":
+          description: Unauthorized - organization context missing or user is not the inviter
+        "404":
+          description: No active invitation found for this organisation
 
   /telexai/chat:
     post:

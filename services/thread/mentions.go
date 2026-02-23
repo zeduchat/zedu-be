@@ -11,6 +11,7 @@ import (
 	"github.com/typesense/typesense-go/v2/typesense"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
@@ -84,28 +85,29 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:             req.ThreadId,
-		Username:       utility.ThisOrThat(profile.UserName, req.AgentName),
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsID,
-		Type:           messageType,
-		MessageCount:   0,
-		AvatarURL:      profile.AvatarURL,
-		FullName:       utility.ThisOrThat(profile.FullName, req.AgentName),
-		Email:          user.Email,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		CurrentStatus:  "pending",
-		UserType:       userType,
-		UserId:         req.UserId,
-		Messages:       []models.MessageDocument{},
-		ChannelName:    channel.Name,
-		ChannelType:    channelType,
-		Status:         "success",
-		Edited:         false,
-		Mentions:       req.Mentions,
-		Media:          req.Media,
-		OrganisationID: channel.OrganisationID,
+		ID:               req.ThreadId,
+		Username:         utility.ThisOrThat(profile.UserName, req.AgentName),
+		Content:          req.Content,
+		ChannelsID:       req.ChannelsID,
+		Type:             messageType,
+		MessageCount:     0,
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(req.UserId),
+		FullName:         utility.ThisOrThat(profile.FullName, req.AgentName),
+		Email:            user.Email,
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		CurrentStatus:    "pending",
+		UserType:         userType,
+		UserId:           req.UserId,
+		Messages:         []models.MessageDocument{},
+		ChannelName:      channel.Name,
+		ChannelType:      channelType,
+		Status:           "success",
+		Edited:           false,
+		Mentions:         req.Mentions,
+		Media:            req.Media,
+		OrganisationID:   channel.OrganisationID,
 	}
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
@@ -123,21 +125,22 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID:   req.ChannelsID,
-		UserName:    utility.ThisOrThat(profile.UserName, req.AgentName),
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		AvatarURL:   profile.AvatarURL,
-		Type:        "message",
-		Content:     req.Content,
-		ThreadId:    threadDoc.ID,
-		Email:       user.Email,
-		UserType:    userType,
-		FullName:    utility.ThisOrThat(profile.FullName, req.AgentName),
-		UserId:      req.UserId,
-		OrgId:       channel.OrganisationID,
-		Media:       req.Media,
-		ChannelName: channel.Name,
-		ChannelType: channelType,
+		ChannelID:        req.ChannelsID,
+		UserName:         utility.ThisOrThat(profile.UserName, req.AgentName),
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         threadDoc.ID,
+		Email:            user.Email,
+		UserType:         userType,
+		FullName:         utility.ThisOrThat(profile.FullName, req.AgentName),
+		UserId:           req.UserId,
+		OrgId:            channel.OrganisationID,
+		Media:            req.Media,
+		ChannelName:      channel.Name,
+		ChannelType:      channelType,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)

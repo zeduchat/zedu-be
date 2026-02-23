@@ -98,21 +98,22 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID:   req.ChannelsID,
-		UserName:    profile.UserName,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		AvatarURL:   profile.AvatarURL,
-		Type:        "message",
-		Content:     req.Content,
-		ThreadId:    threadDoc.ID,
-		Email:       user.Email,
-		FullName:    profile.FullName,
-		UserId:      req.UserId,
-		UserType:    "user",
-		Media:       req.Media,
-		ChannelName: username,
-		ChannelType: "DM",
-		OrgId:       channel.OrgId,
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         threadDoc.ID,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserId:           req.UserId,
+		UserType:         "user",
+		Media:            req.Media,
+		ChannelName:      username,
+		ChannelType:      "DM",
+		OrgId:            channel.OrgId,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -247,18 +248,19 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	}
 
 	publishfeed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserId:    req.UserId,
-		UserType:  "user",
-		Media:     req.Media,
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         threadDoc.ID,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserId:           req.UserId,
+		UserType:         "user",
+		Media:            req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)
@@ -414,16 +416,17 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 		}
 
 		feed := models.FeedMessageRequest{
-			ChannelID: req.ChannelID,
-			UserName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
-			CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			AvatarURL: utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
-			Type:      "message",
-			Content:   req.Content,
-			Email:     "agent",
-			FullName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
-			UserType:  "bot",
-			State:     req.State,
+			ChannelID:        req.ChannelID,
+			UserName:         utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+			AvatarURL:        utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
+			DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.AgentId),
+			Type:             "message",
+			Content:          req.Content,
+			Email:            "agent",
+			FullName:         utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			UserType:         "bot",
+			State:            req.State,
 		}
 
 		err := centrifuge.PublishChannel(logger, req.ChannelID, feed)
@@ -487,19 +490,20 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelID,
-		UserName:  orgAgent.AppName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: orgAgent.AppLogo,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     "agent",
-		FullName:  orgAgent.AppName,
-		UserId:    *channel.ParticipantId,
-		Media:     req.Media,
-		UserType:  "bot",
-		State:     req.State,
+		ChannelID:        req.ChannelID,
+		UserName:         orgAgent.AppName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        orgAgent.AppLogo,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.AgentId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         req.ThreadId,
+		Email:            "agent",
+		FullName:         orgAgent.AppName,
+		UserId:           *channel.ParticipantId,
+		Media:            req.Media,
+		UserType:         "bot",
+		State:            req.State,
 	}
 
 	notification := models.Notification[models.AgentUpdate]
@@ -663,15 +667,16 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 	)
 
 	publishfeed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		Type:      "message",
-		Content:   req.Content,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserType:  "user",
-		ThreadId:  "00000000-0000-0000-0000-000000000000",
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserIdentifier),
+		Type:             "message",
+		Content:          req.Content,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserType:         "user",
+		ThreadId:         "00000000-0000-0000-0000-000000000000",
 	}
 
 	err := centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)
