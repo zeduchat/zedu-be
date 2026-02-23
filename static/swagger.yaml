@@ -29522,32 +29522,6 @@ components:
             total_items:
               type: integer
               example: 1
-                    format: uuid
-                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-                  users:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
-                  user_count:
-                    type: integer
-                    example: 0
-                  message_count:
-                    type: integer
-                    example: 0
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2024-08-12T15:23:56.147736+01:00"
-                  deleted_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:13:35+00:13"
-                  messages:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
     ConnectionTokenResponseSchema:
       type: object
       properties:
