@@ -304,7 +304,7 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 		threadCtx := &gin.Context{
 			Request: &http.Request{
 				URL: &url.URL{
-					RawQuery: "page=1&limit=10",
+					RawQuery: "page=1&limit=20",
 				},
 			},
 		}
