@@ -410,15 +410,16 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 func GetAUserForMentions(userIDStr, requestingUserID, orgID string, db *gorm.DB) (models.UserMentionResponse, int, error) {
 	var (
 		userResp models.UserMentionResponse
-		orgMgt   models.OrgUserManagement
 	)
 
-	_, err := orgMgt.GetByIDs(db, requestingUserID, orgID)
+	var requestingUserOrgMgt models.OrgUserManagement
+	_, err := requestingUserOrgMgt.GetByIDs(db, requestingUserID, orgID)
 	if err != nil {
 		return userResp, http.StatusForbidden, errors.New("requesting user not in current organization")
 	}
 
-	_, err = orgMgt.GetByIDs(db, userIDStr, orgID)
+	var targetUserOrgMgt models.OrgUserManagement
+	_, err = targetUserOrgMgt.GetByIDs(db, userIDStr, orgID)
 	if err != nil {
 		return userResp, http.StatusForbidden, errors.New("target user not in the same organization")
 	}
