@@ -501,6 +501,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		OrgId:            threadResp.OrganisationID,
 		UserId:           threadResp.UserId,
 		Media:            threadResp.Media,
+		Edited:           true,
 	}
 
 	notification := models.Notification[models.Updated]

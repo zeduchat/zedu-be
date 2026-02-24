@@ -324,6 +324,7 @@ type FeedMessageRequest struct {
 	ChannelType              string                    `json:"channel_type,omitempty"` // public, private, or DM
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	Edited                   bool                      `json:"edited"`
 }
 
 type Mentions struct {
