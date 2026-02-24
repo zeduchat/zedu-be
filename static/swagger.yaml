@@ -6632,6 +6632,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/mentions/{user_id}:
+    get:
+      tags:
+        - user
+      summary: Retrieve minimal user information for mentions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The user ID
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "jdoe"
+                      fullname:
+                        type: string
+                        example: "John Doe"
+                      firstname:
+                        type: string
+                        example: "John"
+                      lastname:
+                        type: string
+                        example: "Doe"
+                      avatar_url:
+                        type: string
+                        example: "http://example.com/custom_avatar.jpg"
+                      default_avatar_url:
+                        type: string
+                        example: "http://example.com/avatar.jpg"
+                      display_name:
+                        type: string
+                        example: "Johnny"
+                      status_text:
+                        type: string
+                        example: "Working from home"
+                      userid:
+                        type: string
+                        example: "00000000-0000-0000-0000-000000000000"
+                      online_status:
+                        type: boolean
+                        example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /users/me:
     get:
       tags:
