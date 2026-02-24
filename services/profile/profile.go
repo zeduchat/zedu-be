@@ -394,12 +394,10 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		notification.ModificationDetails = &models.ModificationDetails{
 			UserId: req.UserID,
 		}
-		notification.Content = struct {
-			UserID string            `json:"user_id"`
-			Status models.UserStatus `json:"status"`
-		}{
+		notification.Content = models.UserStatusWithCause{
 			UserID: req.UserID,
 			Status: status,
+			Cause:  "manual",
 		}
 
 		channelID := fmt.Sprintf("user:%s", req.UserID)
@@ -410,7 +408,6 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 
 	return status, http.StatusOK, nil
 }
-
 
 func parseStatusExpiry(expiryStr, timezone string) (int64, error) {
 	if expiryStr == "" {
@@ -593,12 +590,10 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		notification.ModificationDetails = &models.ModificationDetails{
 			UserId: req.UserID,
 		}
-		notification.Content = struct {
-			UserID string            `json:"user_id"`
-			Status models.UserStatus `json:"status"`
-		}{
+		notification.Content = models.UserStatusWithCause{
 			UserID: req.UserID,
 			Status: status,
+			Cause:  "manual",
 		}
 
 		channelID := fmt.Sprintf("user:%s", req.UserID)

@@ -140,6 +140,13 @@ type UserStatus struct {
 	Online     bool   `json:"online"`
 }
 
+// Used when status is automatically cleared to inform frontend why.
+type UserStatusWithCause struct {
+	UserID string     `json:"user_id"`
+	Status UserStatus `json:"status"`
+	Cause  string     `json:"cause,omitempty"` // "expired", "manual"
+}
+
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
 	var userProfile Profile
 

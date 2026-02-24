@@ -2,9 +2,11 @@ package riverqueueBg
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/riverqueue/river"
 	"gorm.io/gorm"
@@ -26,6 +28,11 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 
 	w.logger.Info("Processing ClearUserStatusJob for UserID: %s", job.Args.UserID)
 
+	var profile models.Profile
+	if err := w.db.Where("userid = ?", job.Args.UserID).First(&profile).Error; err != nil {
+		w.logger.Error("Failed to fetch profile for user %s: %v", job.Args.UserID, err)
+	}
+
 	updates := map[string]any{
 		"text":           "",
 		"icon":           "",
@@ -40,6 +47,29 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		return err
 	}
 
-	w.logger.Info("Successfully cleared status for user %s", job.Args.UserID)
+	notification := models.Notification[models.StatusUpdate]
+	notification.SectionType = models.ChannelsSection
+	notification.NotificationId = utility.GenerateUUID()
+	notification.ModificationDetails = &models.ModificationDetails{
+		UserId: job.Args.UserID,
+	}
+	notification.Content = models.UserStatusWithCause{
+		UserID: job.Args.UserID,
+		Status: models.UserStatus{
+			Text:       "",
+			Emoji:      "",
+			Expiry:     0,
+			Visibility: "public",
+			Online:     profile.Online,
+		},
+		Cause: "expired",
+	}
+
+	channelID := fmt.Sprintf("user:%s", job.Args.UserID)
+	if err := centrifuge.PublishChannel(w.logger, channelID, notification); err != nil {
+		w.logger.Error("Failed to publish status cleared event", "error", err, "channel_id", channelID)
+	}
+
+	w.logger.Info("Successfully cleared status for user %s and published to centrifugo", job.Args.UserID)
 	return nil
 }
