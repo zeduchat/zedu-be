@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/user"
@@ -339,7 +340,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		}
 
 		avatarUrl := u.Profile.AvatarURL
-		defaultAvatarUrl := u.Profile.DefaultAvatarURL
+		defaultAvatarUrl := avatar.GenerateDefaultAvatarURL(u.ID)
 
 		var activityLength string
 		if al := user.GetActivityLength(u); al != nil {

@@ -53,6 +53,9 @@ func Send(extReq request.ExternalRequest, db *gorm.DB, rdb *redis.Client, notifi
 		}, names.SendWaitListLetterMail: func() error {
 			return req.SendWaitListletterMail()
 		},
+		names.SendBuzzInvitationEmail: func() error {
+			return req.SendBuzzInvitationEmail()
+		},
 	}
 
 	err = callEmailFunc[name]()

@@ -243,30 +243,35 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 
 // SetUserStatus sets a new status for the authenticated user.
 func (base *Controller) SetUserStatus(c *gin.Context) {
+	var req models.SetStatusRequest
+
 	userClaims := common.GetAllUserClaims(c)
 	userID, ok := userClaims["user_id"].(string)
 	userIdParam := c.Param("user_id")
 
 	if !utility.IsValidUUID(userIdParam) {
+		base.Logger.Error("invalid user id format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	if userIdParam != userID {
+		base.Logger.Error("forbidden to update another user's status")
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to update another user's status", "forbidden", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
 	}
 
 	if !ok {
+		base.Logger.Error("unable to get user id from claims")
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 
-	var req models.SetStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("failed to parse request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -279,6 +284,7 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 	}
 
 	// Validate using go-playground validator
+	base.Logger.Error("validation failed")
 	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
@@ -289,11 +295,13 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 
 	status, code, err := profile.SetUserStatus(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
+		base.Logger.Error("failed to set user status")
 		rd := utility.BuildErrorResponse(code, "error", "Failed to set user status", err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
+	base.Logger.Info("user status set successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "User status set successfully", status)
 	c.JSON(http.StatusCreated, rd)
 }
@@ -462,5 +470,29 @@ func (base *Controller) GetUserRoleInOrganisation(c *gin.Context) {
 
 	base.Logger.Info("user role fetched successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User role fetched successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAUserForMentions(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	requestingUserID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+
+	userData, code, err := service.GetAUserForMentions(userID, requestingUserID, orgID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
 	c.JSON(http.StatusOK, rd)
 }

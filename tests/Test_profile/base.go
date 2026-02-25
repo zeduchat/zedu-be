@@ -70,4 +70,7 @@ func SetupProfileRoutes(r *gin.Engine, profileController *profile.Controller) {
 	profileUrl.PATCH("/profile", profileController.UpdateProfile)
 	profileUrl.GET("/profile", profileController.GetUserProfile)
 	profileUrl.DELETE("/profile/image", profileController.DeleteUserProfileImage)
+	profileUrl.POST("/profile/presence", profileController.ChangeProfilePresence)
+	profileUrl.GET("/profile/presence", profileController.GetProfilePresence)
+	profileUrl.GET("/profile/presence/:user_id", profileController.GetProfilePresence)
 }

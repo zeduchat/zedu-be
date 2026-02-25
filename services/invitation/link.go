@@ -13,13 +13,13 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/actions/names"
-	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -294,9 +294,8 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			IsActive:    true,
 			CurrentOrg:  orgId,
 			Profile: models.Profile{
-				ID:               utility.GenerateUUID(),
-				UserName:         name,
-				DefaultAvatarURL: auth.GenerateDefaultAvatarURL(),
+				ID:       utility.GenerateUUID(),
+				UserName: name,
 			},
 		}
 
@@ -400,7 +399,8 @@ func buildUserResponse(user models.User, tokenData *middleware.TokenDetailDTO) g
 			"fullname":           user.Profile.FirstName + " " + user.Profile.LastName,
 			"phone":              user.Profile.Phone,
 			"avatar_url":         user.Profile.AvatarURL,
-			"default_avatar_url": user.Profile.DefaultAvatarURL,
+			"default_avatar_url": avatar.GenerateDefaultAvatarURL(user.ID),
+			"online":             user.Profile.Online,
 			"current_org":        user.CurrentOrg,
 			"expires_in":         strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":         strconv.Itoa(int(user.CreatedAt.Unix())),

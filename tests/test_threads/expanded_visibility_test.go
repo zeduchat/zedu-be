@@ -152,6 +152,7 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 				UserID:    userID_A,
 				ThreadID:  uuid.Nil,
 				CreatedAt: now.Add(-4 * time.Hour),
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -181,6 +182,7 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 				Username:  userData[0].UserName,
 				ThreadID:  uuid.Nil,
 				CreatedAt: now.Add(-3 * time.Hour),
+				ChannelsID: channelId,
 			},
 		},
 	}
@@ -194,6 +196,7 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 		Username:  userData[2].UserName,
 		ThreadID:  uuid.FromStringOrNil(thread1.ID),
 		CreatedAt: now.Add(-2 * time.Hour),
+		ChannelsID: channelId,
 	}
 	thread1.Messages = append(thread1.Messages, commentByC)
 
@@ -205,6 +208,7 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 		Username:  userData[1].UserName,
 		ThreadID:  uuid.FromStringOrNil(thread1.ID),
 		CreatedAt: now.Add(-1 * time.Hour),
+		ChannelsID: channelId,
 		Mentions: []models.Mention{
 			{Type: "user", ID: userID_C},
 		},
@@ -218,6 +222,11 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 		if err := td.CreateThread(db, logger); err != nil {
 			t.Fatalf("Failed to create test thread: %v", err)
 		}
+		for _, msg := range td.Messages {
+			if _, err := msg.CreateMessage(db, logger); err != nil {
+				t.Fatalf("Failed to create test message: %v", err)
+			}
+		}
 	}
 
 	time.Sleep(2 * time.Second)
@@ -230,9 +239,9 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 		ThreadIDs     []string
 	}{
 		{
-			Name:          "User A visibility (all 3 threads)",
+			Name:          "User A visibility (all 2 threads)",
 			Token:         token_A,
-			ExpectedCount: 3,
+			ExpectedCount: 2,
 			ThreadIDs:     []string{thread1.ID, thread2.ID},
 		},
 		{

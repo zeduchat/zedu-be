@@ -20,6 +20,9 @@ func (AgentJobArgs) Kind() string { return "agent_job" }
 
 func (w *AgentJobArgs) InsertAgentJob(ctx context.Context) error {
 	client := storage.DB.River
+	if client == nil {
+		return nil
+	}
 	_, err := client.Insert(ctx, w, &river.InsertOpts{
 		MaxAttempts: 5,
 		ScheduledAt: time.Now().Add(time.Minute),

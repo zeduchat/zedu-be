@@ -43,6 +43,14 @@ type SendInvitationLink struct {
 	OrganisationName string `json:"organisation_name" validate:"required"`
 }
 
+type SendBuzzInvitationEmail struct {
+	Email       string `json:"email" validate:"required"`
+	InviteeName string `json:"invitee_name" validate:"required"`
+	InviterName string `json:"inviter_name" validate:"required"`
+	BuzzCode    string `json:"buzz_code" validate:"required"`
+	JoinLink    string `json:"join_link" validate:"required"`
+}
+
 type SendMagicLink struct {
 	Email     string `json:"email"  validate:"required"`
 	MagicLink string `json:"magic_link"  validate:"required"`
@@ -85,6 +93,8 @@ type PushNotificationRecord struct {
 	Type                NotificationType    `json:"type"`
 	ModificationDetails ModificationDetails `json:"modificaion_details"`
 	NotificationId      string              `json:"notification_id"`
+	UserIds             []string            `json:"user_ids"`
+	OrgId               string              `json:"org_id"`
 }
 
 type NotificationProcessPayload struct {
@@ -93,6 +103,7 @@ type NotificationProcessPayload struct {
 	ChannelId    string
 	UserId       string
 	ChannelType  ChannelType
+	UserIds      []string
 }
 
 func (n *NotificationRecord) PushToQueue(rdb *redis.Client) error {

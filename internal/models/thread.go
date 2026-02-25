@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -35,6 +37,7 @@ type Threads struct {
 	MessageCount             int64                     `gorm:"type:int;" json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarURL         string                    `json:"default_avatar_url"`
 	Type                     string                    `gorm:"default:thread" json:"type"`
 	Content                  string                    `gorm:"type:text;index" json:"message"`
 	ChannelName              string                    `json:"channel_name,omitempty"`
@@ -56,6 +59,7 @@ type Threads struct {
 	Reactions                []ReactionDetails         `gorm:"-" json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `gorm:"-" json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `gorm:"-" json:"preview_reply,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -71,6 +75,7 @@ type ThreadDocument struct {
 	MessageCount             int64                     `json:"message_count"`
 	LastReply                time.Time                 `json:"last_reply"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarURL         string                    `json:"default_avatar_url"`
 	UserType                 string                    `json:"user_type"`
 	Type                     string                    `json:"type"`
 	Content                  string                    `json:"message"`
@@ -92,20 +97,22 @@ type ThreadDocument struct {
 	Reactions                []ReactionDetails         `json:"reactions"`
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	PreviewReply             []MessageDocument         `json:"preview_reply,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
-	OriginalMessageID       string    `json:"original_message_id"`
-	OriginalSenderID        string    `json:"original_sender_id"`
-	OriginalSenderName      string    `json:"original_sender_name"`
-	OriginalSenderUsername  string    `json:"original_sender_username"`
-	OriginalSenderAvatarURL string    `json:"original_sender_avatar_url"`
-	OriginalChannelID       string    `json:"original_channel_id"`
-	OriginalChannelName     string    `json:"original_channel_name"`
-	OriginalChannelType     string    `json:"original_channel_type"` // public, private, or DM
-	OriginalCreatedAt       time.Time `json:"original_created_at"`
-	OriginalContent         string    `json:"original_content"`
-	IsThread                bool      `json:"is_thread"`
+	OriginalMessageID              string    `json:"original_message_id"`
+	OriginalSenderID               string    `json:"original_sender_id"`
+	OriginalSenderName             string    `json:"original_sender_name"`
+	OriginalSenderUsername         string    `json:"original_sender_username"`
+	OriginalSenderAvatarURL        string    `json:"original_sender_avatar_url"`
+	OriginalSenderDefaultAvatarURL string    `json:"original_sender_default_avatar_url"`
+	OriginalChannelID              string    `json:"original_channel_id"`
+	OriginalChannelName            string    `json:"original_channel_name"`
+	OriginalChannelType            string    `json:"original_channel_type"` // public, private, or DM
+	OriginalCreatedAt              time.Time `json:"original_created_at"`
+	OriginalContent                string    `json:"original_content"`
+	IsThread                       bool      `json:"is_thread"`
 }
 
 var MediaMapping = map[string]any{
@@ -168,14 +175,15 @@ var Thread_mapping = map[string]any{
 				"type":   "date",
 				"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 			},
-			"avatar_url":     map[string]string{"type": "text"},
-			"type":           map[string]string{"type": "keyword"},
-			"message":        map[string]string{"type": "text"},
-			"channel_name":   map[string]string{"type": "keyword"},
-			"channel_type":   map[string]string{"type": "text"},
-			"current_status": map[string]string{"type": "text"},
-			"full_name":      map[string]string{"type": "text"},
-			"email":          map[string]string{"type": "text"},
+			"avatar_url":         map[string]string{"type": "text"},
+			"default_avatar_url": map[string]string{"type": "text"},
+			"type":               map[string]string{"type": "keyword"},
+			"message":            map[string]string{"type": "text"},
+			"channel_name":       map[string]string{"type": "keyword"},
+			"channel_type":       map[string]string{"type": "text"},
+			"current_status":     map[string]string{"type": "text"},
+			"full_name":          map[string]string{"type": "text"},
+			"email":              map[string]string{"type": "text"},
 			"media": map[string]any{
 				"type":       "nested",
 				"properties": MediaMapping,
@@ -300,6 +308,7 @@ type FeedMessageRequest struct {
 	UpdatedAt                string                    `json:"updated_at"`
 	Email                    string                    `json:"email"`
 	AvatarURL                string                    `json:"avatar_url"`
+	DefaultAvatarUrl         string                    `json:"default_avatar_url"`
 	MessageId                string                    `json:"message_id,omitempty"`
 	Type                     string                    `json:"type"`
 	Content                  string                    `json:"message"`
@@ -315,6 +324,7 @@ type FeedMessageRequest struct {
 	ChannelType              string                    `json:"channel_type,omitempty"` // public, private, or DM
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	Edited                   bool                      `json:"edited"`
 }
 
 type Mentions struct {
@@ -340,9 +350,14 @@ type UpdateThreadMessage struct {
 }
 
 type ThreadWithMessagesResponse struct {
-	ThreadMessages []ThreadDocument `json:"thread_messages"`
-	ChannelName    string           `json:"channel_name"`
-	Participants   string           `json:"participants"`
+	ThreadMessages         []ThreadDocument `json:"thread_messages"`
+	ChannelName            string           `json:"channel_name"`
+	Participants           string           `json:"participants"`
+	PrevieMessage          string           `json:"previe_message"`
+	SenderAvatarURL        string           `json:"sender_avatar_url"`
+	SenderDefaultAvatarURL string           `json:"sender_default_avatar_url"`
+	ChannelType            string           `json:"channel_type"`
+	ThreadId               string           `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -933,6 +948,70 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
+func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
+	var thread ThreadDocument
+	err := thread.GetThreadById(t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if thread.OrganisationID != t.OrganisationID {
+		return nil, fmt.Errorf("thread does not belong to the organisation")
+	}
+
+	userIDsMap := make(map[string]struct{})
+
+	if thread.UserId != "" {
+		userIDsMap[thread.UserId] = struct{}{}
+	}
+
+	for _, m := range thread.Mentions {
+		if m.ID != "" && m.Type == "user" {
+			userIDsMap[m.ID] = struct{}{}
+		}
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id": t.ID,
+			},
+		},
+		"size": 10000,
+	}
+
+	var messageData any
+	err = elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	messages, err := UnmarshalMessageResponse(messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range messages {
+		if msg.UserID != "" {
+			userIDsMap[msg.UserID] = struct{}{}
+		}
+		for _, m := range msg.Mentions {
+			if m.ID != "" && m.Type == "user" {
+				userIDsMap[m.ID] = struct{}{}
+			}
+		}
+	}
+
+	participantIDs := make([]string, 0, len(userIDsMap))
+	for userID := range userIDsMap {
+		if userID != userId {
+			participantIDs = append(participantIDs, userID)
+		}
+	}
+
+	return participantIDs, nil
+}
+
 func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
 	var (
 		threads      []Threads
@@ -969,7 +1048,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 	err = db.Model(&DmChannels{}).
 		Select("dm_channels.channel_id").
-		Where("dm_channels.user_id = ? AND dm_channels.org_id = ?", userId, organisationID).
+		Where("dm_channels.org_id = ?", organisationID).
+		Where(`
+			(dm_channels.channel_type = 'group_dm' AND EXISTS (
+				SELECT 1 FROM channel_participants 
+				WHERE channel_participants.channel_id = dm_channels.channel_id 
+				AND channel_participants.user_id = ? 
+				AND channel_participants.deleted_at IS NULL
+			)) 
+			OR 
+			(dm_channels.user_id = ? AND (dm_channels.channel_type = 'dm' OR dm_channels.channel_type = ''))
+		`, userId, userId).
 		Find(&dmChannelIds).Error
 
 	if err != nil {
@@ -1026,8 +1115,21 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 					},
 				},
 				"minimum_should_match": 1,
+				"filter": []map[string]any{
+					{
+						"nested": map[string]any{
+							"path": "messages",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "messages.id",
+								},
+							},
+						},
+					},
+				},
 			},
 		},
+
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]string{
@@ -1117,22 +1219,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return nil, pagR, err
 	}
 
-	dmChannelNames := map[string]string{}
-	for _, dmChanId := range dmChannelIds {
-		var dmChan DmChannels
-		if postgresql.CheckExists(db, &dmChan, "channel_id = ? AND user_id = ?", dmChanId, userId) {
-			if dmChan.ParticipantId != nil {
-				var u User
-				if userDetails, err := u.GetUserByID(db, *dmChan.ParticipantId); err == nil {
-					name := userDetails.Profile.UserName
-					if name == "" {
-						name = strings.Split(userDetails.Email, "@")[0]
-					}
-					dmChannelNames[dmChanId] = name
-				}
-			}
-		}
-	}
+	dmChannelNames := GetDmChannelNames(db, dmChannelIds, userId)
 
 	for _, thread := range threads {
 		usernames := map[string]bool{}
@@ -1140,6 +1227,10 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		messages, _, err := FetchMessagesByThreadID(thread.ID)
 		if err != nil {
 			logger.Error("failed to fetch messages for thread %s: %v\n", thread.ID, err)
+			continue
+		}
+
+		if len(messages) == 0 {
 			continue
 		}
 
@@ -1168,6 +1259,11 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		channelName := thread.ChannelName
 		if name, ok := dmChannelNames[thread.ChannelsID]; ok {
 			channelName = name
+		}
+		previeMessage := ""
+
+		if len(messages) > 0 {
+			previeMessage = BuildPreviewMessage(messages[0].Content, messages[0].Media)
 		}
 
 		threadDoc := ThreadDocument{
@@ -1205,9 +1301,14 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		}
 
 		result = append(result, ThreadWithMessagesResponse{
-			ThreadMessages: []ThreadDocument{threadDoc},
-			ChannelName:    channelName,
-			Participants:   participants,
+			ThreadId:               threadDoc.ID,
+			ThreadMessages:         []ThreadDocument{threadDoc},
+			ChannelName:            channelName,
+			Participants:           participants,
+			PrevieMessage:          previeMessage,
+			SenderAvatarURL:        thread.AvatarURL,
+			SenderDefaultAvatarURL: avatar.GenerateDefaultAvatarURL(thread.UserId),
+			ChannelType:            thread.ChannelType,
 		})
 	}
 
@@ -1285,6 +1386,7 @@ func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *util
 }
 
 func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
+	var message Message
 
 	var searchResult struct {
 		Hits struct {
@@ -1305,6 +1407,19 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 
 	for i, hit := range searchResult.Hits.Hits {
 		threads[i] = hit.Source
+		threads[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[i].UserId)
+		threads[i].PreviewReply = make([]MessageDocument, 0)
+		if threads[i].MessageCount > 0 {
+			messageCtx := &gin.Context{
+				Request: &http.Request{
+					URL: &url.URL{
+						RawQuery: "page=1&limit=50",
+					},
+				},
+			}
+			msg, _, _ := message.GetAllMessagesByThreadID(messageCtx, threads[i].ID)
+			threads[i].PreviewReply = msg
+		}
 	}
 
 	return
@@ -1483,6 +1598,7 @@ func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, cha
 	for ind, bucket := range result {
 		threads[ind] = bucket.TopThreadHits.Hits.Hits[0].Source
 		threads[ind].Count = bucket.DocCount
+		threads[ind].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(threads[ind].UserId) // Note: Thread struct field might be UserID or UserId? Threads struct uses 'Username' etc. Wait, check Threads struct definition.
 	}
 
 	return threads, pagR, http.StatusOK, nil
@@ -1556,7 +1672,7 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
-					"order": "asc",
+					"order": "desc",
 				},
 			},
 		},
@@ -1574,4 +1690,50 @@ func FetchMessagesByThreadID(threadID string) ([]MessageDocument, *elastic.Pagin
 	}
 
 	return messages, nil, nil
+}
+
+func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[string]string {
+	dmChannelNames := map[string]string{}
+	for _, dmChanId := range dmChannelIds {
+		var dmChan DmChannels
+		if postgresql.CheckExists(db, &dmChan, "channel_id = ?", dmChanId) {
+			if dmChan.ChannelType == "group_dm" {
+				var chanParts []ChannelParticipant
+				err := postgresql.SelectAllFromDb(db, "", &chanParts, "channel_id = ?", dmChanId)
+				if err == nil && len(chanParts) > 0 {
+					usernames := []string{}
+					var u User
+					for _, part := range chanParts {
+						if part.UserId == userId {
+							continue
+						}
+						if userDetails, err := u.GetUserByID(db, part.UserId); err == nil {
+							name := userDetails.Profile.UserName
+							if name == "" {
+								name = strings.Split(userDetails.Email, "@")[0]
+							}
+							usernames = append(usernames, name)
+						}
+					}
+					if len(usernames) > 0 {
+						dmChannelNames[dmChanId] = strings.Join(usernames, ", ")
+					}
+				}
+			} else if dmChan.ParticipantId != nil {
+				var u User
+				targetUserId := *dmChan.ParticipantId
+				if targetUserId == userId {
+					targetUserId = dmChan.UserId
+				}
+				if userDetails, err := u.GetUserByID(db, targetUserId); err == nil {
+					name := userDetails.Profile.UserName
+					if name == "" {
+						name = strings.Split(userDetails.Email, "@")[0]
+					}
+					dmChannelNames[dmChanId] = name
+				}
+			}
+		}
+	}
+	return dmChannelNames
 }

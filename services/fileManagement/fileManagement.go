@@ -295,8 +295,20 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id").
 		Where("folders.organisation_id = ?", params.OrgID)
 
+	// mode options: all, mine, trash
+	mode := queryParams["mode"]
+
+	switch mode {
+	case "mine":
+		query = query.Where("folders.user_id = ?", params.UserID).Where("folders.deleted_at IS NULL")
+	case "trash":
+		query = query.Unscoped().Where("folders.deleted_at IS NOT NULL")
+	default:
+		query = query.Where("folders.deleted_at IS NULL")
+	}
+
 	if owner, ok := queryParams["owner"]; ok && owner != "" {
-		query = query.Where("profiles.full_name ILIKE ?", "%"+owner+"%")
+		query = query.Where("profiles.full_name ILIKE ? OR profiles.user_name ILIKE ?", "%"+owner+"%", "%"+owner+"%")
 	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -317,11 +329,16 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 	}
 	var folderCounts []FolderCount
 
-	err = db.Model(&models.File{}).
+	fileCountQuery := db.Model(&models.File{}).
 		Select("folder_id, count(*) as count").
 		Where("organisation_id = ? AND folder_id IS NOT NULL", params.OrgID).
-		Group("folder_id").
-		Scan(&folderCounts).Error
+		Group("folder_id")
+
+	if mode == "trash" {
+		fileCountQuery = fileCountQuery.Unscoped()
+	}
+
+	err = fileCountQuery.Scan(&folderCounts).Error
 
 	if err != nil {
 		return folders, paginationResponse, err
@@ -635,7 +652,7 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 	case "mine":
 		query = query.Where("files.user_id = ?", params.UserID)
 	case "shared":
-		// Get channels the user is in will check for messageid for dm files when it'll be implemented
+		// Get channels the user is in (including DM channels)
 
 		var userChannels []string
 		err := db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &userChannels).Error
@@ -643,8 +660,26 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 			return nil, postgresql.PaginationResponse{}, err
 		}
 
-		if len(userChannels) > 0 {
-			query = query.Where("files.channel_id IN ?", userChannels)
+		// Get DM channels where user is participant (owner or receiver)
+		var dmChannels []models.DmChannels
+		err = db.Table("dm_channels").
+			Select("channel_id").
+			Where("user_id = ? OR participant_id = ?", params.UserID, params.UserID).
+			Find(&dmChannels).Error
+		if err != nil {
+			return nil, postgresql.PaginationResponse{}, err
+		}
+
+		dmChannelIDs := make([]string, len(dmChannels))
+		for i, dm := range dmChannels {
+			dmChannelIDs[i] = dm.ChannelId
+		}
+
+		// Combine regular channels and DM channels
+		allChannels := append(userChannels, dmChannelIDs...)
+
+		if len(allChannels) > 0 {
+			query = query.Where("files.channel_id IN ?", allChannels)
 		} else {
 			return []models.File{}, postgresql.PaginationResponse{
 				CurrentPage: params.Page,
@@ -657,6 +692,10 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 		// "all" or default: view all files in org (that are not deleted)
 
 		query = query.Where("files.deleted_at IS NULL")
+	}
+
+	if owner, ok := queryParams["owner"]; ok && owner != "" {
+		query = query.Where("profiles.full_name ILIKE ? OR profiles.user_name ILIKE ?", "%"+owner+"%", "%"+owner+"%")
 	}
 
 	if folderID, ok := queryParams["folder_id"]; ok && folderID != "" {

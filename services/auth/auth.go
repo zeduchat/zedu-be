@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ import (
 
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
-	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -27,11 +26,7 @@ import (
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
-func GenerateDefaultAvatarURL() string {
-	n := rand.IntN(7) + 1
-	endpoint := config.GetConfig().Minio.MinioEndpoint
-	return fmt.Sprintf("https://%s/default_avatars/default_avatar_%d.png", endpoint, n)
-}
+// Default avatar URLs are generated deterministically based on user ID.
 
 func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (models.CreateUserRequestModel, error) {
 
@@ -115,13 +110,12 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		ProfileUpdated: true,
 		IsOnboarded:    true,
 		Profile: models.Profile{
-			ID:               utility.GenerateUUID(),
-			FirstName:        name,
-			LastName:         lastName,
-			FullName:         firstName + " " + lastName,
-			UserName:         name,
-			Phone:            phoneNumber,
-			DefaultAvatarURL: GenerateDefaultAvatarURL(),
+			ID:        utility.GenerateUUID(),
+			FirstName: name,
+			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  name,
+			Phone:     phoneNumber,
 		},
 	}
 
@@ -208,12 +202,13 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
 			"phone":                     userData.Profile.Phone,
 			"avatar_url":                userData.Profile.AvatarURL,
-			"default_avatar_url":        userData.Profile.DefaultAvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
 			"organisation":              org,
+			"online":                    userData.Profile.Online,
 		},
 		"access_token":       tokenData.AccessToken,
 		"notification_token": access_token.SubAccessToken,
@@ -286,12 +281,13 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
 			"phone":                     userData.Profile.Phone,
 			"avatar_url":                userData.Profile.AvatarURL,
-			"default_avatar_url":        userData.Profile.DefaultAvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
 			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
 			"organisation":              org,
+			"online":                    userData.Profile.Online,
 		},
 		"access_token":            tokenData.AccessToken,
 		"notification_token":      access_token.SubAccessToken,
@@ -358,13 +354,12 @@ func CreateAdmin(req models.CreateUserRequestModel, db *gorm.DB, c *gin.Context)
 		Email:    email,
 		Password: password,
 		Profile: models.Profile{
-			ID:               utility.GenerateUUID(),
-			FirstName:        firstName,
-			LastName:         lastName,
-			FullName:         firstName + " " + lastName,
-			UserName:         username,
-			Phone:            phoneNumber,
-			DefaultAvatarURL: GenerateDefaultAvatarURL(),
+			ID:        utility.GenerateUUID(),
+			FirstName: firstName,
+			LastName:  lastName,
+			FullName:  firstName + " " + lastName,
+			UserName:  username,
+			Phone:     phoneNumber,
 		},
 	}
 
@@ -427,6 +422,7 @@ func GetOnboardStatus(owner_id string, db *gorm.DB) (gin.H, int, error) {
 
 	responseData = gin.H{
 		"status": status,
+		"online": user.Profile.Online,
 	}
 
 	return responseData, http.StatusOK, nil
@@ -486,11 +482,12 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
 			"phone":                     userData.Profile.Phone,
 			"avatar_url":                userData.Profile.AvatarURL,
-			"default_avatar_url":        userData.Profile.DefaultAvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
 			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
 			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
 			"current_organisation_slug": slug.Make(org.Name),
 			"organisation":              org,
+			"online":                    userData.Profile.Online,
 		},
 	}
 

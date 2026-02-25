@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -750,11 +751,12 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 				participants := []gin.H{
 					{
 						"avatar_url":         userDetails.Profile.AvatarURL,
-						"default_avatar_url": userDetails.Profile.DefaultAvatarURL,
+						"default_avatar_url": avatar.GenerateDefaultAvatarURL(userDetails.ID),
 						"username":           userDetails.Profile.UserName,
 						"email":              userDetails.Email,
 						"user_type":          "user",
 						"user_id":            ids.UserID,
+						"online":             userDetails.Profile.Online,
 					},
 					{
 						"avatar_url": agents[i].Avatar,
@@ -769,10 +771,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 
 			previewMessage := ""
 			if len(previewThread) > 0 {
-				previewMessage = previewThread[0].Content
-				if previewMessage == "" && len(previewThread[0].Media) > 0 {
-					previewMessage = previewThread[0].Media[0].FileType
-				}
+				previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 			}
 
 			agents[i].PreviewMessage = previewMessage

@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -349,6 +350,55 @@ func (base *Controller) GetChannelsByName(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) GetChannelFiles(c *gin.Context) {
+	channelID := c.Param("channelId")
+
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid channel ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	// Check if user is in channel
+	var userChannels models.UserChannels
+	if !postgresql.CheckExists(base.Db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "User is not a member of this channel", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	mediaType := c.Query("type")
+
+	var channel models.Channels
+	channel.ID = channelID
+
+	files, pagination, err := channel.GetChannelMedia(base.Db, c, mediaType)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch channel files", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": pagination.CurrentPage,
+		"total_pages":  pagination.TotalPagesCount,
+		"page_size":    pagination.PageCount,
+		"total_items":  pagination.TotalItems,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel files fetched successfully", files, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) CountChannelsUsers(c *gin.Context) {
 	channelId := c.Param("channelId")
 
@@ -594,6 +644,7 @@ func (base *Controller) GetUserChannels(c *gin.Context) {
 	ids := models.IDS{
 		OrganisationID: org_id,
 		UserID:         userId,
+		Search:         c.Query("search"),
 	}
 
 	userchannels, err := channel.GetUserChannels(base.Db, ids)

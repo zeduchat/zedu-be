@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -55,28 +56,29 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
 
 	threadDoc := models.ThreadDocument{
-		ID:             utility.GenerateUUID(),
-		Username:       profile.UserName,
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsID,
-		Type:           messageType,
-		MessageCount:   0,
-		AvatarURL:      profile.AvatarURL,
-		FullName:       profile.FullName,
-		Email:          user.Email,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		CurrentStatus:  "pending",
-		UserId:         req.UserId,
-		Messages:       []models.MessageDocument{},
-		Status:         "success",
-		ChannelName:    username,
-		ChannelType:    "DM",
-		Edited:         false,
-		UserType:       "user",
-		Mentions:       req.Mentions,
-		Media:          req.Media,
-		OrganisationID: channel.OrgId,
+		ID:               utility.GenerateUUID(),
+		Username:         profile.UserName,
+		Content:          req.Content,
+		ChannelsID:       req.ChannelsID,
+		Type:             messageType,
+		MessageCount:     0,
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(req.UserId),
+		FullName:         profile.FullName,
+		Email:            user.Email,
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		CurrentStatus:    "pending",
+		UserId:           req.UserId,
+		Messages:         []models.MessageDocument{},
+		Status:           "success",
+		ChannelName:      username,
+		ChannelType:      "DM",
+		Edited:           false,
+		UserType:         "user",
+		Mentions:         req.Mentions,
+		Media:            req.Media,
+		OrganisationID:   channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -84,22 +86,34 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
+
 	feed := models.FeedMessageRequest{
-		ChannelID:   req.ChannelsID,
-		UserName:    profile.UserName,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		AvatarURL:   profile.AvatarURL,
-		Type:        "message",
-		Content:     req.Content,
-		ThreadId:    threadDoc.ID,
-		Email:       user.Email,
-		FullName:    profile.FullName,
-		UserId:      req.UserId,
-		UserType:    "user",
-		Media:       req.Media,
-		ChannelName: username,
-		ChannelType: "DM",
-		OrgId:       channel.OrgId,
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         threadDoc.ID,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserId:           req.UserId,
+		UserType:         "user",
+		Media:            req.Media,
+		ChannelName:      username,
+		ChannelType:      "DM",
+		OrgId:            channel.OrgId,
 	}
 
 	err = centrifuge.PublishChannel(logger, req.ChannelsID, feed)
@@ -194,26 +208,27 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:             utility.GenerateUUID(),
-		Username:       profile.UserName,
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsID,
-		Type:           messageType,
-		MessageCount:   0,
-		AvatarURL:      profile.AvatarURL,
-		FullName:       profile.FullName,
-		Email:          user.Email,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		CurrentStatus:  "pending",
-		UserId:         req.UserId,
-		Messages:       []models.MessageDocument{},
-		Status:         "success",
-		Edited:         false,
-		UserType:       "user",
-		Mentions:       req.Mentions,
-		Media:          req.Media,
-		OrganisationID: channel.OrgId,
+		ID:               utility.GenerateUUID(),
+		Username:         profile.UserName,
+		Content:          req.Content,
+		ChannelsID:       req.ChannelsID,
+		Type:             messageType,
+		MessageCount:     0,
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(req.UserId),
+		FullName:         profile.FullName,
+		Email:            user.Email,
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		CurrentStatus:    "pending",
+		UserId:           req.UserId,
+		Messages:         []models.MessageDocument{},
+		Status:           "success",
+		Edited:           false,
+		UserType:         "user",
+		Mentions:         req.Mentions,
+		Media:            req.Media,
+		OrganisationID:   channel.OrgId,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -221,19 +236,31 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
+
 	publishfeed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: profile.AvatarURL,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  threadDoc.ID,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserId:    req.UserId,
-		UserType:  "user",
-		Media:     req.Media,
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         threadDoc.ID,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserId:           req.UserId,
+		UserType:         "user",
+		Media:            req.Media,
 	}
 
 	err = centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)
@@ -389,16 +416,17 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 		}
 
 		feed := models.FeedMessageRequest{
-			ChannelID: req.ChannelID,
-			UserName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
-			CreatedAt: time.Now().UTC().Format(time.RFC3339),
-			AvatarURL: utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
-			Type:      "message",
-			Content:   req.Content,
-			Email:     "agent",
-			FullName:  utility.ThisOrThat(orgAgent.AppName, agent.Name),
-			UserType:  "bot",
-			State:     req.State,
+			ChannelID:        req.ChannelID,
+			UserName:         utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+			AvatarURL:        utility.ThisOrThat(orgAgent.AppLogo, agent.AppLogo),
+			DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.AgentId),
+			Type:             "message",
+			Content:          req.Content,
+			Email:            "agent",
+			FullName:         utility.ThisOrThat(orgAgent.AppName, agent.Name),
+			UserType:         "bot",
+			State:            req.State,
 		}
 
 		err := centrifuge.PublishChannel(logger, req.ChannelID, feed)
@@ -432,27 +460,28 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	}
 
 	threadDoc := models.ThreadDocument{
-		ID:             req.ThreadId,
-		Username:       orgAgent.AppName,
-		Content:        req.Content,
-		ChannelsID:     req.ChannelID,
-		Type:           "message",
-		MessageCount:   0,
-		AvatarURL:      orgAgent.AppLogo,
-		FullName:       orgAgent.AppName,
-		Email:          "agent",
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		CurrentStatus:  "pending",
-		UserId:         *channel.ParticipantId,
-		Messages:       []models.MessageDocument{},
-		Status:         "success",
-		UserType:       "bot",
-		Edited:         false,
-		Mentions:       req.Mentions,
-		Media:          req.Media,
-		OrganisationID: channel.OrgId,
-		State:          req.State,
+		ID:               req.ThreadId,
+		Username:         orgAgent.AppName,
+		Content:          req.Content,
+		ChannelsID:       req.ChannelID,
+		Type:             "message",
+		MessageCount:     0,
+		AvatarURL:        orgAgent.AppLogo,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(*channel.ParticipantId),
+		FullName:         orgAgent.AppName,
+		Email:            "agent",
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		CurrentStatus:    "pending",
+		UserId:           *channel.ParticipantId,
+		Messages:         []models.MessageDocument{},
+		Status:           "success",
+		UserType:         "bot",
+		Edited:           false,
+		Mentions:         req.Mentions,
+		Media:            req.Media,
+		OrganisationID:   channel.OrgId,
+		State:            req.State,
 	}
 
 	err = threadDoc.CreateThread(db, logger)
@@ -461,19 +490,20 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: req.ChannelID,
-		UserName:  orgAgent.AppName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: orgAgent.AppLogo,
-		Type:      "message",
-		Content:   req.Content,
-		ThreadId:  req.ThreadId,
-		Email:     "agent",
-		FullName:  orgAgent.AppName,
-		UserId:    *channel.ParticipantId,
-		Media:     req.Media,
-		UserType:  "bot",
-		State:     req.State,
+		ChannelID:        req.ChannelID,
+		UserName:         orgAgent.AppName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        orgAgent.AppLogo,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.AgentId),
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         req.ThreadId,
+		Email:            "agent",
+		FullName:         orgAgent.AppName,
+		UserId:           *channel.ParticipantId,
+		Media:            req.Media,
+		UserType:         "bot",
+		State:            req.State,
 	}
 
 	notification := models.Notification[models.AgentUpdate]
@@ -637,15 +667,16 @@ func sendTemporalMessageToBot(req models.CreateThreadMsgReq2, db *storage.Databa
 	)
 
 	publishfeed := models.FeedMessageRequest{
-		ChannelID: req.ChannelsID,
-		UserName:  profile.UserName,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		Type:      "message",
-		Content:   req.Content,
-		Email:     user.Email,
-		FullName:  profile.FullName,
-		UserType:  "user",
-		ThreadId:  "00000000-0000-0000-0000-000000000000",
+		ChannelID:        req.ChannelsID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.UserIdentifier),
+		Type:             "message",
+		Content:          req.Content,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		UserType:         "user",
+		ThreadId:         "00000000-0000-0000-0000-000000000000",
 	}
 
 	err := centrifuge.PublishChannel(logger, publishfeed.ChannelID, publishfeed)

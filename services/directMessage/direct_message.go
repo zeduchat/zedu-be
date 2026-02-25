@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -199,8 +200,10 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			UserId    string
 			Title     string
 			AvatarURL string
-			UserName  string
-			Email     string
+
+			UserName string
+			Email    string
+			Online   bool
 		}
 
 		var participantsWithProfile []ParticipantWithProfile
@@ -212,7 +215,8 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 				COALESCE(p.title, '') as title,
 				COALESCE(p.avatar_url, '') as avatar_url,
 				COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-				u.email
+				u.email,
+				p.online
 			`).
 			Joins("JOIN users u ON u.id = cp.user_id").
 			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
@@ -224,24 +228,17 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		}
 
 		for _, part := range participantsWithProfile {
-			resp.Participants = append(resp.Participants, models.Participant{
-				AvatarUrl: part.AvatarURL,
-				Username:  part.UserName,
-				Email:     part.Email,
-				UserType:  "user",
-				UserId:    part.UserId,
-				IsAdmin:   part.UserId == dmchannel.UserId,
-				Title:     part.Title,
-			})
+			var partUser models.User
+			partUserDetails, err := partUser.GetUserByID(db.Postgresql, part.UserId)
+			if err != nil {
+				continue
+			}
+			resp.Participants = append(resp.Participants, models.NewParticipant(partUserDetails, part.UserId == dmchannel.UserId, "user"))
 		}
 	case "dm":
 		resp.Type = "dm"
 
 		userDetails, _ := user.GetUserByID(db.Postgresql, *dmchannel.ParticipantId)
-
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
-		}
 
 		groupsInCommon, _ := models.GetGroupsInCommon(
 			db.Postgresql,
@@ -252,15 +249,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 		resp.GroupsInCommon = groupsInCommon
 
-		resp.Participants = append(resp.Participants, models.Participant{
-			AvatarUrl:        userDetails.Profile.AvatarURL,
-			DefaultAvatarUrl: userDetails.Profile.DefaultAvatarURL,
-			Username:         userDetails.Profile.UserName,
-			Email:            userDetails.Email,
-			UserType:         "user",
-			UserId:           *dmchannel.ParticipantId,
-			Title:            userDetails.Profile.Title,
-		})
+		resp.Participants = append(resp.Participants, models.NewParticipant(userDetails, false, "user"))
 
 	}
 
@@ -383,24 +372,25 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 			if dm.ParticipantId != nil {
 				userDetails, err := user.GetUserByID(db.Postgresql, *dm.ParticipantId)
 				if err == nil {
-					userName := userDetails.Profile.UserName
-					if userName == "" {
-						userName = strings.Split(userDetails.Email, "@")[0]
-					}
+					p := models.NewParticipant(userDetails, false, "user")
 
-					resp.Name = userName
+					resp.Name = p.Username
 					resp.AvatarUrl = userDetails.Profile.AvatarURL
-					resp.DefaultAvatarUrl = userDetails.Profile.DefaultAvatarURL
+					resp.DefaultAvatarUrl = avatar.GenerateDefaultAvatarURL(userDetails.ID)
 					resp.ParticipantId = *dm.ParticipantId
 					resp.ParticipantEmail = userDetails.Email
+					resp.Participants = []models.Participant{models.NewParticipant(userDetails, false, "user")}
 				}
 			}
 		case "group_dm":
 			type ParticipantWithProfile struct {
 				UserId    string
 				AvatarURL string
-				UserName  string
-				Email     string
+
+				UserName string
+				Email    string
+				Title    string
+				Online   bool
 			}
 
 			var participantsWithProfile []ParticipantWithProfile
@@ -409,7 +399,9 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 					cp.user_id,
 					COALESCE(p.avatar_url, '') as avatar_url,
 					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-					u.email
+					u.email,
+					COALESCE(p.title, '') as title,
+					COALESCE(p.online, false) as online
 				`).
 				Joins("JOIN users u ON u.id = cp.user_id").
 				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
@@ -419,21 +411,35 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 			if err == nil {
 				usernames := []string{}
 				profilePic := ""
+				defaultProfilePic := ""
 				email := ""
+				var participants []models.Participant
 
 				for _, part := range participantsWithProfile {
-					usernames = append(usernames, part.UserName)
+					var partUser models.User
+					partUserDetails, userErr := partUser.GetUserByID(db.Postgresql, part.UserId)
+					if userErr != nil {
+						continue
+					}
+					p := models.NewParticipant(partUserDetails, part.UserId == dm.UserId, "user")
+					usernames = append(usernames, p.Username)
 					if profilePic == "" {
-						profilePic = part.AvatarURL
+						profilePic = partUserDetails.Profile.AvatarURL
+					}
+					if defaultProfilePic == "" {
+						defaultProfilePic = avatar.GenerateDefaultAvatarURL(partUserDetails.ID)
 					}
 					if email == "" {
-						email = part.Email
+						email = partUserDetails.Email
 					}
+					participants = append(participants, p)
 				}
 
 				resp.Name = strings.Join(usernames, ", ")
 				resp.AvatarUrl = profilePic
+				resp.DefaultAvatarUrl = defaultProfilePic
 				resp.ParticipantEmail = email
+				resp.Participants = participants
 			}
 		}
 

@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
@@ -238,7 +239,7 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		FullName:          userProfile.Profile.FullName,
 		UserName:          userProfile.Profile.UserName,
 		AvatarURL:         userProfile.Profile.AvatarURL,
-		DefaultAvatarURL:  userProfile.Profile.DefaultAvatarURL,
+		DefaultAvatarURL:  avatar.GenerateDefaultAvatarURL(userProfile.ID),
 		UserId:            userProfile.Profile.Userid,
 		Deactivated:       userProfile.Deactivated,
 		ProfileUpdated:    userProfile.ProfileUpdated,
@@ -257,13 +258,14 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 		WorkspaceID:       userProfile.Profile.WorkspaceID,
 		Track:             userProfile.Profile.Track,
 		Links:             []string(userProfile.Profile.Links),
+		Online:            userProfile.Profile.Online,
 	}
 }
 
 func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
 	var userProfile models.Profile
 
-	if err := userProfile.UpdateProfileStatus(db, req); err != nil {
+	if err := userProfile.UpdateProfileStatus(db, req, logger); err != nil {
 		return http.StatusBadRequest, err
 	}
 
@@ -326,6 +328,7 @@ func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, log
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	if logger != nil {
@@ -414,6 +417,7 @@ func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Log
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	if logger != nil {
@@ -455,6 +459,7 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 				Emoji:      "",
 				Expiry:     0,
 				Visibility: "public",
+				Online:     false,
 			}, http.StatusOK, nil
 		}
 		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
@@ -480,7 +485,60 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 		Emoji:      profile.Icon,
 		Expiry:     expiry,
 		Visibility: visibility,
+		Online:     profile.Online,
 	}
 
 	return status, http.StatusOK, nil
+}
+
+func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
+	var profile models.Profile
+
+	// check if user exists
+	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, fmt.Errorf("profile not found")
+		}
+		return http.StatusInternalServerError, err
+	}
+
+	if err := db.Model(&profile).Update("online", req.IsActive).Error; err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to update presence: %w", err)
+	}
+
+	if logger != nil {
+		logger.Info("presence updated", "user_id", req.UserID, "is_active", req.IsActive)
+
+		notification := models.Notification[models.UserPresenceChanged]
+		notification.NotificationId = utility.GenerateUUID()
+		notification.Content = models.UserPresenceChangedPayload{
+			UserID: req.UserID,
+			Online: req.IsActive,
+		}
+		notification.ModificationDetails = &models.ModificationDetails{
+			UserId: req.UserID,
+			OrgId:  req.OrgID,
+		}
+
+		// Broadcast to organization channel so other users can see the update
+		channelID := fmt.Sprintf("org:%s", req.OrgID)
+		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+			logger.Error("failed to publish presence update event", "error", err, "channel_id", channelID)
+		}
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
+	var profile models.Profile
+
+	if err := db.Select("online").Where("userid = ?", userID).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, http.StatusNotFound, fmt.Errorf("profile not found")
+		}
+		return false, http.StatusInternalServerError, fmt.Errorf("failed to fetch presence: %w", err)
+	}
+
+	return profile.Online, http.StatusOK, nil
 }

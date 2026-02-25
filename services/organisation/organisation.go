@@ -226,6 +226,19 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 
 	org.OrganisationSlug = slug.Make(org.Name)
 
+	// Check if the org has an active general invite link
+	var generalInvite models.GeneralInvitation
+	err = db.Where("organisation_id = ?", orgId).Order("created_at DESC").First(&generalInvite).Error
+	if err == nil {
+		if generalInvite.ActiveStatus {
+			org.InviteLinkStatus = "enabled"
+		} else {
+			org.InviteLinkStatus = "disabled"
+		}
+	} else {
+		org.InviteLinkStatus = "disabled"
+	}
+
 	return &org, nil
 }
 
@@ -392,7 +405,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 		entities     []models.UserInOrgResponse
 		pagination   = postgresql.GetPagination(c)
 		offset       = (pagination.Page - 1) * pagination.Limit
-		searchTerm   = queryParams["query"].(string)
+		searchTerm   = strings.ToLower(queryParams["query"].(string))
+		roleFilter   = strings.ToLower(queryParams["role"].(string))
 		includeBots  = queryParams["include_bots"].(bool)
 		likeTerm     = "%" + searchTerm + "%"
 	)
@@ -414,7 +428,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 			END AS status,
 			org.name AS role,
 			o.is_deactivated,
-			'user' AS entity_type
+			'user' AS entity_type,
+			p.online
 		FROM org_user_managements o
 		JOIN users u ON u.id = o.user_id
 		LEFT JOIN profiles p ON p.userid = u.id
@@ -424,10 +439,17 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 			  u.name ILIKE ? OR 
 			  u.email ILIKE ? OR 
 			  p.user_name ILIKE ? OR 
-			  p.phone ILIKE ?
+			  p.phone ILIKE ? OR
+			  p.first_name ILIKE ? OR
+			  p.last_name ILIKE ?
 		  )
 	`)
-	args = append(args, orgId, likeTerm, likeTerm, likeTerm, likeTerm)
+	args = append(args, orgId, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, likeTerm)
+
+	if roleFilter != "" {
+		queryBuilder.WriteString(" AND org.name ILIKE ?")
+		args = append(args, "%"+roleFilter+"%")
+	}
 
 	// --- Optionally add bot query ---
 	if includeBots {
@@ -446,7 +468,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 				END AS status,
 				'bot' AS role,
 				false AS is_deactivated,
-				'bot' AS entity_type
+				'bot' AS entity_type,
+				oi.is_active AS online
 			FROM organisation_integrations oi
 			WHERE oi.org_id = ? AND oi.is_archived = false
 			  AND (oi.app_name ILIKE ?)
@@ -476,6 +499,7 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 		CurrentPage:     pagination.Page,
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
+		TotalItems:      totalCount,
 	}
 
 	return entities, paginationResponse, nil

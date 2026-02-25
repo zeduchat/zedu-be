@@ -230,36 +230,19 @@ func GetGroupDMChannels(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.C
 	return resp, pagResp, http.StatusOK, err
 }
 
-func GetUserGroupDMs(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func GetUserGroupDMs(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Context) (models.Participant, int, error) {
 
 	var (
-		userProfile models.Profile
-		user        models.User
-
-		resp gin.H
+		user models.User
+		resp models.Participant
 	)
 
 	user, err := user.GetUserByID(db, req.UserId)
-
 	if err != nil {
 		return resp, http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
 
-	err = userProfile.GetProfileByUserId(db, req.UserId)
-	if err != nil {
-		return resp, http.StatusInternalServerError, err
-	}
+	resp = models.NewParticipant(user, false, "user")
 
-	resp = gin.H{
-		"avatar_url":         userProfile.AvatarURL,
-		"default_avatar_url": userProfile.DefaultAvatarURL,
-		"username":           userProfile.UserName,
-		"email":              user.Email,
-	}
-
-	if resp["username"] == "" {
-		resp["username"] = strings.Split(user.Email, "@")[0]
-	}
-
-	return resp, http.StatusOK, err
+	return resp, http.StatusOK, nil
 }

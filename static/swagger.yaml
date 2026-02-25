@@ -1651,7 +1651,7 @@ paths:
     get:
       tags:
         - organisation
-      summary: Retrieve users and Agents in an organisationssssssssssssssss
+      summary: Retrieve users and Agents in an organisations
       description: |
         Retrieves all users and optionally Agents in an organisation. Supports search filtering and bot inclusion/exclusion.
       operationId: getOrganisationUsersAndBots
@@ -1663,17 +1663,23 @@ paths:
             type: string
           description: ID of the organisation
         - in: query
-          name: query
+          name: search
           required: false
           schema:
             type: string
-          description: Optional search term to filter users/bots by name, email, or username
+          description: Optional search term to filter users by name, email, or username
+        - in: query
+          name: role
+          required: false
+          schema:
+            type: string
+          description: Optional role to filter users by role
         - in: query
           name: include_bots
           required: false
           schema:
             type: boolean
-            default: true
+            default: false
           description: Whether to include Agents in the response (default is true)
       responses:
         "200":
@@ -3091,6 +3097,26 @@ paths:
             type: string
             format: uuid
           description: ID of the organisation to check for the channel.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search channels by name.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page.
       responses:
         "200":
           description: Get all channels in an organisation
@@ -3235,6 +3261,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          in: query
+          required: false
+          description: Search channels by name.
+          schema:
+            type: string
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -3530,6 +3562,8 @@ paths:
       tags:
         - organisation
       summary: Activate or deactivate a user in an organisation
+      security:
+        - bearerAuth: []
       description: Allows an organisation admin to activate or deactivate a member of the organisation.
       operationId: updateUserStatus
       parameters:
@@ -3810,6 +3844,122 @@ paths:
                         total_pages:
                           type: integer
                           example: 1
+
+  /channels/{channelId}/files:
+    get:
+      tags:
+        - channels
+      summary: Retrieve media files from a channel
+      description: Fetches all media files (images, videos, documents, audio) from threads in a channel with pagination support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: The ID of the channel
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default 10)
+          schema:
+            type: integer
+            default: 10
+        - name: type
+          in: query
+          required: false
+          description: Filter by media type
+          schema:
+            type: string
+            enum: [images, videos, audio, documents]
+      responses:
+        "200":
+          description: Media files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Channel files fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        file_name:
+                          type: string
+                          example: photo.jpg
+                        file_type:
+                          type: string
+                          example: jpg
+                        mime_type:
+                          type: string
+                          example: image/jpeg
+                        file_link:
+                          type: string
+                          example: https://cdn.example.com/files/photo.jpg
+                        user_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the user who uploaded the file
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: When the file was uploaded
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 10
+                      total_items:
+                        type: integer
+                        example: 50
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+           description: Forbidden (User not in channel)
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /channels/add-multiple:
     post:
@@ -6482,6 +6632,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/mentions/{user_id}:
+    get:
+      tags:
+        - user
+      summary: Retrieve minimal user information for mentions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The user ID
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "jdoe"
+                      fullname:
+                        type: string
+                        example: "John Doe"
+                      firstname:
+                        type: string
+                        example: "John"
+                      lastname:
+                        type: string
+                        example: "Doe"
+                      avatar_url:
+                        type: string
+                        example: "http://example.com/custom_avatar.jpg"
+                      default_avatar_url:
+                        type: string
+                        example: "http://example.com/avatar.jpg"
+                      display_name:
+                        type: string
+                        example: "Johnny"
+                      status_text:
+                        type: string
+                        example: "Working from home"
+                      userid:
+                        type: string
+                        example: "00000000-0000-0000-0000-000000000000"
+                      online_status:
+                        type: boolean
+                        example: true
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /users/me:
     get:
       tags:
@@ -7148,6 +7387,10 @@ paths:
                   type: bool
                   description: set to true to clear current status feilds
                   example: true
+                online:
+                  type: bool
+                  description: set user online status (true for online, false for away)
+                  example: true
 
       responses:
         "200":
@@ -7178,6 +7421,148 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /profile/presence:
+    post:
+      tags:
+        - Profile
+      summary: Update user presence status
+      description: Allows authenticated users to update their presence status (online/offline).
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserPresenceRequest"
+      responses:
+        "200":
+          description: Presence updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence updated successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+    get:
+      tags:
+        - Profile
+      summary: Get current user presence
+      description: Retrieve the presence status of the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User presence retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      is_active:
+                        type: boolean
+                        example: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /profile/presence/{user_id}:
+    get:
+      tags:
+        - Profile
+      summary: Get user presence by ID
+      description: Retrieve the presence status of a specific user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: user_id
+          schema:
+            type: string
+          required: true
+          description: User ID
+      responses:
+        "200":
+          description: User presence retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User presence retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      is_active:
+                        type: boolean
+                        example: false
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
         "500":
           description: Server error
           content:
@@ -9620,7 +10005,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
-
   /threads/recent:
     get:
       tags:
@@ -11252,6 +11636,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          required: false
+          description: Search DM channels by participant details (email, username, first name, last name).
+          schema:
+            type: string
       responses:
         "200":
           description: Dm channels retrieved successfully
@@ -11968,6 +12358,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
+
 
   /help-center/categories:
     post:
@@ -18425,6 +18816,16 @@ paths:
         - bearerAuth: []
       parameters:
         - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [all, mine, trash]
+          description: |
+            Filter mode for folders:
+            - **all** (default): All non-deleted folders in the organisation
+            - **mine**: Only folders created by the current user
+            - **trash**: Only soft-deleted folders
+        - in: query
           name: page
           schema:
             type: integer
@@ -18855,6 +19256,13 @@ paths:
             type: string
             format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: owner
+          in: query
+          required: false
+          description: Filter by owner name or username (case-insensitive partial match on full name or username)
+          schema:
+            type: string
+          example: "john"
         - name: search
           in: query
           required: false
@@ -22124,6 +22532,7 @@ paths:
       tags:
         - General-Invitation
       summary: Change the status of a general invitation
+      description: Disables or enables the general invite link for the organisation. The organisation is determined from the authenticated user's context. Only the user who created the invite can change its status.
       requestBody:
         required: true
         content:
@@ -22132,14 +22541,11 @@ paths:
               type: object
               required:
                 - status
-                - invitation_id
               properties:
                 status:
                   type: boolean
-                  example: true
-                invitation_id:
-                  type: string
-                  example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
+                  description: The new status of the invitation (`true` for active, `false` for disabled).
+                  example: false
       responses:
         "200":
           description: Invitation status updated successfully
@@ -22157,6 +22563,10 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+        "401":
+          description: Unauthorized - organization context missing or user is not the inviter
+        "404":
+          description: No active invitation found for this organisation
 
   /telexai/chat:
     post:
@@ -29125,64 +29535,82 @@ components:
           type: string
           example: "channels fetched successfully"
         data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+              name:
+                type: string
+                example: "hackers"
+              description:
+                type: string
+                example: "this room is meant for hackers"
+              organisation_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              is_private:
+                type: boolean
+                example: false
+              owner_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              archived:
+                type: boolean
+                example: false
+              group_id:
+                type: string
+                format: uuid
+                nullable: true
+                example: null
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-27T15:28:20.499875+01:00"
+              last_thread_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              access:
+                type: boolean
+                example: true
+              member_avatars:
+                type: array
+                items:
+                  type: string
+                example: ["https://example.com/avatar1.jpg"]
+              members_count:
+                type: integer
+                example: 10
+              last_post_time:
+                type: string
+                example: "5 minutes ago"
+              unread_count:
+                type: integer
+                example: 0
+              channel_slug:
+                type: string
+                example: "hackers-a158cc0f7e3a"
+        pagination:
           type: object
           properties:
-            additional_info:
-              type: object
-              properties:
-                channels_count:
-                  type: integer
-                  example: 1
-                totalmessage_count:
-                  type: integer
-                  example: 1
-            channels:
-              type: array
-              items:
-                type: object
-                properties:
-                  channels_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
-                  name:
-                    type: string
-                    example: "hackers"
-                  description:
-                    type: string
-                    example: "this room is meant for hackers"
-                  organisation_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
-                  owner_id:
-                    type: string
-                    format: uuid
-                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-                  users:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
-                  user_count:
-                    type: integer
-                    example: 0
-                  message_count:
-                    type: integer
-                    example: 0
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2024-08-12T15:23:56.147736+01:00"
-                  deleted_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:13:35+00:13"
-                  messages:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
+            current_page:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 10
+            total_items:
+              type: integer
+              example: 1
     ConnectionTokenResponseSchema:
       type: object
       properties:
@@ -29561,6 +29989,20 @@ components:
             format: uri
           example: ["https://portfolio.com", "https://linkedin.com/in/toyosi"]
           description: List of user profile links
+        is_active:
+          type: boolean
+          example: true
+          description: User's online status
+
+    UpdateUserPresenceRequest:
+      type: object
+      properties:
+        is_active:
+          type: boolean
+          example: false
+          description: "User presence status (true=online, false=offline)"
+      required:
+        - is_active
 
     NotFoundErrorSchema:
       type: object
@@ -30998,7 +31440,7 @@ components:
               type: string
               format: date-time
             plan_details:
-              $ref: '#/components/schemas/PlanResponse'
+              $ref: "#/components/schemas/PlanResponse"
         created_at:
           type: string
           format: date-time

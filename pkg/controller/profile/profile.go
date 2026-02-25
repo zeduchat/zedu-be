@@ -261,3 +261,77 @@ func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Profile image deleted successfully", nil)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) ChangeProfilePresence(c *gin.Context) {
+	var req models.UpdateUserPresenceRequest
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		base.Logger.Error("Failed to parse request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	err = base.Validator.Struct(&req)
+	if err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+	orgId := userClaims["org_id"].(string)
+
+	req.UserID = userId
+	req.OrgID = orgId
+
+	code, err := profile.UpdateUserPresence(req, base.Db.Postgresql, base.Logger)
+	if err != nil {
+		base.Logger.Error("Failed to update user presence", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user presence", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("User presence updated successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User presence updated successfully", nil)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetProfilePresence(c *gin.Context) {
+	userID := c.Param("user_id")
+	if userID == "" {
+		claims, exists := c.Get("userClaims")
+		if !exists {
+			base.Logger.Error("unable to get user claims", nil)
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", nil, nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		userClaims := claims.(jwt.MapClaims)
+		userID = userClaims["user_id"].(string)
+	}
+
+	presence, code, err := profile.GetUserPresence(userID, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch user presence", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch user presence", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("User presence retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User presence retrieved successfully", gin.H{"online": presence})
+	c.JSON(code, rd)
+}

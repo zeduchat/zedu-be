@@ -282,7 +282,7 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, db, userID, threadID)
+	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, threadID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -487,19 +487,21 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID: threadResp.ChannelsID,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-		AvatarURL: threadResp.AvatarURL,
-		Type:      threadResp.Type,
-		Content:   threadResp.Content,
-		ThreadId:  req.ThreadId,
-		Email:     threadResp.Email,
-		UserType:  threadResp.UserType,
-		UserName:  user.Profile.UserName,
-		FullName:  user.Profile.FullName,
-		OrgId:     threadResp.OrganisationID,
-		UserId:    threadResp.UserId,
-		Media:     threadResp.Media,
+		ChannelID:        threadResp.ChannelsID,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        threadResp.AvatarURL,
+		DefaultAvatarUrl: threadResp.DefaultAvatarURL,
+		Type:             threadResp.Type,
+		Content:          threadResp.Content,
+		ThreadId:         req.ThreadId,
+		Email:            threadResp.Email,
+		UserType:         threadResp.UserType,
+		UserName:         user.Profile.UserName,
+		FullName:         user.Profile.FullName,
+		OrgId:            threadResp.OrganisationID,
+		UserId:           threadResp.UserId,
+		Media:            threadResp.Media,
+		Edited:           true,
 	}
 
 	notification := models.Notification[models.Updated]

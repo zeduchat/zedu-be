@@ -30,6 +30,7 @@ var (
 	NewMessage                  NotificationType = "new_message"
 	StatusUpdate                NotificationType = "status_update"
 	ProfileStatusUpdated        NotificationType = "profile_status_updated"
+	UserPresenceChanged         NotificationType = "user_presence_changed"
 	UnReadThreadChange          NotificationType = "unread_thread_change"
 	ChannelMention              NotificationType = "channel_mention"
 	ThreadReply                 NotificationType = "thread_reply"
@@ -51,6 +52,7 @@ var (
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	BuzzReactionEvent           NotificationType = "buzz_reaction_event"
 	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
+	ThreadNotification          NotificationType = "thread_notification"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -59,6 +61,7 @@ var (
 	Channel                     ChannelType      = "channel"
 	DMChannel                   ChannelType      = "dm_channel"
 	GroupDMChannel              ChannelType      = "group_dm_channel"
+	ThreadChannel               ChannelType      = "thread_channel"
 )
 
 type Content struct {
@@ -81,11 +84,18 @@ type ModificationDetails struct {
 }
 
 type ProfileStatusUpdatePayload struct {
-	Text       string `json:"text"`
-	Icon       string `json:"icon"`
-	Username   string `json:"username"`
-	Email      string `json:"email"`
-	ProfilePic string `json:"profile_pic"`
+	Text          string `json:"text"`
+	Icon          string `json:"icon"`
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	ProfilePic    string `json:"profile_pic"`
+	StatusTimeout string `json:"status_timeout"`
+	Online        bool   `json:"online"`
+}
+
+type UserPresenceChangedPayload struct {
+	UserID string `json:"user_id"`
+	Online bool   `json:"online"`
 }
 
 type ToolCallNotification struct {
@@ -143,6 +153,9 @@ var Notification = map[NotificationType]Content{
 	},
 	ProfileStatusUpdated: Content{
 		NotificationType: ProfileStatusUpdated,
+	},
+	UserPresenceChanged: Content{
+		NotificationType: UserPresenceChanged,
 	},
 	UnReadThreadChange: Content{
 		NotificationType: UnReadThreadChange,
@@ -212,6 +225,9 @@ var Notification = map[NotificationType]Content{
 	},
 	BuzzStickerEvent: Content{
 		NotificationType: BuzzStickerEvent,
+	},
+	ThreadNotification: Content{
+		NotificationType: ThreadNotification,
 	},
 }
 

@@ -15,14 +15,13 @@ import (
 )
 
 type Profile struct {
-	ID                string         `gorm:"type:uuid;primary_key" json:"profile_id"`
-	FirstName         string         `gorm:"column:first_name; type:text; not null" json:"first_name"`
-	LastName          string         `gorm:"column:last_name; type:text;not null" json:"last_name"`
-	FullName          string         `gorm:"column:full_name; type:text;" json:"full_name"`
-	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
-	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
-	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
-	DefaultAvatarURL  string         `gorm:"type:varchar(255)" json:"default_avatar_url"`
+	ID        string `gorm:"type:uuid;primary_key" json:"profile_id"`
+	FirstName string `gorm:"column:first_name; type:text; not null" json:"first_name"`
+	LastName  string `gorm:"column:last_name; type:text;not null" json:"last_name"`
+	FullName  string `gorm:"column:full_name; type:text;" json:"full_name"`
+	UserName  string `gorm:"column:user_name; type:text;" json:"username"`
+	Phone     string `gorm:"type:varchar(255)" json:"phone"`
+	AvatarURL string `gorm:"type:varchar(255)" json:"avatar_url"`
 	Userid            string         `gorm:"type:uuid;unique" json:"user_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -39,6 +38,8 @@ type Profile struct {
 	WorkspaceID       string         `gorm:"type:varchar(255)" json:"workspace_id"`
 	Track             string         `gorm:"type:varchar(255)" json:"track"`
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
+	Online            bool           `gorm:"type:boolean;default:true" json:"online"`
+	IsActive          bool           `gorm:"type:boolean;default:true" json:"is_active"`
 }
 
 type ProfileSummary struct {
@@ -69,6 +70,7 @@ type ProfileSummary struct {
 	WorkspaceID       string   `json:"workspace_id"`
 	Track             string   `json:"track"`
 	Links             []string `json:"links"`
+	Online            bool     `json:"online"`
 }
 
 type UpdateUserProfileRequest struct {
@@ -94,6 +96,7 @@ type UpdateProfileStatus struct {
 	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
 	ClearStatus       bool   `json:"clear_status"`
+	Online            bool   `json:"online"`
 	UserId            string
 	OrgId             string
 }
@@ -119,12 +122,19 @@ type SetStatusRequest struct {
 	UserID     string  `json:"-"`
 }
 
+type UpdateUserPresenceRequest struct {
+	IsActive bool   `json:"online" validate:"boolean"`
+	UserID   string `json:"-"`
+	OrgID    string `json:"-"`
+}
+
 // UserStatus represents the persisted status for responses.
 type UserStatus struct {
 	Text       string `json:"text"`
 	Emoji      string `json:"emoji"`
 	Expiry     int64  `json:"expiry"`
 	Visibility string `json:"visibility"`
+	Online     bool   `json:"online"`
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
@@ -190,7 +200,7 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	return j, nil
 }
 
-func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) error {
+func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logger *utility.Logger) error {
 
 	query := "userid = ?"
 
@@ -212,11 +222,15 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		updates["status_timeout"] = ""
 	}
 
+	updates["online"] = req.Online
+
 	if err := db.Model(&Profile{}).
 		Where(query, req.UserId).
 		Updates(updates).Error; err != nil {
 		return errors.New("failed to update user profile")
 	}
+
+	logger.Info("Updated user profile status %v", updates)
 
 	if !req.ClearStatus {
 		publishChannel := req.OrgId
@@ -227,11 +241,13 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 
 		notification := Notification[ProfileStatusUpdated]
 		notification.Content = ProfileStatusUpdatePayload{
-			Text:       req.Text,
-			Icon:       req.Icon,
-			Username:   j.UserName,
-			Email:      user.Email,
-			ProfilePic: j.AvatarURL,
+			Text:          req.Text,
+			Icon:          req.Icon,
+			Username:      j.UserName,
+			Email:         user.Email,
+			ProfilePic:    j.AvatarURL,
+			StatusTimeout: req.StatusTimeout,
+			Online:        req.Online,
 		}
 		notification.ModificationDetails = &ModificationDetails{
 			UserId: req.UserId,
@@ -239,7 +255,8 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus) erro
 		}
 		notification.NotificationId = utility.GenerateUUID()
 
-		go centrifuge.PublishChannel(nil, publishChannel, notification)
+		centrifuge.PublishChannel(logger, publishChannel, notification)
+		logger.Info("Publised user profile status to centrifugo for user %s", req.UserId)
 	}
 
 	return nil

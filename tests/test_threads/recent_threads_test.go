@@ -219,7 +219,11 @@ func TestGetUserRecentThreads(t *testing.T) {
 							t.Errorf("Expected second thread to be 'Test thread 1 (older)', got '%s'", secondContent)
 						}
 
-						t.Logf("✓ Threads correctly ordered by updated_at descending")
+						if _, ok := firstThread["preview_reply"]; !ok {
+							t.Errorf("Expected 'preview_reply' field to be present in thread response")
+						}
+
+						t.Logf("✓ Threads correctly ordered by updated_at descending and contain preview_reply")
 					} else {
 						t.Logf("Warning: Expected at least 2 threads, got %d", len(threads))
 					}

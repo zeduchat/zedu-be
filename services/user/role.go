@@ -42,7 +42,7 @@ func ReplaceUserRole(userID, orgID, roleID string, db *gorm.DB, c *gin.Context) 
 
 	userData, err := role.UpdateUserRole(db, userID, orgID, roleID, c)
 	if err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf(err.Error())
+		return nil, http.StatusBadRequest, fmt.Errorf("%v", err.Error())
 	}
 
 	return userData, http.StatusOK, nil
