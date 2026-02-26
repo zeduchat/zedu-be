@@ -393,4 +393,6 @@ func sendBuzzInvitationEmail(db *storage.Database, logger *utility.Logger, invit
 	if err := actions.AddNotificationToQueue(storage.DB.Redis, names.SendBuzzInvitationEmail, reqData); err != nil {
 		logger.Error("failed to enqueue buzz invitation email for user %s: %v", inviteeID, err)
 	}
+
+	logger.Info("enqueued buzz invitation email for user %s", inviteeID)
 }
