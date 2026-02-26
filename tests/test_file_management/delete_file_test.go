@@ -58,11 +58,14 @@ func TestDeleteFilePermissions(t *testing.T) {
 		return uploadTestFileWithPermission(t, r, ownerToken)
 	}
 
-	// same org user without permission
+	// same org user without permission — assign a role that lacks CanDeleteAnyFile
 	memberSignup := newUserSignupData("member-file")
 	signupUser(t, authController, memberSignup)
 	member := getUserByEmail(t, db, memberSignup.Email)
-	assignUserToOrg(t, db, &member, ownerOrgID, ownerRoleID)
+	memberRoleID := createRoleWithPermission(t, db, ownerOrgID, models.PermissionList{
+		CanViewChannels: true,
+	})
+	assignUserToOrg(t, db, &member, ownerOrgID, memberRoleID)
 	memberToken := loginUser(t, authController, models.LoginRequestModel{
 		Email:    memberSignup.Email,
 		Password: memberSignup.Password,

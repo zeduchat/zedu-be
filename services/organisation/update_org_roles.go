@@ -44,13 +44,8 @@ func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gi
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, currentUser.ID, orgData.ID)
-	if err != nil {
-		return nil, http.StatusBadRequest, err
-	}
-
-	if !isOwner {
-		return nil, http.StatusForbidden, errors.New("not organization owner")
+	if !userCanOrOwner(db, currentUser.ID, orgData.ID, models.PermCreateCustomRole) {
+		return nil, http.StatusForbidden, errors.New("you do not have permission to update roles")
 	}
 
 	roleData, err = role.GetAOrgRole(db, orgID, roleID)
@@ -114,13 +109,8 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 		return http.StatusBadRequest, err
 	}
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, currentUser.ID, orgData.ID)
-	if err != nil {
-		return http.StatusBadRequest, err
-	}
-
-	if !isOwner {
-		return http.StatusForbidden, errors.New("not organization owner")
+	if !userCanOrOwner(db, currentUser.ID, orgData.ID, models.PermCreateCustomRole) {
+		return http.StatusForbidden, errors.New("you do not have permission to update permissions")
 	}
 
 	roleData, err = role.GetAOrgRole(db, orgID, roleID)
