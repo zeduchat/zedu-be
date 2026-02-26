@@ -132,10 +132,12 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 			continue
 		}
 
-		if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, inviteeID) {
-			logger.Info("user %s is not a channel member, skipping", inviteeID)
-			failedInvites = append(failedInvites, inviteeID)
-			continue
+		if buzz.BuzzType != models.BuzzTypeOrganization {
+			if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, inviteeID) {
+				logger.Info("user %s is not a channel member, skipping", inviteeID)
+				failedInvites = append(failedInvites, inviteeID)
+				continue
+			}
 		}
 
 		exists, err := models.CheckInvitationExists(db.Postgresql, req.BuzzID, inviteeID)
@@ -173,7 +175,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		}
 
 		// Send buzz invitation email asynchronously
-		sendBuzzInvitationEmail(db, logger, inviteeID, inviterProfile.UserName, buzz.ID)
+		go sendBuzzInvitationEmail(db, logger, inviteeID, inviterProfile.UserName, buzz.ID)
 
 		successfulInvites = append(successfulInvites, inviteeID)
 	}
