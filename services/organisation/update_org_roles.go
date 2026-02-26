@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"gorm.io/gorm"
 )
 
@@ -79,7 +81,7 @@ func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gi
 	return theResp, http.StatusOK, nil
 }
 
-func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.DB, c *gin.Context) (int, error) {
+func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.DB, rdb *redis.Client, c *gin.Context) (int, error) {
 	var (
 		org      models.Organisation
 		roleData models.OrgRole
@@ -142,6 +144,9 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 		}
 		return http.StatusBadRequest, err
 	}
+
+	cacheKey := "role_permissions_" + roleID
+	rd.RedisDelete(rdb, cacheKey)
 
 	return http.StatusOK, nil
 }

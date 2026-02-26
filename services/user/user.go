@@ -360,13 +360,13 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		return gin.H{}, http.StatusInternalServerError, err
 	}
 
+	user.OrgRoleID = &orgMgt.RoleID
+	user.OrgRole = orgRole
+
 	err = user.Update(db)
 	if err != nil {
 		return gin.H{}, http.StatusInternalServerError, err
 	}
-
-	user.OrgRoleID = &orgMgt.RoleID
-	user.OrgRole = orgRole
 
 	accessTokenData, err = accessToken.GetAccessTokenByID(db, accessTokenID)
 	if err != nil {
@@ -391,11 +391,6 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	err = access_token.CreateAccessToken(db, tokens)
 	if err != nil {
 		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
-	}
-
-	err = user.Update(db)
-	if err != nil {
-		return gin.H{}, http.StatusInternalServerError, err
 	}
 
 	theData := gin.H{
