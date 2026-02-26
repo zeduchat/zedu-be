@@ -46,6 +46,14 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 	}
 
 	r := gin.Default()
+
+	// Setup auth routes to prevent duplicate registration in tests
+	authUrl := r.Group("/api/v1/auth")
+	{
+		authUrl.POST("/register", authController.RegisterUser)
+		authUrl.POST("/login", authController.LoginUser)
+	}
+
 	SetupFileManagementRoutes(r, fileController, db)
 	return r, fileController, authController, db
 }

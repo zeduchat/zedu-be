@@ -291,6 +291,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		UserId:           req.UserId,
 		Media:            newMsg.Media,
 		Id:               req.MessageId,
+		Edited:           true,
 	}
 
 	notification := models.Notification[models.Updated]

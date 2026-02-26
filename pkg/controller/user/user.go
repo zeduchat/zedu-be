@@ -468,3 +468,27 @@ func (base *Controller) GetUserRoleInOrganisation(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "User role fetched successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetAUserForMentions(c *gin.Context) {
+	userID := c.Param("user_id")
+
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", "invalid user id format", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	requestingUserID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+
+	userData, code, err := service.GetAUserForMentions(userID, requestingUserID, orgID, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User retrieved successfully", userData)
+	c.JSON(http.StatusOK, rd)
+}

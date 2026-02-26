@@ -12,6 +12,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -359,13 +360,13 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		return gin.H{}, http.StatusInternalServerError, err
 	}
 
+	user.OrgRoleID = &orgMgt.RoleID
+	user.OrgRole = orgRole
+
 	err = user.Update(db)
 	if err != nil {
 		return gin.H{}, http.StatusInternalServerError, err
 	}
-
-	user.OrgRoleID = &orgMgt.RoleID
-	user.OrgRole = orgRole
 
 	accessTokenData, err = accessToken.GetAccessTokenByID(db, accessTokenID)
 	if err != nil {
@@ -392,11 +393,6 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
 	}
 
-	err = user.Update(db)
-	if err != nil {
-		return gin.H{}, http.StatusInternalServerError, err
-	}
-
 	theData := gin.H{
 		"organisation":              org,
 		"access_token":              token.AccessToken,
@@ -404,4 +400,46 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	}
 
 	return theData, http.StatusOK, nil
+}
+
+func GetAUserForMentions(userIDStr, requestingUserID, orgID string, db *gorm.DB) (models.UserMentionResponse, int, error) {
+	var (
+		userResp models.UserMentionResponse
+	)
+
+	var requestingUserOrgMgt models.OrgUserManagement
+	_, err := requestingUserOrgMgt.GetByIDs(db, requestingUserID, orgID)
+	if err != nil {
+		return userResp, http.StatusForbidden, errors.New("requesting user not in current organization")
+	}
+
+	var targetUserOrgMgt models.OrgUserManagement
+	_, err = targetUserOrgMgt.GetByIDs(db, userIDStr, orgID)
+	if err != nil {
+		return userResp, http.StatusForbidden, errors.New("target user not in the same organization")
+	}
+
+	var targetUser models.User
+	targetUser, err = targetUser.GetUserWithProfile(db, userIDStr)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return userResp, http.StatusNotFound, errors.New("user not found")
+		}
+		return userResp, http.StatusInternalServerError, err
+	}
+
+	userResp = models.UserMentionResponse{
+		UserID:           targetUser.ID,
+		Username:         targetUser.Profile.UserName,
+		FullName:         targetUser.Profile.FullName,
+		FirstName:        targetUser.Profile.FirstName,
+		LastName:         targetUser.Profile.LastName,
+		AvatarURL:        targetUser.Profile.AvatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(targetUser.ID),
+		DisplayName:      targetUser.Profile.DisplayName,
+		StatusText:       targetUser.Profile.Text,
+		OnlineStatus:     targetUser.Profile.Online,
+	}
+
+	return userResp, http.StatusOK, nil
 }

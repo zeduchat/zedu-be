@@ -86,6 +86,17 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
 	}
 
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
+
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsID,
 		UserName:         profile.UserName,
@@ -223,6 +234,17 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Errorf("failed to create thread: %v", err)
+	}
+
+	// Update file metadata with DM channel and message IDs
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail DM send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	publishfeed := models.FeedMessageRequest{

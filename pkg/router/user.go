@@ -22,6 +22,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	adminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		userUrl.GET("/users/:user_id", user.GetAUser)
+		userUrl.GET("/users/mentions/:user_id", user.GetAUserForMentions)
 		userUrl.DELETE("/users/:user_id", user.DeleteAUser)
 		userUrl.GET("/users/organisations", user.GetAUserOrganisation)
 		userUrl.GET("/users/:user_id/login-audit", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserLoginAudit)
