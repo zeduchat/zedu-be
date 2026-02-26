@@ -223,6 +223,42 @@ func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
 	return nil
 }
 
+// UpdateFilesMetadata updates channel_id and message_id for files attached to messages
+// This is called after thread/message creation to associate files with the correct context
+func UpdateFilesMetadata(db *gorm.DB, logger *utility.Logger, fileIDs []string, channelID, messageID string) error {
+	if len(fileIDs) == 0 {
+		return nil
+	}
+
+	updates := map[string]interface{}{}
+	if channelID != "" {
+		updates["channel_id"] = channelID
+	}
+	if messageID != "" {
+		updates["message_id"] = messageID
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	err := db.Model(&File{}).
+		Where("id IN ?", fileIDs).
+		Updates(updates).Error
+
+	if err != nil {
+		logger.Error("Failed to update file metadata",
+			"file_ids", fileIDs,
+			"location", "models.fileManagement.UpdateFilesMetadata",
+			"channel_id", channelID,
+			"message_id", messageID,
+			"error", err)
+		return fmt.Errorf("failed to update file metadata: %w", err)
+	}
+
+	return nil
+}
+
 func (file *File) GetFileCategory() string {
 	mimeType := strings.ToLower(file.MimeType)
 

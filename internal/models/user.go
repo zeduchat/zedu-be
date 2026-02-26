@@ -82,6 +82,20 @@ type OneSignalSubscriptionIDRequest struct {
 	Platform       string `json:"platform"`
 }
 
+type UserMentionResponse struct {
+	Username         string `json:"username"`
+	FullName         string `json:"fullname"`
+	FirstName        string `json:"firstname"`
+	LastName         string `json:"lastname"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	DisplayName      string `json:"display_name"`
+	StatusText       string `json:"status_text"`
+	UserID           string `json:"userid"`
+	OnlineStatus     bool   `json:"online_status"`
+}
+
+
 func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
 
 	err := db.Model(user).Association("Organisations").Append(orgs...)

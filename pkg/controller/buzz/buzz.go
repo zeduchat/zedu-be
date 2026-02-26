@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
@@ -623,22 +624,23 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	}
 
 	feed := models.FeedMessageRequest{
-		ChannelID:   buzzRecord.ChannelID,
-		UserName:    profile.UserName,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		AvatarURL:   profile.AvatarURL,
-		Type:        "buzz_message",
-		Content:     req.Content,
-		ThreadId:    buzzID,
-		Email:       user.Email,
-		UserType:    "user",
-		FullName:    profile.FullName,
-		UserId:      userID,
-		OrgId:       orgID,
-		BuzzCode:    utility.ExtractBuzzCode(buzzID),
-		Media:       req.Media,
-		ChannelName: "",
-		ChannelType: buzzRecord.ChannelType,
+		ChannelID:        buzzRecord.ChannelID,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(userID),
+		Type:             "buzz_message",
+		Content:          req.Content,
+		ThreadId:         buzzID,
+		Email:            user.Email,
+		UserType:         "user",
+		FullName:         profile.FullName,
+		UserId:           userID,
+		OrgId:            orgID,
+		BuzzCode:         utility.ExtractBuzzCode(buzzID),
+		Media:            req.Media,
+		ChannelName:      "",
+		ChannelType:      buzzRecord.ChannelType,
 	}
 
 	publishChannel := buzzID

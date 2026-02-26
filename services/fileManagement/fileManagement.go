@@ -652,7 +652,7 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 	case "mine":
 		query = query.Where("files.user_id = ?", params.UserID)
 	case "shared":
-		// Get channels the user is in will check for messageid for dm files when it'll be implemented
+		// Get channels the user is in (including DM channels)
 
 		var userChannels []string
 		err := db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &userChannels).Error
@@ -660,8 +660,26 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 			return nil, postgresql.PaginationResponse{}, err
 		}
 
-		if len(userChannels) > 0 {
-			query = query.Where("files.channel_id IN ?", userChannels)
+		// Get DM channels where user is participant (owner or receiver)
+		var dmChannels []models.DmChannels
+		err = db.Table("dm_channels").
+			Select("channel_id").
+			Where("user_id = ? OR participant_id = ?", params.UserID, params.UserID).
+			Find(&dmChannels).Error
+		if err != nil {
+			return nil, postgresql.PaginationResponse{}, err
+		}
+
+		dmChannelIDs := make([]string, len(dmChannels))
+		for i, dm := range dmChannels {
+			dmChannelIDs[i] = dm.ChannelId
+		}
+
+		// Combine regular channels and DM channels
+		allChannels := append(userChannels, dmChannelIDs...)
+
+		if len(allChannels) > 0 {
+			query = query.Where("files.channel_id IN ?", allChannels)
 		} else {
 			return []models.File{}, postgresql.PaginationResponse{
 				CurrentPage: params.Page,

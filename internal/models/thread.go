@@ -175,14 +175,15 @@ var Thread_mapping = map[string]any{
 				"type":   "date",
 				"format": "strict_date_optional_time||yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis",
 			},
-			"avatar_url":     map[string]string{"type": "text"},
-			"type":           map[string]string{"type": "keyword"},
-			"message":        map[string]string{"type": "text"},
-			"channel_name":   map[string]string{"type": "keyword"},
-			"channel_type":   map[string]string{"type": "text"},
-			"current_status": map[string]string{"type": "text"},
-			"full_name":      map[string]string{"type": "text"},
-			"email":          map[string]string{"type": "text"},
+			"avatar_url":         map[string]string{"type": "text"},
+			"default_avatar_url": map[string]string{"type": "text"},
+			"type":               map[string]string{"type": "keyword"},
+			"message":            map[string]string{"type": "text"},
+			"channel_name":       map[string]string{"type": "keyword"},
+			"channel_type":       map[string]string{"type": "text"},
+			"current_status":     map[string]string{"type": "text"},
+			"full_name":          map[string]string{"type": "text"},
+			"email":              map[string]string{"type": "text"},
 			"media": map[string]any{
 				"type":       "nested",
 				"properties": MediaMapping,
@@ -323,6 +324,7 @@ type FeedMessageRequest struct {
 	ChannelType              string                    `json:"channel_type,omitempty"` // public, private, or DM
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
+	Edited                   bool                      `json:"edited"`
 }
 
 type Mentions struct {
@@ -355,6 +357,7 @@ type ThreadWithMessagesResponse struct {
 	SenderAvatarURL        string           `json:"sender_avatar_url"`
 	SenderDefaultAvatarURL string           `json:"sender_default_avatar_url"`
 	ChannelType            string           `json:"channel_type"`
+	ThreadId               string           `json:"thread_id"`
 }
 
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
@@ -945,6 +948,70 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
+func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
+	var thread ThreadDocument
+	err := thread.GetThreadById(t.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if thread.OrganisationID != t.OrganisationID {
+		return nil, fmt.Errorf("thread does not belong to the organisation")
+	}
+
+	userIDsMap := make(map[string]struct{})
+
+	if thread.UserId != "" {
+		userIDsMap[thread.UserId] = struct{}{}
+	}
+
+	for _, m := range thread.Mentions {
+		if m.ID != "" && m.Type == "user" {
+			userIDsMap[m.ID] = struct{}{}
+		}
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id": t.ID,
+			},
+		},
+		"size": 10000,
+	}
+
+	var messageData any
+	err = elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	messages, err := UnmarshalMessageResponse(messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msg := range messages {
+		if msg.UserID != "" {
+			userIDsMap[msg.UserID] = struct{}{}
+		}
+		for _, m := range msg.Mentions {
+			if m.ID != "" && m.Type == "user" {
+				userIDsMap[m.ID] = struct{}{}
+			}
+		}
+	}
+
+	participantIDs := make([]string, 0, len(userIDsMap))
+	for userID := range userIDsMap {
+		if userID != userId {
+			participantIDs = append(participantIDs, userID)
+		}
+	}
+
+	return participantIDs, nil
+}
+
 func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
 	var (
 		threads      []Threads
@@ -1048,8 +1115,21 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 					},
 				},
 				"minimum_should_match": 1,
+				"filter": []map[string]any{
+					{
+						"nested": map[string]any{
+							"path": "messages",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "messages.id",
+								},
+							},
+						},
+					},
+				},
 			},
 		},
+
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]string{
@@ -1221,6 +1301,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		}
 
 		result = append(result, ThreadWithMessagesResponse{
+			ThreadId:               threadDoc.ID,
 			ThreadMessages:         []ThreadDocument{threadDoc},
 			ChannelName:            channelName,
 			Participants:           participants,

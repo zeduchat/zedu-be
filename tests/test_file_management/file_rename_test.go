@@ -221,7 +221,7 @@ func TestUpdateFileName(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		tests.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, rr.Code, http.StatusNotFound)
 	})
 
 	t.Run("UpdateFileName_TooLong", func(t *testing.T) {

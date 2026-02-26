@@ -224,8 +224,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
-		Where("channels.archived = FALSE").
-		Order("channels.created_at").
+		Where("channels.archived = FALSE")
+
+	if ids.Search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	}
+
+	query = query.Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
@@ -346,8 +351,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
-		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
-		Order("channels.created_at").
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)")
+
+	if ids.Search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	}
+
+	query = query.Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
@@ -361,6 +371,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		CurrentPage:     pagination.Page,
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
+		TotalItems:      totalRes,
 	}
 
 	return chanResp, paginationResponse, http.StatusOK, nil

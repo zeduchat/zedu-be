@@ -3097,6 +3097,26 @@ paths:
             type: string
             format: uuid
           description: ID of the organisation to check for the channel.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search channels by name.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page.
       responses:
         "200":
           description: Get all channels in an organisation
@@ -3241,6 +3261,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          in: query
+          required: false
+          description: Search channels by name.
+          schema:
+            type: string
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -6581,6 +6607,95 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/organizationSuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /users/mentions/{user_id}:
+    get:
+      tags:
+        - user
+      summary: Retrieve minimal user information for mentions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The user ID
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "jdoe"
+                      fullname:
+                        type: string
+                        example: "John Doe"
+                      firstname:
+                        type: string
+                        example: "John"
+                      lastname:
+                        type: string
+                        example: "Doe"
+                      avatar_url:
+                        type: string
+                        example: "http://example.com/custom_avatar.jpg"
+                      default_avatar_url:
+                        type: string
+                        example: "http://example.com/avatar.jpg"
+                      display_name:
+                        type: string
+                        example: "Johnny"
+                      status_text:
+                        type: string
+                        example: "Working from home"
+                      userid:
+                        type: string
+                        example: "00000000-0000-0000-0000-000000000000"
+                      online_status:
+                        type: boolean
+                        example: true
         "400":
           description: Bad request
           content:
@@ -11521,6 +11636,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          required: false
+          description: Search DM channels by participant details (email, username, first name, last name).
+          schema:
+            type: string
       responses:
         "200":
           description: Dm channels retrieved successfully
@@ -29414,64 +29535,82 @@ components:
           type: string
           example: "channels fetched successfully"
         data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+              name:
+                type: string
+                example: "hackers"
+              description:
+                type: string
+                example: "this room is meant for hackers"
+              organisation_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              is_private:
+                type: boolean
+                example: false
+              owner_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              archived:
+                type: boolean
+                example: false
+              group_id:
+                type: string
+                format: uuid
+                nullable: true
+                example: null
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-27T15:28:20.499875+01:00"
+              last_thread_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              access:
+                type: boolean
+                example: true
+              member_avatars:
+                type: array
+                items:
+                  type: string
+                example: ["https://example.com/avatar1.jpg"]
+              members_count:
+                type: integer
+                example: 10
+              last_post_time:
+                type: string
+                example: "5 minutes ago"
+              unread_count:
+                type: integer
+                example: 0
+              channel_slug:
+                type: string
+                example: "hackers-a158cc0f7e3a"
+        pagination:
           type: object
           properties:
-            additional_info:
-              type: object
-              properties:
-                channels_count:
-                  type: integer
-                  example: 1
-                totalmessage_count:
-                  type: integer
-                  example: 1
-            channels:
-              type: array
-              items:
-                type: object
-                properties:
-                  channels_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
-                  name:
-                    type: string
-                    example: "hackers"
-                  description:
-                    type: string
-                    example: "this room is meant for hackers"
-                  organisation_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
-                  owner_id:
-                    type: string
-                    format: uuid
-                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-                  users:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
-                  user_count:
-                    type: integer
-                    example: 0
-                  message_count:
-                    type: integer
-                    example: 0
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2024-08-12T15:23:56.147736+01:00"
-                  deleted_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:13:35+00:13"
-                  messages:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
+            current_page:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 10
+            total_items:
+              type: integer
+              example: 1
     ConnectionTokenResponseSchema:
       type: object
       properties:

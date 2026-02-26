@@ -1002,16 +1002,21 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUserChannelResp, error) {
 
 	var (
-		db = base.Postgresql
+		db     = base.Postgresql
+		search = ids.Search
 	)
 	chanResp := make(GetUserChannelResp, 0)
 
-	if err := db.Model(&Channels{}).
+	query := db.Model(&Channels{}).
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.organisation_id = ? AND uc.user_id = ? AND channels.archived = FALSE", ids.OrganisationID, ids.UserID).
-		Order("channels.created_at").
-		Scan(&chanResp).Error; err != nil {
+		Where("channels.organisation_id = ? AND uc.user_id = ? AND channels.archived = FALSE", ids.OrganisationID, ids.UserID)
+
+	if search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+search+"%")
+	}
+
+	if err := query.Order("channels.created_at DESC").Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
 
@@ -1127,6 +1132,10 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 	}
 
 	sort.Slice(chanResp, func(i, j int) bool {
+		if chanResp[i].UnreadCount != chanResp[j].UnreadCount {
+			return chanResp[i].UnreadCount > chanResp[j].UnreadCount
+		}
+
 		var iTime, jTime time.Time
 		iHasThread := chanResp[i].PreviewThread != nil && len(chanResp[i].PreviewThread) > 0
 		jHasThread := chanResp[j].PreviewThread != nil && len(chanResp[j].PreviewThread) > 0
@@ -1151,7 +1160,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			return false
 		}
 
-		return false
+		return chanResp[i].CreatedAt.After(chanResp[j].CreatedAt)
 	})
 
 	// Batch fetch active buzzes for all channels to avoid N+1 queries
