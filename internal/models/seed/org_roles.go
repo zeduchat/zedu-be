@@ -12,27 +12,27 @@ import (
 func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
 	roles := []models.OrgRole{
 		{
-			Name:        "Administrator",
+			Name:        models.OrgRoleNameAdministrator,
 			Description: "Full access, control",
 			IsDefault:   true,
 		},
 		{
-			Name:        "Guest",
+			Name:        models.OrgRoleNameGuest,
 			Description: "Read-only access",
 			IsDefault:   true,
 		},
 		{
-			Name:        "User",
+			Name:        models.OrgRoleNameUser,
 			Description: "Read, write, update",
 			IsDefault:   true,
 		},
 		{
-			Name:        "Manager",
+			Name:        models.OrgRoleNameManager,
 			Description: "Read, write, approve",
 			IsDefault:   true,
 		},
 		{
-			Name:        "Project Lead",
+			Name:        models.OrgRoleNameProjectLead,
 			Description: "Manage, coordinate, oversee",
 			IsDefault:   true,
 		},
@@ -64,7 +64,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 	}
 
 	switch role.Name {
-	case "Administrator":
+	case models.OrgRoleNameAdministrator:
 		permission.PermissionList = models.PermissionList{
 			CanRemovePeopleFromOrganization: true,
 			CanInviteMembers:                true,
@@ -75,9 +75,10 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanCreateWebhooks:               true,
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            true,
+			CanDeleteAnyFile:                true,
 			CanManageGeneralInviteLink:      true,
 		}
-	case "Guest":
+	case models.OrgRoleNameGuest:
 		permission.PermissionList = models.PermissionList{
 			CanRemovePeopleFromOrganization: false,
 			CanInviteMembers:                false,
@@ -89,7 +90,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            false,
 		}
-	case "User":
+	case models.OrgRoleNameUser:
 		permission.PermissionList = models.PermissionList{
 			CanRemovePeopleFromOrganization: false,
 			CanInviteMembers:                true,
@@ -101,7 +102,7 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            false,
 		}
-	case "Manager":
+	case models.OrgRoleNameManager:
 		permission.PermissionList = models.PermissionList{
 			CanRemovePeopleFromOrganization: true,
 			CanInviteMembers:                true,
@@ -112,9 +113,10 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 			CanCreateWebhooks:               true,
 			CanViewChannels:                 true,
 			CanChangeUserOrgRole:            true,
+			CanDeleteAnyFile:                true,
 			CanManageGeneralInviteLink:      true,
 		}
-	case "Project Lead":
+	case models.OrgRoleNameProjectLead:
 		permission.PermissionList = models.PermissionList{
 			CanRemovePeopleFromOrganization: true,
 			CanInviteMembers:                true,

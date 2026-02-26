@@ -246,7 +246,7 @@ func CheckerValidator(base *storage.Database, Emails []string, ids *models.IDS, 
 		}
 
 		for _, role := range resp {
-			if role.Name == "User" {
+			if role.Name == models.OrgRoleNameUser {
 				ids.RoleID = role.ID
 				break
 			}

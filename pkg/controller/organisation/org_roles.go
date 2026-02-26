@@ -97,7 +97,7 @@ func (base *Controller) DeleteOrgRole(c *gin.Context) {
 		roleId = c.Param("role_id")
 	)
 
-	code, err := service.DeleteOrgRole(base.Db.Postgresql, orgId, roleId, c)
+	code, err := service.DeleteOrgRole(base.Db.Postgresql, base.Db.Redis, orgId, roleId, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)

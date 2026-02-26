@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/agents"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
@@ -50,7 +51,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
 		organisationUrl.PATCH("/:org_id/users/:user_id/status", organisationCtrl.ChangeMemberActiveStatus)
 		organisationUrl.DELETE("/:org_id/users/:user_id", organisationCtrl.RemoveMemberFromOrganisation)
-		organisationUrl.PATCH("/:org_id/users/:user_id/role", middleware.PermissionMiddleware(db.Postgresql, db.Redis, "can_change_user_org_role"), organisationCtrl.UpdateMemberRole)
+		organisationUrl.PATCH("/:org_id/users/:user_id/role", middleware.PermissionMiddleware(db.Postgresql, db.Redis, models.PermChangeUserOrgRole), organisationCtrl.UpdateMemberRole)
 
 		organisationUrl.GET("/:org_id/metrics", organisationCtrl.GetOrganisationCountMetrics)
 		organisationUrl.GET("/:org_id/invites", organisationCtrl.GetOrganisationInvites)

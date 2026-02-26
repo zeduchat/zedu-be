@@ -159,6 +159,20 @@ func (a *AccessToken) RevokeUserTokens(db *gorm.DB) (int, error) {
 	return http.StatusOK, nil
 }
 
+// RevokeTokensByUserIDs marks all live tokens owned by the given user IDs as revoked.
+func (a *AccessToken) RevokeTokensByUserIDs(db *gorm.DB, userIDs []string) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	err := db.Model(&AccessToken{}).
+		Where("owner_id IN ? AND is_live = ?", userIDs, true).
+		Update("is_live", false).Error
+	if err != nil {
+		return fmt.Errorf("failed to revoke tokens for users: %v", err)
+	}
+	return nil
+}
+
 func (a *AccessToken) RevokeAllTokens(db *gorm.DB) error {
 	err := db.Model(&a).
 		Where("is_live = ?", true).

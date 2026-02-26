@@ -16,7 +16,7 @@ import (
 func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 	var orgRole models.OrgRole
 
-	orgRole, err := orgRole.GetAOrgRoleByName(db, "Administrator")
+	orgRole, err := orgRole.GetAOrgRoleByName(db, models.OrgRoleNameAdministrator)
 	if err != nil {
 		return err
 	}
@@ -48,18 +48,10 @@ func CountMetrics(db *gorm.DB, userID, orgID string) (models.OrgUserMetricsRespo
 }
 
 func UpdateMember(db *gorm.DB, ownerId, orgID, userID string, req models.UpdateMemberRequest) (models.OrgUserManagement, error) {
-	var (
-		oum models.OrgUserManagement
-		o   models.Organisation
-	)
+	var oum models.OrgUserManagement
 
-	isowner, err := o.IsOwnerOfOrganisation(db, ownerId, orgID)
-	if err != nil {
-		return oum, err
-	}
-
-	if !isowner {
-		return oum, errors.New("user is not the owner of the organisation")
+	if !userCanOrOwner(db, ownerId, orgID, models.PermChangeUserOrgRole) {
+		return oum, errors.New("you do not have permission to update members")
 	}
 
 	resp, err := oum.UpdateMember(db, orgID, userID, req)
@@ -126,7 +118,6 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	var (
 		user      models.User
 		adminUser models.User
-		oum       models.OrgUserManagement
 		userID    = ids["user_id"]
 		orgID     = ids["org_id"]
 		adminID   = ids["admin_user_id"]
@@ -145,8 +136,8 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		return http.StatusUnauthorized, errors.New("admin user does not exist")
 	}
 
-	if !oum.CheckIsOrganisationAdmin(db, models.IDS{OrganisationID: orgID, OwnerID: adminID}) {
-		return http.StatusForbidden, errors.New("user is not authorized to change member status")
+	if !userCanOrOwner(db, adminID, orgID, models.PermChangeUserOrgRole) {
+		return http.StatusForbidden, errors.New("you do not have permission to change member status")
 	}
 
 	tx := db.Begin()
