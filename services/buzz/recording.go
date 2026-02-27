@@ -17,7 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-const recordingUID = "1000"
+const recordingUID = "1"
 
 func getActiveBuzzRecording(db *gorm.DB, buzzID string) (*models.BuzzRecording, error) {
 	var rec models.BuzzRecording
@@ -40,32 +40,35 @@ func getBuzzOrgID(buzz *models.Buzz) string {
 func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hostID string) (*models.BuzzRecording, int, error) {
 	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, hostID)
 	if err != nil {
+		logger.Error("[Agora] failed to perform host action for buzz %s: %v", buzzID, err)
 		statusCode, errMsg := mapPermissionError(err, "start recording")
 		return nil, statusCode, errors.New(errMsg)
 	}
 
 	existing, err := getActiveBuzzRecording(db.Postgresql, buzzID)
 	if err != nil {
+		logger.Error("[Agora] failed to check recording status for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to check recording status")
 	}
 	if existing != nil {
 
-		rec := &models.BuzzRecording{
-			ID:         utility.GenerateUUID(),
-			BuzzID:     buzzID,
-			OrgID:      existing.OrgID,
-			ResourceID: existing.ResourceID,
-			Sid:        existing.Sid,
-			Status:     existing.Status,
-			StartedAt:  existing.StartedAt,
-		}
-		return rec, http.StatusOK, nil
+		// rec := &models.BuzzRecording{
+		// 	ID:         utility.GenerateUUID(),
+		// 	BuzzID:     buzzID,
+		// 	OrgID:      existing.OrgID,
+		// 	ResourceID: existing.ResourceID,
+		// 	Sid:        existing.Sid,
+		// 	Status:     existing.Status,
+		// 	StartedAt:  existing.StartedAt,
+		// }
+		return nil, http.StatusConflict, errors.New("recording already in progress")
 	}
+
 
 	orgID := getBuzzOrgID(buzz)
 	resourceID, err := agora.AcquireRecording(logger, buzzID, recordingUID)
 	if err != nil {
-		logger.Error("failed to acquire recording resource for buzz %s: %v", buzzID, err)
+		logger.Error("[Agora] failed to acquire recording resource for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
 	}
 
@@ -73,7 +76,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 
 	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, durationSecs)
 	if err != nil {
-		logger.Error("failed to start recording for buzz %s: %v", buzzID, err)
+		logger.Error("[Agora] failed to start recording for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to start recording")
 	}
 
@@ -93,7 +96,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 	}
 
 	publishRecordingEvent(logger, buzz, rec, "recording_started")
-	logger.Info("recording started for buzz %s, sid: %s", buzzID, sid)
+	logger.Info("[Agora] Recording started for buzz %s, sid: %s", buzzID, sid)
 	return rec, http.StatusOK, nil
 }
 
@@ -112,7 +115,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return nil, http.StatusNotFound, errors.New("no active recording found for this buzz")
 	}
 
-	statusStr, files, err := agora.QueryRecordingStatus(rec.ResourceID, rec.Sid, buzzID)
+	statusStr, files, err := agora.QueryRecordingStatus(logger, rec.ResourceID, rec.Sid, buzzID)
 	if err != nil {
 		logger.Error("failed to query agora recording status: %v", err)
 		return rec, http.StatusOK, nil
@@ -179,7 +182,7 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 		return nil, http.StatusNotFound, errors.New("no active recording found for this buzz")
 	}
 
-	statusStr, files, err := agora.QueryRecordingStatus(rec.ResourceID, rec.Sid, buzzID)
+	statusStr, files, err := agora.QueryRecordingStatus(logger, rec.ResourceID, rec.Sid, buzzID)
 	if err != nil {
 		logger.Error("failed to query agora recording status: %v", err)
 		return rec, http.StatusOK, nil

@@ -170,6 +170,7 @@ func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error
 }
 
 func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxIdleSecs int) (string, error) {
+	logger.Info("[Agora] Starting recording for buzz %s", buzzID)
 	rc, err := newRecordingClient()
 	if err != nil {
 		logger.Error("[Agora] Failed to create recording client: %v", err)
@@ -188,7 +189,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxI
 		Uid:   uid,
 		ClientRequest: startClientRequest{
 			RecordingConfig: recordingConfig{
-				MaxIdleTime:        maxIdleSecs,
+				MaxIdleTime:        30,
 				StreamTypes:        2,
 				ChannelType:        0,
 				VideoStreamType:    1,
@@ -201,7 +202,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxI
 				Bucket:         cfg.Minio.BucketName,
 				AccessKey:      cfg.Minio.AccessKey,
 				SecretKey:      cfg.Minio.Secret,
-				FileNamePrefix: []string{"buzz-recordings", buzzID},
+				FileNamePrefix: []string{"call-recordings", buzzID},
 				ExtensionParams: ExtensionParams{
 					EndPoint: minioEndpoint,
 				},
@@ -251,7 +252,7 @@ func StopRecording(logger *utility.Logger, resourceID, sid, buzzID, uid string) 
 	return nil
 }
 
-func QueryRecordingStatus(resourceID, sid, buzzID string) (string, []string, error) {
+func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string) (string, []string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return "", nil, err
@@ -262,6 +263,7 @@ func QueryRecordingStatus(resourceID, sid, buzzID string) (string, []string, err
 
 	respData, err := rc.doRequest(http.MethodGet, url, nil)
 	if err != nil {
+		logger.Error("[Agora] Failed to query recording for buzz %s: %v", buzzID, err)
 		return "", nil, fmt.Errorf("query recording failed: %w", err)
 	}
 
