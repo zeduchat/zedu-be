@@ -17,7 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-const recordingUID = "ZeduBot"
+const recordingUID = "1000"
 
 func getActiveBuzzRecording(db *gorm.DB, buzzID string) (*models.BuzzRecording, error) {
 	var rec models.BuzzRecording
