@@ -63,6 +63,9 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 
 		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
 		buzzGroup.POST("/:id/message", ctrl.SendBuzzMessage)
+		buzzGroup.POST("/:id/recording/start", ctrl.StartRecording)
+		buzzGroup.POST("/:id/recording/stop", ctrl.StopRecording)
+		buzzGroup.GET("/:id/recording/status", ctrl.GetRecordingStatus)
 	}
 
 	return r, ctrl // Renamed buzzController to ctrl

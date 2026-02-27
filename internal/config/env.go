@@ -141,6 +141,8 @@ type BaseConfig struct {
 
 	AGORA_APP_ID          string `mapstructure:"AGORA_APP_ID"`
 	AGORA_APP_CERTIFICATE string `mapstructure:"AGORA_APP_CERTIFICATE"`
+	AGORA_CUSTOMER_ID     string `mapstructure:"AGORA_CUSTOMER_ID"`
+	AGORA_CUSTOMER_SECRET string `mapstructure:"AGORA_CUSTOMER_SECRET"`
 
 	ONESIGNAL_APP_ID       string `mapstructure:"ONESIGNAL_APP_ID"`
 	ONESIGNAL_REST_API_KEY string `mapstructure:"ONESIGNAL_REST_API_KEY"`
@@ -298,6 +300,8 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Agora: Agora{
 			AppId:          config.AGORA_APP_ID,
 			AppCertificate: config.AGORA_APP_CERTIFICATE,
+			CustomerID:     config.AGORA_CUSTOMER_ID,
+			CustomerSecret: config.AGORA_CUSTOMER_SECRET,
 		},
 		OneSignal: OneSignal{
 			AppID:      config.ONESIGNAL_APP_ID,
