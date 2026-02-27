@@ -367,7 +367,7 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             users.email,
             profiles.user_name AS username,
             profiles.phone AS phone_number,
-            profiles.avatar_url AS profile_url,
+            profiles.avatar_url AS avatar_url,
             users.name,
             org_roles.name AS role,
             org_user_managements.status,

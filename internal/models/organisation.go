@@ -76,7 +76,7 @@ type UserInOrgResponse struct {
 	Email       string    `json:"email"`
 	UserName    string    `json:"username"`
 	PhoneNumber string    `json:"phone_number"`
-	AvatarURL   string    `json:"profile_url"`
+	AvatarURL   string    `json:"avatar_url"`
 	Name        string    `json:"name"`
 	Role        string    `json:"role"`
 	Status      string    `json:"status"`
