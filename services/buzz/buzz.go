@@ -23,7 +23,7 @@ import (
 
 const (
 	errorAgoraNotInitialized   = "agora service not initialized"
-	DefaultBuzzDurationMinutes = 60
+	DefaultBuzzDurationMinutes = 2 * 60 // 2 hours
 )
 
 func getPublishChannel(buzz *models.Buzz) string {
