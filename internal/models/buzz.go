@@ -61,11 +61,11 @@ type BuzzRecording struct {
 	ID          string     `gorm:"type:uuid;primaryKey" json:"id"`
 	BuzzID      string     `gorm:"type:uuid;not null;index" json:"buzz_id"`
 	OrgID       string     `gorm:"type:uuid;not null;index" json:"org_id"`
-	ResourceID  string     `gorm:"type:text;not null" json:"resource_id"`
-	Sid         string     `gorm:"type:text;not null" json:"sid"`
+	ResourceID  string     `gorm:"type:text;not null" json:"-"`
+	Sid         string     `gorm:"type:text;not null" json:"-"`
 	Status      string     `gorm:"type:varchar(20);not null;default:'starting'" json:"status"`
 	FileURL     string     `gorm:"type:text" json:"file_url"`
-	FileID      *string    `gorm:"type:uuid" json:"file_id,omitempty"`
+	FileID      *string    `gorm:"type:uuid" json:"-"`
 	DurationSec int        `gorm:"default:0" json:"duration_sec"`
 	StartedAt   time.Time  `gorm:"not null" json:"started_at"`
 	EndedAt     *time.Time `json:"ended_at,omitempty"`

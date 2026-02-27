@@ -112,6 +112,23 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return nil, http.StatusNotFound, errors.New("no active recording found for this buzz")
 	}
 
+	statusStr, files, err := agora.QueryRecordingStatus(rec.ResourceID, rec.Sid, buzzID)
+	if err != nil {
+		logger.Error("failed to query agora recording status: %v", err)
+		return rec, http.StatusOK, nil
+	}
+
+	rec.Status = statusStr
+	if len(files) > 0 && rec.FileURL == "" {
+		rec.FileURL = buildRecordingFileURL(files[0])
+	}
+
+	if err := db.Postgresql.Save(rec).Error; err != nil {
+		logger.Error("failed to update recording status: %v", err)
+	}
+
+	logger.Info("[Agora] Recording file and status updated for %s", buzzID)
+
 	if err := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
 		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, err)
 	}
