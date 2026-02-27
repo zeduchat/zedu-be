@@ -1735,6 +1735,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:
@@ -3556,6 +3562,12 @@ paths:
                         entity_type:
                           type: string
                           example: "user"
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
 
   /organisations/{org_id}/users/{user_id}/status:
     patch:
@@ -3827,6 +3839,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:

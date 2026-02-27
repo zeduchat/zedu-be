@@ -13,6 +13,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -485,6 +486,14 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 
 	if err := query.Find(&entities).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch org entities: %w", err)
+	}
+
+	for i := range entities {
+		if entities[i].EntityType == "user" {
+			entities[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(entities[i].ID)
+		} else {
+			entities[i].DefaultAvatarURL = entities[i].AvatarURL
+		}
 	}
 
 	// Count total
