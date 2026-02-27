@@ -69,3 +69,53 @@ func Search(req SearchRequest) ([]utility.SearchQueryResult, postgresql.Paginati
 	}
 	return searchResult, paginationResponse, http.StatusOK, nil
 }
+
+type SearchChannelRequest struct {
+	DB        *storage.Database
+	Ctx       *gin.Context
+	Logger    *utility.Logger
+	UserID    string
+	ChannelID string
+	Query     string
+	SortBy    string
+}
+
+func SearchChannel(req SearchChannelRequest) ([]utility.SearchQueryResult, postgresql.PaginationResponse, int, error) {
+
+	searchQuery := models.NewSearchQueryFilterKeywords()
+	queryArr := utility.CheckQueryStringContainKeyword(req.Query)
+	if len(queryArr) >= 1 {
+		searchQuery.ProcessQueryString(queryArr)
+		searchQuery.Message = utility.ExtractWordsBeforeKeywords(req.Query)
+	} else if queryArr == nil && req.Query != "" {
+		searchQuery.Message = req.Query
+	} else {
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
+	}
+
+	if req.SortBy != "" {
+		if !ValidateSortKey(req.SortBy) {
+			return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("invalid sort key provided")
+		}
+		searchQuery.SortBy = req.SortBy
+	}
+
+	modelReq := models.SearchChannelQueryRequest{
+		DB:        req.DB,
+		Ctx:       req.Ctx,
+		Logger:    req.Logger,
+		UserID:    req.UserID,
+		ChannelID: req.ChannelID,
+		Opts:      searchQuery,
+	}
+	searchResult, paginationResponse, err := models.SearchChannelQuery(modelReq)
+	if err != nil {
+		if err.Error() == "no search results found" {
+			return nil, paginationResponse, http.StatusNotFound, err
+		} else if strings.Contains(err.Error(), "unauthorized") {
+			return nil, paginationResponse, http.StatusForbidden, err
+		}
+		return nil, paginationResponse, http.StatusInternalServerError, err
+	}
+	return searchResult, paginationResponse, http.StatusOK, nil
+}

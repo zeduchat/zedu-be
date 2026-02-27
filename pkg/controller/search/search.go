@@ -64,3 +64,44 @@ func (base *Controller) Search(c *gin.Context) {
 	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult, pagination)
 	c.JSON(code, resp)
 }
+
+func (base *Controller) SearchChannel(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	channelId := c.Param("channelId")
+	if !utility.IsValidUUID(channelId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id", "channel could not be found", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	query := c.Query("query")
+	sortby := c.Query("sortby")
+
+	req := search.SearchChannelRequest{
+		DB:        base.Db,
+		Ctx:       c,
+		Logger:    base.Logger,
+		UserID:    userId,
+		ChannelID: channelId,
+		Query:     query,
+		SortBy:    sortby,
+	}
+
+	searchResult, pagination, code, err := search.SearchChannel(req)
+
+	if err != nil {
+		resp := utility.BuildErrorResponse(code, http.StatusText(code), err.Error(), err, nil)
+		c.JSON(code, resp)
+		return
+	}
+	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult, pagination)
+	c.JSON(code, resp)
+}
