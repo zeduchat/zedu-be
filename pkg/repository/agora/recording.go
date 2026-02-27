@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 const (
@@ -138,7 +139,7 @@ func (rc *recordingClient) doRequest(method, url string, body interface{}) ([]by
 	return respData, nil
 }
 
-func AcquireRecording(buzzID, uid string) (string, error) {
+func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return "", err
@@ -153,18 +154,22 @@ func AcquireRecording(buzzID, uid string) (string, error) {
 
 	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
 	if err != nil {
+		logger.Error("[Agora] Failed to acquire recording for buzz %s: %v", buzzID, err)
 		return "", fmt.Errorf("acquire recording failed: %w", err)
 	}
 
+	logger.Info("[Agora] Acquired recording for buzz %s", buzzID)
+
 	var resp acquireResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		logger.Error("[Agora] Failed to parse acquire response for buzz %s: %v", buzzID, err)
 		return "", fmt.Errorf("failed to parse acquire response: %w", err)
 	}
 
 	return resp.ResourceId, nil
 }
 
-func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, error) {
+func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxIdleSecs int) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return "", err
@@ -205,18 +210,22 @@ func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, er
 
 	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
 	if err != nil {
+		logger.Error("[Agora] Failed to start recording for buzz %s: %v", buzzID, err)
 		return "", fmt.Errorf("start recording failed: %w", err)
 	}
 
+	logger.Info("[Agora] Started recording for buzz %s", buzzID)
+
 	var resp startResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		logger.Error("[Agora] Failed to parse start response for buzz %s: %v", buzzID, err)
 		return "", fmt.Errorf("failed to parse start response: %w", err)
 	}
 
 	return resp.Sid, nil
 }
 
-func StopRecording(resourceID, sid, buzzID, uid string) error {
+func StopRecording(logger *utility.Logger, resourceID, sid, buzzID, uid string) error {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return err
@@ -232,7 +241,13 @@ func StopRecording(resourceID, sid, buzzID, uid string) error {
 	}
 
 	_, err = rc.doRequest(http.MethodPost, url, reqBody)
-	return err
+	if err != nil {
+		logger.Error("[Agora] Failed to stop recording for buzz %s: %v", buzzID, err)
+		return err
+	}
+
+	logger.Info("[Agora] Stopped recording for buzz %s", buzzID)
+	return nil
 }
 
 func QueryRecordingStatus(resourceID, sid, buzzID string) (string, []string, error) {

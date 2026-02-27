@@ -63,7 +63,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 	}
 
 	orgID := getBuzzOrgID(buzz)
-	resourceID, err := agora.AcquireRecording(buzzID, recordingUID)
+	resourceID, err := agora.AcquireRecording(logger, buzzID, recordingUID)
 	if err != nil {
 		logger.Error("failed to acquire recording resource for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
@@ -74,7 +74,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		durationSecs = int(DefaultBuzzDurationMinutes * 60)
 	}
 
-	sid, err := agora.StartRecording(resourceID, buzzID, recordingUID, durationSecs)
+	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, durationSecs)
 	if err != nil {
 		logger.Error("failed to start recording for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to start recording")
@@ -115,7 +115,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return nil, http.StatusNotFound, errors.New("no active recording found for this buzz")
 	}
 
-	if err := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
+	if err := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
 		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, err)
 	}
 
@@ -210,8 +210,11 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 	}
 
 	if err := db.Create(file).Error; err != nil {
+		logger.Error("[Agora] Failed to create file record for buzz %s: %v", buzzCode, err)
 		return fmt.Errorf("failed to create file record: %w", err)
 	}
+
+	logger.Info("[Agora] Call recording created for buzz %s, file id: %s", buzzCode, file.ID)
 
 	rec.FileID = &file.ID
 	return db.Model(rec).Update("file_id", file.ID).Error
@@ -238,8 +241,9 @@ func publishRecordingEvent(logger *utility.Logger, buzz *models.Buzz, rec *model
 
 	publishChannel := getPublishChannel(buzz)
 	if err := centrifuge.PublishChannel(logger, publishChannel, payload); err != nil {
-		logger.Error("failed to publish %s event for buzz %s: %v", eventName, buzz.ID, err)
+		logger.Error("[Agora] Failed to publish %s event for buzz %s: %v", eventName, buzz.ID, err)
 	}
+	logger.Info("[Agora] %s event for buzz %s, payload: %v", eventName, buzz.ID, payload)
 }
 
 func fetchBuzzRecordingStatus(db *gorm.DB, buzzID string) (string, bool) {
@@ -248,6 +252,7 @@ func fetchBuzzRecordingStatus(db *gorm.DB, buzzID string) (string, bool) {
 		return models.RecordingStatusIdle, false
 	}
 	isRecording := rec.Status == models.RecordingStatusRecording || rec.Status == models.RecordingStatusStarting
+
 	return rec.Status, isRecording
 }
 
@@ -257,9 +262,11 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
-	if err := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
+	if err := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
 		logger.Error("failed to stop agora recording on buzz end for buzz %s: %v", buzzID, err)
 	}
+
+	logger.Info("[Agora] Stopped recording for buzz %s", buzzID)
 
 	now := time.Now().UTC()
 	rec.Status = models.RecordingStatusStopped
@@ -271,10 +278,14 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
+	logger.Info("[Agora] Updated recording status for buzz %s", buzzID)
+
 	if err := saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz); err != nil {
 		logger.Error("failed to save recording as org file on buzz end: %v", err)
 	}
 
+	logger.Info("[Agora] Saved recording as org file for buzz %s", buzzID)
+
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
-	logger.Info("recording auto-stopped for buzz %s on buzz end", buzzID)
+	logger.Info("[Agora] Published recording_stopped event for buzz %s", buzzID)
 }
