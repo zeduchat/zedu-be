@@ -27,6 +27,15 @@ type SearchQueryFiltersKeywords struct {
 	SortBy  string
 }
 
+type SearchQueryRequest struct {
+	DB     *storage.Database
+	Ctx    *gin.Context
+	Logger *utility.Logger
+	UserID string
+	OrgID  string
+	Opts   *SearchQueryFiltersKeywords
+}
+
 type ReactionData struct {
 	MessageID  string `gorm:"column:message_id"`
 	ReactionID string `gorm:"column:reaction_id"`
@@ -79,28 +88,51 @@ func (s *SearchQueryFiltersKeywords) ProcessQueryString(queryArr [][]string) {
 	}
 }
 
-func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryFiltersKeywords, userId string, orgId string) ([]utility.SearchQueryResult, error) {
+func SearchQuery(req SearchQueryRequest) ([]utility.SearchQueryResult, postgresql.PaginationResponse, error) {
 
 	var qResults []utility.SearchQueryResult
+	var paginationResponse postgresql.PaginationResponse
 
-	query, err := buildSearchQuery(db.Postgresql, searchQuery, userId, orgId)
+	query, err := buildSearchQuery(req.DB.Postgresql, req.Opts, req.UserID, req.OrgID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build search query: %w", err)
+		return nil, paginationResponse, fmt.Errorf("failed to build search query: %w", err)
 	}
 
-	res, err := elastic.PerformSearchWithMultipleIndices(db.Elastic, query)
+	pagination := elastic.GetPagination(req.Ctx)
+	query["from"] = (pagination.Page - 1) * pagination.Limit
+	query["size"] = pagination.Limit
+
+	res, err := elastic.PerformSearchWithMultipleIndices(req.DB.Elastic, query)
 	if err != nil {
-		return nil, errors.New(err.Error())
+		return nil, paginationResponse, errors.New(err.Error())
+	}
+
+	var totalElements int
+	if hitsObj, ok := res["hits"].(map[string]any); ok {
+		if totalObj, ok := hitsObj["total"].(map[string]any); ok {
+			if val, ok := totalObj["value"].(float64); ok {
+				totalElements = int(val)
+			}
+		} else if totalVal, ok := hitsObj["total"].(float64); ok {
+			totalElements = int(totalVal)
+		}
+	}
+	totalPages := (totalElements + pagination.Limit - 1) / pagination.Limit
+
+	paginationResponse = postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       pagination.Limit,
+		TotalPagesCount: totalPages,
 	}
 
 	hitsData, ok := res["hits"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type for hits: %T", res["hits"])
+		return nil, paginationResponse, fmt.Errorf("unexpected type for hits: %T", res["hits"])
 	}
 
 	hitsArray, ok := hitsData["hits"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
+		return nil, paginationResponse, fmt.Errorf("unexpected type for hits.hits: %T", hitsData["hits"])
 	}
 
 	// Process ES hits and collect IDs
@@ -166,15 +198,15 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 
 	// Early return if no messages
 	if len(messageIDs) == 0 {
-		return qResults, nil
+		return qResults, paginationResponse, nil
 	}
 
 	// Fetch missing reactions from ES reactions index
 	reactionMap := make(map[string][]ReactionData)
 	if len(missingReactionMessageIDs) > 0 {
-		fetchedReactions, err := FetchReactionsForMessages(db.Elastic, missingReactionMessageIDs)
+		fetchedReactions, err := FetchReactionsForMessages(req.DB.Elastic, missingReactionMessageIDs)
 		if err != nil {
-			fmt.Printf("Warning: failed to fetch reactions from ES: %v\n", err)
+			req.Logger.Warning("Warning: failed to fetch reactions from ES: %v", err)
 		} else {
 			reactionMap = fetchedReactions
 		}
@@ -189,9 +221,9 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch thread metadata from ES
 	threadDataMap := make(map[string]ThreadData)
 	if len(threadIDs) > 0 {
-		td, err := FetchThreadDataForThreads(db.Elastic, threadIDs)
+		td, err := FetchThreadDataForThreads(req.DB.Elastic, threadIDs)
 		if err != nil {
-			fmt.Printf("Warning: failed to fetch thread data from ES: %v\n", err)
+			req.Logger.Warning("Warning: failed to fetch thread data from ES: %v", err)
 		} else {
 			threadDataMap = td
 		}
@@ -200,9 +232,9 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 	// Fetch reply users for threads
 	replyUsersMap := make(map[string][]ReplyUserData)
 	if len(threadIDs) > 0 {
-		rum, err := FetchReplyUsersForThreads(db.Elastic, threadIDs)
+		rum, err := FetchReplyUsersForThreads(req.DB.Elastic, threadIDs)
 		if err != nil {
-			fmt.Printf("Warning: failed to fetch reply users from ES: %v\n", err)
+			req.Logger.Warning("Warning: failed to fetch reply users from ES: %v", err)
 		} else {
 			replyUsersMap = rum
 		}
@@ -239,7 +271,7 @@ func SearchQuery(db *storage.Database, c *gin.Context, searchQuery *SearchQueryF
 		}
 	}
 
-	return qResults, nil
+	return qResults, paginationResponse, nil
 }
 
 func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId string, orgId string) (map[string]any, error) {
@@ -250,6 +282,15 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 		return nil, err
 	}
 
+	dmChannels, err := GetUserDMChannelIDs(db, orgId, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	var allChannelIDs []string
+	allChannelIDs = append(allChannelIDs, channels...)
+	allChannelIDs = append(allChannelIDs, dmChannels...)
+
 	addFullTextSearch(boolQuery, opts)
 
 	addSenderFilter(boolQuery, opts)
@@ -259,7 +300,7 @@ func buildSearchQuery(db *gorm.DB, opts *SearchQueryFiltersKeywords, userId stri
 	addDateFilters(boolQuery, opts)
 
 	addContentFilter(boolQuery, opts)
-	addOrgOrChannelFilter(boolQuery, orgId, channels)
+	addOrgOrChannelFilter(boolQuery, allChannelIDs)
 
 	addSorting(query, opts)
 
@@ -276,15 +317,22 @@ func initializeQuery() map[string]any {
 		},
 	}
 }
-func addOrgOrChannelFilter(boolQuery map[string]any, orgID string, channelIDs []string) {
-	shouldClauses := []any{
-		map[string]any{"term": map[string]any{"org_id": orgID}},
+func addOrgOrChannelFilter(boolQuery map[string]any, channelIDs []string) {
+	if len(channelIDs) == 0 {
+		if existingFilters, ok := boolQuery["filter"].([]any); ok {
+			boolQuery["filter"] = append(existingFilters, map[string]any{
+				"term": map[string]any{"channels_id": "NONE"},
+			})
+		} else {
+			boolQuery["filter"] = []any{
+				map[string]any{"term": map[string]any{"channels_id": "NONE"}},
+			}
+		}
+		return
 	}
 
-	if len(channelIDs) > 0 {
-		shouldClauses = append(shouldClauses, map[string]any{
-			"terms": map[string]any{"channels_id": channelIDs},
-		})
+	shouldClauses := []any{
+		map[string]any{"terms": map[string]any{"channels_id": channelIDs}},
 	}
 
 	orgOrChannelFilter := map[string]any{
@@ -294,10 +342,10 @@ func addOrgOrChannelFilter(boolQuery map[string]any, orgID string, channelIDs []
 		},
 	}
 
-	if existingFilters, ok := boolQuery["must"].([]any); ok {
-		boolQuery["must"] = append(existingFilters, orgOrChannelFilter)
+	if existingFilters, ok := boolQuery["filter"].([]any); ok {
+		boolQuery["filter"] = append(existingFilters, orgOrChannelFilter)
 	} else {
-		boolQuery["must"] = []any{orgOrChannelFilter}
+		boolQuery["filter"] = []any{orgOrChannelFilter}
 	}
 }
 
@@ -337,30 +385,7 @@ func addFullTextSearch(boolQuery map[string]any, opts *SearchQueryFiltersKeyword
 	boolQuery["must"] = mustClauses
 }
 
-func addSenderFilter(query map[string]any, opts *SearchQueryFiltersKeywords) {
-	var boolQuery map[string]any
-
-	if rawQuery, exists := query["query"]; exists {
-		querySection, ok := rawQuery.(map[string]any)
-		if !ok {
-			querySection = make(map[string]any)
-			query["query"] = querySection
-		}
-		if rawBool, exists := querySection["bool"]; exists {
-			if b, ok := rawBool.(map[string]any); ok {
-				boolQuery = b
-			} else {
-				boolQuery = make(map[string]any)
-				querySection["bool"] = boolQuery
-			}
-		} else {
-			boolQuery = make(map[string]any)
-			querySection["bool"] = boolQuery
-		}
-	} else {
-		boolQuery = query
-	}
-
+func addSenderFilter(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) {
 	var shouldClauses []any
 	if rawShould, exists := boolQuery["should"]; exists {
 		if arr, ok := rawShould.([]any); ok {
@@ -487,7 +512,7 @@ func addContentFilter(boolQuery map[string]any, opts *SearchQueryFiltersKeywords
 	boolQuery["must"] = mustClauses
 }
 
-func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) (map[string]any, error) {
+func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) {
 	var sorting []any
 	if opts.SortBy == "recency" {
 		sorting = []any{
@@ -508,33 +533,73 @@ func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) (map[str
 		}
 	}
 	query["sort"] = sorting
-	return query, nil
 }
 
 func GetChannelsByOrgIDs(db *gorm.DB, orgId string, userId string) ([]string, error) {
-	var channels Channels
 	var channs []string
 
-	org := Organisation{}
+	orgRecord := Organisation{}
 
-	if exists := postgresql.CheckExists(db, &org, "id = ?", orgId); exists == false {
+	if exists := postgresql.CheckExists(db, &orgRecord, "id = ?", orgId); exists == false {
 		return nil, errors.New("Organisation does not exist")
 	}
 
-	orgs, err := org.GetUserOrganisations(db, userId)
+	orgs, err := orgRecord.GetUserOrganisations(db, userId)
 	if err != nil && orgs == nil {
 		return nil, err
 	} else if orgs == nil {
 		return nil, errors.New("User does not exist in this organisation")
 	}
 
-	if err := db.Model(&channels).
+	if err := db.Table("channels").
 		Select("channels.id").
+		Joins("LEFT JOIN user_channels uc ON uc.channels_id = channels.id AND uc.user_id = ?", userId).
 		Where("channels.organisation_id = ?", orgId).
+		Where("(channels.is_private = false OR uc.user_id IS NOT NULL)").
+		Where("channels.archived = false").
 		Scan(&channs).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
 	return channs, nil
+}
+
+func GetUserDMChannelIDs(db *gorm.DB, orgId string, userId string) ([]string, error) {
+	var dmChanns []string
+	var groupChanns []string
+
+	// DM channels
+	if err := db.Table("dm_channels").
+		Select("channel_id").
+		Where("user_id = ? AND org_id = ? AND channel_type IN ('dm', '') AND deleted_at IS NULL", userId, orgId).
+		Scan(&dmChanns).Error; err != nil {
+		return nil, err
+	}
+
+	// Group DM channels
+	if err := db.Table("channel_participants").
+		Select("channel_id").
+		Where("user_id = ? AND org_id = ? AND deleted_at IS NULL", userId, orgId).
+		Scan(&groupChanns).Error; err != nil {
+		return nil, err
+	}
+
+	// Merge deduplicate
+	seen := make(map[string]bool)
+	var result []string
+	for _, id := range dmChanns {
+		if !seen[id] {
+			seen[id] = true
+			result = append(result, id)
+		}
+	}
+	for _, id := range groupChanns {
+		if !seen[id] {
+			seen[id] = true
+			result = append(result, id)
+		}
+	}
+
+	return result, nil
 }
 
 // AggregateReactions groups reactions by emoji and counts them

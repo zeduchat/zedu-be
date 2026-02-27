@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -19,33 +20,52 @@ func ValidateSortKey(sortby string) bool {
 	return slices.Contains(SortkeyWords, sortby)
 }
 
-func Search(db *storage.Database, c *gin.Context, userId, orgId, query, sortby string) ([]utility.SearchQueryResult, int, error) {
+type SearchRequest struct {
+	DB     *storage.Database
+	Ctx    *gin.Context
+	Logger *utility.Logger
+	UserID string
+	OrgID  string
+	Query  string
+	SortBy string
+}
+
+func Search(req SearchRequest) ([]utility.SearchQueryResult, postgresql.PaginationResponse, int, error) {
 
 	searchQuery := models.NewSearchQueryFilterKeywords()
-	queryArr := utility.CheckQueryStringContainKeyword(query)
+	queryArr := utility.CheckQueryStringContainKeyword(req.Query)
 	if len(queryArr) >= 1 {
 		searchQuery.ProcessQueryString(queryArr)
-		searchQuery.Message = utility.ExtractWordsBeforeKeywords(query)
-	} else if queryArr == nil && query != "" {
-		searchQuery.Message = query
+		searchQuery.Message = utility.ExtractWordsBeforeKeywords(req.Query)
+	} else if queryArr == nil && req.Query != "" {
+		searchQuery.Message = req.Query
 	} else {
-		return nil, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
+		return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("invalid search query, empty query provided")
 	}
 
-	if sortby != "" {
-		if !ValidateSortKey(sortby) {
-			return nil, http.StatusBadRequest, errors.New("invalid sort key provided")
+	if req.SortBy != "" {
+		if !ValidateSortKey(req.SortBy) {
+			return nil, postgresql.PaginationResponse{}, http.StatusBadRequest, errors.New("invalid sort key provided")
 		}
-		searchQuery.SortBy = sortby
+		searchQuery.SortBy = req.SortBy
 	}
-	searchResult, err := models.SearchQuery(db, c, searchQuery, userId, orgId)
+
+	modelReq := models.SearchQueryRequest{
+		DB:     req.DB,
+		Ctx:    req.Ctx,
+		Logger: req.Logger,
+		UserID: req.UserID,
+		OrgID:  req.OrgID,
+		Opts:   searchQuery,
+	}
+	searchResult, paginationResponse, err := models.SearchQuery(modelReq)
 	if err != nil {
 		if err.Error() == "no search results found" || strings.Contains(err.Error(), "Organisation does not exist") {
-			return nil, http.StatusNotFound, err
+			return nil, paginationResponse, http.StatusNotFound, err
 		} else if err.Error() == "error fetching channels" || strings.Contains(err.Error(), "User does not exist in the organisation") {
-			return nil, http.StatusBadRequest, err
+			return nil, paginationResponse, http.StatusBadRequest, err
 		}
-		return nil, http.StatusInternalServerError, err
+		return nil, paginationResponse, http.StatusInternalServerError, err
 	}
-	return searchResult, http.StatusOK, nil
+	return searchResult, paginationResponse, http.StatusOK, nil
 }
