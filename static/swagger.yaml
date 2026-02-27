@@ -1715,7 +1715,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -3536,7 +3536,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -3807,7 +3807,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -3955,11 +3955,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "403":
-           description: Forbidden (User not in channel)
-           content:
-             application/json:
-               schema:
-                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+          description: Forbidden (User not in channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /channels/add-multiple:
     post:
@@ -12358,7 +12358,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
-
 
   /help-center/categories:
     post:
