@@ -1735,6 +1735,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:
@@ -3556,6 +3562,12 @@ paths:
                         entity_type:
                           type: string
                           example: "user"
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
 
   /organisations/{org_id}/users/{user_id}/status:
     patch:
@@ -3827,6 +3839,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:
@@ -20371,10 +20389,10 @@ paths:
     get:
       tags:
         - Group Direct Message
-      summary: Retrieve Group DM Channels
+      summary: Retrieve Group DM Channels for Authenticated User
       security:
         - bearerAuth: []
-      description: Retrieves all Group DM channels within a given organisation.
+      description: Retrieves all Group DM channels that the authenticated user belongs to within a given organisation. Only returns channels where the user is an active participant.
       parameters:
         - name: organisation_id
           in: path
@@ -21097,8 +21115,8 @@ paths:
     get:
       tags:
         - Group Direct Message
-      summary: Retrieve Group DM User Details
-      description: Retrieves details of a specific user in a Group DM.
+      summary: Retrieve User Profile by ID
+      description: Retrieves the profile information of a specific user. Note: despite the route path, this endpoint does not return the user's Group DM channels — it only returns the user's profile as a participant object.
       parameters:
         - name: organisation_id
           in: path
@@ -21111,7 +21129,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The unique identifier of the Group DM channel.
+          description: The unique identifier of the user whose profile is being retrieved.
       responses:
         "200":
           description: User retrieved successfully.
