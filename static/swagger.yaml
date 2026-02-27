@@ -21116,7 +21116,7 @@ paths:
       tags:
         - Group Direct Message
       summary: Retrieve User Profile by ID
-      description: Retrieves the profile information of a specific user. Note: despite the route path, this endpoint does not return the user's Group DM channels — it only returns the user's profile as a participant object.
+      description: "Retrieves the profile information of a specific user. Note: despite the route path, this endpoint does not return the user's Group DM channels — it only returns the user's profile as a participant object."
       parameters:
         - name: organisation_id
           in: path
