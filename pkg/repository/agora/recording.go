@@ -172,6 +172,7 @@ func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error
 func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxIdleSecs int) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
+		logger.Error("[Agora] Failed to create recording client: %v", err)
 		return "", err
 	}
 

@@ -69,10 +69,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
 	}
 
-	durationSecs := int(buzz.BuzzEndTime.Sub(time.Now().UTC()).Seconds())
-	if durationSecs <= 0 {
-		durationSecs = int(DefaultBuzzDurationMinutes * 60)
-	}
+	durationSecs := int(DefaultBuzzDurationMinutes * 60)
 
 	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, durationSecs)
 	if err != nil {
