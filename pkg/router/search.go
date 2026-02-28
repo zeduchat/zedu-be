@@ -18,6 +18,7 @@ func Search(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	searchUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		searchUrl.GET("/search/organisation/:orgId/", search.Search)
+		searchUrl.GET("/search/channel/:channelId/", search.SearchChannel)
 	}
 	return r
 }

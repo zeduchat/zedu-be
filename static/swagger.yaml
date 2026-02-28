@@ -22088,10 +22088,143 @@ paths:
                     example: 400
                   message:
                     type: string
-                    example: "Invalid query parameters provided"
+                    example: "invalid organisation id"
 
-        401:
-          description: Unauthorized - Missing or invalid authentication token
+  /search/channel/{channelId}/:
+    get:
+      tags:
+        - Search
+      summary: Search for messages within a specific channel
+      description: |
+        Search for messages within a specific channel a user belongs to based on keyword filters.
+        The entire search query is passed in the `query` parameter.
+        Example format: `"Hello team from:layo before:2024-12-31"`
+
+        #### Supported Keywords:
+        - **from:** *Filter messages by sender* (e.g., `from:layo`)
+        - **has:** *Search for messages containing a specific word* (e.g., `has:meeting`)
+        - **before:** *Find messages sent before a specific date* (e.g., `before:2024-12-31`)
+        - **on:** *Find messages sent on a specific date* (e.g., `on:2024-12-27`)
+        - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
+        - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
+
+        Response contract is identical to the organisation search parameter formatting.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: The unique identifier for the channel being searched
+          schema:
+            type: string
+            format: uuid
+
+        - name: query
+          in: query
+          required: false
+          description: The keyword(s) to filter messages by
+          schema:
+            type: string
+
+        - name: sortBy
+          in: query
+          required: false
+          description: Sort the results by relevance or recency
+          schema:
+            type: string
+            enum: [relevance, recency]
+
+      responses:
+        200:
+          description: Successful response with filtered messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              format: uuid
+                              example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                            user_name:
+                              type: string
+                              example: "layo bright"
+                            avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
+
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              message_id:
+                                type: string
+                                example: "12345"
+                              message:
+                                type: string
+                                example: "Hello how are you"
+                              timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T10:57:34Z"
+                              reactions:
+                                type: array
+                                description: List of reactions on the message.
+                                items:
+                                  type: object
+                                  properties:
+                                    reaction_id:
+                                      type: string
+                                      format: uuid
+                                    emoji:
+                                      type: string
+                                      example: "👍"
+                                    count:
+                                      type: integer
+                                      example: 5
+                              reply_count:
+                                type: integer
+                                example: 10
+                              last_reply_timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T15:30:00Z"
+                        channel:
+                          type: object
+                          properties:
+                            channel_id:
+                              type: string
+                              format: uuid
+                            channel_name:
+                              type: string
+                              example: "General"
+
+        400:
+          description: Bad Request - Invalid parameters or missing required query
           content:
             application/json:
               schema:
@@ -22102,10 +22235,11 @@ paths:
                     example: "error"
                   status_code:
                     type: integer
-                    example: 401
                   message:
                     type: string
-                    example: "Unauthorized access - Invalid token"
+                    example: "invalid channel id"
+
+
 
         500:
           description: Internal Server Error
