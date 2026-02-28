@@ -16,6 +16,15 @@ const (
 )
 
 const (
+	RecordingStatusIdle      = "idle"
+	RecordingStatusStarting  = "starting"
+	RecordingStatusRecording = "recording"
+	RecordingStatusStopping  = "stopping"
+	RecordingStatusStopped   = "stopped"
+	RecordingStatusFailed    = "failed"
+)
+
+const (
 	BuzzParticipantStatusActive   = "active"
 	BuzzParticipantStatusLeft     = "left"
 	BuzzParticipantStatusInactive = "inactive"
@@ -46,6 +55,22 @@ type Buzz struct {
 	Status         string         `gorm:"type:text;default:'active'" json:"status"`
 	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+}
+
+type BuzzRecording struct {
+	ID          string     `gorm:"type:uuid;primaryKey" json:"id"`
+	BuzzID      string     `gorm:"type:uuid;not null;index" json:"buzz_id"`
+	OrgID       string     `gorm:"type:uuid;not null;index" json:"org_id"`
+	ResourceID  string     `gorm:"type:text;not null" json:"-"`
+	Sid         string     `gorm:"type:text;not null" json:"-"`
+	Status      string     `gorm:"type:varchar(20);not null;default:'starting'" json:"status"`
+	FileURL     string     `gorm:"type:text" json:"file_url"`
+	FileID      *string    `gorm:"type:uuid" json:"-"`
+	DurationSec int        `gorm:"default:0" json:"duration_sec"`
+	StartedAt   time.Time  `gorm:"not null" json:"started_at"`
+	EndedAt     *time.Time `json:"ended_at,omitempty"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type BuzzParticipant struct {
@@ -114,17 +139,19 @@ type BuzzEndResponse struct {
 }
 
 type BuzzMetadataResponse struct {
-	BuzzID       string                  `json:"buzz_id"`
-	BuzzCode     string                  `json:"buzz_code"`
-	HostID       string                  `json:"host_id"`
-	ChannelID    string                  `json:"channel_id"`
-	Status       string                  `json:"status"`
-	CreatedAt    time.Time               `json:"created_at"`
-	StartedAt    time.Time               `json:"started_at"`
-	EndedAt      *time.Time              `json:"ended_at,omitempty"`
-	Participants []ParticipantMetadata   `json:"participants"`
-	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token"`
-	HostName     string                  `json:"host_name"`
+	BuzzID          string                  `json:"buzz_id"`
+	BuzzCode        string                  `json:"buzz_code"`
+	HostID          string                  `json:"host_id"`
+	ChannelID       string                  `json:"channel_id"`
+	Status          string                  `json:"status"`
+	CreatedAt       time.Time               `json:"created_at"`
+	StartedAt       time.Time               `json:"started_at"`
+	EndedAt         *time.Time              `json:"ended_at,omitempty"`
+	Participants    []ParticipantMetadata   `json:"participants"`
+	AgoraToken      *BuzzAgoraTokenResponse `json:"agora_token"`
+	HostName        string                  `json:"host_name"`
+	RecordingStatus string                  `json:"recording_status"`
+	IsRecording     bool                    `json:"is_recording"`
 }
 
 type ActiveBuzzIndicator struct {
@@ -208,6 +235,8 @@ type BuzzEventPayload struct {
 	Status             string               `json:"status"`
 	UserJoined         ParticipantDetails   `json:"user_joined,omitempty"`
 	UserLeft           ParticipantDetails   `json:"user_left,omitempty"`
+	IsRecording        bool                 `json:"is_recording"`
+	RecordingStatus    string               `json:"recording_status"`
 }
 
 type ParticipantDetails struct {

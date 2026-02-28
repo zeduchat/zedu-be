@@ -86,6 +86,16 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Always resolve role_id from OrgUserManagement for the current org.
+		// The JWT's role_id may be stale (e.g., role deleted, org switched)
+		// so the DB is always authoritative.
+		{
+			var membership models.OrgUserManagement
+			if err := db.Where("user_id = ? AND organisation_id = ?", userID, org_id).First(&membership).Error; err == nil && membership.RoleID != "" {
+				claims["role_id"] = membership.RoleID
+			}
+		}
+
 		// check if access id exists and fetch it
 		accessID, ok := claims["access_uuid"].(string) //convert the interface to string
 		if !ok {
