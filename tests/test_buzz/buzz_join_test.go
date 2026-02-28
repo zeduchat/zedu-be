@@ -356,11 +356,16 @@ func TestBuzzHostRestoredOnOriginalHostRejoin(t *testing.T) {
 	hostUserID := getTestUserID(db, hostSignUp.Email)
 	guestUserID := getTestUserID(db, guestSignUp.Email)
 
+	var hostUser models.User
+	if err := db.Postgresql.Where("email = ?", hostSignUp.Email).First(&hostUser).Error; err != nil {
+		t.Fatalf("failed to fetch host user: %v", err)
+	}
+
 	channelID := utility.GenerateUUID()
 	channel := models.Channels{
 		ID:             channelID,
 		Name:           fmt.Sprintf("restore_host_channel_%s", uuidA),
-		OrganisationID: utility.GenerateUUID(),
+		OrganisationID: hostUser.CurrentOrg.String(),
 		OwnerId:        hostUserID,
 		CreatedAt:      time.Now(),
 	}
@@ -387,7 +392,6 @@ func TestBuzzHostRestoredOnOriginalHostRejoin(t *testing.T) {
 		t.Fatal("failed to create buzz")
 	}
 
-
 	joinGuestReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", buzzID), nil)
 	joinGuestReq.Header.Set("Authorization", "Bearer "+guestToken)
 	rr := httptest.NewRecorder()
@@ -395,7 +399,6 @@ func TestBuzzHostRestoredOnOriginalHostRejoin(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("guest join failed: %d", rr.Code)
 	}
-
 
 	leaveReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/leave", buzzID), nil)
 	leaveReq.Header.Set("Authorization", "Bearer "+hostToken)
@@ -409,7 +412,6 @@ func TestBuzzHostRestoredOnOriginalHostRejoin(t *testing.T) {
 	if leaveRespData["new_host_id"] == nil || leaveRespData["new_host_id"].(string) != guestUserID {
 		t.Errorf("expected host to transfer to guest %s after host leaves, got %v", guestUserID, leaveRespData["new_host_id"])
 	}
-
 
 	rejoinReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", buzzID), nil)
 	rejoinReq.Header.Set("Authorization", "Bearer "+hostToken)
