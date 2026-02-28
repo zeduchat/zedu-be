@@ -184,8 +184,8 @@ func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, er
 			RecordingConfig: recordingConfig{
 				MaxIdleTime:        maxIdleSecs,
 				StreamTypes:        2,
-				ChannelType:        0,
-				VideoStreamType:    1,
+				ChannelType:        1,
+				VideoStreamType:    0,
 				SubscribeAudioUIDs: []string{"#allstream#"},
 				SubscribeVideoUIDs: []string{"#allstream#"},
 			},

@@ -317,3 +317,128 @@ func TestBuzzJoin(t *testing.T) {
 		})
 	}
 }
+
+func TestBuzzHostRestoredOnOriginalHostRejoin(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	authController := auth.Controller{Db: db, Validator: validatorRef,
+		Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	buzzController := buzz.Controller{Db: db, Validator: validatorRef, Logger: logger}
+
+	uuidA := utility.GenerateUUID()
+	hostSignUp := models.CreateUserRequestModel{
+		Email:    fmt.Sprintf("host%v@qa.team", uuidA),
+		Password: "password",
+		UserName: fmt.Sprintf("host_%v", uuidA),
+	}
+	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
+
+	uuidB := utility.GenerateUUID()
+	guestSignUp := models.CreateUserRequestModel{
+		Email:    fmt.Sprintf("guest%v@qa.team", uuidB),
+		Password: "password",
+		UserName: fmt.Sprintf("guest_%v", uuidB),
+	}
+	guestLogin := models.LoginRequestModel{Email: guestSignUp.Email, Password: guestSignUp.Password}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authController, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, r, authController, hostLogin)
+
+	r2 := gin.Default()
+	tst.SignupUser(t, r2, authController, guestSignUp, false)
+	guestToken := tst.GetLoginToken(t, r2, authController, guestLogin)
+
+	hostUserID := getTestUserID(db, hostSignUp.Email)
+	guestUserID := getTestUserID(db, guestSignUp.Email)
+
+	channelID := utility.GenerateUUID()
+	channel := models.Channels{
+		ID:             channelID,
+		Name:           fmt.Sprintf("restore_host_channel_%s", uuidA),
+		OrganisationID: utility.GenerateUUID(),
+		OwnerId:        hostUserID,
+		CreatedAt:      time.Now(),
+	}
+	if err := db.Postgresql.Create(&channel).Error; err != nil {
+		t.Fatalf("failed to create channel: %v", err)
+	}
+
+	for _, uid := range []string{hostUserID, guestUserID} {
+		uc := models.UserChannels{ChannelsID: channelID, UserID: uid, CreatedAt: time.Now()}
+		db.Postgresql.Create(&uc)
+	}
+
+	router := gin.Default()
+	buzzUrl := router.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+	{
+		buzzUrl.POST("/create", buzzController.Create)
+		buzzUrl.POST("/:id/join", buzzController.Join)
+		buzzUrl.POST("/:id/leave", buzzController.LeaveBuzz)
+	}
+
+	createReq := models.CreateBuzzRequest{ChannelID: channelID}
+	buzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createReq, hostToken)
+	if buzzID == "" {
+		t.Fatal("failed to create buzz")
+	}
+
+
+	joinGuestReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", buzzID), nil)
+	joinGuestReq.Header.Set("Authorization", "Bearer "+guestToken)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, joinGuestReq)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("guest join failed: %d", rr.Code)
+	}
+
+
+	leaveReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/leave", buzzID), nil)
+	leaveReq.Header.Set("Authorization", "Bearer "+hostToken)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, leaveReq)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("host leave failed: %d", rr.Code)
+	}
+	leaveData := tst.ParseResponse(rr)
+	leaveRespData := leaveData["data"].(map[string]interface{})
+	if leaveRespData["new_host_id"] == nil || leaveRespData["new_host_id"].(string) != guestUserID {
+		t.Errorf("expected host to transfer to guest %s after host leaves, got %v", guestUserID, leaveRespData["new_host_id"])
+	}
+
+
+	rejoinReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", buzzID), nil)
+	rejoinReq.Header.Set("Authorization", "Bearer "+hostToken)
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, rejoinReq)
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	rejoinData := tst.ParseResponse(rr)
+	respData, ok := rejoinData["data"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected data in rejoin response")
+	}
+
+	if respData["host_id"] != hostUserID {
+		t.Errorf("expected host_id to be restored to original host %s, got %v", hostUserID, respData["host_id"])
+	}
+
+	if hostRestored, _ := respData["host_restored"].(bool); !hostRestored {
+		t.Error("expected host_restored=true in rejoin response")
+	}
+
+	var updatedBuzz models.Buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&updatedBuzz).Error; err != nil {
+		t.Fatalf("failed to fetch buzz from DB: %v", err)
+	}
+	if updatedBuzz.HostID != hostUserID {
+		t.Errorf("expected DB host_id to be %s after restore, got %s", hostUserID, updatedBuzz.HostID)
+	}
+	if updatedBuzz.OriginalHostID != hostUserID {
+		t.Errorf("expected DB original_host_id to be %s, got %s", hostUserID, updatedBuzz.OriginalHostID)
+	}
+}
