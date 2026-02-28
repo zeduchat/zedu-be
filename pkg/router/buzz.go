@@ -50,6 +50,8 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.POST("/:id/recording/start", ctrl.StartRecording)
 		buzzGroup.POST("/:id/recording/stop", ctrl.StopRecording)
 		buzzGroup.GET("/:id/recording/status", ctrl.GetRecordingStatus)
+		buzzGroup.POST("/:id/mute-participants", ctrl.MuteParticipants)
+
 	}
 
 	return r

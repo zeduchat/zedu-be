@@ -28458,6 +28458,67 @@ paths:
         "500":
           description: Internal server error
 
+  /buzz/{id}/mute-participants:
+    post:
+      tags:
+        - buzz
+      summary: Mute all participants in a buzz
+      description: Publishes a mute-all event to every participant in the buzz. Only the host can trigger this action.
+      operationId: muteParticipants
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      responses:
+        "200":
+          description: Participants muted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: muted participants successfully
+        "400":
+          description: Bad request - invalid buzz ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - caller is not the host of the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Buzz not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/channel/{channel_id}/active:
     get:
       tags:
