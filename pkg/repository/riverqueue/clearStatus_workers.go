@@ -53,7 +53,10 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 	notification.ModificationDetails = &models.ModificationDetails{
 		UserId: job.Args.UserID,
 	}
-	notification.Content = models.UserStatusWithCause{
+	notification.Content = struct {
+		UserID string            `json:"user_id"`
+		Status models.UserStatus `json:"status"`
+	}{
 		UserID: job.Args.UserID,
 		Status: models.UserStatus{
 			Text:       "",
@@ -62,7 +65,6 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 			Visibility: "public",
 			Online:     profile.Online,
 		},
-		Cause: "expired",
 	}
 
 	channelID := fmt.Sprintf("user:%s", job.Args.UserID)

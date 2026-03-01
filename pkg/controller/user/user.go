@@ -216,21 +216,37 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 		return
 	}
 
-	if req.Text == nil && req.Emoji == nil && req.Expiry == nil && req.Visibility == nil {
+	if req.Text == nil && req.Emoji == nil && req.Expiry == nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no fields provided to update", "no fields provided to update", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
+	// Validate partial status input
 	if code, err := validatePartialStatusInput(&req); err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	req.UserID = userID
+	// Convert PartialStatusUpdate to UpdateProfileStatus
+	updateReq := models.UpdateProfileStatus{
+		Online: true,
+		UserId: userID,
+		OrgId:  "",
+	}
 
-	status, code, err := profile.PartialUpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+	if req.Text != nil {
+		updateReq.Text = *req.Text
+	}
+	if req.Emoji != nil {
+		updateReq.Icon = *req.Emoji
+	}
+	if req.Expiry != nil {
+		updateReq.StatusExpiry = *req.Expiry
+	}
+
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to update user status", err, nil)
 		c.JSON(code, rd)
@@ -284,18 +300,33 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 	}
 
 	// Validate using go-playground validator
-	base.Logger.Error("validation failed")
 	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("validation failed", "error", err)
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	req.UserID = userID
+	// Convert SetStatusRequest to UpdateProfileStatus
+	updateReq := models.UpdateProfileStatus{
+		Text:         req.Text,
+		Icon:         "",
+		StatusExpiry: "",
+		Online:       true,
+		UserId:       userID,
+		OrgId:        "",
+	}
 
-	status, code, err := profile.SetUserStatus(req, base.Db.Postgresql, base.Logger)
+	if req.Emoji != nil {
+		updateReq.Icon = *req.Emoji
+	}
+	if req.Expiry != nil {
+		updateReq.StatusExpiry = *req.Expiry
+	}
+
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)
 	if err != nil {
-		base.Logger.Error("failed to set user status")
+		base.Logger.Error("failed to set user status", "error", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to set user status", err, nil)
 		c.JSON(code, rd)
 		return
@@ -360,16 +391,8 @@ func validatePartialStatusInput(req *models.PartialStatusUpdate) (int, error) {
 		}
 	}
 
-	if req.Visibility != nil {
-		validVisibilities := map[string]bool{
-			"public":   true,
-			"contacts": true,
-			"private":  true,
-		}
-		if !validVisibilities[*req.Visibility] {
-			return http.StatusBadRequest, errors.New("visibility must be one of: public, contacts, private")
-		}
-	}
+	// Note: Visibility field is no longer supported in the API
+	// We ignore it if provided, but don't validate it
 
 	return 0, nil
 }

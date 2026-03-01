@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,8 +101,10 @@ type UpdateProfileStatus struct {
 	Text              string `json:"text"`
 	PauseNotification bool   `json:"pause_notification"`
 	StatusTimeout     string `json:"status_timeout"`
+	StatusExpiry      string `json:"status_expiry"` // Natural language expiry like "30 minutes"
 	ClearStatus       bool   `json:"clear_status"`
 	Online            bool   `json:"online"`
+	StatusVisibility  string `json:"status_visibility"` // Stored in DB but not used in new API
 	UserId            string
 	OrgId             string
 }
@@ -108,21 +113,19 @@ type UpdateProfileStatus struct {
 // Pointer fields let us detect whether a field was supplied so we can
 // avoid overwriting existing values.
 type PartialStatusUpdate struct {
-	Text       *string `json:"text"`
-	Emoji      *string `json:"emoji"`
-	Expiry     *string `json:"expiry"`
-	Visibility *string `json:"visibility"`
-	UserID     string  `json:"-"`
+	Text   *string `json:"text"`
+	Emoji  *string `json:"emoji"`
+	Expiry *string `json:"expiry"`
+	UserID string  `json:"-"`
 }
 
 // SetStatusRequest holds fields for setting a new status via POST.
-// Text is required; emoji, expiry, and visibility are optional.
+// Text is required; emoji and expiry are optional.
 type SetStatusRequest struct {
-	Text       string  `json:"text" validate:"required,min=1,max=255"`
-	Emoji      *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace,emoji"`
-	Expiry     *string `json:"expiry,omitempty" validate:"omitempty,status_expiry"`
-	Visibility *string `json:"visibility,omitempty" validate:"omitempty,oneof=public contacts private"`
-	UserID     string  `json:"-"`
+	Text   string  `json:"text" validate:"required,min=1,max=255"`
+	Emoji  *string `json:"emoji,omitempty" validate:"omitempty,max=64,no_whitespace,emoji"`
+	Expiry *string `json:"expiry,omitempty" validate:"omitempty,status_expiry"`
+	UserID string  `json:"-"`
 }
 
 type UpdateUserPresenceRequest struct {
@@ -138,13 +141,6 @@ type UserStatus struct {
 	Expiry     int64  `json:"expiry"`
 	Visibility string `json:"visibility"`
 	Online     bool   `json:"online"`
-}
-
-// Used when status is automatically cleared to inform frontend why.
-type UserStatusWithCause struct {
-	UserID string     `json:"user_id"`
-	Status UserStatus `json:"status"`
-	Cause  string     `json:"cause,omitempty"` // "expired", "manual"
 }
 
 func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
@@ -210,22 +206,42 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	return j, nil
 }
 
-func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logger *utility.Logger) error {
-
+func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logger *utility.Logger) (UserStatus, int, error) {
 	query := "userid = ?"
 
 	exist := postgresql.CheckExists(db, &j, query, req.UserId)
 	if !exist {
-		return errors.New("Profile does not exists")
+		return UserStatus{}, http.StatusNotFound, errors.New("profile does not exist")
 	}
 
+	// Load current profile to get timezone and existing river_job_id
+	if err := db.Where("userid = ?", req.UserId).First(&j).Error; err != nil {
+		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	}
+
+	// Parse status expiry if provided
+	var expiryTimestamp int64
+	if req.StatusExpiry != "" {
+		var err error
+		expiryTimestamp, err = j.ParseStatusExpiry(req.StatusExpiry)
+		if err != nil {
+			return UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+		}
+	}
+
+	// Build updates map
 	updates := map[string]any{
 		"pause_notification": req.PauseNotification,
-		"status_timeout":     req.StatusTimeout,
-		"text":               req.Text,
-		"icon":               req.Icon,
+		"online":             req.Online,
 	}
 
+	// Handle text/icon - only update if provided
+	if req.Text != "" || req.Icon != "" {
+		updates["text"] = req.Text
+		updates["icon"] = req.Icon
+	}
+
+	// Handle clear status
 	if req.ClearStatus {
 		updates["text"] = ""
 		updates["icon"] = ""
@@ -240,46 +256,138 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			}
 		}
 		updates["river_job_id"] = nil
+	} else {
+		// Handle status timeout/expiry
+		if req.StatusExpiry != "" {
+			if expiryTimestamp > 0 {
+				updates["status_timeout"] = strconv.FormatInt(expiryTimestamp, 10)
+			} else {
+				updates["status_timeout"] = ""
+			}
+		} else if req.StatusTimeout != "" {
+			// Use pre-formatted timeout if provided
+			updates["status_timeout"] = req.StatusTimeout
+		}
 	}
 
-	updates["online"] = req.Online
-
+	// Apply updates
 	if err := db.Model(&Profile{}).
 		Where(query, req.UserId).
 		Updates(updates).Error; err != nil {
-		return errors.New("failed to update user profile")
+		return UserStatus{}, http.StatusInternalServerError, errors.New("failed to update user profile")
 	}
 
-	logger.Info("Updated user profile status %v", updates)
+	// Reload profile to get updated values
+	if err := db.Where("userid = ?", req.UserId).First(&j).Error; err != nil {
+		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
+	}
 
-	if !req.ClearStatus {
-		publishChannel := req.OrgId
-		var user User
-		if err := db.Where("id = ?", req.UserId).First(&user).Error; err != nil {
-			return err
+	// Build response status
+	expiry := int64(0)
+	if j.StatusTimeout != "" {
+		if parsed, err := strconv.ParseInt(j.StatusTimeout, 10, 64); err == nil {
+			expiry = parsed
 		}
+	}
 
-		notification := Notification[ProfileStatusUpdated]
-		notification.Content = ProfileStatusUpdatePayload{
-			Text:          req.Text,
-			Icon:          req.Icon,
-			Username:      j.UserName,
-			Email:         user.Email,
-			ProfilePic:    j.AvatarURL,
-			StatusTimeout: req.StatusTimeout,
-			Online:        req.Online,
-		}
+	visibility := "public"
+	if j.StatusVisibility != "" {
+		visibility = j.StatusVisibility
+	}
+
+	status := UserStatus{
+		Text:       j.Text,
+		Emoji:      j.Icon,
+		Expiry:     expiry,
+		Visibility: visibility,
+		Online:     j.Online,
+	}
+
+	// Publish notification if not clearing
+	if !req.ClearStatus && logger != nil {
+		logger.Info("status updated", "user_id", req.UserId)
+		notification := Notification[StatusUpdate]
+		notification.SectionType = ChannelsSection
+		notification.NotificationId = utility.GenerateUUID()
 		notification.ModificationDetails = &ModificationDetails{
 			UserId: req.UserId,
-			OrgId:  req.OrgId,
 		}
-		notification.NotificationId = utility.GenerateUUID()
+		notification.Content = struct {
+			UserID string     `json:"user_id"`
+			Status UserStatus `json:"status"`
+		}{
+			UserID: req.UserId,
+			Status: status,
+		}
 
-		centrifuge.PublishChannel(logger, publishChannel, notification)
-		logger.Info("Publised user profile status to centrifugo for user %s", req.UserId)
+		channelID := fmt.Sprintf("user:%s", req.UserId)
+		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
+			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
+		}
 	}
 
-	return nil
+	return status, http.StatusOK, nil
+}
+
+// ParseStatusExpiry converts a natural language expiry string to a Unix timestamp.
+func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
+	if expiryStr == "" {
+		return 0, nil
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(expiryStr))
+	now := time.Now()
+
+	var loc *time.Location
+	if p.Timezone != "" {
+		var err error
+		loc, err = time.LoadLocation(p.Timezone)
+		if err != nil {
+			loc = time.UTC
+		}
+	} else {
+		loc = time.UTC
+	}
+
+	nowInTz := now.In(loc)
+
+	switch normalized {
+	case "30 minutes", "30 minute":
+		return nowInTz.Add(30 * time.Minute).Unix(), nil
+
+	case "1 hour", "1 hr":
+		return nowInTz.Add(1 * time.Hour).Unix(), nil
+
+	case "today":
+		endOfDay := time.Date(
+			nowInTz.Year(),
+			nowInTz.Month(),
+			nowInTz.Day(),
+			23, 59, 59, 0,
+			loc,
+		)
+		return endOfDay.Unix(), nil
+
+	case "this week":
+		daysUntilSunday := (7 - int(nowInTz.Weekday())) % 7
+		if daysUntilSunday == 0 {
+			daysUntilSunday = 7
+		}
+		endOfWeek := time.Date(
+			nowInTz.Year(),
+			nowInTz.Month(),
+			nowInTz.Day(),
+			23, 59, 59, 0,
+			loc,
+		).AddDate(0, 0, daysUntilSunday)
+		return endOfWeek.Unix(), nil
+
+	case "don't remove", "dont remove", "do not remove":
+		return 0, nil
+
+	default:
+		return 0, fmt.Errorf("invalid expiry value: %s", expiryStr)
+	}
 }
 
 func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, error) {

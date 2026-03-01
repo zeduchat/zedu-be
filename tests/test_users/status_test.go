@@ -439,10 +439,9 @@ func TestSetUserStatus(t *testing.T) {
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
-			"text":       "In a meeting",
-			"emoji":      "📅",
-			"expiry":     "30 minutes",
-			"visibility": "public",
+			"text":   "In a meeting",
+			"emoji":  "📅",
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -488,10 +487,6 @@ func TestSetUserStatus(t *testing.T) {
 
 		if parsedExpiry < expectedMin || parsedExpiry > expectedMax {
 			t.Fatalf("status_timeout out of expected range; got %d, expected between %d and %d", parsedExpiry, expectedMin, expectedMax)
-		}
-
-		if updated.StatusVisibility != payload["visibility"] {
-			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, payload["visibility"])
 		}
 	})
 
@@ -544,58 +539,6 @@ func TestSetUserStatus(t *testing.T) {
 		}
 		if got := data["visibility"].(string); got != "public" {
 			t.Fatalf("unexpected visibility: want %q got %q", "public", got)
-		}
-	})
-
-	t.Run("successfully sets status with different visibility options", func(t *testing.T) {
-		router, authController := setup()
-		userContacts := models.User{
-			ID:       utility.GenerateUUID(),
-			Name:     "Contacts Visibility User",
-			Email:    fmt.Sprintf("contacts_visibility_user_%s@qa.team", utility.GenerateUUID()),
-			Password: password,
-		}
-
-		db := authController.Db.Postgresql
-		db.Create(&userContacts)
-		db.Create(&models.Profile{
-			ID:     utility.GenerateUUID(),
-			Userid: userContacts.ID,
-		})
-
-		loginData := models.LoginRequestModel{
-			Email:    userContacts.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
-
-		payload := map[string]any{
-			"text":       "Available for contacts",
-			"visibility": "contacts",
-		}
-		body, _ := json.Marshal(payload)
-
-		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userContacts.ID), bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
-		parsed := tests.ParseResponse(resp)
-		data := parsed["data"].(map[string]any)
-
-		if got := data["visibility"].(string); got != "contacts" {
-			t.Fatalf("unexpected visibility: want %q got %q", "contacts", got)
-		}
-
-		var updated models.Profile
-		if err := db.Where("userid = ?", userContacts.ID).First(&updated).Error; err != nil {
-			t.Fatalf("failed to fetch updated profile: %v", err)
-		}
-		if updated.StatusVisibility != "contacts" {
-			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, "contacts")
 		}
 	})
 
@@ -745,32 +688,6 @@ func TestSetUserStatus(t *testing.T) {
 		payload := map[string]any{
 			"text":   "Status with invalid expiry",
 			"expiry": "invalid time string",
-		}
-		body, _ := json.Marshal(payload)
-
-		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
-		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
-	})
-
-	t.Run("returns bad request when visibility is invalid", func(t *testing.T) {
-		router, authController := setup()
-		loginData := models.LoginRequestModel{
-			Email:    user.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
-
-		payload := map[string]any{
-			"text":       "Status with invalid visibility",
-			"visibility": "invalid",
 		}
 		body, _ := json.Marshal(payload)
 
