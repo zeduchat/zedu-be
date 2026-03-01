@@ -268,6 +268,20 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			// Use pre-formatted timeout if provided
 			updates["status_timeout"] = req.StatusTimeout
 		}
+
+		// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
+		if req.StatusExpiry == "" && req.StatusTimeout == "" {
+			ctx := context.Background()
+			if j.RiverJobID != nil && storage.DB.River != nil {
+				_, cancelErr := storage.DB.River.JobCancel(ctx, *j.RiverJobID)
+				if cancelErr != nil {
+					logger.Error("failed to cancel clear status job %d: %v", *j.RiverJobID, cancelErr)
+				} else {
+					logger.Info("Cancelled clear status job %d", *j.RiverJobID)
+				}
+			}
+			updates["river_job_id"] = nil
+		}
 	}
 
 	// Apply updates

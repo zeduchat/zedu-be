@@ -373,6 +373,28 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 		return status, code, err
 	}
 
+	// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
+	if req.StatusExpiry == "" && !req.ClearStatus {
+		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
+			logger.Error("failed to reload profile to check river_job_id", "error", err)
+			return status, code, nil
+		}
+
+		if profileModel.RiverJobID != nil && storage.DB.River != nil {
+			ctx := context.Background()
+			_, cancelErr := storage.DB.River.JobCancel(ctx, *profileModel.RiverJobID)
+			if cancelErr != nil {
+				logger.Error("failed to cancel existing clear status job %d: %v", *profileModel.RiverJobID, cancelErr)
+			}
+		}
+
+		if err := db.Model(&models.Profile{}).
+			Where("userid = ?", req.UserId).
+			Update("river_job_id", nil).Error; err != nil {
+			logger.Error("failed to clear river_job_id: %v", err)
+		}
+	}
+
 	if req.StatusExpiry != "" && !req.ClearStatus {
 		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
 			logger.Error("failed to reload profile for job scheduling", "error", err)
