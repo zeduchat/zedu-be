@@ -53,6 +53,7 @@ var (
 	BuzzReactionEvent           NotificationType = "buzz_reaction_event"
 	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
 	ThreadNotification          NotificationType = "thread_notification"
+	MuteParticipants            NotificationType = "mute_participants"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -228,6 +229,9 @@ var Notification = map[NotificationType]Content{
 	},
 	ThreadNotification: Content{
 		NotificationType: ThreadNotification,
+	},
+	MuteParticipants: Content{
+		NotificationType: MuteParticipants,
 	},
 }
 

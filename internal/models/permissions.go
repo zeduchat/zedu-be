@@ -9,6 +9,21 @@ import (
 	"gorm.io/gorm"
 )
 
+// Permission name constants for use with PermissionMiddleware and userCanOrOwner.
+const (
+	PermRemovePeopleFromOrganization = "can_remove_people_from_organization"
+	PermInviteMembers                = "can_invite_members"
+	PermCreateCustomRole             = "can_create_custom_role"
+	PermCreateChannel                = "can_create_channel"
+	PermCommentOnThreads             = "can_comment_on_threads"
+	PermViewBilling                  = "can_view_billing"
+	PermCreateWebhooks               = "can_create_webhooks"
+	PermViewChannels                 = "can_view_channels"
+	PermChangeUserOrgRole            = "can_change_user_org_role"
+	PermDeleteAnyFile                = "can_delete_any_file"
+	PermManageGeneralInviteLink      = "can_manage_general_invite_link"
+)
+
 type Permission struct {
 	ID             string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	RoleID         string         `gorm:"unique;null" json:"role_id"`
@@ -30,6 +45,7 @@ type PermissionList struct {
 	CanViewChannels                 bool `json:"can_view_channels"`
 	CanChangeUserOrgRole            bool `json:"can_change_user_org_role"`
 	CanDeleteAnyFile                bool `json:"can_delete_any_file"`
+	CanManageGeneralInviteLink      bool `json:"can_manage_general_invite_link"`
 }
 
 func (p PermissionList) ToSlice() []string {
@@ -63,6 +79,9 @@ func (p PermissionList) ToSlice() []string {
 	}
 	if p.CanDeleteAnyFile {
 		permissions = append(permissions, "can_delete_any_file")
+	}
+	if p.CanManageGeneralInviteLink {
+		permissions = append(permissions, "can_manage_general_invite_link")
 	}
 	return permissions
 }
@@ -102,6 +121,7 @@ func OrgUserHasPermission(permissionList PermissionList, permission string) bool
 		"can_view_channels":                   permissionList.CanViewChannels,
 		"can_change_user_org_role":            permissionList.CanChangeUserOrgRole,
 		"can_delete_any_file":                 permissionList.CanDeleteAnyFile,
+		"can_manage_general_invite_link":      permissionList.CanManageGeneralInviteLink,
 	}
 
 	if allowed, exists := permissionMap[permission]; exists && allowed {

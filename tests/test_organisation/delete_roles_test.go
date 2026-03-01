@@ -118,9 +118,9 @@ func TestDeleteOrgRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
+		tests.AssertResponseMessage(t, response["message"].(string), "you do not have permission to delete roles")
 	})
 
 	t.Run("Bad Request - Non-Existent Role", func(t *testing.T) {

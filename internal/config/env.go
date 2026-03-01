@@ -125,8 +125,9 @@ type BaseConfig struct {
 	OPENROUTER_API_KEY  string `mapstructure:"OPENROUTER_API_KEY"`
 	OPENROUTER_BASE_URL string `mapstructure:"OPENROUTER_BASE_URL"`
 
-	MONGO_URI     string `mapstructure:"MONGO_URI"`
-	MONGO_DB_NAME string `mapstructure:"MONGO_DB_NAME"`
+	MONGO_URI      string `mapstructure:"MONGO_URI"`
+	MONGO_DB_NAME  string `mapstructure:"MONGO_DB_NAME"`
+	MONGO_DISABLED bool   `mapstructure:"MONGO_DISABLED"`
 
 	SUPER_ADMIN_EMAIL    string `mapstructure:"SUPER_ADMIN_EMAIL"`
 	SUPER_ADMIN_NAME     string `mapstructure:"SUPER_ADMIN_NAME"`
@@ -141,6 +142,8 @@ type BaseConfig struct {
 
 	AGORA_APP_ID          string `mapstructure:"AGORA_APP_ID"`
 	AGORA_APP_CERTIFICATE string `mapstructure:"AGORA_APP_CERTIFICATE"`
+	AGORA_CUSTOMER_ID     string `mapstructure:"AGORA_CUSTOMER_ID"`
+	AGORA_CUSTOMER_SECRET string `mapstructure:"AGORA_CUSTOMER_SECRET"`
 
 	ONESIGNAL_APP_ID       string `mapstructure:"ONESIGNAL_APP_ID"`
 	ONESIGNAL_REST_API_KEY string `mapstructure:"ONESIGNAL_REST_API_KEY"`
@@ -273,8 +276,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
 		},
 		MongoDB: MongoDB{
-			Mongo_URI: config.MONGO_URI,
-			DB_Name:   config.MONGO_DB_NAME,
+			Mongo_URI:      config.MONGO_URI,
+			DB_Name:        config.MONGO_DB_NAME,
+			Mongo_Disabled: config.MONGO_DISABLED,
 		},
 		OpenRouter: OpenRouter{
 			ApiKey:  config.OPENROUTER_API_KEY,
@@ -298,6 +302,8 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		Agora: Agora{
 			AppId:          config.AGORA_APP_ID,
 			AppCertificate: config.AGORA_APP_CERTIFICATE,
+			CustomerID:     config.AGORA_CUSTOMER_ID,
+			CustomerSecret: config.AGORA_CUSTOMER_SECRET,
 		},
 		OneSignal: OneSignal{
 			AppID:      config.ONESIGNAL_APP_ID,

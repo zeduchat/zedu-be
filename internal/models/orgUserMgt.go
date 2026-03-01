@@ -11,6 +11,15 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
+// Default org role name constants.
+const (
+	OrgRoleNameAdministrator = "Administrator"
+	OrgRoleNameGuest         = "Guest"
+	OrgRoleNameUser          = "User"
+	OrgRoleNameManager       = "Manager"
+	OrgRoleNameProjectLead   = "Project Lead"
+)
+
 type OrgUserManagement struct {
 	UserID         string                 `gorm:"type:uuid;primaryKey;not null" json:"user_id"`
 	OrganisationID string                 `gorm:"type:uuid;primaryKey;not null" json:"organisation_id"`
@@ -279,7 +288,7 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) (int, error) {
 
 func (o *OrgUserManagement) UpdateAllOrgUsersWithNewRole(db *gorm.DB, orgID, roleID string) error {
 	var role OrgRole
-	defaultRole, err := role.GetAOrgRoleByName(db, "User")
+	defaultRole, err := role.GetAOrgRoleByName(db, OrgRoleNameUser)
 	if err != nil {
 		return err
 	}
@@ -358,7 +367,7 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             users.email,
             profiles.user_name AS username,
             profiles.phone AS phone_number,
-            profiles.avatar_url AS profile_url,
+            profiles.avatar_url AS avatar_url,
             users.name,
             org_roles.name AS role,
             org_user_managements.status,
@@ -411,7 +420,7 @@ func (oum *OrgUserManagement) UpdateMemberRole(db *gorm.DB, ids IDS) error {
 func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, ids IDS) bool {
 	var orgUserManagement OrgUserManagement
 
-	query := "organisation_id = ? AND user_id = ? AND role_id = (SELECT id FROM org_roles WHERE name = 'Administrator')"
+	query := "organisation_id = ? AND user_id = ? AND role_id = (SELECT id FROM org_roles WHERE name = '" + OrgRoleNameAdministrator + "')"
 
 	return postgresql.CheckExists(db, &orgUserManagement, query, ids.OrganisationID, ids.OwnerID)
 }
