@@ -191,8 +191,8 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid string, maxI
 			RecordingConfig: recordingConfig{
 				MaxIdleTime:        30,
 				StreamTypes:        2,
-				ChannelType:        0,
-				VideoStreamType:    1,
+				ChannelType:        1,
+				VideoStreamType:    0,
 				SubscribeAudioUIDs: []string{"#allstream#"},
 				SubscribeVideoUIDs: []string{"#allstream#"},
 			},

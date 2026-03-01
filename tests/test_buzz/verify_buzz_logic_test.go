@@ -465,6 +465,7 @@ func TestJoinBuzzScenarios(t *testing.T) {
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
 		UpdatedAt:      now,
+		OriginalHostID: user1ID,
 	}
 	if err := db.Postgresql.Create(&buzz).Error; err != nil {
 		t.Logf("Buzz might already exist: %v", err)
