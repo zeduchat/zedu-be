@@ -64,7 +64,7 @@ type BuzzRecording struct {
 	OrgID         string     `gorm:"type:uuid;not null;index" json:"org_id"`
 	ResourceID    string     `gorm:"type:text;not null" json:"resource_id"`
 	Sid           string     `gorm:"type:text;not null" json:"sid"`
-	RecorderToken string     `gorm:"type:text;not null" json:"recorder_token"`
+	RecorderToken string     `gorm:"type:text" json:"recorder_token"`
 	Status        string     `gorm:"type:varchar(20);not null;default:'starting'" json:"status"`
 	FileURL       string     `gorm:"type:text" json:"file_url"`
 	FileID        *string    `gorm:"type:uuid" json:"file_id,omitempty"`
