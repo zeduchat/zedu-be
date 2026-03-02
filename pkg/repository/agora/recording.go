@@ -61,6 +61,7 @@ type transcodingConfig struct {
 	Fps              int `json:"fps"`
 	Bitrate          int `json:"bitrate"`
 	MixedVideoLayout int `json:"mixedVideoLayout"`
+	BackgroundColor  string `json:"backgroundColor"`
 }
 
 type recordingConfig struct {
@@ -218,8 +219,6 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 		ClientRequest: startClientRequest{
 			Token: token,
 			RecordingConfig: recordingConfig{
-				SubscribeAudioUIDs: []string{"#allstream#"},
-				SubscribeVideoUIDs: []string{"#allstream#"},
 				MaxIdleTime:        maxIdleSecs,
 				StreamTypes:        2,
 				ChannelType:        1,
@@ -228,8 +227,9 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 					Width:            640,
 					Height:           360,
 					Fps:              15,
-					Bitrate:         1500,
+					Bitrate:         500,
 					MixedVideoLayout: 1,
+					BackgroundColor:  "#000000",
 				},
 			},
 			StorageConfig: storageConfig{
