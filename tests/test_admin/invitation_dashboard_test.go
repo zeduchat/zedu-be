@@ -434,23 +434,48 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 	db.Postgresql.Create(&org)
 
 	roleID := utility.GenerateUUID()
+	now := time.Now()
+	last30Days := now.AddDate(0, 0, -30)
+	last60Days := now.AddDate(0, 0, -60)
 
-	// Create 10 invitations: 7 "invited", 3 "accepted"
 	var createdInvitations []models.Invitation
+
+	// Create 10 invitations in last 30 days: 5 "accepted", 5 "invited" = 50% conversion
 	for i := 0; i < 10; i++ {
 		status := "invited"
-		if i < 3 {
+		if i < 5 {
 			status = "accepted"
 		}
 
 		invitation := models.Invitation{
 			ID:             utility.GenerateUUID(),
-			Email:          fmt.Sprintf("user%d-conversion@example.com", i),
+			Email:          fmt.Sprintf("user%d-last30@example.com", i),
 			Status:         status,
 			OrganisationID: orgID,
 			InvitedBy:      uid,
-			CreatedAt:      time.Now(),
-			ExpiresAt:      time.Now().Add(24 * time.Hour),
+			CreatedAt:      last30Days.AddDate(0, 0, 5),
+			ExpiresAt:      last30Days.AddDate(0, 0, 5).Add(24 * time.Hour),
+			Role:           roleID,
+		}
+		db.Postgresql.Create(&invitation)
+		createdInvitations = append(createdInvitations, invitation)
+	}
+
+	// Create 5 invitations from 30-60 days ago: 2 "accepted", 3 "invited" = 40% conversion
+	for i := 0; i < 5; i++ {
+		status := "invited"
+		if i < 2 {
+			status = "accepted"
+		}
+
+		invitation := models.Invitation{
+			ID:             utility.GenerateUUID(),
+			Email:          fmt.Sprintf("user%d-30to60@example.com", i),
+			Status:         status,
+			OrganisationID: orgID,
+			InvitedBy:      uid,
+			CreatedAt:      last60Days.AddDate(0, 0, 5),
+			ExpiresAt:      last60Days.AddDate(0, 0, 5).Add(24 * time.Hour),
 			Role:           roleID,
 		}
 		db.Postgresql.Create(&invitation)
@@ -475,14 +500,23 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, code)
 	}
 
-	// Verify conversion calculation: 3 accepted / 10 total = 30%
-	expectedConversion := 30.0
-	actualConversion := response.Stats.InvitesConversion
+	// Verify conversion calculation for last 30 days only: 5 accepted / 10 total = 50%
+	expectedConversion := 50.0
+	actualConversion := response.Stats.InvitesConversionMonth
 
 	// Allow small floating point difference
 	diff := actualConversion - expectedConversion
 	if diff < -0.01 || diff > 0.01 {
-		t.Errorf("expected invites_conversion to be ~%.2f, got %.2f", expectedConversion, actualConversion)
+		t.Errorf("expected invites_conversion to be ~%.2f (last 30 days only), got %.2f", expectedConversion, actualConversion)
+	}
+
+	// Verify conversion change percentage: (50 - 40) / 40 * 100 = 25%
+	expectedChangePercent := 25.0
+	actualChangePercent := response.Stats.InvitesConversionChangePercent
+
+	changeDiff := actualChangePercent - expectedChangePercent
+	if changeDiff < -0.01 || changeDiff > 0.01 {
+		t.Errorf("expected invites_conversion_change_percent to be ~%.2f, got %.2f", expectedChangePercent, actualChangePercent)
 	}
 
 	// Cleanup

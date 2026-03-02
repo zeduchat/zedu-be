@@ -51,8 +51,8 @@ type UserStats struct {
 	NewUsersMonthChangePercent    float64 `json:"new_users_month_change_percent"`
 	ActiveUsersMonth              int64   `json:"active_users_month"`
 	ActiveUsersMonthChangePercent float64 `json:"active_users_month_change_percent"`
-	AvgSessionLengthMonth         string  `json:"avg_session_length_month"`
-	AvgSessionLengthChangePercent float64 `json:"avg_session_length_change_percent"`
+	AvgSessionLengthMonth         string  `json:"avg_session_length_month"`          // Last 30 days average session length
+	AvgSessionLengthChangePercent float64 `json:"avg_session_length_change_percent"` // 30-day rolling comparison: percent change from previous 30 days
 }
 
 type ListUsersResponse struct {
@@ -138,16 +138,16 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 	}
 
 	var stats UserStats
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
 
 	if filter.IncludeStats {
 		var wg sync.WaitGroup
 
-		startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
 		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 		startOfYesterday := startOfToday.AddDate(0, 0, -1)
 		startOfWeek := now.AddDate(0, 0, -int(now.Weekday()))
-		thirtyDaysAgo := now.AddDate(0, 0, -30)
+		last30Days := now.AddDate(0, 0, -30)
+		last60Days := now.AddDate(0, 0, -60)
 
 		var currentMonthCount, lastMonthCount int64
 		var lastMonthPaid, lastMonthTotal int64
@@ -162,13 +162,13 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.User{}).Where("created_at >= ? AND deleted_at IS NULL", startOfMonth).Count(&currentMonthCount)
+			db.Model(&models.User{}).Where("created_at >= ? AND deleted_at IS NULL", last30Days).Count(&currentMonthCount)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.User{}).Where("created_at >= ? AND created_at < ? AND deleted_at IS NULL", startOfLastMonth, startOfMonth).Count(&lastMonthCount)
+			db.Model(&models.User{}).Where("created_at >= ? AND created_at < ? AND deleted_at IS NULL", last60Days, last30Days).Count(&lastMonthCount)
 		}()
 
 		wg.Add(1)
@@ -182,7 +182,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 			defer wg.Done()
 			db.Model(&models.AccessToken{}).
 				Select("COALESCE(AVG(EXTRACT(EPOCH FROM updated_at - created_at)),0)").
-				Where("created_at >= ? AND created_at < ? AND updated_at IS NOT NULL", startOfMonth, now).
+				Where("created_at >= ?", last30Days).
 				Scan(&avgThis)
 		}()
 
@@ -191,7 +191,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 			defer wg.Done()
 			db.Model(&models.AccessToken{}).
 				Select("COALESCE(AVG(EXTRACT(EPOCH FROM updated_at - created_at)),0)").
-				Where("created_at >= ? AND created_at < ? AND updated_at IS NOT NULL", startOfLastMonth, startOfMonth).
+				Where("created_at >= ? AND created_at < ?", last60Days, last30Days).
 				Scan(&avgLast)
 		}()
 
@@ -224,7 +224,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 			db.Table("users").
 				Joins("JOIN organisations ON organisations.owner_id = users.id").
 				Where("organisations.subscription_plan_id != 'free' AND organisations.subscription_plan_id != ''").
-				Where("users.created_at < ? AND users.deleted_at IS NULL", startOfMonth).
+				Where("users.created_at < ? AND users.deleted_at IS NULL", last30Days).
 				Group("users.id").
 				Count(&lastMonthPaid)
 		}()
@@ -232,7 +232,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.User{}).Where("created_at < ? AND deleted_at IS NULL", startOfMonth).Count(&lastMonthTotal)
+			db.Model(&models.User{}).Where("created_at < ? AND deleted_at IS NULL", last30Days).Count(&lastMonthTotal)
 		}()
 
 		wg.Add(1)
