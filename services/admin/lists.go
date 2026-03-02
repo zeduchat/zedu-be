@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -50,6 +51,8 @@ type UserStats struct {
 	NewUsersMonthChangePercent    float64 `json:"new_users_month_change_percent"`
 	ActiveUsersMonth              int64   `json:"active_users_month"`
 	ActiveUsersMonthChangePercent float64 `json:"active_users_month_change_percent"`
+	AvgSessionLengthMonth         string  `json:"avg_session_length_month"`
+	AvgSessionLengthChangePercent float64 `json:"avg_session_length_change_percent"`
 }
 
 type ListUsersResponse struct {
@@ -148,6 +151,7 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 
 		var currentMonthCount, lastMonthCount int64
 		var lastMonthPaid, lastMonthTotal int64
+		var avgThis, avgLast float64
 
 		wg.Add(1)
 		go func() {
@@ -171,6 +175,24 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		go func() {
 			defer wg.Done()
 			db.Model(&models.User{}).Where("created_at >= ? AND deleted_at IS NULL", startOfToday).Count(&stats.NewToday)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.AccessToken{}).
+				Select("COALESCE(AVG(EXTRACT(EPOCH FROM updated_at - created_at)),0)").
+				Where("created_at >= ? AND created_at < ? AND updated_at IS NOT NULL", startOfMonth, now).
+				Scan(&avgThis)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.AccessToken{}).
+				Select("COALESCE(AVG(EXTRACT(EPOCH FROM updated_at - created_at)),0)").
+				Where("created_at >= ? AND created_at < ? AND updated_at IS NOT NULL", startOfLastMonth, startOfMonth).
+				Scan(&avgLast)
 		}()
 
 		wg.Add(1)
@@ -245,6 +267,11 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 
 		stats.NewUsersMonth = currentMonthCount
 		stats.NewUsersMonthChangePercent = stats.TotalGrowthNum
+
+		stats.AvgSessionLengthMonth = formatSecs(avgThis)
+		if avgLast > 0 {
+			stats.AvgSessionLengthChangePercent = (avgThis - avgLast) / avgLast * 100
+		}
 	}
 
 	if len(users) == 0 {
@@ -373,6 +400,17 @@ func ListUsers(db *gorm.DB, c *gin.Context, filter UserFilter) (ListUsersRespons
 		Stats: stats,
 		Users: resp,
 	}, paginationResponse, http.StatusOK, nil
+}
+
+// formatSecs converts a duration in seconds to a human-readable string
+func formatSecs(sec float64) string {
+	if sec <= 0 {
+		return "0s"
+	}
+	d := time.Duration(sec) * time.Second
+	mins := int(d.Minutes())
+	secs := int(d.Seconds()) % 60
+	return fmt.Sprintf("%dm %ds", mins, secs)
 }
 
 func getUserIDs(users []models.User) []string {
