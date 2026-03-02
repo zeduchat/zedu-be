@@ -60,6 +60,7 @@ func TestSendBuzzMessage(t *testing.T) {
 		ParticipantIDs: pq.StringArray{user.ID},
 		BuzzStartTime:  time.Now().UTC(),
 		Status:         models.BuzzStatusActive,
+		OriginalHostID: user.ID,
 	}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
 		t.Fatalf("failed to create buzz: %v", err)
@@ -219,6 +220,7 @@ func TestSendBuzzMessage(t *testing.T) {
 			ParticipantIDs: pq.StringArray{user.ID},
 			BuzzStartTime:  time.Now().UTC(),
 			Status:         models.BuzzStatusEnded,
+			OriginalHostID: user.ID,
 		}
 		db.Postgresql.Create(&endedBuzz)
 

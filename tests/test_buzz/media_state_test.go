@@ -69,7 +69,7 @@ func TestUpdateMediaStateBase(t *testing.T) {
 	}
 
 	buzzID := utility.GenerateUUID()
-	h := models.Buzz{ID: buzzID, ChannelID: channelID, HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC(), Status: models.BuzzStatusActive, IsLiveStatus: true}
+	h := models.Buzz{ID: buzzID, ChannelID: channelID, OriginalHostID: user.ID, HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC(), Status: models.BuzzStatusActive, IsLiveStatus: true}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
 		t.Fatalf("failed to create buzz: %v", err)
 	}

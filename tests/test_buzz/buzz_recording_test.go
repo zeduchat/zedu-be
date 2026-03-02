@@ -263,10 +263,10 @@ func TestBuzzRecording(t *testing.T) {
 		startReq.Header.Set("Authorization", "Bearer "+hostToken)
 		startRr := httptest.NewRecorder()
 		router.ServeHTTP(startRr, startReq)
-		tst.AssertStatusCode(t, startRr.Code, http.StatusOK)
+		tst.AssertStatusCode(t, startRr.Code, http.StatusConflict)
 		data := tst.ParseResponse(startRr)
 		if msg, ok := data["message"].(string); ok {
-			if msg != "recording started successfully" {
+			if msg != "recording already in progress" {
 				t.Errorf("expected conflict message, got: %s", msg)
 			}
 		}

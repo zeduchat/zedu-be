@@ -660,3 +660,45 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "message sent successfully", feed)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) MuteParticipants(c *gin.Context) {
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code", errors.New("invalid buzz code"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	userIDInterface, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id", errors.New("invalid user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	code, err := buzz.MuteParticipants(base.Db, base.Logger, buzzID, userID)
+	if err != nil {
+		base.Logger.Error("failed to mute participants: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("muted participants for buzz %s by host %s", buzzID, userID)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "muted participants successfully", nil)
+	c.JSON(http.StatusOK, rd)
+}
