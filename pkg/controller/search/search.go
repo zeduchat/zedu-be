@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt"
-	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -22,13 +21,6 @@ type Controller struct {
 }
 
 func (base *Controller) Search(c *gin.Context) {
-	orgId := c.Param("orgId")
-	if _, err := uuid.Parse(orgId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
 	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
@@ -38,10 +30,27 @@ func (base *Controller) Search(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
-	query := c.Query("query")
+	orgId := c.Param("orgId")
+	if !utility.IsValidUUID(orgId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id", "organisation could not be found", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
+	query := c.Query("query")
 	sortby := c.Query("sortby")
-	searchResult, code, err := search.Search(base.Db, c, userId, orgId, query, sortby)
+
+	req := search.SearchRequest{
+		DB:     base.Db,
+		Ctx:    c,
+		Logger: base.Logger,
+		UserID: userId,
+		OrgID:  orgId,
+		Query:  query,
+		SortBy: sortby,
+	}
+
+	searchResult, pagination, code, err := search.Search(req)
 
 	if err != nil && code == http.StatusNotFound {
 		resp := utility.BuildErrorResponse(code, http.StatusText(code), err.Error(), err, nil)
@@ -52,6 +61,47 @@ func (base *Controller) Search(c *gin.Context) {
 		c.JSON(code, resp)
 		return
 	}
-	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult)
+	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult, pagination)
+	c.JSON(code, resp)
+}
+
+func (base *Controller) SearchChannel(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", "could not perform search", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
+	channelId := c.Param("channelId")
+	if !utility.IsValidUUID(channelId) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id", "channel could not be found", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	query := c.Query("query")
+	sortby := c.Query("sortby")
+
+	req := search.SearchChannelRequest{
+		DB:        base.Db,
+		Ctx:       c,
+		Logger:    base.Logger,
+		UserID:    userId,
+		ChannelID: channelId,
+		Query:     query,
+		SortBy:    sortby,
+	}
+
+	searchResult, pagination, code, err := search.SearchChannel(req)
+
+	if err != nil {
+		resp := utility.BuildErrorResponse(code, http.StatusText(code), err.Error(), err, nil)
+		c.JSON(code, resp)
+		return
+	}
+	resp := utility.BuildSuccessResponse(http.StatusOK, "success", searchResult, pagination)
 	c.JSON(code, resp)
 }

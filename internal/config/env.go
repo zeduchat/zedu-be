@@ -125,8 +125,9 @@ type BaseConfig struct {
 	OPENROUTER_API_KEY  string `mapstructure:"OPENROUTER_API_KEY"`
 	OPENROUTER_BASE_URL string `mapstructure:"OPENROUTER_BASE_URL"`
 
-	MONGO_URI     string `mapstructure:"MONGO_URI"`
-	MONGO_DB_NAME string `mapstructure:"MONGO_DB_NAME"`
+	MONGO_URI      string `mapstructure:"MONGO_URI"`
+	MONGO_DB_NAME  string `mapstructure:"MONGO_DB_NAME"`
+	MONGO_DISABLED bool   `mapstructure:"MONGO_DISABLED"`
 
 	SUPER_ADMIN_EMAIL    string `mapstructure:"SUPER_ADMIN_EMAIL"`
 	SUPER_ADMIN_NAME     string `mapstructure:"SUPER_ADMIN_NAME"`
@@ -275,8 +276,9 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
 		},
 		MongoDB: MongoDB{
-			Mongo_URI: config.MONGO_URI,
-			DB_Name:   config.MONGO_DB_NAME,
+			Mongo_URI:      config.MONGO_URI,
+			DB_Name:        config.MONGO_DB_NAME,
+			Mongo_Disabled: config.MONGO_DISABLED,
 		},
 		OpenRouter: OpenRouter{
 			ApiKey:  config.OPENROUTER_API_KEY,

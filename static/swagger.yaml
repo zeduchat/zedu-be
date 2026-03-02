@@ -114,6 +114,8 @@ tags:
     description: API endpoints for buzz (audio/video calls) feature
   - name: shares
     description: API endpoints for buying and tracking shares
+  - name: Slash Commands
+    description: API endpoints for default slash commands
 paths:
   # Auth paths
   /auth/register:
@@ -5125,6 +5127,180 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  # Slash Commands endpoints
+  /slash-commands:
+    get:
+      tags:
+        - Slash Commands
+      summary: Get default slash commands
+      description: Retrieves all default slash commands available in the application. These are built-in slash commands that can be used by any organization.
+      responses:
+        "200":
+          description: Default slash commands retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Default slashcommands retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                          description: Unique identifier for the slash command
+                        command:
+                          type: string
+                          example: "/add-to-channel #channel-name @user1 @user2 ... @user_n"
+                          description: The slash command template
+                        description:
+                          type: string
+                          example: "Add one or more users to a channel"
+                          description: Description of what the slash command does
+                        is_default:
+                          type: boolean
+                          example: true
+                          description: Indicates if this is a default slash command
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Slash Commands
+      summary: Process a slash command
+      description: |
+        Processes a slash command and executes the corresponding action.
+        This endpoint accepts various slash commands for managing channel members and permissions.
+        Available commands include:
+        - `/add-to-channel #channel @user1 @user2` - Add one or more users to a channel
+        - `/add-to-all-org-channels @user` - Add a user to all organization channels
+        - `/remove-from-channel #channel @user` - Remove a user from a channel
+        - `/banish-from-channel #channel1 #channel2 @user1 @user2` - Remove users from multiple channels
+        - `/promote #channel @user1 @user2 #channel2` - Promote users to channel admin
+        - `/demote #channel @user1 @user2 #channel2` - Demote users from channel admin
+        - `/restore-channels @user1 @user2` - Restore deleted channels for users
+        - `/export-members #channel` - Export channel members list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: The slash command to process
+                  example: "/add-to-channel #engineering-channel @bugsbouncy"
+            examples:
+              add_to_channel:
+                summary: Add users to a channel
+                value:
+                  command: "/add-to-channel #engineering-channel @bugsbouncy"
+              add_to_all_org_channels:
+                summary: Add user to all organization channels
+                value:
+                  command: "/add-to-all-org-channels @bugsbouncy"
+              remove_from_channel:
+                summary: Remove user from channel
+                value:
+                  command: "/remove-from-channel #engineering-channel @bugsbunny"
+              banish_from_channel:
+                summary: Remove users from multiple channels
+                value:
+                  command: "/banish-from-channel #general #engineering-channel @bugsbouncy @anotheruser"
+              promote:
+                summary: Promote users in channels
+                value:
+                  command: "/promote #management @bugsbouncy @anotheruser #engineering-channel #support"
+              demote:
+                summary: Demote users in channels
+                value:
+                  command: "/demote #general @bugsbouncy @anotheruser #management-channel"
+              restore_channels:
+                summary: Restore deleted channels for users
+                value:
+                  command: "/restore-channels @bugsbouncy @anotheruser"
+              export_members:
+                summary: Export channel members
+                value:
+                  command: "/export-members #engineering-channel"
+      responses:
+        "200":
+          description: Slash command processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Command processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      result:
+                        type: string
+                        example: "Users added to channel successfully"
+                      affected_users:
+                        type: array
+                        items:
+                          type: string
+                        example: ["bugsbouncy", "anotheruser"]
+                      affected_channels:
+                        type: array
+                        items:
+                          type: string
+                        example: ["engineering-channel"]
+        "400":
+          description: Bad request - Invalid command format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - Channel or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /contact:
     post:
@@ -21912,10 +22088,143 @@ paths:
                     example: 400
                   message:
                     type: string
-                    example: "Invalid query parameters provided"
+                    example: "invalid organisation id"
 
-        401:
-          description: Unauthorized - Missing or invalid authentication token
+  /search/channel/{channelId}/:
+    get:
+      tags:
+        - Search
+      summary: Search for messages within a specific channel
+      description: |
+        Search for messages within a specific channel a user belongs to based on keyword filters.
+        The entire search query is passed in the `query` parameter.
+        Example format: `"Hello team from:layo before:2024-12-31"`
+
+        #### Supported Keywords:
+        - **from:** *Filter messages by sender* (e.g., `from:layo`)
+        - **has:** *Search for messages containing a specific word* (e.g., `has:meeting`)
+        - **before:** *Find messages sent before a specific date* (e.g., `before:2024-12-31`)
+        - **on:** *Find messages sent on a specific date* (e.g., `on:2024-12-27`)
+        - **after:** *Find messages sent after a specific date* (e.g., `after:2024-12-25`)
+        - **exact:** *Find messages matching an exact phrase* (e.g., `exact:Project deadline`)
+
+        Response contract is identical to the organisation search parameter formatting.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: The unique identifier for the channel being searched
+          schema:
+            type: string
+            format: uuid
+
+        - name: query
+          in: query
+          required: false
+          description: The keyword(s) to filter messages by
+          schema:
+            type: string
+
+        - name: sortBy
+          in: query
+          required: false
+          description: Sort the results by relevance or recency
+          schema:
+            type: string
+            enum: [relevance, recency]
+
+      responses:
+        200:
+          description: Successful response with filtered messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                              format: uuid
+                              example: "0195ae92-d864-7415-8411-d417931a9b3a"
+                            user_name:
+                              type: string
+                              example: "layo bright"
+                            avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
+                            default_avatar_url:
+                              type: string
+                              format: uri
+                              example: "https://example.com/avatar.jpg"
+
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              message_id:
+                                type: string
+                                example: "12345"
+                              message:
+                                type: string
+                                example: "Hello how are you"
+                              timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T10:57:34Z"
+                              reactions:
+                                type: array
+                                description: List of reactions on the message.
+                                items:
+                                  type: object
+                                  properties:
+                                    reaction_id:
+                                      type: string
+                                      format: uuid
+                                    emoji:
+                                      type: string
+                                      example: "👍"
+                                    count:
+                                      type: integer
+                                      example: 5
+                              reply_count:
+                                type: integer
+                                example: 10
+                              last_reply_timestamp:
+                                type: string
+                                format: date-time
+                                example: "2024-12-27T15:30:00Z"
+                        channel:
+                          type: object
+                          properties:
+                            channel_id:
+                              type: string
+                              format: uuid
+                            channel_name:
+                              type: string
+                              example: "General"
+
+        400:
+          description: Bad Request - Invalid parameters or missing required query
           content:
             application/json:
               schema:
@@ -21926,10 +22235,11 @@ paths:
                     example: "error"
                   status_code:
                     type: integer
-                    example: 401
                   message:
                     type: string
-                    example: "Unauthorized access - Invalid token"
+                    example: "invalid channel id"
+
+
 
         500:
           description: Internal Server Error
