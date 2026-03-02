@@ -26,9 +26,14 @@ type recordingClient struct {
 }
 
 type acquireRequest struct {
-	Cname         string            `json:"cname"`
-	Uid           string            `json:"uid"`
-	ClientRequest map[string]string `json:"clientRequest"`
+	Cname         string               `json:"cname"`
+	Uid           string               `json:"uid"`
+	ClientRequest acquireClientRequest `json:"clientRequest"`
+}
+
+type acquireClientRequest struct {
+	Scene               int `json:"scene"`
+	ResourceExpiredHour int `json:"resourceExpiredHour"`
 }
 
 type acquireResponse struct {
@@ -49,13 +54,22 @@ type storageConfig struct {
 	ExtensionParams ExtensionParams `json:"extensionParams"`
 }
 
+type transcodingConfig struct {
+	Width            int `json:"width"`
+	Height           int `json:"height"`
+	Fps              int `json:"fps"`
+	Bitrate          int `json:"bitrate"`
+	MixedVideoLayout int `json:"mixedVideoLayout"`
+}
+
 type recordingConfig struct {
-	MaxIdleTime        int      `json:"maxIdleTime"`
-	StreamTypes        int      `json:"streamTypes"`
-	ChannelType        int      `json:"channelType"`
-	VideoStreamType    int      `json:"videoStreamType"`
-	SubscribeAudioUIDs []string `json:"subscribeAudioUids"`
-	SubscribeVideoUIDs []string `json:"subscribeVideoUids"`
+	MaxIdleTime        int               `json:"maxIdleTime"`
+	StreamTypes        int               `json:"streamTypes"`
+	ChannelType        int               `json:"channelType"`
+	VideoStreamType    int               `json:"videoStreamType"`
+	TranscodingConfig  transcodingConfig `json:"transcodingConfig"`
+	SubscribeAudioUIDs []string          `json:"subscribeAudioUIDs"`
+	SubscribeVideoUIDs []string          `json:"subscribeVideoUIDs"`
 }
 
 type startRecordingRequest struct {
@@ -75,19 +89,31 @@ type startResponse struct {
 	ResourceId string `json:"resourceId"`
 }
 
+type stopServerResponse struct {
+	FileList        string `json:"fileList"`
+	FileListMode    string `json:"fileListMode"`
+	UploadingStatus string `json:"uploadingStatus"`
+}
+
+type stopResponse struct {
+	Cname          string             `json:"cname"`
+	ResourceId     string             `json:"resourceId"`
+	Sid            string             `json:"sid"`
+	Uid            string             `json:"uid"`
+	ServerResponse stopServerResponse `json:"serverResponse"`
+}
+
+type queryServerResponse struct {
+	Status          int    `json:"status"`
+	FileList        string `json:"fileList"`
+	FileListMode    string `json:"fileListMode"`
+	UploadingStatus string `json:"uploadingStatus"`
+}
+
 type queryResponse struct {
-	ResourceId     string         `json:"resourceId"`
-	Sid            string         `json:"sid"`
-	ServerResponse serverResponse `json:"serverResponse"`
-}
-
-type serverResponse struct {
-	Status   int        `json:"status"`
-	FileList []fileInfo `json:"fileList"`
-}
-
-type fileInfo struct {
-	Filename string `json:"filename"`
+	ResourceId     string              `json:"resourceId"`
+	Sid            string              `json:"sid"`
+	ServerResponse queryServerResponse `json:"serverResponse"`
 }
 
 func newRecordingClient() (*recordingClient, error) {
@@ -146,9 +172,12 @@ func AcquireRecording(buzzID, uid string) (string, error) {
 
 	url := fmt.Sprintf("%s/%s/cloud_recording/acquire", agoraRecordingBaseURL, rc.appID)
 	reqBody := acquireRequest{
-		Cname:         buzzID,
-		Uid:           uid,
-		ClientRequest: map[string]string{},
+		Cname: buzzID,
+		Uid:   uid,
+		ClientRequest: acquireClientRequest{
+			Scene:               0,
+			ResourceExpiredHour: 3,
+		},
 	}
 
 	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
@@ -164,7 +193,7 @@ func AcquireRecording(buzzID, uid string) (string, error) {
 	return resp.ResourceId, nil
 }
 
-func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, error) {
+func StartRecording(resourceID, buzzID, uid, token string, maxIdleSecs int) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return "", err
@@ -181,13 +210,21 @@ func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, er
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: startClientRequest{
+			Token: token,
 			RecordingConfig: recordingConfig{
-				MaxIdleTime:        maxIdleSecs,
-				StreamTypes:        2,
-				ChannelType:        1,
-				VideoStreamType:    0,
 				SubscribeAudioUIDs: []string{"#allstream#"},
 				SubscribeVideoUIDs: []string{"#allstream#"},
+				MaxIdleTime:     maxIdleSecs,
+				StreamTypes:     2,
+				ChannelType:     0,
+				VideoStreamType: 0,
+				TranscodingConfig: transcodingConfig{
+					Width:            640,
+					Height:           360,
+					Fps:              15,
+					Bitrate:          500,
+					MixedVideoLayout: 1,
+				},
 			},
 			StorageConfig: storageConfig{
 				Vendor:         recordingStorageVendorS3,
@@ -195,7 +232,7 @@ func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, er
 				Bucket:         cfg.Minio.BucketName,
 				AccessKey:      cfg.Minio.AccessKey,
 				SecretKey:      cfg.Minio.Secret,
-				FileNamePrefix: []string{"buzz-recordings", buzzID},
+				FileNamePrefix: []string{"call-recordings", buzzID},
 				ExtensionParams: ExtensionParams{
 					EndPoint: minioEndpoint,
 				},
@@ -216,23 +253,35 @@ func StartRecording(resourceID, buzzID, uid string, maxIdleSecs int) (string, er
 	return resp.Sid, nil
 }
 
-func StopRecording(resourceID, sid, buzzID, uid string) error {
+func StopRecording(resourceID, sid, buzzID, uid, token string) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/%s/stop",
 		agoraRecordingBaseURL, rc.appID, resourceID, sid, recordingModeComposite)
 
 	reqBody := map[string]interface{}{
-		"cname":         buzzID,
-		"uid":           uid,
-		"clientRequest": map[string]string{},
+		"cname": buzzID,
+		"uid":   uid,
+		"clientRequest": map[string]interface{}{
+			"token":      token,
+			"async_stop": false,
+		},
 	}
 
-	_, err = rc.doRequest(http.MethodPost, url, reqBody)
-	return err
+	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	var resp stopResponse
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		return "", fmt.Errorf("failed to parse stop response: %w", err)
+	}
+
+	return resp.ServerResponse.FileList, nil
 }
 
 func QueryRecordingStatus(resourceID, sid, buzzID string) (string, []string, error) {
@@ -254,9 +303,9 @@ func QueryRecordingStatus(resourceID, sid, buzzID string) (string, []string, err
 		return "", nil, fmt.Errorf("failed to parse query response: %w", err)
 	}
 
-	files := make([]string, 0, len(resp.ServerResponse.FileList))
-	for _, f := range resp.ServerResponse.FileList {
-		files = append(files, f.Filename)
+	var files []string
+	if resp.ServerResponse.FileList != "" {
+		files = []string{resp.ServerResponse.FileList}
 	}
 
 	statusStr := agoraStatusToString(resp.ServerResponse.Status)
@@ -268,13 +317,19 @@ func agoraStatusToString(status int) string {
 	case 0:
 		return "idle"
 	case 1:
-		return "starting"
+		return "failed"
 	case 2:
-		return "recording"
+		return "exited"
 	case 3:
-		return "stopping"
+		return "joining"
 	case 4:
-		return "stopped"
+		return "recording"
+	case 5:
+		return "files_generated"
+	case 6:
+		return "uploaded"
+	case 7:
+		return "partly_uploaded"
 	default:
 		return "unknown"
 	}
