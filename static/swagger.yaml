@@ -30316,43 +30316,97 @@ components:
           type: string
           example: "users retrieved successfully"
         data:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-              email:
-                type: string
-                example: "user@example.com"
-              name:
-                type: string
-                example: "Full Name"
-              avatar_url:
-                type: string
-                example: "https://example.com/avatar.png"
-              default_avatar_url:
-                type: string
-                example: "https://example.com/avatar.png"
-              created_at:
-                type: string
-                format: date-time
-              last_log_in_at:
-                type: string
-                format: date-time
-                nullable: true
-              last_activity_at:
-                type: string
-                format: date-time
-                nullable: true
-              activity_length:
-                type: string
-                example: "2 days"
-                nullable: true
-              referrals:
-                type: integer
-                example: 0
+          type: object
+          properties:
+            stats:
+              type: object
+              properties:
+                total_signups:
+                  type: integer
+                  example: 0
+                total_growth_num:
+                  type: number
+                  example: 0
+                new_today:
+                  type: integer
+                  example: 0
+                new_today_percent:
+                  type: number
+                  example: 0
+                yesterday:
+                  type: integer
+                  example: 0
+                this_week:
+                  type: integer
+                  example: 0
+                free_users:
+                  type: integer
+                  example: 0
+                free_users_change_percent:
+                  type: number
+                  example: 0
+                paid_users:
+                  type: integer
+                  example: 0
+                paid_users_change_percent:
+                  type: number
+                  example: 0
+                new_users_month:
+                  type: integer
+                  example: 0
+                new_users_month_change_percent:
+                  type: number
+                  example: 0
+                active_users_month:
+                  type: integer
+                  example: 0
+                active_users_month_change_percent:
+                  type: number
+                  example: 0
+                avg_session_length_month:
+                  type: string
+                  example: "0s"
+                avg_session_length_change_percent:
+                  type: number
+                  example: 0
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    example: "user@example.com"
+                  name:
+                    type: string
+                    example: "Full Name"
+                  avatar_url:
+                    type: string
+                    example: "https://example.com/avatar.png"
+                  default_avatar_url:
+                    type: string
+                    example: "https://example.com/avatar.png"
+                  created_at:
+                    type: string
+                    format: date-time
+                  last_log_in_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  last_activity_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  activity_length:
+                    type: string
+                    example: "2 days"
+                    nullable: true
+                  referrals:
+                    type: integer
+                    example: 0
         pagination:
           type: object
           properties:
