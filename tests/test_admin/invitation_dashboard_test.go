@@ -403,6 +403,9 @@ func TestGetInvitationDashboard_InvitesConversionPresent(t *testing.T) {
 func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 	_, authCtl, _, db := SetupAdminTestRouter()
 
+	// Clear existing invitations to ensure isolated test
+	db.Postgresql.Exec("DELETE FROM invitations")
+
 	currUUID := utility.GenerateUUID()
 	user1 := models.CreateUserRequestModel{
 		Email:       "conversion-test-" + currUUID + "@qa.team",
