@@ -141,7 +141,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 
 	if m3u8Key != "" {
 		go func(key string) {
-			mp4Key, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
+			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
 			if mergeErr != nil {
 				logger.Error("failed to merge recording segments for buzz %s: %v", buzzID, mergeErr)
 				return
@@ -151,7 +151,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 				logger.Error("failed to persist mp4 url for buzz %s: %v", buzzID, err)
 				return
 			}
-			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz)
+			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
 		}(m3u8Key)
 	}
 
@@ -206,7 +206,7 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 	return rec, http.StatusOK, nil
 }
 
-func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz) error {
+func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz, fileSize int64) error {
 	if rec.FileURL == "" || rec.FileID != nil {
 		return nil
 	}
@@ -222,6 +222,7 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 		FileLink:       rec.FileURL,
 		OrganisationID: rec.OrgID,
 		UserID:         buzz.HostID,
+		Size:           fileSize,
 	}
 
 	logger.Info("[Agora-Recording] Started saving recording file for buzz %s", rec.BuzzID)
@@ -245,7 +246,7 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 
 func buildRecordingFileURL(filename string) string {
 	cfg := config.GetConfig()
-	return fmt.Sprintf("%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
+	return fmt.Sprintf("https://%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
 }
 
 func publishRecordingEvent(logger *utility.Logger, buzz *models.Buzz, rec *models.BuzzRecording, eventName string) {
@@ -309,7 +310,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 
 	if m3u8Key != "" {
 		go func(key string) {
-			mp4Key, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
+			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
 			if mergeErr != nil {
 				logger.Error("failed to merge recording segments on buzz end for buzz %s: %v", buzzID, mergeErr)
 				return
@@ -319,7 +320,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 				logger.Error("failed to persist mp4 url on buzz end for buzz %s: %v", buzzID, err)
 				return
 			}
-			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz)
+			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
 		}(m3u8Key)
 	}
 
