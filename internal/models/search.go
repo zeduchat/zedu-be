@@ -70,6 +70,20 @@ type ReplyUserData struct {
 func NewSearchQueryFilterKeywords() *SearchQueryFiltersKeywords {
 	return &SearchQueryFiltersKeywords{}
 }
+func parseDateParam(value string) time.Time {
+	val := strings.TrimPrefix(value, ":")
+	val = strings.Trim(val, "\"")
+
+	// Fallback mechanism to parse different formats
+	if t, err := time.Parse(time.DateOnly, val); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339, val); err == nil {
+		return t
+	}
+	return time.Time{}
+}
+
 func (s *SearchQueryFiltersKeywords) ProcessQueryString(queryArr [][]string) {
 
 	for _, match := range queryArr {
@@ -83,16 +97,14 @@ func (s *SearchQueryFiltersKeywords) ProcessQueryString(queryArr [][]string) {
 		case "has":
 			s.Has = strings.TrimPrefix(value, ":")
 		case "before":
-			t, _ := time.Parse(time.RFC3339, strings.TrimPrefix(value, ":"))
-			s.Before = t
+			s.Before = parseDateParam(value)
 		case "on":
-			t, _ := time.Parse(time.RFC3339, strings.TrimPrefix(value, ":"))
-			s.On = t
+			s.On = parseDateParam(value)
 		case "after":
-			t, _ := time.Parse(time.RFC3339, strings.TrimPrefix(value, ":"))
-			s.After = t
+			s.After = parseDateParam(value)
 		case "exact":
 			s.Exact = strings.TrimPrefix(value, ":")
+			s.Exact = strings.Trim(s.Exact, "\"")
 		}
 	}
 }
@@ -257,6 +269,9 @@ func executeSearchAndProcessResults(ctx *gin.Context, esClient *elasticsearch.Cl
 
 	// Early return if no messages
 	if len(messageIDs) == 0 {
+		if qResults == nil {
+			qResults = make([]utility.SearchQueryResult, 0)
+		}
 		return qResults, paginationResponse, nil
 	}
 
@@ -503,7 +518,7 @@ func addDateFilters(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) 
 	filterClauses := boolQuery["filter"].([]any)
 
 	if !opts.On.IsZero() {
-		startOfDay := opts.On.Truncate(24 * time.Hour)
+		startOfDay := opts.On.UTC().Truncate(24 * time.Hour)
 		endOfDay := startOfDay.Add(24 * time.Hour).Add(-time.Nanosecond)
 		onFilter := map[string]any{
 			"range": map[string]any{
@@ -521,43 +536,67 @@ func addDateFilters(boolQuery map[string]any, opts *SearchQueryFiltersKeywords) 
 				},
 			},
 		}
-		filterClauses = append(filterClauses, onFilter, onFilter2)
+		filterClauses = append(filterClauses, map[string]any{
+			"bool": map[string]any{
+				"should": []map[string]any{
+					onFilter,
+					onFilter2,
+				},
+				"minimum_should_match": 1,
+			},
+		})
 	}
 
 	if !opts.Before.IsZero() {
 		beforeFilter := map[string]any{
 			"range": map[string]any{
 				"created_at": map[string]any{
-					"lt": opts.Before.Format(time.RFC3339),
+					"lt": opts.Before.UTC().Format(time.RFC3339),
 				},
 			},
 		}
 		beforeFilter2 := map[string]any{
 			"range": map[string]any{
 				"messages.created_at": map[string]any{
-					"lt": opts.Before.Format(time.RFC3339),
+					"lt": opts.Before.UTC().Format(time.RFC3339),
 				},
 			},
 		}
-		filterClauses = append(filterClauses, beforeFilter, beforeFilter2)
+		filterClauses = append(filterClauses, map[string]any{
+			"bool": map[string]any{
+				"should": []map[string]any{
+					beforeFilter,
+					beforeFilter2,
+				},
+				"minimum_should_match": 1,
+			},
+		})
 	}
 
 	if !opts.After.IsZero() {
 		afterFilter := map[string]any{
 			"range": map[string]any{
 				"created_at": map[string]any{
-					"gt": opts.After.Format(time.RFC3339),
+					"gt": opts.After.UTC().Format(time.RFC3339),
 				},
 			},
 		}
 		afterFilter2 := map[string]any{
 			"range": map[string]any{
 				"messages.created_at": map[string]any{
-					"gt": opts.After.Format(time.RFC3339),
+					"gt": opts.After.UTC().Format(time.RFC3339),
 				},
 			},
 		}
-		filterClauses = append(filterClauses, afterFilter, afterFilter2)
+		filterClauses = append(filterClauses, map[string]any{
+			"bool": map[string]any{
+				"should": []map[string]any{
+					afterFilter,
+					afterFilter2,
+				},
+				"minimum_should_match": 1,
+			},
+		})
 	}
 
 	boolQuery["filter"] = filterClauses
@@ -579,7 +618,15 @@ func addContentFilter(boolQuery map[string]any, opts *SearchQueryFiltersKeywords
 
 func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) {
 	var sorting []any
-	if opts.SortBy == "recency" {
+	sortBy := strings.ToLower(opts.SortBy)
+
+	// Fallback mapping for old 'recency'
+	if sortBy == "recency" {
+		sortBy = "newest"
+	}
+
+	switch sortBy {
+	case "newest":
 		sorting = []any{
 			map[string]any{
 				"created_at": map[string]any{
@@ -587,7 +634,15 @@ func addSorting(query map[string]any, opts *SearchQueryFiltersKeywords) {
 				},
 			},
 		}
-	} else {
+	case "oldest":
+		sorting = []any{
+			map[string]any{
+				"created_at": map[string]any{
+					"order": "asc",
+				},
+			},
+		}
+	default:
 		// Default to relevance (_score descending)
 		sorting = []any{
 			map[string]any{

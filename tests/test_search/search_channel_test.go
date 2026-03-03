@@ -122,13 +122,14 @@ func TestChannelSearchEndpoint(t *testing.T) {
 
 	threadId := utility.GenerateUUID()
 	thread := map[string]any{
-		"thread_id":   threadId,
-		"channels_id": privateChannel.ID,
-		"user_id":     user1.ID,
-		"org_id":      privateChannel.OrganisationID,
-		"message":     "Secret message in isolated channel search",
-		"created_at":  time.Now().Format(time.RFC3339),
-		"updated_at":  time.Now().Format(time.RFC3339),
+		"thread_id":    threadId,
+		"channels_id":  privateChannel.ID,
+		"channel_name": privateChannel.Name,
+		"user_id":      user1.ID,
+		"org_id":       privateChannel.OrganisationID,
+		"message":      "Secret message in isolated channel search",
+		"created_at":   time.Now().Format(time.RFC3339),
+		"updated_at":   time.Now().Format(time.RFC3339),
 	}
 	elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId, thread, logger)
 
@@ -158,6 +159,9 @@ func TestChannelSearchEndpoint(t *testing.T) {
 			channelData, ok := resultMap["channel"].(map[string]interface{})
 			if !ok || channelData["channel_id"] != privateChannel.ID {
 				t.Errorf("Result did not come from the searched channel. Expected %s, got %v", privateChannel.ID, resultMap)
+			}
+			if channelData["channel_name"] != privateChannel.Name {
+				t.Errorf("Result channel name mismatch. Expected '%s', got '%v'", privateChannel.Name, channelData["channel_name"])
 			}
 		} else {
 			t.Errorf("Member should see 1 result but got null/none. Response: %v", resp)
@@ -193,13 +197,14 @@ func TestChannelSearchEndpoint(t *testing.T) {
 
 	threadIdPublic := utility.GenerateUUID()
 	threadPublic := map[string]any{
-		"thread_id":   threadIdPublic,
-		"channels_id": publicChannel.ID,
-		"user_id":     user1.ID,
-		"org_id":      publicChannel.OrganisationID,
-		"message":     "Public message in isolated channel search",
-		"created_at":  time.Now().Format(time.RFC3339),
-		"updated_at":  time.Now().Format(time.RFC3339),
+		"thread_id":    threadIdPublic,
+		"channels_id":  publicChannel.ID,
+		"channel_name": publicChannel.Name,
+		"user_id":      user1.ID,
+		"org_id":       publicChannel.OrganisationID,
+		"message":      "Public message in isolated channel search",
+		"created_at":   time.Now().Format(time.RFC3339),
+		"updated_at":   time.Now().Format(time.RFC3339),
 	}
 	elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadIdPublic, threadPublic, logger)
 
@@ -228,6 +233,9 @@ func TestChannelSearchEndpoint(t *testing.T) {
 			channelData, ok := resultMap["channel"].(map[string]interface{})
 			if !ok || channelData["channel_id"] != publicChannel.ID {
 				t.Errorf("Result did not come from the searched public channel. Expected %s, got %v", publicChannel.ID, resultMap)
+			}
+			if channelData["channel_name"] != publicChannel.Name {
+				t.Errorf("Result channel name mismatch. Expected '%s', got '%v'", publicChannel.Name, channelData["channel_name"])
 			}
 		} else {
 			t.Errorf("Member should see 1 result but got null/none. Response: %v", resp)

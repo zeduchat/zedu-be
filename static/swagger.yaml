@@ -21481,10 +21481,10 @@ paths:
         - name: sortBy
           in: query
           required: false
-          description: Sort the results by relevance or recency
+          description: Sort the results by relevance, newest, or oldest
           schema:
             type: string
-            enum: [relevance, recency]
+            enum: [relevance, newest, oldest]
 
       responses:
         200:
@@ -21682,10 +21682,10 @@ paths:
         - name: sortBy
           in: query
           required: false
-          description: Sort the results by relevance or recency
+          description: Sort the results by relevance, newest, or oldest
           schema:
             type: string
-            enum: [relevance, recency]
+            enum: [relevance, newest, oldest]
 
       responses:
         200:
