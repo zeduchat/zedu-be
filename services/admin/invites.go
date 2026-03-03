@@ -21,12 +21,14 @@ type InvitationDashboardResponse struct {
 }
 
 type InvitationStats struct {
-	TotalInvitationsSent int64   `json:"total_invitations_sent"`
-	TotalGrowthPercent   float64 `json:"total_growth_percent"`
-	SentToday            int64   `json:"sent_today"`
-	SentTodayPercent     float64 `json:"sent_today_percent"`
-	Yesterday            int64   `json:"yesterday"`
-	ThisWeek             int64   `json:"this_week"`
+	TotalInvitationsSent           int64   `json:"total_invitations_sent"`
+	TotalGrowthPercent             float64 `json:"total_growth_percent"`
+	SentToday                      int64   `json:"sent_today"`
+	SentTodayPercent               float64 `json:"sent_today_percent"`
+	Yesterday                      int64   `json:"yesterday"`
+	ThisWeek                       int64   `json:"this_week"`
+	InvitesConversionMonth         float64 `json:"invites_conversion"`
+	InvitesConversionChangePercent float64 `json:"invites_conversion_change_percent"`
 }
 
 type GrowthTrendPoint struct {
@@ -59,7 +61,6 @@ type InvitationFilter struct {
 	TopLimit     int
 }
 
-
 func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter) (InvitationDashboardResponse, postgresql.PaginationResponse, int, error) {
 	var response InvitationDashboardResponse
 	pagination := postgresql.GetPagination(c)
@@ -74,15 +75,23 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 		startOfYesterday := startOfToday.AddDate(0, 0, -1)
 		startOfWeek := now.AddDate(0, 0, -int(now.Weekday()))
-		startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		startOfLastMonth := startOfMonth.AddDate(0, -1, 0)
+		last30Days := now.AddDate(0, 0, -30)
+		last60Days := now.AddDate(0, 0, -60)
 
-		var currentMonthCount, lastMonthCount int64
+		var currentPeriodCount, previousPeriodCount int64
+		var acceptedCount int64
+		var currentPeriodAccepted, previousPeriodAccepted int64
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			db.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
 		}()
 
 		wg.Add(1)
@@ -106,21 +115,37 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", startOfMonth).Count(&currentMonthCount)
+			db.Model(&models.Invitation{}).Where("created_at >= ?", last30Days).Count(&currentPeriodCount)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", startOfLastMonth, startOfMonth).Count(&lastMonthCount)
+			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", last60Days, last30Days).Count(&previousPeriodCount)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.Invitation{}).
+				Where("status = ? AND created_at >= ?", "accepted", last30Days).
+				Count(&currentPeriodAccepted)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			db.Model(&models.Invitation{}).
+				Where("status = ? AND created_at >= ? AND created_at < ?", "accepted", last60Days, last30Days).
+				Count(&previousPeriodAccepted)
 		}()
 
 		wg.Wait()
 
 		// Calculate growth percent
-		if lastMonthCount > 0 {
-			stats.TotalGrowthPercent = float64(currentMonthCount-lastMonthCount) / float64(lastMonthCount) * 100
-		} else if currentMonthCount > 0 {
+		if previousPeriodCount > 0 {
+			stats.TotalGrowthPercent = float64(currentPeriodCount-previousPeriodCount) / float64(previousPeriodCount) * 100
+		} else if currentPeriodCount > 0 {
 			stats.TotalGrowthPercent = 100
 		}
 
@@ -128,6 +153,32 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 			stats.SentTodayPercent = float64(stats.SentToday-stats.Yesterday) / float64(stats.Yesterday) * 100
 		} else if stats.SentToday > 0 {
 			stats.SentTodayPercent = 100
+		}
+
+		// Calculate last 30 days invites conversion rate
+		if currentPeriodCount > 0 {
+			stats.InvitesConversionMonth = float64(currentPeriodAccepted) / float64(currentPeriodCount) * 100
+		} else {
+			stats.InvitesConversionMonth = 0
+		}
+
+		// Calculate conversion change percentage (last 30 days vs previous 30 days comparison)
+		// This compares the acceptance rate of the last 30 days vs the previous 30 days
+		// Formula: ((currentPeriodConversion - previousPeriodConversion) / previousPeriodConversion) * 100
+		var currentPeriodConversion, previousPeriodConversion float64
+
+		currentPeriodConversion = stats.InvitesConversionMonth
+
+		if previousPeriodCount > 0 {
+			previousPeriodConversion = float64(previousPeriodAccepted) / float64(previousPeriodCount) * 100
+		}
+
+		if previousPeriodConversion > 0 {
+			stats.InvitesConversionChangePercent = ((currentPeriodConversion - previousPeriodConversion) / previousPeriodConversion) * 100
+		} else if currentPeriodConversion > 0 {
+			stats.InvitesConversionChangePercent = 100
+		} else {
+			stats.InvitesConversionChangePercent = 0
 		}
 
 		response.Stats = stats
@@ -152,7 +203,6 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 
 	return response, paginationResponse, http.StatusOK, nil
 }
-
 
 func getGrowthTrends(db *gorm.DB, now time.Time) []GrowthTrendPoint {
 	trends := make([]GrowthTrendPoint, 0, 6)

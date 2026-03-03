@@ -63,9 +63,22 @@ type SearchQueryResult struct {
 }
 
 func CheckQueryStringContainKeyword(query string) [][]string {
-	re := regexp.MustCompile(`(\w+):([^\s]+(?:\s[^\s]+)*)`)
+	// Match key:value or key:"value with spaces"
+	re := regexp.MustCompile(`(\w+):(?:([^"\s]+)|"([^"]+)")`)
 	matches := re.FindAllStringSubmatch(query, -1)
-	return matches
+
+	// Normalize matches so that the value is always at index 2
+	var normalized [][]string
+	for _, match := range matches {
+		if len(match) > 3 {
+			val := match[2]
+			if val == "" {
+				val = match[3]
+			}
+			normalized = append(normalized, []string{match[0], match[1], val})
+		}
+	}
+	return normalized
 }
 
 func ExtractWordsBeforeKeywords(input string) string {
@@ -204,7 +217,7 @@ func extractChannelInfo(source map[string]any, index string) Channel {
 		ChannelID: getString(source, "channels_id"),
 	}
 	if index == "threads" { // Only threads have channel_name
-		channel.ChannelName = getString(source, "username")
+		channel.ChannelName = getString(source, "channel_name")
 	}
 	return channel
 }

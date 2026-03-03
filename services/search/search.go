@@ -13,7 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-var SortkeyWords = []string{"recency", "relevance"}
+var SortkeyWords = []string{"newest", "relevance", "oldest"}
 
 func ValidateSortKey(sortby string) bool {
 	sortby = strings.ToLower(sortby)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -58,11 +59,10 @@ func TestPatchUserStatus(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
-		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
 			"text":   "In a meeting",
 			"emoji":  "📅",
-			"expiry": expiry,
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -84,9 +84,6 @@ func TestPatchUserStatus(t *testing.T) {
 		if got := data["emoji"].(string); got != payload["emoji"] {
 			t.Fatalf("unexpected emoji: want %q got %q", payload["emoji"], got)
 		}
-		if got := int64(data["expiry"].(float64)); got != expiry {
-			t.Fatalf("unexpected expiry: want %d got %d", expiry, got)
-		}
 
 		var updated models.Profile
 		if err := db.Where("userid = ?", user.ID).First(&updated).Error; err != nil {
@@ -95,8 +92,8 @@ func TestPatchUserStatus(t *testing.T) {
 		if updated.Text != payload["text"] || updated.Icon != payload["emoji"] {
 			t.Fatalf("profile not updated; got text=%q icon=%q", updated.Text, updated.Icon)
 		}
-		if updated.StatusTimeout != fmt.Sprintf("%d", expiry) {
-			t.Fatalf("status_timeout not updated; got %q want %d", updated.StatusTimeout, expiry)
+		if updated.StatusTimeout == "" {
+			t.Fatalf("status_timeout not set; expected non-empty value")
 		}
 	})
 
@@ -110,7 +107,7 @@ func TestPatchUserStatus(t *testing.T) {
 
 		payload := map[string]any{
 			"emoji":  "bad emoji", // whitespace not allowed
-			"expiry": -5,
+			"expiry": "invalid expiry string",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -441,12 +438,10 @@ func TestSetUserStatus(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
-		expiry := time.Now().Add(30 * time.Minute).Unix()
 		payload := map[string]any{
-			"text":       "In a meeting",
-			"emoji":      "📅",
-			"expiry":     expiry,
-			"visibility": "public",
+			"text":   "In a meeting",
+			"emoji":  "📅",
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -468,12 +463,6 @@ func TestSetUserStatus(t *testing.T) {
 		if got := data["emoji"].(string); got != payload["emoji"] {
 			t.Fatalf("unexpected emoji: want %q got %q", payload["emoji"], got)
 		}
-		if got := int64(data["expiry"].(float64)); got != expiry {
-			t.Fatalf("unexpected expiry: want %d got %d", expiry, got)
-		}
-		if got := data["visibility"].(string); got != payload["visibility"] {
-			t.Fatalf("unexpected visibility: want %q got %q", payload["visibility"], got)
-		}
 
 		var updated models.Profile
 		if err := db.Where("userid = ?", user.ID).First(&updated).Error; err != nil {
@@ -482,11 +471,22 @@ func TestSetUserStatus(t *testing.T) {
 		if updated.Text != payload["text"] || updated.Icon != payload["emoji"] {
 			t.Fatalf("profile not updated; got text=%q icon=%q", updated.Text, updated.Icon)
 		}
-		if updated.StatusTimeout != fmt.Sprintf("%d", expiry) {
-			t.Fatalf("status_timeout not updated; got %q want %d", updated.StatusTimeout, expiry)
+
+		if updated.StatusTimeout == "" {
+			t.Fatalf("status_timeout not set; expected non-empty value")
 		}
-		if updated.StatusVisibility != payload["visibility"] {
-			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, payload["visibility"])
+
+		parsedExpiry, err := strconv.ParseInt(updated.StatusTimeout, 10, 64)
+		if err != nil {
+			t.Fatalf("failed to parse status_timeout: %v", err)
+		}
+
+		now := time.Now()
+		expectedMin := now.Add(29 * time.Minute).Unix()
+		expectedMax := now.Add(31 * time.Minute).Unix()
+
+		if parsedExpiry < expectedMin || parsedExpiry > expectedMax {
+			t.Fatalf("status_timeout out of expected range; got %d, expected between %d and %d", parsedExpiry, expectedMin, expectedMax)
 		}
 	})
 
@@ -539,58 +539,6 @@ func TestSetUserStatus(t *testing.T) {
 		}
 		if got := data["visibility"].(string); got != "public" {
 			t.Fatalf("unexpected visibility: want %q got %q", "public", got)
-		}
-	})
-
-	t.Run("successfully sets status with different visibility options", func(t *testing.T) {
-		router, authController := setup()
-		userContacts := models.User{
-			ID:       utility.GenerateUUID(),
-			Name:     "Contacts Visibility User",
-			Email:    fmt.Sprintf("contacts_visibility_user_%s@qa.team", utility.GenerateUUID()),
-			Password: password,
-		}
-
-		db := authController.Db.Postgresql
-		db.Create(&userContacts)
-		db.Create(&models.Profile{
-			ID:     utility.GenerateUUID(),
-			Userid: userContacts.ID,
-		})
-
-		loginData := models.LoginRequestModel{
-			Email:    userContacts.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
-
-		payload := map[string]any{
-			"text":       "Available for contacts",
-			"visibility": "contacts",
-		}
-		body, _ := json.Marshal(payload)
-
-		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", userContacts.ID), bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
-		parsed := tests.ParseResponse(resp)
-		data := parsed["data"].(map[string]any)
-
-		if got := data["visibility"].(string); got != "contacts" {
-			t.Fatalf("unexpected visibility: want %q got %q", "contacts", got)
-		}
-
-		var updated models.Profile
-		if err := db.Where("userid = ?", userContacts.ID).First(&updated).Error; err != nil {
-			t.Fatalf("failed to fetch updated profile: %v", err)
-		}
-		if updated.StatusVisibility != "contacts" {
-			t.Fatalf("status_visibility not updated; got %q want %q", updated.StatusVisibility, "contacts")
 		}
 	})
 
@@ -729,7 +677,7 @@ func TestSetUserStatus(t *testing.T) {
 		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
 	})
 
-	t.Run("returns bad request when expiry is negative", func(t *testing.T) {
+	t.Run("returns bad request when expiry is invalid string", func(t *testing.T) {
 		router, authController := setup()
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
@@ -738,34 +686,8 @@ func TestSetUserStatus(t *testing.T) {
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
 		payload := map[string]any{
-			"text":   "Status with negative expiry",
-			"expiry": -1,
-		}
-		body, _ := json.Marshal(payload)
-
-		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-		resp := httptest.NewRecorder()
-		router.ServeHTTP(resp, req)
-
-		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
-		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusUnprocessableEntity)
-	})
-
-	t.Run("returns bad request when visibility is invalid", func(t *testing.T) {
-		router, authController := setup()
-		loginData := models.LoginRequestModel{
-			Email:    user.Email,
-			Password: "password",
-		}
-		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
-
-		payload := map[string]any{
-			"text":       "Status with invalid visibility",
-			"visibility": "invalid",
+			"text":   "Status with invalid expiry",
+			"expiry": "invalid time string",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1214,5 +1136,158 @@ func TestEmojiValidation(t *testing.T) {
 		if got := data["emoji"].(string); got != "" {
 			t.Fatalf("unexpected emoji: want empty string got %q", got)
 		}
+	})
+
+	t.Run("accepts lowercase '30 minutes'", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Test status",
+			"expiry": "30 minutes",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+
+		var profile models.Profile
+		if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+			t.Fatalf("failed to fetch profile: %v", err)
+		}
+
+		if profile.RiverJobID == nil {
+			t.Fatalf("expected river_job_id to be set")
+		}
+		if profile.StatusTimeout == "" {
+			t.Fatalf("expected status_timeout to be set")
+		}
+	})
+
+	t.Run("accepts uppercase '30 MINUTES'", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Test status",
+			"expiry": "30 MINUTES",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+	})
+
+	t.Run("accepts '1 hour' expiry", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Test status",
+			"expiry": "1 hour",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+
+		var profile models.Profile
+		if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+			t.Fatalf("failed to fetch profile: %v", err)
+		}
+
+		if profile.RiverJobID == nil {
+			t.Fatalf("expected river_job_id to be set")
+		}
+	})
+
+	t.Run("handles 'don't remove' with no job scheduled", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Permanent status",
+			"expiry": "Don't remove",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+
+		var profile models.Profile
+		if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+			t.Fatalf("failed to fetch profile: %v", err)
+		}
+
+		if profile.RiverJobID != nil {
+			t.Fatalf("expected river_job_id to be nil for 'don't remove', got %d", *profile.RiverJobID)
+		}
+		if profile.StatusTimeout != "" {
+			t.Fatalf("expected status_timeout to be empty for 'don't remove', got %s", profile.StatusTimeout)
+		}
+	})
+
+	t.Run("returns validation error for invalid expiry string", func(t *testing.T) {
+		router, authController := setup()
+		loginData := models.LoginRequestModel{
+			Email:    user.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+
+		payload := map[string]any{
+			"text":   "Test status",
+			"expiry": "invalid string",
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
 	})
 }

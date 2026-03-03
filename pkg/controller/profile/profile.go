@@ -85,14 +85,14 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = userClaims["org_id"].(string)
 
-	code, err := profile.UpdateProfileStatus(req, base.Db.Postgresql, base.Logger)
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User profile status updated successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User profile status updated successfully", status)
 	c.JSON(code, rd)
 }
 
