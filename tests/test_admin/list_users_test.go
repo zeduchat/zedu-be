@@ -415,17 +415,13 @@ func TestListUsers_IncludeStatsTrue(t *testing.T) {
 	stats := respData["stats"].(map[string]any)
 
 	// Verify stats has expected keys
-	if _, ok := stats["total_signups"]; !ok {
-		t.Error("missing total_signups in stats")
-	}
-	if _, ok := stats["new_today"]; !ok {
-		t.Error("missing new_today in stats")
-	}
-	if _, ok := stats["free_users"]; !ok {
-		t.Error("missing free_users in stats")
-	}
-	if _, ok := stats["paid_users"]; !ok {
-		t.Error("missing paid_users in stats")
+	for _, key := range []string{
+		"total_signups", "new_today", "free_users", "paid_users",
+		"avg_session_length_month", "avg_session_length_change_percent",
+	} {
+		if _, ok := stats[key]; !ok {
+			t.Errorf("missing %s in stats", key)
+		}
 	}
 }
 
@@ -455,6 +451,13 @@ func TestListUsers_IncludeStatsFalse(t *testing.T) {
 	if totalSignups != 0 {
 		t.Errorf("expected total_signups to be 0 when include_stats=false, got %v", totalSignups)
 	}
+	// the new fields should also have their zero values
+	if stats["avg_session_length_month"].(string) != "" {
+		t.Error("expected avg_session_length_month to be empty when include_stats=false")
+	}
+	if stats["avg_session_length_change_percent"].(float64) != 0 {
+		t.Error("expected avg_session_length_change_percent to be 0 when include_stats=false")
+	}
 }
 
 func TestListUsers_StatsDefaultToIncluded(t *testing.T) {
@@ -479,9 +482,11 @@ func TestListUsers_StatsDefaultToIncluded(t *testing.T) {
 	respData := data["data"].(map[string]any)
 	stats := respData["stats"].(map[string]any)
 
-	// Stats should be populated by default
-	if _, ok := stats["total_signups"]; !ok {
-		t.Error("stats should be included by default")
+	// Stats should be populated by default (including new session fields)
+	for _, key := range []string{"total_signups", "avg_session_length_month", "avg_session_length_change_percent"} {
+		if _, ok := stats[key]; !ok {
+			t.Errorf("stats should include %s by default", key)
+		}
 	}
 }
 
