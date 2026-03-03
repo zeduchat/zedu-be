@@ -159,6 +159,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 			"channels_id":  channel1ID,
 			"channel_name": "Public Channel",
 			"user_id":      user1.ID,
+			"user_name":    user1SignUpData.UserName,
 			"org_id":       org.ID,
 			"message":      "Hello from the public channel keywordPublicChannel123",
 			"created_at":   time.Now().Format(time.RFC3339),
@@ -216,6 +217,9 @@ func TestSearchScopeAndPagination(t *testing.T) {
 			channelInfo := resObj["channel"].(map[string]any)
 			if channelInfo["channel_id"] != channel1ID {
 				t.Errorf("User 2 should only see public channel result")
+			}
+			if channelInfo["channel_name"] != channel1.Name {
+				t.Errorf("User 2 should see correct channel name. Expected '%s', got '%v'", channel1.Name, channelInfo["channel_name"])
 			}
 		}
 	})
@@ -459,6 +463,192 @@ func TestSearchScopeAndPagination(t *testing.T) {
 		data := resp["data"].([]interface{})
 		if len(data) != 1 {
 			t.Errorf("User 1 should see 1 result from specific channel filter, got %d", len(data))
+		}
+	})
+
+	t.Run("Filters search (from, in)", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=keywordPublicChannel123+from%%3A%%22%s%%22+in%%3A%%22Public+Channel%%22", org.ID, user1SignUpData.UserName), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for from/in search, got %d", rr.Code)
+		}
+
+		var resp map[string]any
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+
+		if dataInt, ok := resp["data"]; ok && dataInt != nil {
+			data := dataInt.([]interface{})
+			if len(data) == 0 {
+				t.Errorf("Expected > 0 results for from/in search, got 0. Response: %v", resp)
+			}
+		} else {
+			t.Errorf("Member should see > 0 results but got null/none. Response: %v", resp)
+		}
+	})
+
+	t.Run("Date filtering search (on, before, after)", func(t *testing.T) {
+		channelID := utility.GenerateUUID()
+		channel := models.Channels{
+			ID:             channelID,
+			Name:           "Date Filter Channel",
+			OrganisationID: org.ID,
+			OwnerId:        user1.ID,
+		}
+		db.Postgresql.Create(&channel)
+
+		userChannel := models.UserChannels{
+			ChannelsID: channelID,
+			UserID:     user1.ID,
+		}
+		db.Postgresql.Create(&userChannel)
+
+		// Create messages on different dates
+		threadId0 := utility.GenerateUUID()
+		thread0 := map[string]any{
+			"thread_id":   threadId0,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Date message 0 dateKeyword",
+			"created_at":  "2023-01-01T12:00:00Z",
+			"updated_at":  "2023-01-01T12:00:00Z",
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId0, thread0, logger)
+
+		threadId1 := utility.GenerateUUID()
+		thread1 := map[string]any{
+			"thread_id":   threadId1,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Date message 1 dateKeyword",
+			"created_at":  "2023-01-02T12:00:00Z",
+			"updated_at":  "2023-01-02T12:00:00Z",
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId1, thread1, logger)
+
+		threadId2 := utility.GenerateUUID()
+		thread2 := map[string]any{
+			"thread_id":   threadId2,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Date message 2 dateKeyword",
+			"created_at":  "2023-01-03T12:00:00Z",
+			"updated_at":  "2023-01-03T12:00:00Z",
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId2, thread2, logger)
+
+		time.Sleep(2 * time.Second)
+
+		// Test `on` filter using YYYY-MM-DD format
+		queryParam := url.QueryEscape("dateKeyword on:2023-01-02")
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s", org.ID, queryParam), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		} else {
+			var resp map[string]any
+			json.Unmarshal(rr.Body.Bytes(), &resp)
+			if dataInt, ok := resp["data"]; ok && dataInt != nil {
+				data := dataInt.([]interface{})
+				if len(data) != 1 {
+					t.Errorf("User 1 should see exactly 1 result for 'on:2023-01-02', got %d", len(data))
+				}
+			} else {
+				t.Errorf("data is null or missing")
+			}
+		}
+	})
+
+	t.Run("Exact and Sorting search (exact, sortby)", func(t *testing.T) {
+		channelID := utility.GenerateUUID()
+		channel := models.Channels{
+			ID:             channelID,
+			Name:           "Exact Filter Channel",
+			OrganisationID: org.ID,
+			OwnerId:        user1.ID,
+		}
+		db.Postgresql.Create(&channel)
+
+		userChannel := models.UserChannels{
+			ChannelsID: channelID,
+			UserID:     user1.ID,
+		}
+		db.Postgresql.Create(&userChannel)
+
+		// Message 1 (oldest)
+		threadId1 := utility.GenerateUUID()
+		thread1 := map[string]any{
+			"thread_id":   threadId1,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Please review the Project deadline today",
+			"created_at":  time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId1, thread1, logger)
+
+		// Message 2 (newest)
+		threadId2 := utility.GenerateUUID()
+		thread2 := map[string]any{
+			"thread_id":   threadId2,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "Here is the code for the Project deadline task",
+			"created_at":  time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId2, thread2, logger)
+
+		time.Sleep(2 * time.Second)
+
+		// Search for exact text with sortby newest
+		queryParam := url.QueryEscape(`exact:"Project deadline"`)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s&sortby=newest", org.ID, queryParam), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", rr.Code)
+		}
+
+		var resp map[string]any
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		data := resp["data"].([]interface{})
+		if len(data) != 2 {
+			t.Errorf("User 1 should see exactly 2 results for exact filter, got %d", len(data))
+		} else {
+			// Because sortby=newest, thread2 should be first
+			resObj := data[0].(map[string]any)
+			threadInfo := resObj["thread"].(map[string]any)
+			if threadInfo["id"] != threadId2 {
+				t.Errorf("Expected newest thread to be first")
+			}
+		}
+
+		// Search with sortby oldest
+		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s&sortby=oldest", org.ID, queryParam), nil)
+		req2.Header.Set("Authorization", "Bearer "+token1)
+		rr2 := httptest.NewRecorder()
+		r.ServeHTTP(rr2, req2)
+
+		var resp2 map[string]any
+		json.Unmarshal(rr2.Body.Bytes(), &resp2)
+		data2 := resp2["data"].([]interface{})
+		if len(data2) == 2 {
+			resObj := data2[0].(map[string]any)
+			threadInfo := resObj["thread"].(map[string]any)
+			if threadInfo["id"] != threadId1 {
+				t.Errorf("Expected oldest thread to be first")
+			}
 		}
 	})
 }
