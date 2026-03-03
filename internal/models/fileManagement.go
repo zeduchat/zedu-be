@@ -97,6 +97,7 @@ type GetFilesParams struct {
 
 type GetFoldersParams struct {
 	OrgID       string
+	UserID      string
 	Page        int
 	Limit       int
 	QueryParams map[string]string
@@ -217,6 +218,42 @@ func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
 		errMsg := fmt.Errorf("failed to delete file: %w", err)
 		utility.LogAndPrint(logger, fmt.Sprintf("failed to delete file: %v", err.Error()))
 		return errMsg
+	}
+
+	return nil
+}
+
+// UpdateFilesMetadata updates channel_id and message_id for files attached to messages
+// This is called after thread/message creation to associate files with the correct context
+func UpdateFilesMetadata(db *gorm.DB, logger *utility.Logger, fileIDs []string, channelID, messageID string) error {
+	if len(fileIDs) == 0 {
+		return nil
+	}
+
+	updates := map[string]interface{}{}
+	if channelID != "" {
+		updates["channel_id"] = channelID
+	}
+	if messageID != "" {
+		updates["message_id"] = messageID
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	err := db.Model(&File{}).
+		Where("id IN ?", fileIDs).
+		Updates(updates).Error
+
+	if err != nil {
+		logger.Error("Failed to update file metadata",
+			"file_ids", fileIDs,
+			"location", "models.fileManagement.UpdateFilesMetadata",
+			"channel_id", channelID,
+			"message_id", messageID,
+			"error", err)
+		return fmt.Errorf("failed to update file metadata: %w", err)
 	}
 
 	return nil
@@ -459,4 +496,33 @@ func ValidateShareExpiration(expiresAt *time.Time) error {
 	}
 
 	return nil
+}
+
+// MatchesMediaType checks if a mimeType matches the requested mediaType
+func MatchesMediaType(mimeType, mediaType string) bool {
+	switch mediaType {
+	case "images":
+		return len(mimeType) >= 6 && mimeType[:6] == "image/"
+	case "videos":
+		return len(mimeType) >= 6 && mimeType[:6] == "video/"
+	case "audio":
+		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
+	case "documents":
+		return ContainsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
+	default:
+		return true
+	}
+}
+
+func ContainsAny(s string, substrs []string) bool {
+	for _, sub := range substrs {
+		if len(s) >= len(sub) {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

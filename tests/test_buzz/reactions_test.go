@@ -59,6 +59,7 @@ func TestSendBuzzReaction(t *testing.T) {
 		ParticipantIDs: pq.StringArray{user.ID},
 		IsLiveStatus:   true,
 		Status:         models.BuzzStatusActive,
+		OriginalHostID: user.ID,
 	}
 	if err := db.Postgresql.Create(&buzz).Error; err != nil {
 		t.Fatalf("failed to create test buzz: %v", err)
@@ -234,6 +235,7 @@ func TestUpdateBuzzSticker(t *testing.T) {
 		ParticipantIDs: pq.StringArray{user.ID},
 		IsLiveStatus:   true,
 		Status:         models.BuzzStatusActive,
+		OriginalHostID: user.ID,
 	}
 	if err := db.Postgresql.Create(&buzz).Error; err != nil {
 		t.Fatalf("failed to create test buzz: %v", err)

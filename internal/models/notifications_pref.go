@@ -52,6 +52,8 @@ var (
 	CameraStatusChanged         NotificationType = "camera_status_changed"
 	BuzzReactionEvent           NotificationType = "buzz_reaction_event"
 	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
+	ThreadNotification          NotificationType = "thread_notification"
+	MuteParticipants            NotificationType = "mute_participants"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -60,6 +62,7 @@ var (
 	Channel                     ChannelType      = "channel"
 	DMChannel                   ChannelType      = "dm_channel"
 	GroupDMChannel              ChannelType      = "group_dm_channel"
+	ThreadChannel               ChannelType      = "thread_channel"
 )
 
 type Content struct {
@@ -223,6 +226,12 @@ var Notification = map[NotificationType]Content{
 	},
 	BuzzStickerEvent: Content{
 		NotificationType: BuzzStickerEvent,
+	},
+	ThreadNotification: Content{
+		NotificationType: ThreadNotification,
+	},
+	MuteParticipants: Content{
+		NotificationType: MuteParticipants,
 	},
 }
 

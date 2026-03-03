@@ -97,7 +97,7 @@ func (base *Controller) DeleteOrgRole(c *gin.Context) {
 		roleId = c.Param("role_id")
 	)
 
-	code, err := service.DeleteOrgRole(base.Db.Postgresql, orgId, roleId, c)
+	code, err := service.DeleteOrgRole(base.Db.Postgresql, base.Db.Redis, orgId, roleId, c)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
@@ -166,7 +166,7 @@ func (base *Controller) UpdateOrgPermissions(c *gin.Context) {
 		return
 	}
 
-	code, err := service.UpdateOrgPermissions(req, orgId, roleId, base.Db.Postgresql, c)
+	code, err := service.UpdateOrgPermissions(req, orgId, roleId, base.Db.Postgresql, base.Db.Redis, c)
 
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)

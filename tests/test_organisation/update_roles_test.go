@@ -145,9 +145,9 @@ func TestUpdateOrgRole(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
+		tests.AssertResponseMessage(t, response["message"].(string), "you do not have permission to update roles")
 	})
 
 	t.Run("Bad Request - Validation Errors", func(t *testing.T) {
@@ -333,9 +333,9 @@ func TestUpdateOrgPermissions(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusBadRequest)
+		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
 		response := tests.ParseResponse(resp)
-		tests.AssertResponseMessage(t, response["message"].(string), "requester is not the owner of the organisation")
+		tests.AssertResponseMessage(t, response["message"].(string), "you do not have permission to update permissions")
 	})
 
 }

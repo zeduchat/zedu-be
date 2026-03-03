@@ -46,6 +46,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.GET("/:channelId", channel.GetChannel)
+		channelUrl.GET("/:channelId/files", channel.GetChannelFiles)
 		channelUrl.GET("/:channelId/user-exist", channel.CheckUser)
 		channelUrl.GET("/:channelId/num-users", channel.CountChannelsUsers)
 		channelUrl.GET("/search/:channelName", channel.SearchChannelsByNames)

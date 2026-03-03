@@ -13,6 +13,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -217,6 +218,19 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 		}
 	}
 
+	if org.OrganisationPlan.PlanDetails.ID == "" {
+		var freePlan models.Plan
+		if err := db.Where("name = ?", "Free").First(&freePlan).Error; err == nil {
+			org.OrganisationPlan = models.OrganisationPlan{
+				OrganisationID: org.ID,
+				PlanID:         freePlan.ID,
+				Status:         "Active",
+				StartedAt:      org.CreatedAt,
+				PlanDetails:    freePlan,
+			}
+		}
+	}
+
 	var orgUserMgt models.OrgUserManagement
 	userRoleInfo, err := orgUserMgt.GetUserRoleInOrganisation(db, userId, orgId)
 	userRoleInfo.RoleName = strings.ToLower(userRoleInfo.RoleName)
@@ -225,6 +239,19 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 	}
 
 	org.OrganisationSlug = slug.Make(org.Name)
+
+	// Check if the org has an active general invite link
+	var generalInvite models.GeneralInvitation
+	err = db.Where("organisation_id = ?", orgId).Order("created_at DESC").First(&generalInvite).Error
+	if err == nil {
+		if generalInvite.ActiveStatus {
+			org.InviteLinkStatus = "enabled"
+		} else {
+			org.InviteLinkStatus = "disabled"
+		}
+	} else {
+		org.InviteLinkStatus = "disabled"
+	}
 
 	return &org, nil
 }
@@ -472,6 +499,14 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 
 	if err := query.Find(&entities).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, fmt.Errorf("failed to fetch org entities: %w", err)
+	}
+
+	for i := range entities {
+		if entities[i].EntityType == "user" {
+			entities[i].DefaultAvatarURL = avatar.GenerateDefaultAvatarURL(entities[i].ID)
+		} else {
+			entities[i].DefaultAvatarURL = entities[i].AvatarURL
+		}
 	}
 
 	// Count total

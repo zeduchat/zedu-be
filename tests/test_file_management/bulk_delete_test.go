@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/tests"
 	"github.com/stretchr/testify/assert"
@@ -17,18 +19,19 @@ import (
 func TestBulkDelete(t *testing.T) {
 	r, _, authController, db := SetupFileManagementTestRouter()
 
+	currUUID := uuid.New().String()
 	user := models.CreateUserRequestModel{
-		Email:       "test@qa.team",
+		Email:       fmt.Sprintf("test_bulk_%s@qa.team", currUUID),
 		Password:    "password",
 		FirstName:   "Test",
-		LastName:    "User",
-		UserName:    "testuser",
-		PhoneNumber: "1234567890",
+		LastName:    "Bulk",
+		UserName:    fmt.Sprintf("testbulk%s", currUUID),
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
 	}
 	tests.SignupUser(t, r, *authController, user, false)
 
 	loginData := models.LoginRequestModel{
-		Email:    "test@qa.team",
+		Email:    user.Email,
 		Password: "password",
 	}
 	token := tests.GetLoginToken(t, r, *authController, loginData)

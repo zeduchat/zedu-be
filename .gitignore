@@ -57,3 +57,6 @@ firebase_service.json
 telexbe
 telexbe_staging
 
+*.code-workspace
+
+scripts/generate-bruno-slash-commands.sh

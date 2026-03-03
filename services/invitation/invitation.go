@@ -15,20 +15,17 @@ import (
 )
 
 func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *utility.Logger, userID string) (int, error) {
-	var (
-		invite models.GeneralInvitation
-	)
+	var invite models.GeneralInvitation
 
-	exists := postgresql.CheckExists(db, &invite, "token = ?", req.InvitationID)
-	if !exists {
-		return http.StatusNotFound, errors.New("invitation does not exists")
+	// Fetch the most recent invitation for this org
+	err := db.Where("organisation_id = ?", req.OrganisationID).
+		Order("created_at DESC").
+		First(&invite).Error
+	if err != nil {
+		return http.StatusNotFound, errors.New("no invitation found for this organisation")
 	}
 
-	if userID != invite.InvitedBy {
-		return http.StatusUnauthorized, errors.New("only invitees can change invitation status")
-	}
-
-	err := invite.ChangeGeneralInviteStatus(db, req)
+	err = invite.ChangeGeneralInviteStatus(db, req)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("unable to change general invite status: %s", err)
 	}
@@ -249,7 +246,7 @@ func CheckerValidator(base *storage.Database, Emails []string, ids *models.IDS, 
 		}
 
 		for _, role := range resp {
-			if role.Name == "User" {
+			if role.Name == models.OrgRoleNameUser {
 				ids.RoleID = role.ID
 				break
 			}

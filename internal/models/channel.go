@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gosimple/slug"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/avatar"
@@ -53,6 +54,18 @@ type UserChannels struct {
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences  NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
 	OrgId        string                 `gorm:"-" json:"-"`
+}
+
+type UserChannelHistory struct {
+	ID                  string     `gorm:"type:uuid;primary_key" json:"id"`
+	UserID              string     `gorm:"column:user_id;type:uuid;not null;index" json:"user_id"`
+	OrganisationID      string     `gorm:"column:organisation_id;type:uuid;not null;index" json:"organisation_id"`
+	ChannelIDs          pq.StringArray `gorm:"column:channel_ids;type:uuid[];not null" json:"channel_ids"`
+	BanishedToChannelID *string    `gorm:"column:banished_to_channel_id;type:uuid" json:"banished_to_channel_id,omitempty"`
+	Action              string     `gorm:"column:action;type:varchar(20);not null;index" json:"action"` // banished, removed, restored
+	CreatedAt           time.Time  `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at;not null;autoUpdateTime" json:"updated_at"`
+	DeletedAt           *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 type UpdateLastRead struct {
@@ -202,7 +215,7 @@ func (r *Channels) CreateChannel(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {
-		return errors.New("could not create channel, invalid organisation id")
+		return errors.New("could not create channel an error occured: " + err.Error())
 	}
 
 	query := `
@@ -805,6 +818,148 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 	return updatedChannels, http.StatusOK, nil
 }
 
+func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, mediaType string) ([]File, postgresql.PaginationResponse, error) {
+	pagination := postgresql.GetPagination(ctx)
+
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"match": map[string]any{
+							"channels_id": c.ID,
+						},
+					},
+				},
+				"filter": []map[string]any{
+					{
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"_source": []string{"media", "user_id", "created_at"},
+		"size":    1000, // Get all threads with media first
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var threadData any
+	err := elastic.SelectAll(db.Elastic, ThreadIndexName, query, &threadData)
+	if err != nil {
+		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	// Parse the response and collect all media files
+	threadDataMap, ok := threadData.(map[string]any)
+	if !ok {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	hits, ok := threadDataMap["hits"].(map[string]any)
+	if !ok {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	hitsArray, ok := hits["hits"].([]any)
+	if !ok || len(hitsArray) == 0 {
+		return []File{}, postgresql.PaginationResponse{}, nil
+	}
+
+	// Collect all media from all threads
+	var allMedia []File
+	for _, hit := range hitsArray {
+		hitMap, ok := hit.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		source, ok := hitMap["_source"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Get thread level metadata
+		threadUserID := utility.GetString(source, "user_id")
+		threadCreatedAt := utility.GetString(source, "created_at")
+
+		mediaArray, ok := source["media"].([]any)
+		if !ok {
+			continue
+		}
+
+		for _, m := range mediaArray {
+			mediaMap, ok := m.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			var createdAt time.Time
+			if threadCreatedAt != "" {
+				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
+			}
+
+			file := File{
+				ID:        utility.GetString(mediaMap, "id"),
+				FileName:  utility.GetString(mediaMap, "file_name"),
+				FileType:  utility.GetString(mediaMap, "file_type"),
+				MimeType:  utility.GetString(mediaMap, "mime_type"),
+				FileLink:  utility.GetString(mediaMap, "file_link"),
+				UserID:    threadUserID,
+				CreatedAt: createdAt,
+			}
+
+			// Apply type filter if specified
+			if mediaType != "" {
+				if !MatchesMediaType(file.MimeType, mediaType) {
+					continue
+				}
+			}
+
+			allMedia = append(allMedia, file)
+		}
+	}
+
+	totalItems := len(allMedia)
+	start := (pagination.Page - 1) * pagination.Limit
+	end := start + pagination.Limit
+
+	if start > totalItems {
+		start = totalItems
+	}
+	if end > totalItems {
+		end = totalItems
+	}
+
+	paginatedMedia := allMedia[start:end]
+
+	totalPages := (totalItems + pagination.Limit - 1) / pagination.Limit
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	pagResp := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		TotalPagesCount: totalPages,
+		PageCount:       len(paginatedMedia),
+		TotalItems:      int64(totalItems),
+	}
+
+	return paginatedMedia, pagResp, nil
+}
+
 func (r *UserChannels) CheckUser(db *gorm.DB, userID, channelID string) (bool, string) {
 
 	var (
@@ -860,16 +1015,21 @@ func (r *Channels) CheckChannelExists(db *gorm.DB, channelID string) (bool, erro
 func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUserChannelResp, error) {
 
 	var (
-		db = base.Postgresql
+		db     = base.Postgresql
+		search = ids.Search
 	)
 	chanResp := make(GetUserChannelResp, 0)
 
-	if err := db.Model(&Channels{}).
+	query := db.Model(&Channels{}).
 		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
-		Where("channels.organisation_id = ? AND uc.user_id = ? AND channels.archived = FALSE", ids.OrganisationID, ids.UserID).
-		Order("channels.created_at").
-		Scan(&chanResp).Error; err != nil {
+		Where("channels.organisation_id = ? AND uc.user_id = ? AND channels.archived = FALSE", ids.OrganisationID, ids.UserID)
+
+	if search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+search+"%")
+	}
+
+	if err := query.Order("channels.created_at DESC").Scan(&chanResp).Error; err != nil {
 		return nil, errors.New("error fetching channels")
 	}
 
@@ -976,10 +1136,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 		}
 		previewMessage := ""
 		if len(previewThread) > 0 {
-			previewMessage = previewThread[0].Content
-			if previewMessage == "" && len(previewThread[0].Media) > 0 {
-				previewMessage = previewThread[0].Media[0].FileType
-			}
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 		}
 		chanResp[i].PreviewMessage = previewMessage
 		parts := strings.Split(chanResp[i].ID, "-")
@@ -988,6 +1145,10 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 	}
 
 	sort.Slice(chanResp, func(i, j int) bool {
+		if chanResp[i].UnreadCount != chanResp[j].UnreadCount {
+			return chanResp[i].UnreadCount > chanResp[j].UnreadCount
+		}
+
 		var iTime, jTime time.Time
 		iHasThread := chanResp[i].PreviewThread != nil && len(chanResp[i].PreviewThread) > 0
 		jHasThread := chanResp[j].PreviewThread != nil && len(chanResp[j].PreviewThread) > 0
@@ -1012,7 +1173,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			return false
 		}
 
-		return false
+		return chanResp[i].CreatedAt.After(chanResp[j].CreatedAt)
 	})
 
 	// Batch fetch active buzzes for all channels to avoid N+1 queries
@@ -1543,4 +1704,96 @@ func (u *UserChannels) GetChannelsWithMentions(db *gorm.DB, userID string) (map[
 		channelMap[r.ChannelsID] = r.LastReadAt
 	}
 	return channelMap, nil
+}
+
+// UserChannelHistory methods
+
+// SaveChannelHistory saves a record of user channel action (banished, removed, restored)
+func (h *UserChannelHistory) SaveChannelHistory(db *gorm.DB) error {
+	return postgresql.CreateOneRecord(db, &h)
+}
+
+// GetUserChannelHistory retrieves all channel history for a user
+func (h *UserChannelHistory) GetUserChannelHistory(db *gorm.DB, userID string) ([]UserChannelHistory, error) {
+	var history []UserChannelHistory
+	err := db.Where("user_id = ? AND deleted_at IS NULL", userID).
+		Order("created_at DESC").
+		Find(&history).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user channel history: %v", err)
+	}
+	return history, nil
+}
+
+// GetUserBanishedChannels retrieves channels the user was banished from but not yet restored
+func (h *UserChannelHistory) GetUserBanishedChannels(db *gorm.DB, userID string) ([]UserChannelHistory, error) {
+	var history []UserChannelHistory
+	err := db.Where("user_id = ? AND action = ? AND deleted_at IS NULL", userID, "banished").
+		Order("created_at DESC").
+		Find(&history).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user banished channels: %v", err)
+	}
+	return history, nil
+}
+
+// MarkChannelsAsRestored marks banished channels as restored by updating records that contain the specified channel IDs
+func (h *UserChannelHistory) MarkChannelsAsRestored(db *gorm.DB, userID string, channelIDs []string) error {
+	if len(channelIDs) == 0 {
+		return nil
+	}
+
+	// Update existing banished records to restored where channel_ids array contains any of the specified IDs
+	err := db.Model(&UserChannelHistory{}).
+		Where("user_id = ? AND action = ? AND deleted_at IS NULL AND channel_ids && ?", userID, "banished", pq.Array(channelIDs)).
+		Update("action", "restored").Error
+	if err != nil {
+		return fmt.Errorf("failed to mark channels as restored: %v", err)
+	}
+
+	return nil
+}
+
+// DeleteChannelHistory soft deletes channel history records containing the specified channel IDs
+func (h *UserChannelHistory) DeleteChannelHistory(db *gorm.DB, userID string, channelIDs []string) error {
+	if len(channelIDs) == 0 {
+		return nil
+	}
+
+	// Use PostgreSQL array overlap operator (&&) to find records containing any of the channel IDs
+	err := db.Model(&UserChannelHistory{}).
+		Where("user_id = ? AND channel_ids && ?", userID, pq.Array(channelIDs)).
+		Update("deleted_at", time.Now()).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete channel history: %v", err)
+	}
+
+	return nil
+}
+
+// GetBanishedChannelIDs extracts all unique channel IDs from a user's banished history
+func (h *UserChannelHistory) GetBanishedChannelIDs(db *gorm.DB, userID string) ([]string, error) {
+	var historyRecords []UserChannelHistory
+	err := db.Where("user_id = ? AND action = ? AND deleted_at IS NULL", userID, "banished").
+		Select("channel_ids").
+		Find(&historyRecords).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get banished channel IDs: %v", err)
+	}
+
+	// Use a map to deduplicate channel IDs
+	channelMap := make(map[string]bool)
+	for _, record := range historyRecords {
+		for _, channelID := range record.ChannelIDs {
+			channelMap[channelID] = true
+		}
+	}
+
+	// Convert map keys to slice
+	uniqueChannelIDs := make([]string, 0, len(channelMap))
+	for channelID := range channelMap {
+		uniqueChannelIDs = append(uniqueChannelIDs, channelID)
+	}
+
+	return uniqueChannelIDs, nil
 }

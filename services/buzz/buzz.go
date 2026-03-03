@@ -23,7 +23,7 @@ import (
 
 const (
 	errorAgoraNotInitialized   = "agora service not initialized"
-	DefaultBuzzDurationMinutes = 60
+	DefaultBuzzDurationMinutes = 2 * 60 // 2 hours
 )
 
 func getPublishChannel(buzz *models.Buzz) string {
@@ -94,7 +94,6 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 	return participants, nil
 }
 
-// buildBuzzMetadataResponse builds the base metadata response for a buzz
 func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
 
 	var user models.User
@@ -103,17 +102,22 @@ func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetada
 	if userErr != nil {
 		logger.Error("failed to fetch user details for buzz %s: %v", buzz.ID, userErr)
 	}
+
+	recordingStatus, isRecording := fetchBuzzRecordingStatus(db, buzz.ID)
+
 	return models.BuzzMetadataResponse{
-		BuzzID:       buzz.ID,
-		BuzzCode:     utility.ExtractBuzzCode(buzz.ID),
-		HostID:       buzz.HostID,
-		ChannelID:    buzz.ChannelID,
-		Status:       buzz.Status,
-		CreatedAt:    buzz.CreatedAt,
-		StartedAt:    buzz.BuzzStartTime,
-		EndedAt:      buzz.BuzzEndTime,
-		Participants: participantMetadata,
-		HostName:     userDetails.Profile.UserName,
+		BuzzID:          buzz.ID,
+		BuzzCode:        utility.ExtractBuzzCode(buzz.ID),
+		HostID:          buzz.HostID,
+		ChannelID:       buzz.ChannelID,
+		Status:          buzz.Status,
+		CreatedAt:       buzz.CreatedAt,
+		StartedAt:       buzz.BuzzStartTime,
+		EndedAt:         buzz.BuzzEndTime,
+		Participants:    participantMetadata,
+		HostName:        userDetails.Profile.UserName,
+		RecordingStatus: recordingStatus,
+		IsRecording:     isRecording,
 	}
 }
 
@@ -202,6 +206,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		ChannelID:      channelID,
 		ChannelType:    channelType,
 		HostID:         hostID,
+		OriginalHostID: hostID,
 		ParticipantIDs: participants,
 		BuzzStartTime:  now,
 		BuzzEndTime:    &endTime,
@@ -265,27 +270,31 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 
 	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, logger)
 	resp = models.BuzzCreateResponse{
-		BuzzID:         metadataResp.BuzzID,
-		BuzzCode:       metadataResp.BuzzCode,
-		HostID:         metadataResp.HostID,
-		ChannelID:      metadataResp.ChannelID,
-		Status:         metadataResp.Status,
-		CreatedAt:      metadataResp.CreatedAt,
-		StartedAt:      metadataResp.StartedAt,
-		EndedAt:        metadataResp.EndedAt,
-		ParticipantIDs: buzz.ParticipantIDs,
-		Participants:   metadataResp.Participants,
-		AgoraToken:     &agoraToken,
+		BuzzID:          metadataResp.BuzzID,
+		BuzzCode:        metadataResp.BuzzCode,
+		HostID:          metadataResp.HostID,
+		ChannelID:       metadataResp.ChannelID,
+		Status:          metadataResp.Status,
+		CreatedAt:       metadataResp.CreatedAt,
+		StartedAt:       metadataResp.StartedAt,
+		EndedAt:         metadataResp.EndedAt,
+		ParticipantIDs:  buzz.ParticipantIDs,
+		Participants:    metadataResp.Participants,
+		AgoraToken:      &agoraToken,
+		IsRecording:     false,
+		RecordingStatus: models.RecordingStatusIdle,
 	}
 
 	eventPayload := models.BuzzEventPayload{
-		Event:          string(models.BuzzStarted),
-		BuzzID:         buzz.ID,
-		ChannelID:      buzz.ChannelID,
-		HostID:         buzz.HostID,
-		ParticipantIDs: participants,
-		CreatedAt:      buzz.BuzzStartTime,
-		Status:         buzz.Status,
+		Event:           string(models.BuzzStarted),
+		BuzzID:          buzz.ID,
+		ChannelID:       buzz.ChannelID,
+		HostID:          buzz.HostID,
+		ParticipantIDs:  participants,
+		CreatedAt:       buzz.BuzzStartTime,
+		Status:          buzz.Status,
+		IsRecording:     false,
+		RecordingStatus: models.RecordingStatusIdle,
 	}
 
 	notification := models.Notification[models.BuzzStarted]
@@ -335,9 +344,14 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	// Generate Agora token BEFORE adding user to buzz (using userID as UID)
 	// This way if token generation fails, we haven't polluted the database
-	// Use constant for token expiration (4 hours)
+	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+
+	if remainingTime == 0 {
+		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
+	}
+
 	logger.Info("generating Agora RTC token for user %s in buzz %s", userID, buzzID)
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
+	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
 	if err != nil {
 		logger.Error("join buzz failed - Agora token generation error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -365,6 +379,16 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	}
 	buzz = &updatedBuzz
 
+	hostRestored := false
+	if buzz.OriginalHostID != "" && userID == buzz.OriginalHostID && buzz.HostID != userID {
+		if err := db.Postgresql.Model(buzz).Update("host_id", userID).Error; err != nil {
+			logger.Error("failed to restore original host for buzz %s: %v", buzzID, err)
+		} else {
+			buzz.HostID = userID
+			hostRestored = true
+			logger.Info("original host %s restored for buzz %s", userID, buzzID)
+		}
+	}
 	// Fetch participant metadata
 	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
 	if err != nil {
@@ -372,20 +396,25 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
+	recordingStatus, isRecording := fetchBuzzRecordingStatus(db.Postgresql, buzz.ID)
+
 	metadataResp := buildBuzzMetadataResponse(db.Postgresql, buzz, participantMetadata, logger)
 	resp = models.JoinBuzzResponse{
-		BuzzID:       metadataResp.BuzzID,
-		BuzzCode:     metadataResp.BuzzCode,
-		HostID:       metadataResp.HostID,
-		ChannelID:    metadataResp.ChannelID,
-		UserID:       userID,
-		Status:       metadataResp.Status,
-		CreatedAt:    metadataResp.CreatedAt,
-		StartedAt:    metadataResp.StartedAt,
-		EndedAt:      metadataResp.EndedAt,
-		JoinedAt:     timestamp,
-		Participants: metadataResp.Participants,
-		AgoraToken:   &agoraToken,
+		BuzzID:          metadataResp.BuzzID,
+		BuzzCode:        metadataResp.BuzzCode,
+		HostID:          metadataResp.HostID,
+		ChannelID:       metadataResp.ChannelID,
+		UserID:          userID,
+		Status:          metadataResp.Status,
+		CreatedAt:       metadataResp.CreatedAt,
+		StartedAt:       metadataResp.StartedAt,
+		EndedAt:         metadataResp.EndedAt,
+		JoinedAt:        timestamp,
+		Participants:    metadataResp.Participants,
+		AgoraToken:      &agoraToken,
+		HostRestored:    hostRestored,
+		IsRecording:     isRecording,
+		RecordingStatus: recordingStatus,
 	}
 
 	publishJoinBuzzEvent(logger, *buzz, timestamp, db.Postgresql, userID)
@@ -491,6 +520,8 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 		})
 	}
 
+	recordingStatus, isRecording := fetchBuzzRecordingStatus(db, buzz.ID)
+
 	eventPayload := models.BuzzEventPayload{
 		Event:              string(models.UserJoinedBuzz),
 		BuzzID:             buzz.ID,
@@ -501,6 +532,8 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 		CreatedAt:          timestamp,
 		Status:             buzz.Status,
 		UserJoined:         joinedUser,
+		IsRecording:        isRecording,
+		RecordingStatus:    recordingStatus,
 	}
 
 	notification := models.Notification[models.UserJoinedBuzz]
@@ -641,6 +674,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		})
 	}
 
+	recordingStatus, isRecording := fetchBuzzRecordingStatus(db.Postgresql, buzzID)
+
 	publishPayload := models.BuzzLeaveEventPayload{
 		HuddleStatus: buzz.Status,
 		HostChanged:  !(newHostID == ""),
@@ -654,6 +689,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 			ParticipantDetails: participantDetailsArray,
 			Status:             models.BuzzStatusActive,
 			UserLeft:           userLeft,
+			IsRecording:        isRecording,
+			RecordingStatus:    recordingStatus,
 		},
 	}
 
@@ -664,6 +701,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
 			logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
 		}
+		StopActiveRecordingForBuzz(db, logger, buzzID, &buzz)
 	}
 
 	if newHostID != "" {
@@ -732,6 +770,8 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 	if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
 		logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
 	}
+
+	StopActiveRecordingForBuzz(db, logger, buzzID, buzz)
 
 	// Publish buzz ended event
 	eventPayload := models.BuzzEventPayload{
@@ -834,6 +874,8 @@ func EndBuzzByChannel(db *storage.Database, logger *utility.Logger, channelID, u
 				logger.Error("failed to expire invitations for buzz %s: %v", buzz.ID, err)
 			}
 
+			StopActiveRecordingForBuzz(db, logger, buzz.ID, &buzz)
+
 			eventPayload := models.BuzzEventPayload{
 				Event:          string(models.BuzzEnded),
 				BuzzID:         buzz.ID,
@@ -924,7 +966,14 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		logger.Error(errorAgoraNotInitialized)
 		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
 	}
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, agora.DefaultTokenExpirationSeconds)
+
+	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+
+	if remainingTime == 0 {
+		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
+	}
+
+	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
 	if err != nil {
 		logger.Error("buzz creation failed - Agora token generation error for host %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -1081,6 +1130,8 @@ func ForceEndBuzz(db *storage.Database, logger *utility.Logger, buzzID string) (
 		logger.Error("failed to expire invitations for buzz %s: %v", buzzID, err)
 	}
 
+	StopActiveRecordingForBuzz(db, logger, buzzID, &buzz)
+
 	// Publish buzz ended event
 	eventPayload := models.BuzzEventPayload{
 		Event:          string(models.BuzzEnded),
@@ -1172,6 +1223,7 @@ func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, 
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
 		UpdatedAt:      now,
+		OriginalHostID: hostID,
 	}
 
 	logger.Info("generating Agora RTC token for host %s in org buzz %s", hostID, buzz.ID)
@@ -1224,26 +1276,30 @@ func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, 
 
 	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, logger)
 	resp = models.BuzzCreateResponse{
-		BuzzID:         metadataResp.BuzzID,
-		HostID:         metadataResp.HostID,
-		ChannelID:      metadataResp.ChannelID,
-		Status:         metadataResp.Status,
-		CreatedAt:      metadataResp.CreatedAt,
-		StartedAt:      metadataResp.StartedAt,
-		ParticipantIDs: buzz.ParticipantIDs,
-		Participants:   metadataResp.Participants,
-		AgoraToken:     &agoraToken,
-		BuzzCode:       metadataResp.BuzzCode,
+		BuzzID:          metadataResp.BuzzID,
+		HostID:          metadataResp.HostID,
+		ChannelID:       metadataResp.ChannelID,
+		Status:          metadataResp.Status,
+		CreatedAt:       metadataResp.CreatedAt,
+		StartedAt:       metadataResp.StartedAt,
+		ParticipantIDs:  buzz.ParticipantIDs,
+		Participants:    metadataResp.Participants,
+		AgoraToken:      &agoraToken,
+		BuzzCode:        metadataResp.BuzzCode,
+		IsRecording:     false,
+		RecordingStatus: models.RecordingStatusIdle,
 	}
 
 	eventPayload := models.BuzzEventPayload{
-		Event:          string(models.BuzzStarted),
-		BuzzID:         buzz.ID,
-		ChannelID:      buzz.ChannelID,
-		HostID:         buzz.HostID,
-		ParticipantIDs: participants,
-		CreatedAt:      buzz.BuzzStartTime,
-		Status:         buzz.Status,
+		Event:           string(models.BuzzStarted),
+		BuzzID:          buzz.ID,
+		ChannelID:       buzz.ChannelID,
+		HostID:          buzz.HostID,
+		ParticipantIDs:  participants,
+		CreatedAt:       buzz.BuzzStartTime,
+		Status:          buzz.Status,
+		IsRecording:     false,
+		RecordingStatus: models.RecordingStatusIdle,
 	}
 
 	notification := models.Notification[models.BuzzStarted]
@@ -1360,4 +1416,73 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 	}
 
 	return nil
+}
+
+func MuteParticipants(db *storage.Database, logger *utility.Logger, buzzID, userID string) (int, error) {
+
+	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, userID)
+	if err != nil {
+		statusCode, errMsg := mapPermissionError(err, "mute participants")
+		logger.Error("permission check failed for user %s mute participants buzz %s: %v", userID, buzzID, err)
+		return statusCode, errors.New(errMsg)
+	}
+
+	logger.Info("permission validated for host %s to mute participants buzz %s", userID, buzzID)
+
+	if err := db.Postgresql.Model(&models.BuzzParticipant{}).
+		Where("buzz_id = ? AND status = ?", buzz.ID, models.BuzzParticipantStatusActive).
+		Update("is_muted", true).Error; err != nil {
+		logger.Error("failed to mute participants in database for buzz %s: %v", buzz.ID, err)
+		return http.StatusInternalServerError, errors.New("failed to mute participants")
+	}
+
+	timestamp := time.Now().UTC()
+
+	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	if err != nil {
+		logger.Error("failed to fetch participant details for mute event: %v", err)
+		participantDetails = []models.ParticipantMetadata{}
+	}
+
+	participantDetailsArray := make([]models.ParticipantDetails, 0, len(participantDetails))
+	for _, p := range participantDetails {
+		participantDetailsArray = append(participantDetailsArray, models.ParticipantDetails{
+			UserID:     p.UserID,
+			Username:   p.UserName,
+			AvatarURL:  p.AvatarURL,
+			MediaState: p.MediaState,
+		})
+	}
+
+	recordingStatus, isRecording := fetchBuzzRecordingStatus(db.Postgresql, buzz.ID)
+
+	eventPayload := models.BuzzEventPayload{
+		Event:              string(models.MuteParticipants),
+		BuzzID:             buzz.ID,
+		ChannelID:          buzz.ChannelID,
+		HostID:             buzz.HostID,
+		ParticipantIDs:     buzz.ParticipantIDs,
+		ParticipantDetails: participantDetailsArray,
+		CreatedAt:          timestamp,
+		Status:             buzz.Status,
+		IsRecording:        isRecording,
+		RecordingStatus:    recordingStatus,
+	}
+
+	notification := models.Notification[models.MuteParticipants]
+	notification.SectionType = models.ChannelsSection
+	notification.Content = eventPayload
+	notification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: buzz.ChannelID,
+	}
+	notification.NotificationId = utility.GenerateUUID()
+
+	publishChannel := getPublishChannel(buzz)
+	if err := centrifuge.PublishChannel(logger, publishChannel, notification); err != nil {
+		logger.Error("failed to publish mute participants event: %v", err)
+		return http.StatusInternalServerError, errors.New("failed to publish event")
+	}
+
+	logger.Info("mute participants event published successfully for buzz %s", buzzID)
+	return http.StatusOK, nil
 }

@@ -16,7 +16,7 @@ import (
 func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 	var orgRole models.OrgRole
 
-	orgRole, err := orgRole.GetAOrgRoleByName(db, "Administrator")
+	orgRole, err := orgRole.GetAOrgRoleByName(db, models.OrgRoleNameAdministrator)
 	if err != nil {
 		return err
 	}
@@ -48,18 +48,10 @@ func CountMetrics(db *gorm.DB, userID, orgID string) (models.OrgUserMetricsRespo
 }
 
 func UpdateMember(db *gorm.DB, ownerId, orgID, userID string, req models.UpdateMemberRequest) (models.OrgUserManagement, error) {
-	var (
-		oum models.OrgUserManagement
-		o   models.Organisation
-	)
+	var oum models.OrgUserManagement
 
-	isowner, err := o.IsOwnerOfOrganisation(db, ownerId, orgID)
-	if err != nil {
-		return oum, err
-	}
-
-	if !isowner {
-		return oum, errors.New("user is not the owner of the organisation")
+	if !userCanOrOwner(db, ownerId, orgID, models.PermChangeUserOrgRole) {
+		return oum, errors.New("you do not have permission to update members")
 	}
 
 	resp, err := oum.UpdateMember(db, orgID, userID, req)
@@ -124,37 +116,28 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 
 func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
 	var (
-		user        models.User
-		adminUser   models.User
-		oum         models.OrgUserManagement
-		user_token  models.AccessToken
-		user_id     = ids["user_id"]
-		org_id      = ids["org_id"]
-		adminUserID = ids["admin_user_id"]
+		user      models.User
+		adminUser models.User
+		userID    = ids["user_id"]
+		orgID     = ids["org_id"]
+		adminID   = ids["admin_user_id"]
 	)
 
-	if !user.CheckUserExists(db, user_id) {
-		return http.StatusUnauthorized, errors.New("user does not exist")
-	}
-	user.ID = user_id
-
-	if !adminUser.CheckUserExists(db, adminUserID) {
-		return http.StatusUnauthorized, errors.New("admin user does not exist")
-	}
-	adminIDS := models.IDS{
-		OrganisationID: org_id,
-		OwnerID:        adminUserID,
-	}
-	if !oum.CheckIsOrganisationAdmin(db, adminIDS) {
-		return http.StatusForbidden, errors.New("user is not authorized to change member status")
-	}
-
-	if user_id == adminUserID {
+	if userID == adminID {
 		return http.StatusForbidden, errors.New("you cannot change your own active status")
 	}
 
-	if req.Activate {
-		return ActivateMember(db, user_id, org_id, user)
+	if !user.CheckUserExists(db, userID) {
+		return http.StatusNotFound, errors.New("user does not exist")
+	}
+	user.ID = userID
+
+	if !adminUser.CheckUserExists(db, adminID) {
+		return http.StatusUnauthorized, errors.New("admin user does not exist")
+	}
+
+	if !userCanOrOwner(db, adminID, orgID, models.PermChangeUserOrgRole) {
+		return http.StatusForbidden, errors.New("you do not have permission to change member status")
 	}
 
 	tx := db.Begin()
@@ -164,40 +147,32 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		}
 	}()
 
-	if err := user.ChangeMemberActiveStatus(tx, org_id, true); err != nil {
-		tx.Rollback()
-		return http.StatusInternalServerError, err
-	}
-
-	user_token.OwnerID = user_id
-	code, err := user_token.GetMostRecentAccessToken(tx)
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if req.Activate {
+		if err := user.ActivateOrgMember(tx, orgID); err != nil {
 			tx.Rollback()
-			return code, fmt.Errorf("failed to get user token: %v", err)
+			return http.StatusInternalServerError, err
 		}
 	} else {
-
-		access_token := models.AccessToken{ID: user_token.ID, OwnerID: user.ID}
-		err := access_token.RevokeAccessToken(tx)
-		if err != nil {
+		if err := user.DeactivateOrgMember(tx, orgID); err != nil {
 			tx.Rollback()
-			return http.StatusBadRequest, errors.New("failed to logout user")
+			return http.StatusInternalServerError, err
+		}
+
+		// revoke the deactivated user's session
+		var userToken models.AccessToken
+		userToken.OwnerID = userID
+		if _, err := userToken.GetMostRecentAccessToken(tx); err == nil {
+			accessToken := models.AccessToken{ID: userToken.ID, OwnerID: userID}
+			if err := accessToken.RevokeAccessToken(tx); err != nil {
+				tx.Rollback()
+				return http.StatusInternalServerError, fmt.Errorf("failed to revoke user session: %w", err)
+			}
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	return http.StatusOK, nil
-}
-
-func ActivateMember(db *gorm.DB, userID, orgID string, user models.User) (int, error) {
-	err := user.ChangeMemberActiveStatus(db, orgID, false)
-	if err != nil {
-		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusOK, nil
@@ -228,11 +203,6 @@ func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
 		oum models.OrgUserManagement
 		r   models.OrgRole
 	)
-
-	is_admin := oum.CheckIsOrganisationAdmin(db, ids)
-	if !is_admin {
-		return http.StatusForbidden, errors.New("user is not authorized to modify role")
-	}
 
 	exists := r.CheckExists(db, ids.RoleID)
 	if !exists {

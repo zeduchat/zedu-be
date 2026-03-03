@@ -141,7 +141,15 @@ func SignupUser(t *testing.T, r *gin.Engine, auth auth.Controller, userSignUpDat
 		signupURI  = url.URL{Path: signupPath}
 	)
 
-	r.POST(signupPath, auth.RegisterUser)
+	// Attempt to register route, ignore if already registered
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Route already registered, continue
+			}
+		}()
+		r.POST(signupPath, auth.RegisterUser)
+	}()
 
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(userSignUpData)
@@ -164,7 +172,17 @@ func GetLoginToken(t *testing.T, r *gin.Engine, auth auth.Controller, loginData 
 		loginPath = "/api/v1/auth/login"
 		loginURI  = url.URL{Path: loginPath}
 	)
-	r.POST(loginPath, auth.LoginUser)
+
+	// Attempt to register route, ignore if already registered
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// Route already registered, continue
+			}
+		}()
+		r.POST(loginPath, auth.LoginUser)
+	}()
+
 	var b bytes.Buffer
 	json.NewEncoder(&b).Encode(loginData)
 	req, err := http.NewRequest(http.MethodPost, loginURI.String(), &b)

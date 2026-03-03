@@ -114,6 +114,8 @@ tags:
     description: API endpoints for buzz (audio/video calls) feature
   - name: shares
     description: API endpoints for buying and tracking shares
+  - name: Slash Commands
+    description: API endpoints for default slash commands
 paths:
   # Auth paths
   /auth/register:
@@ -1715,7 +1717,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -1735,6 +1737,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:
@@ -3097,6 +3105,26 @@ paths:
             type: string
             format: uuid
           description: ID of the organisation to check for the channel.
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search channels by name.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page.
       responses:
         "200":
           description: Get all channels in an organisation
@@ -3241,6 +3269,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: search
+          in: query
+          required: false
+          description: Search channels by name.
+          schema:
+            type: string
       responses:
         "200":
           description: A list of channels associated with the user.
@@ -3510,7 +3544,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -3530,6 +3564,12 @@ paths:
                         entity_type:
                           type: string
                           example: "user"
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
 
   /organisations/{org_id}/users/{user_id}/status:
     patch:
@@ -3781,7 +3821,7 @@ paths:
                         phone_number:
                           type: string
                           example: ""
-                        profile_url:
+                        avatar_url:
                           type: string
                           example: ""
                         name:
@@ -3801,6 +3841,12 @@ paths:
                           type: string
                           enum: [user, bot]
                           example: user
+                        default_avatar_url:
+                          type: string
+                          example: ""
+                        online:
+                          type: boolean
+                          example: false
                   pagination:
                     type: array
                     items:
@@ -3818,6 +3864,122 @@ paths:
                         total_pages:
                           type: integer
                           example: 1
+
+  /channels/{channelId}/files:
+    get:
+      tags:
+        - channels
+      summary: Retrieve media files from a channel
+      description: Fetches all media files (images, videos, documents, audio) from threads in a channel with pagination support
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          description: The ID of the channel
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default 1)
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default 10)
+          schema:
+            type: integer
+            default: 10
+        - name: type
+          in: query
+          required: false
+          description: Filter by media type
+          schema:
+            type: string
+            enum: [images, videos, audio, documents]
+      responses:
+        "200":
+          description: Media files retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Channel files fetched successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        file_name:
+                          type: string
+                          example: photo.jpg
+                        file_type:
+                          type: string
+                          example: jpg
+                        mime_type:
+                          type: string
+                          example: image/jpeg
+                        file_link:
+                          type: string
+                          example: https://cdn.example.com/files/photo.jpg
+                        user_id:
+                          type: string
+                          format: uuid
+                          description: The ID of the user who uploaded the file
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: When the file was uploaded
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 10
+                      total_items:
+                        type: integer
+                        example: 50
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (User not in channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
 
   /channels/add-multiple:
     post:
@@ -4965,6 +5127,180 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  # Slash Commands endpoints
+  /slash-commands:
+    get:
+      tags:
+        - Slash Commands
+      summary: Get default slash commands
+      description: Retrieves all default slash commands available in the application. These are built-in slash commands that can be used by any organization.
+      responses:
+        "200":
+          description: Default slash commands retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Default slashcommands retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          example: "01926dd6-b1ad-775a-bef6-f10cd4d35425"
+                          description: Unique identifier for the slash command
+                        command:
+                          type: string
+                          example: "/add-to-channel #channel-name @user1 @user2 ... @user_n"
+                          description: The slash command template
+                        description:
+                          type: string
+                          example: "Add one or more users to a channel"
+                          description: Description of what the slash command does
+                        is_default:
+                          type: boolean
+                          example: true
+                          description: Indicates if this is a default slash command
+                        created_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+                        updated_at:
+                          type: string
+                          format: date-time
+                          example: "2024-10-08T21:10:44.448814+01:00"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - Slash Commands
+      summary: Process a slash command
+      description: |
+        Processes a slash command and executes the corresponding action.
+        This endpoint accepts various slash commands for managing channel members and permissions.
+        Available commands include:
+        - `/add-to-channel #channel @user1 @user2` - Add one or more users to a channel
+        - `/add-to-all-org-channels @user` - Add a user to all organization channels
+        - `/remove-from-channel #channel @user` - Remove a user from a channel
+        - `/banish-from-channel #channel1 #channel2 @user1 @user2` - Remove users from multiple channels
+        - `/promote #channel @user1 @user2 #channel2` - Promote users to channel admin
+        - `/demote #channel @user1 @user2 #channel2` - Demote users from channel admin
+        - `/restore-channels @user1 @user2` - Restore deleted channels for users
+        - `/export-members #channel` - Export channel members list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: The slash command to process
+                  example: "/add-to-channel #engineering-channel @bugsbouncy"
+            examples:
+              add_to_channel:
+                summary: Add users to a channel
+                value:
+                  command: "/add-to-channel #engineering-channel @bugsbouncy"
+              add_to_all_org_channels:
+                summary: Add user to all organization channels
+                value:
+                  command: "/add-to-all-org-channels @bugsbouncy"
+              remove_from_channel:
+                summary: Remove user from channel
+                value:
+                  command: "/remove-from-channel #engineering-channel @bugsbunny"
+              banish_from_channel:
+                summary: Remove users from multiple channels
+                value:
+                  command: "/banish-from-channel #general #engineering-channel @bugsbouncy @anotheruser"
+              promote:
+                summary: Promote users in channels
+                value:
+                  command: "/promote #management @bugsbouncy @anotheruser #engineering-channel #support"
+              demote:
+                summary: Demote users in channels
+                value:
+                  command: "/demote #general @bugsbouncy @anotheruser #management-channel"
+              restore_channels:
+                summary: Restore deleted channels for users
+                value:
+                  command: "/restore-channels @bugsbouncy @anotheruser"
+              export_members:
+                summary: Export channel members
+                value:
+                  command: "/export-members #engineering-channel"
+      responses:
+        "200":
+          description: Slash command processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Command processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      result:
+                        type: string
+                        example: "Users added to channel successfully"
+                      affected_users:
+                        type: array
+                        items:
+                          type: string
+                        example: ["bugsbouncy", "anotheruser"]
+                      affected_channels:
+                        type: array
+                        items:
+                          type: string
+                        example: ["engineering-channel"]
+        "400":
+          description: Bad request - Invalid command format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - Invalid or missing authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found - Channel or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /contact:
     post:
@@ -6465,6 +6801,95 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/organizationSuccessResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /users/mentions/{user_id}:
+    get:
+      tags:
+        - user
+      summary: Retrieve minimal user information for mentions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The user ID
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User retrieved successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "jdoe"
+                      fullname:
+                        type: string
+                        example: "John Doe"
+                      firstname:
+                        type: string
+                        example: "John"
+                      lastname:
+                        type: string
+                        example: "Doe"
+                      avatar_url:
+                        type: string
+                        example: "http://example.com/custom_avatar.jpg"
+                      default_avatar_url:
+                        type: string
+                        example: "http://example.com/avatar.jpg"
+                      display_name:
+                        type: string
+                        example: "Johnny"
+                      status_text:
+                        type: string
+                        example: "Working from home"
+                      userid:
+                        type: string
+                        example: "00000000-0000-0000-0000-000000000000"
+                      online_status:
+                        type: boolean
+                        example: true
         "400":
           description: Bad request
           content:
@@ -11405,6 +11830,12 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: search
+          in: query
+          required: false
+          description: Search DM channels by participant details (email, username, first name, last name).
+          schema:
+            type: string
       responses:
         "200":
           description: Dm channels retrieved successfully
@@ -18578,6 +19009,16 @@ paths:
         - bearerAuth: []
       parameters:
         - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [all, mine, trash]
+          description: |
+            Filter mode for folders:
+            - **all** (default): All non-deleted folders in the organisation
+            - **mine**: Only folders created by the current user
+            - **trash**: Only soft-deleted folders
+        - in: query
           name: page
           schema:
             type: integer
@@ -19008,6 +19449,13 @@ paths:
             type: string
             format: uuid
           example: "550e8400-e29b-41d4-a716-446655440000"
+        - name: owner
+          in: query
+          required: false
+          description: Filter by owner name or username (case-insensitive partial match on full name or username)
+          schema:
+            type: string
+          example: "john"
         - name: search
           in: query
           required: false
@@ -20117,10 +20565,10 @@ paths:
     get:
       tags:
         - Group Direct Message
-      summary: Retrieve Group DM Channels
+      summary: Retrieve Group DM Channels for Authenticated User
       security:
         - bearerAuth: []
-      description: Retrieves all Group DM channels within a given organisation.
+      description: Retrieves all Group DM channels that the authenticated user belongs to within a given organisation. Only returns channels where the user is an active participant.
       parameters:
         - name: organisation_id
           in: path
@@ -20843,8 +21291,8 @@ paths:
     get:
       tags:
         - Group Direct Message
-      summary: Retrieve Group DM User Details
-      description: Retrieves details of a specific user in a Group DM.
+      summary: Retrieve User Profile by ID
+      description: "Retrieves the profile information of a specific user. Note: despite the route path, this endpoint does not return the user's Group DM channels — it only returns the user's profile as a participant object."
       parameters:
         - name: organisation_id
           in: path
@@ -20857,7 +21305,7 @@ paths:
           required: true
           schema:
             type: string
-          description: The unique identifier of the Group DM channel.
+          description: The unique identifier of the user whose profile is being retrieved.
       responses:
         "200":
           description: User retrieved successfully.
@@ -22411,6 +22859,7 @@ paths:
       tags:
         - General-Invitation
       summary: Change the status of a general invitation
+      description: Disables or enables the general invite link for the organisation. The organisation is determined from the authenticated user's context. Only the user who created the invite can change its status.
       requestBody:
         required: true
         content:
@@ -22419,14 +22868,11 @@ paths:
               type: object
               required:
                 - status
-                - invitation_id
               properties:
                 status:
                   type: boolean
-                  example: true
-                invitation_id:
-                  type: string
-                  example: "1b4db7eb-4057-5ddf-91e0-36dec72071f5"
+                  description: The new status of the invitation (`true` for active, `false` for disabled).
+                  example: false
       responses:
         "200":
           description: Invitation status updated successfully
@@ -22444,6 +22890,10 @@ paths:
                   message:
                     type: string
                     example: invitation updated successfully
+        "401":
+          description: Unauthorized - organization context missing or user is not the inviter
+        "404":
+          description: No active invitation found for this organisation
 
   /telexai/chat:
     post:
@@ -28031,6 +28481,178 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /buzz/{id}/recording/start:
+    post:
+      tags:
+        - buzz
+      summary: Start buzz recording
+      description: Initiates a cloud recording for the specified buzz session via Agora Cloud Recording. Only the host can start a recording.
+      operationId: startRecording
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      responses:
+        "200":
+          description: Recording started successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BuzzRecording"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Buzz not found
+        "500":
+          description: Internal server error
+
+  /buzz/{id}/recording/stop:
+    post:
+      tags:
+        - buzz
+      summary: Stop buzz recording
+      description: Stops an active cloud recording for the specified buzz session.
+      operationId: stopRecording
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      responses:
+        "200":
+          description: Recording stopped successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BuzzRecording"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Buzz not found
+        "500":
+          description: Internal server error
+
+  /buzz/{id}/recording/status:
+    get:
+      tags:
+        - buzz
+      summary: Get buzz recording status
+      description: Retrieves the current status of the cloud recording for the specified buzz session.
+      operationId: getRecordingStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      responses:
+        "200":
+          description: Recording status retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BuzzRecording"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Buzz not found
+        "500":
+          description: Internal server error
+
+  /buzz/{id}/mute-participants:
+    post:
+      tags:
+        - buzz
+      summary: Mute all participants in a buzz
+      description: Publishes a mute-all event to every participant in the buzz. Only the host can trigger this action.
+      operationId: muteParticipants
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      responses:
+        "200":
+          description: Participants muted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: muted participants successfully
+        "400":
+          description: Bad request - invalid buzz ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - caller is not the host of the buzz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Buzz not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /buzz/channel/{channel_id}/active:
     get:
       tags:
@@ -28180,6 +28802,44 @@ paths:
 
 components:
   schemas:
+    BuzzRecording:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buzz_id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        resource_id:
+          type: string
+        sid:
+          type: string
+        status:
+          type: string
+          enum: [starting, recording, stopping, stopped, failed]
+        file_url:
+          type: string
+        file_id:
+          type: string
+          format: uuid
+        duration_sec:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     MessageType:
       type: string
       enum:
@@ -29412,64 +30072,82 @@ components:
           type: string
           example: "channels fetched successfully"
         data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
+              name:
+                type: string
+                example: "hackers"
+              description:
+                type: string
+                example: "this room is meant for hackers"
+              organisation_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              is_private:
+                type: boolean
+                example: false
+              owner_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              archived:
+                type: boolean
+                example: false
+              group_id:
+                type: string
+                format: uuid
+                nullable: true
+                example: null
+              created_at:
+                type: string
+                format: date-time
+                example: "2024-08-27T15:28:20.499875+01:00"
+              last_thread_id:
+                type: string
+                format: uuid
+                example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
+              access:
+                type: boolean
+                example: true
+              member_avatars:
+                type: array
+                items:
+                  type: string
+                example: ["https://example.com/avatar1.jpg"]
+              members_count:
+                type: integer
+                example: 10
+              last_post_time:
+                type: string
+                example: "5 minutes ago"
+              unread_count:
+                type: integer
+                example: 0
+              channel_slug:
+                type: string
+                example: "hackers-a158cc0f7e3a"
+        pagination:
           type: object
           properties:
-            additional_info:
-              type: object
-              properties:
-                channels_count:
-                  type: integer
-                  example: 1
-                totalmessage_count:
-                  type: integer
-                  example: 1
-            channels:
-              type: array
-              items:
-                type: object
-                properties:
-                  channels_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-68f3-7294-9c4e-a158cc0f7e3a"
-                  name:
-                    type: string
-                    example: "hackers"
-                  description:
-                    type: string
-                    example: "this room is meant for hackers"
-                  organisation_id:
-                    type: string
-                    format: uuid
-                    example: "019146f9-3d17-7294-93ac-9963ada4b7c1"
-                  owner_id:
-                    type: string
-                    format: uuid
-                    example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
-                  users:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
-                  user_count:
-                    type: integer
-                    example: 0
-                  message_count:
-                    type: integer
-                    example: 0
-                  created_at:
-                    type: string
-                    format: date-time
-                    example: "2024-08-12T15:23:56.147736+01:00"
-                  deleted_at:
-                    type: string
-                    format: date-time
-                    example: "0001-01-01T00:13:35+00:13"
-                  messages:
-                    type: array
-                    items:
-                      type: string
-                    nullable: true
+            current_page:
+              type: integer
+              example: 1
+            total_pages:
+              type: integer
+              example: 1
+            page_size:
+              type: integer
+              example: 10
+            total_items:
+              type: integer
+              example: 1
     ConnectionTokenResponseSchema:
       type: object
       properties:

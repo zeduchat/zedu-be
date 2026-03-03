@@ -66,4 +66,6 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.UpdateMediaPreferences)
 	r.POST("/api/v1/users/media-preferences/reset-autodownload", middleware.Authorize(userController.Db.Postgresql),
 		userController.ResetAutoDownloadSettings)
+	r.GET("/api/v1/users/mentions/:user_id", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetAUserForMentions)
 }

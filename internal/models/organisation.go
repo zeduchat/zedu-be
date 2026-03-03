@@ -47,6 +47,7 @@ type Organisation struct {
 	OrganisationPlan    OrganisationPlan `gorm:"foreignKey:OrganisationID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisation_plan,omitempty"`
 	OrganisationSlug    string           `gorm:"-" json:"organisation_slug"`
 	CurrentUserRoleInfo OrgUserRoleInfo  `gorm:"-" json:"user_role,omitempty"`
+	InviteLinkStatus    string           `gorm:"-" json:"invite_link_status,omitempty"`
 }
 
 type CreateOrgRequestModel struct {
@@ -71,17 +72,18 @@ type UpdateOrgRequestModel struct {
 }
 
 type UserInOrgResponse struct {
-	ID          string    `json:"id"`
-	Email       string    `json:"email"`
-	UserName    string    `json:"username"`
-	PhoneNumber string    `json:"phone_number"`
-	AvatarURL   string    `json:"profile_url"`
-	Name        string    `json:"name"`
-	Role        string    `json:"role"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	EntityType  string    `json:"entity_type"` // "user" or "bot"
-	Online      bool      `json:"online"`
+	ID               string    `json:"id"`
+	Email            string    `json:"email"`
+	UserName         string    `json:"username"`
+	PhoneNumber      string    `json:"phone_number"`
+	AvatarURL        string    `json:"avatar_url"`
+	Name             string    `json:"name"`
+	Role             string    `json:"role"`
+	Status           string    `json:"status"`
+	CreatedAt        time.Time `json:"created_at"`
+	EntityType       string    `json:"entity_type"` // "user" or "bot"
+	Online           bool      `json:"online"`
+	DefaultAvatarURL string    `json:"default_avatar_url"`
 }
 
 type OrgMetricsResponse struct {
@@ -223,8 +225,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
 		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
-		Where("channels.archived = FALSE").
-		Order("channels.created_at").
+		Where("channels.archived = FALSE")
+
+	if ids.Search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	}
+
+	query = query.Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
@@ -335,12 +342,9 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		}
 		previewMessage := ""
 		if len(previewThread) > 0 {
-			previewMessage = previewThread[0].Content
-			if previewMessage == "" && len(previewThread[0].Media) > 0 {
-				previewMessage = previewThread[0].Media[0].FileType
-			}
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 		}
-
+		chanResp[i].PreviewMessage = previewMessage
 	}
 	query = db.Postgresql.Table("channels").
 		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
@@ -348,8 +352,13 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
 		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
 		Where("channels.organisation_id = ?", ids.OrganisationID).
-		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
-		Order("channels.created_at").
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)")
+
+	if ids.Search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	}
+
+	query = query.Order("channels.created_at").
 		Offset((pagination.Page - 1) * pagination.Limit).
 		Limit(pagination.Limit)
 
@@ -363,6 +372,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		CurrentPage:     pagination.Page,
 		PageCount:       pagination.Limit,
 		TotalPagesCount: totalPages,
+		TotalItems:      totalRes,
 	}
 
 	return chanResp, paginationResponse, http.StatusOK, nil

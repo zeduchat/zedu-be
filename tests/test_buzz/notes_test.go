@@ -45,7 +45,7 @@ func TestBuzzNotes(t *testing.T) {
 	}
 
 	buzzID := utility.GenerateUUID()
-	h := models.Buzz{ID: buzzID, ChannelID: utility.GenerateUUID(), HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC()}
+	h := models.Buzz{ID: buzzID, ChannelID: utility.GenerateUUID(), OriginalHostID: user.ID, HostID: user.ID, ParticipantIDs: pq.StringArray{user.ID}, BuzzStartTime: time.Now().UTC()}
 	if err := db.Postgresql.Create(&h).Error; err != nil {
 		t.Fatalf("failed to create buzz: %v", err)
 	}

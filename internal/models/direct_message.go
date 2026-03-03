@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"net/http"
@@ -349,6 +350,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
 	recentDm := c.Query("recent_dm") == "true"
+	search := c.Query("search") // this search enters username, firstname, lastname or part of email
 	limit := 10
 
 	pagination := postgresql.GetPagination(c)
@@ -370,20 +372,47 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
         )
     `
 
+	args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		queryString += `
+            AND EXISTS (
+                SELECT 1 FROM users u
+                LEFT JOIN profiles p ON p.userid = u.id
+                WHERE (
+                    (u.id = dm_channels.participant_id)
+                    OR
+                    EXISTS (
+                        SELECT 1 FROM channel_participants cp 
+                        WHERE cp.channel_id = dm_channels.channel_id 
+                        AND cp.user_id = u.id
+                    )
+                )
+                AND u.id != ?
+                AND (
+                    u.email ILIKE ? OR 
+                    p.user_name ILIKE ? OR 
+                    p.first_name ILIKE ? OR 
+                    p.last_name ILIKE ?
+                )
+            )
+        `
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
 	if recentDm {
 		queryString += `
 			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
 		`
 		orderBy = "interacted_at"
 		order = "desc"
-		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 
 		// Override pagination to fetch top 10 most recent only
 		pagination.Limit = limit
 	} else {
 		orderBy = "created_at"
 		order = "desc"
-		args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
 	}
 
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
@@ -418,6 +447,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			previewThread = threads
 		}
 
+		previewMessage := ""
+		if len(previewThread) > 0 {
+			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
+		}
+
 		switch dmchan.ChannelType {
 		case "dm", "":
 			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
@@ -426,14 +460,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			}
 
 			participants = []Participant{NewParticipant(userDetails, false, "user")}
-
-			previewMessage := ""
-			if len(previewThread) > 0 {
-				previewMessage = previewThread[0].Content
-				if previewMessage == "" && len(previewThread[0].Media) > 0 {
-					previewMessage = previewThread[0].Media[0].FileType
-				}
-			}
 
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
@@ -517,8 +543,6 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 				return nil, paginationResp, fmt.Errorf("user not found in channel")
 			}
 
-			previewMessage := dmchan.GetLastMessageByChannelId(db, dmchan.ChannelId)
-
 			dmChansResp = append(dmChansResp, DmChannelsResponse{
 				ID:               dmchan.ChannelId,
 				Name:             strings.Join(usernames, ", "),
@@ -537,11 +561,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 		}
 
-		slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
-			return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
-		})
-
 	}
+
+	slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+		if c := cmp.Compare(b.ThreadCount, a.ThreadCount); c != 0 {
+			return c
+		}
+		return b.CreatedAt.Compare(a.CreatedAt)
+	})
 
 	return dmChansResp, paginationResp, nil
 }
@@ -738,10 +765,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 				previewMessage := ""
 				if len(previewThread) > 0 {
-					previewMessage = previewThread[0].Content
-					if previewMessage == "" && len(previewThread[0].Media) > 0 {
-						previewMessage = previewThread[0].Media[0].FileType
-					}
+					previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 				}
 
 				chanResp[i].PreviewMessage = previewMessage
@@ -833,10 +857,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 			for i := range chanResp {
 				previewMessage := ""
 				if len(previewThread) > 0 {
-					previewMessage = previewThread[0].Content
-					if previewMessage == "" && len(previewThread[0].Media) > 0 {
-						previewMessage = previewThread[0].Media[0].FileType
-					}
+					previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
 				}
 
 				chanResp[i].PreviewMessage = previewMessage
@@ -1164,8 +1185,13 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 				},
 				"filter": []map[string]any{
 					{
-						"exists": map[string]any{
-							"field": "media",
+						"nested": map[string]any{
+							"path": "media",
+							"query": map[string]any{
+								"exists": map[string]any{
+									"field": "media.id",
+								},
+							},
 						},
 					},
 				},
@@ -1250,7 +1276,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 
 			// Apply type filter if specified
 			if mediaType != "" {
-				if !matchesMediaType(file.MimeType, mediaType) {
+				if !MatchesMediaType(file.MimeType, mediaType) {
 					continue
 				}
 			}
@@ -1404,34 +1430,6 @@ func (dm *DmChannels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMe
 	}
 
 	return allMedia, len(allMedia), nil
-}
-
-func matchesMediaType(mimeType, mediaType string) bool {
-	switch mediaType {
-	case "images":
-		return len(mimeType) >= 6 && mimeType[:6] == "image/"
-	case "videos":
-		return len(mimeType) >= 6 && mimeType[:6] == "video/"
-	case "audio":
-		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
-	case "documents":
-		return containsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
-	default:
-		return true
-	}
-}
-
-func containsAny(s string, substrs []string) bool {
-	for _, sub := range substrs {
-		if len(s) >= len(sub) {
-			for i := 0; i <= len(s)-len(sub); i++ {
-				if s[i:i+len(sub)] == sub {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func (dm *DmChannels) GetDMsWithUnread(db *gorm.DB, userID string) (map[string]time.Time, error) {

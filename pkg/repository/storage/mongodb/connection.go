@@ -122,6 +122,12 @@ func MonitorMongoConnection(logger *utility.Logger, MongoConfig config.MongoDB, 
 func StartMongoDBConnection(logger *utility.Logger, MongoConfig config.MongoDB) *MongoStore {
 	store := &MongoStore{}
 
+	if MongoConfig.Mongo_Disabled {
+		logger.Info("⏭️ MongoDB disabled via MONGO_DISABLED env, skipping connection")
+		fmt.Println("⏭️ MongoDB disabled via MONGO_DISABLED env, skipping connection")
+		return store
+	}
+
 	go MonitorMongoConnection(logger, MongoConfig, store)
 	go ConnectMongoDB(logger, MongoConfig, store)
 	return store

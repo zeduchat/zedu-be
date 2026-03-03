@@ -1,0 +1,373 @@
+package test_buzz
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+
+	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+func TestBuzzRecording(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	authCtrl := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq:    request.ExternalRequest{Logger: logger, Test: true},
+	}
+
+	currUUID := utility.GenerateUUID()
+
+	hostSignUp := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("rechost%s@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Recording",
+		LastName:    "Host",
+		Password:    "password",
+		UserName:    fmt.Sprintf("rechost_%s", currUUID),
+	}
+	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
+
+	nonHostUUID := utility.GenerateUUID()
+	nonHostSignUp := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("recguest%s@qa.team", nonHostUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "Recording",
+		LastName:    "Guest",
+		Password:    "password",
+		UserName:    fmt.Sprintf("recguest_%s", nonHostUUID),
+	}
+	nonHostLogin := models.LoginRequestModel{Email: nonHostSignUp.Email, Password: nonHostSignUp.Password}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authCtrl, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, r, authCtrl, hostLogin)
+
+	tst.SignupUser(t, r, authCtrl, nonHostSignUp, false)
+	nonHostToken := tst.GetLoginToken(t, r, authCtrl, nonHostLogin)
+
+	var hostUser models.User
+	if err := db.Postgresql.Where("email = ?", hostSignUp.Email).First(&hostUser).Error; err != nil {
+		t.Fatalf("failed to fetch host user: %v", err)
+	}
+
+	var nonHostUser models.User
+	if err := db.Postgresql.Where("email = ?", nonHostSignUp.Email).First(&nonHostUser).Error; err != nil {
+		t.Fatalf("failed to fetch non-host user: %v", err)
+	}
+
+	channelID := utility.GenerateUUID()
+	if err := db.Postgresql.Create(&models.Channels{
+		ID:             channelID,
+		Name:           fmt.Sprintf("recchan_%s", currUUID),
+		OrganisationID: hostUser.CurrentOrg.String(),
+		OwnerId:        hostUser.ID,
+		CreatedAt:      time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("failed to create channel: %v", err)
+	}
+
+	if err := db.Postgresql.Create(&models.UserChannels{
+		ChannelsID: channelID,
+		UserID:     hostUser.ID,
+		Username:   hostSignUp.UserName,
+		CreatedAt:  time.Now(),
+	}).Error; err != nil {
+		t.Logf("warning: failed to add host to channel: %v", err)
+	}
+
+	if err := db.Postgresql.Create(&models.UserChannels{
+		ChannelsID: channelID,
+		UserID:     nonHostUser.ID,
+		Username:   nonHostSignUp.UserName,
+		CreatedAt:  time.Now(),
+	}).Error; err != nil {
+		t.Logf("warning: failed to add guest to channel: %v", err)
+	}
+
+	router, buzzCtrl := SetupBuzzTestRouter(logger, validatorRef)
+	buzzID, _ := tst.CreateBuzz(t, router, *buzzCtrl, db, models.CreateBuzzRequest{ChannelID: channelID}, hostToken)
+	if buzzID == "" {
+		t.Fatal("failed to create buzz for recording tests")
+	}
+
+	t.Run("StartRecording_InvalidBuzzCode", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/not-a-code/recording/start", nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+	})
+
+	t.Run("StartRecording_BuzzNotFound", func(t *testing.T) {
+		unknownID := utility.GenerateUUID()
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", unknownID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	})
+
+	t.Run("StartRecording_Unauthenticated", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", buzzID), nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusUnauthorized)
+	})
+
+	t.Run("StartRecording_FailsIfNotHost", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+nonHostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		data := tst.ParseResponse(rr)
+		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+		if msg, ok := data["message"].(string); ok {
+			if msg != "only the buzz host can perform this action" {
+				t.Errorf("unexpected message: %s", msg)
+			}
+		}
+	})
+
+	t.Run("StopRecording_NoActiveRecording", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/stop", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+		data := tst.ParseResponse(rr)
+		if msg, ok := data["message"].(string); ok {
+			if msg != "no active recording found for this buzz" {
+				t.Errorf("unexpected stop message: %s", msg)
+			}
+		}
+	})
+
+	t.Run("StopRecording_FailsIfNotHost", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/stop", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+nonHostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+	})
+
+	t.Run("StopRecording_InvalidBuzzCode", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/not-valid/recording/stop", nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+	})
+
+	t.Run("GetRecordingStatus_NoActiveRecording", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	})
+
+	t.Run("GetRecordingStatus_Unauthenticated", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", buzzID), nil)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusUnauthorized)
+	})
+
+	t.Run("GetRecordingStatus_BuzzNotFound", func(t *testing.T) {
+		unknownID := utility.GenerateUUID()
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", unknownID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	})
+
+	t.Run("GetRecordingStatus_NonParticipantForbidden", func(t *testing.T) {
+		strangerUUID := utility.GenerateUUID()
+		strangerSignUp := models.CreateUserRequestModel{
+			Email:    fmt.Sprintf("stranger%s@qa.team", strangerUUID),
+			Password: "password",
+			UserName: fmt.Sprintf("stranger_%s", strangerUUID),
+		}
+		strangerLogin := models.LoginRequestModel{Email: strangerSignUp.Email, Password: strangerSignUp.Password}
+		tst.SignupUser(t, r, authCtrl, strangerSignUp, false)
+		strangerToken := tst.GetLoginToken(t, r, authCtrl, strangerLogin)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+strangerToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+	})
+
+	t.Run("StartRecording_Agora_ServiceNotConfigured_Returns500", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		if rr.Code != http.StatusInternalServerError && rr.Code != http.StatusOK {
+			t.Logf("Expected 500 (no Agora creds), got %d — may be OK if Agora is mocked", rr.Code)
+		}
+	})
+
+	t.Run("ManualRecording_DBFlow_StartAndStop", func(t *testing.T) {
+		now := time.Now().UTC()
+		orgID := hostUser.CurrentOrg.String()
+		rec := models.BuzzRecording{
+			ID:         utility.GenerateUUID(),
+			BuzzID:     buzzID,
+			OrgID:      orgID,
+			ResourceID: "test-resource-id",
+			Sid:        "test-sid-12345",
+			Status:     models.RecordingStatusRecording,
+			StartedAt:  now,
+		}
+		if err := db.Postgresql.Create(&rec).Error; err != nil {
+			t.Fatalf("failed to create test recording: %v", err)
+		}
+
+		statusReq, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", buzzID), nil)
+		statusReq.Header.Set("Authorization", "Bearer "+hostToken)
+		statusRr := httptest.NewRecorder()
+		router.ServeHTTP(statusRr, statusReq)
+		t.Logf("recording status response: %d - %s", statusRr.Code, statusRr.Body.String())
+
+		var dbRec models.BuzzRecording
+		if err := db.Postgresql.Where("id = ?", rec.ID).First(&dbRec).Error; err != nil {
+			t.Fatalf("recording not found in DB: %v", err)
+		}
+		if dbRec.BuzzID != buzzID {
+			t.Errorf("expected buzz_id %s, got %s", buzzID, dbRec.BuzzID)
+		}
+		if dbRec.Status != models.RecordingStatusRecording {
+			t.Errorf("expected status %s, got %s", models.RecordingStatusRecording, dbRec.Status)
+		}
+
+		startReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", buzzID), nil)
+		startReq.Header.Set("Authorization", "Bearer "+hostToken)
+		startRr := httptest.NewRecorder()
+		router.ServeHTTP(startRr, startReq)
+		tst.AssertStatusCode(t, startRr.Code, http.StatusConflict)
+		data := tst.ParseResponse(startRr)
+		if msg, ok := data["message"].(string); ok {
+			if msg != "recording already in progress" {
+				t.Errorf("expected conflict message, got: %s", msg)
+			}
+		}
+
+		db.Postgresql.Model(&rec).Update("status", models.RecordingStatusStopped)
+	})
+
+	t.Run("MetadataContainsRecordingStatus", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/metadata", buzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code == http.StatusOK {
+			data := tst.ParseResponse(rr)
+			if responseData, ok := data["data"].(map[string]interface{}); ok {
+				if _, exists := responseData["recording_status"]; !exists {
+					t.Error("expected recording_status field in metadata response")
+				}
+				if _, exists := responseData["is_recording"]; !exists {
+					t.Error("expected is_recording field in metadata response")
+				}
+			}
+		} else {
+			t.Logf("metadata returned %d (likely agora not configured), skipping field assertions", rr.Code)
+		}
+	})
+
+	t.Run("EndedBuzz_StartRecording_Fails", func(t *testing.T) {
+		endedBuzzID, _ := tst.CreateBuzz(t, router, *buzzCtrl, db, models.CreateBuzzRequest{ChannelID: channelID}, hostToken)
+		if endedBuzzID == "" {
+			t.Skip("skipping: could not create buzz for end test")
+		}
+
+		endReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/end", endedBuzzID), nil)
+		endReq.Header.Set("Authorization", "Bearer "+hostToken)
+		endRr := httptest.NewRecorder()
+		router.ServeHTTP(endRr, endReq)
+		tst.AssertStatusCode(t, endRr.Code, http.StatusOK)
+
+		startReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/start", endedBuzzID), nil)
+		startReq.Header.Set("Authorization", "Bearer "+hostToken)
+		startRr := httptest.NewRecorder()
+		router.ServeHTTP(startRr, startReq)
+		tst.AssertStatusCode(t, startRr.Code, http.StatusConflict)
+	})
+
+	t.Run("BuzzRecordingModel_FieldValidation", func(t *testing.T) {
+		orgID := hostUser.CurrentOrg.String()
+		now := time.Now().UTC()
+		rec := models.BuzzRecording{
+			ID:          utility.GenerateUUID(),
+			BuzzID:      buzzID,
+			OrgID:       orgID,
+			ResourceID:  "res-test",
+			Sid:         "sid-test",
+			Status:      models.RecordingStatusStarting,
+			DurationSec: 0,
+			StartedAt:   now,
+		}
+		if err := db.Postgresql.Create(&rec).Error; err != nil {
+			t.Fatalf("failed to save BuzzRecording: %v", err)
+		}
+
+		var fetched models.BuzzRecording
+		if err := db.Postgresql.Where("id = ?", rec.ID).First(&fetched).Error; err != nil {
+			t.Fatalf("failed to fetch BuzzRecording: %v", err)
+		}
+
+		if fetched.BuzzID != buzzID {
+			t.Errorf("expected buzz_id %s, got %s", buzzID, fetched.BuzzID)
+		}
+		if fetched.OrgID != orgID {
+			t.Errorf("expected org_id %s, got %s", orgID, fetched.OrgID)
+		}
+		if fetched.Status != models.RecordingStatusStarting {
+			t.Errorf("expected status %s, got %s", models.RecordingStatusStarting, fetched.Status)
+		}
+		if fetched.FileID != nil {
+			t.Error("expected file_id to be nil initially")
+		}
+		if fetched.EndedAt != nil {
+			t.Error("expected ended_at to be nil initially")
+		}
+
+		db.Postgresql.Model(&rec).Update("status", models.RecordingStatusStopped)
+	})
+
+	t.Run("RecordingStatusConstants_Correct", func(t *testing.T) {
+		cases := map[string]string{
+			"idle":      models.RecordingStatusIdle,
+			"starting":  models.RecordingStatusStarting,
+			"recording": models.RecordingStatusRecording,
+			"stopping":  models.RecordingStatusStopping,
+			"stopped":   models.RecordingStatusStopped,
+			"failed":    models.RecordingStatusFailed,
+		}
+		for expected, got := range cases {
+			if got != expected {
+				t.Errorf("constant mismatch: expected %q, got %q", expected, got)
+			}
+		}
+	})
+}

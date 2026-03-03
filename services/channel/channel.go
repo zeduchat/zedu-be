@@ -46,7 +46,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 
 	err := channel.CreateChannel(db.Postgresql)
 	if err != nil {
-		return channel, http.StatusBadRequest, err
+		return channel, http.StatusInternalServerError, err
 	}
 
 	newchannel, err := channel.AddUserToChannel(db.Postgresql, joinChannelsReq)
