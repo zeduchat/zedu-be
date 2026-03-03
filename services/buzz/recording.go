@@ -1,6 +1,7 @@
 package buzz
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -17,7 +18,15 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-const recordingUID = "1"
+const recordingUID = "1000"
+
+func generateRecorderToken(buzzID string) (string, error) {
+	svc := agora.Client.Service
+	if svc == nil {
+		return "", errors.New("agora service not initialized")
+	}
+	return svc.GenerateRTCToken(buzzID, recordingUID, recordingUID, agora.DefaultTokenExpirationSeconds)
+}
 
 func getActiveBuzzRecording(db *gorm.DB, buzzID string) (*models.BuzzRecording, error) {
 	var rec models.BuzzRecording
@@ -51,19 +60,8 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		return nil, http.StatusInternalServerError, errors.New("failed to check recording status")
 	}
 	if existing != nil {
-
-		// rec := &models.BuzzRecording{
-		// 	ID:         utility.GenerateUUID(),
-		// 	BuzzID:     buzzID,
-		// 	OrgID:      existing.OrgID,
-		// 	ResourceID: existing.ResourceID,
-		// 	Sid:        existing.Sid,
-		// 	Status:     existing.Status,
-		// 	StartedAt:  existing.StartedAt,
-		// }
 		return nil, http.StatusConflict, errors.New("recording already in progress")
 	}
-
 
 	orgID := getBuzzOrgID(buzz)
 	resourceID, err := agora.AcquireRecording(logger, buzzID, recordingUID)
@@ -72,22 +70,29 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
 	}
 
-	durationSecs := int(DefaultBuzzDurationMinutes * 60)
+	recorderToken, err := generateRecorderToken(buzzID)
+	if err != nil {
+		logger.Error("failed to generate recorder token for buzz %s: %v", buzzID, err)
+		return nil, http.StatusInternalServerError, errors.New("failed to generate recorder token")
+	}
 
-	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, durationSecs)
+	durationSecs := 300
+
+	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, recorderToken, durationSecs)
 	if err != nil {
 		logger.Error("[Agora] failed to start recording for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to start recording")
 	}
 
 	rec := &models.BuzzRecording{
-		ID:         utility.GenerateUUID(),
-		BuzzID:     buzzID,
-		OrgID:      orgID,
-		ResourceID: resourceID,
-		Sid:        sid,
-		Status:     models.RecordingStatusStarting,
-		StartedAt:  time.Now().UTC(),
+		ID:            utility.GenerateUUID(),
+		BuzzID:        buzzID,
+		OrgID:         orgID,
+		ResourceID:    resourceID,
+		Sid:           sid,
+		RecorderToken: recorderToken,
+		Status:        models.RecordingStatusStarting,
+		StartedAt:     time.Now().UTC(),
 	}
 
 	if err := db.Postgresql.Create(rec).Error; err != nil {
@@ -115,25 +120,14 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return nil, http.StatusNotFound, errors.New("no active recording found for this buzz")
 	}
 
-	statusStr, files, err := agora.QueryRecordingStatus(logger, rec.ResourceID, rec.Sid, buzzID)
-	if err != nil {
-		logger.Error("failed to query agora recording status: %v", err)
+	if rec.Status == models.RecordingStatusStopped || rec.Status == models.RecordingStatusFailed {
+		logger.Info("recording for buzz %s already stopped (status: %s), skipping agora stop call", buzzID, rec.Status)
 		return rec, http.StatusOK, nil
 	}
 
-	rec.Status = statusStr
-	if len(files) > 0 && rec.FileURL == "" {
-		rec.FileURL = buildRecordingFileURL(files[0])
-	}
-
-	if err := db.Postgresql.Save(rec).Error; err != nil {
-		logger.Error("failed to update recording status: %v", err)
-	}
-
-	logger.Info("[Agora] Recording file and status updated for %s", buzzID)
-
-	if err := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
-		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, err)
+	m3u8Key, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID, rec.RecorderToken)
+	if stopErr != nil {
+		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, stopErr)
 	}
 
 	now := time.Now().UTC()
@@ -145,8 +139,20 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return nil, http.StatusInternalServerError, errors.New("failed to update recording status")
 	}
 
-	if err := saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz); err != nil {
-		logger.Error("failed to save recording as org file: %v", err)
+	if m3u8Key != "" {
+		go func(key string) {
+			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
+			if mergeErr != nil {
+				logger.Error("failed to merge recording segments for buzz %s: %v", buzzID, mergeErr)
+				return
+			}
+			rec.FileURL = buildRecordingFileURL(mp4Key)
+			if err := db.Postgresql.Save(rec).Error; err != nil {
+				logger.Error("failed to persist mp4 url for buzz %s: %v", buzzID, err)
+				return
+			}
+			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
+		}(m3u8Key)
 	}
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
@@ -197,23 +203,15 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 		logger.Error("failed to update recording status: %v", err)
 	}
 
-	if statusStr == models.RecordingStatusStopped && rec.FileID == nil {
-		now := time.Now().UTC()
-		if rec.EndedAt == nil {
-			rec.EndedAt = &now
-		}
-		if err := saveRecordingAsOrgFile(db.Postgresql, logger, rec, &buzz); err != nil {
-			logger.Error("failed to save recording file on status check: %v", err)
-		}
-	}
-
 	return rec, http.StatusOK, nil
 }
 
-func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz) error {
+func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz, fileSize int64) error {
 	if rec.FileURL == "" || rec.FileID != nil {
 		return nil
 	}
+
+	logger.Info("[Agora-Recording] Saving recording file for buzz %s ...", rec.BuzzID)
 
 	buzzCode := utility.ExtractBuzzCode(buzz.ID)
 	file := &models.File{
@@ -224,22 +222,31 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 		FileLink:       rec.FileURL,
 		OrganisationID: rec.OrgID,
 		UserID:         buzz.HostID,
+		Size:           fileSize,
 	}
 
+	logger.Info("[Agora-Recording] Started saving recording file for buzz %s", rec.BuzzID)
+
 	if err := db.Create(file).Error; err != nil {
-		logger.Error("[Agora] Failed to create file record for buzz %s: %v", buzzCode, err)
+		logger.Error("[Agora-Recording] Failed to create file record for buzz %s: %v", rec.BuzzID, err)
 		return fmt.Errorf("failed to create file record: %w", err)
 	}
 
 	logger.Info("[Agora] Call recording created for buzz %s, file id: %s", buzzCode, file.ID)
 
 	rec.FileID = &file.ID
-	return db.Model(rec).Update("file_id", file.ID).Error
+	if err := db.Model(rec).Update("file_id", file.ID).Error; err != nil {
+		logger.Error("[Agora-Recording] Failed to link file record for buzz %s: %v", rec.BuzzID, err)
+		return err
+	}
+
+	logger.Info("[Agora-Recording] Saving complete for buzz %s — file: %s", rec.BuzzID, file.FileName)
+	return nil
 }
 
 func buildRecordingFileURL(filename string) string {
 	cfg := config.GetConfig()
-	return fmt.Sprintf("%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
+	return fmt.Sprintf("https://%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
 }
 
 func publishRecordingEvent(logger *utility.Logger, buzz *models.Buzz, rec *models.BuzzRecording, eventName string) {
@@ -279,8 +286,14 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
-	if err := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, recordingUID); err != nil {
-		logger.Error("failed to stop agora recording on buzz end for buzz %s: %v", buzzID, err)
+	if rec.Status == models.RecordingStatusStopped || rec.Status == models.RecordingStatusFailed {
+		logger.Info("recording for buzz %s already stopped (status: %s), skipping agora stop call", buzzID, rec.Status)
+		return
+	}
+
+	m3u8Key, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID, rec.RecorderToken)
+	if stopErr != nil {
+		logger.Error("failed to stop agora recording on buzz end for buzz %s: %v", buzzID, stopErr)
 	}
 
 	logger.Info("[Agora] Stopped recording for buzz %s", buzzID)
@@ -295,10 +308,20 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
-	logger.Info("[Agora] Updated recording status for buzz %s", buzzID)
-
-	if err := saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz); err != nil {
-		logger.Error("failed to save recording as org file on buzz end: %v", err)
+	if m3u8Key != "" {
+		go func(key string) {
+			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
+			if mergeErr != nil {
+				logger.Error("failed to merge recording segments on buzz end for buzz %s: %v", buzzID, mergeErr)
+				return
+			}
+			rec.FileURL = buildRecordingFileURL(mp4Key)
+			if err := db.Postgresql.Save(rec).Error; err != nil {
+				logger.Error("failed to persist mp4 url on buzz end for buzz %s: %v", buzzID, err)
+				return
+			}
+			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
+		}(m3u8Key)
 	}
 
 	logger.Info("[Agora] Saved recording as org file for buzz %s", buzzID)
