@@ -218,6 +218,19 @@ func GetOrganisation(orgId string, userId string, db *gorm.DB) (*models.Organisa
 		}
 	}
 
+	if org.OrganisationPlan.PlanDetails.ID == "" {
+		var freePlan models.Plan
+		if err := db.Where("name = ?", "Free").First(&freePlan).Error; err == nil {
+			org.OrganisationPlan = models.OrganisationPlan{
+				OrganisationID: org.ID,
+				PlanID:         freePlan.ID,
+				Status:         "Active",
+				StartedAt:      org.CreatedAt,
+				PlanDetails:    freePlan,
+			}
+		}
+	}
+
 	var orgUserMgt models.OrgUserManagement
 	userRoleInfo, err := orgUserMgt.GetUserRoleInOrganisation(db, userId, orgId)
 	userRoleInfo.RoleName = strings.ToLower(userRoleInfo.RoleName)
