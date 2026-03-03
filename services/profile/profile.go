@@ -2,6 +2,7 @@ package profile
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,11 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -262,189 +266,6 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 	}
 }
 
-func UpdateProfileStatus(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (int, error) {
-	var userProfile models.Profile
-
-	if err := userProfile.UpdateProfileStatus(db, req, logger); err != nil {
-		return http.StatusBadRequest, err
-	}
-
-	return http.StatusCreated, nil
-}
-
-// PartialUpdateProfileStatus applies a partial status patch atomically and returns the updated status.
-func PartialUpdateProfileStatus(req models.PartialStatusUpdate, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
-	var profile models.Profile
-
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.UserStatus{}, http.StatusNotFound, fmt.Errorf("profile not found for user")
-		}
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
-	}
-
-	updates := map[string]any{}
-	if req.Text != nil {
-		updates["text"] = *req.Text
-	}
-	if req.Emoji != nil {
-		updates["icon"] = *req.Emoji
-	}
-	if req.Expiry != nil {
-		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
-	}
-	if req.Visibility != nil {
-		updates["status_visibility"] = *req.Visibility
-	}
-
-	if len(updates) == 0 {
-		return models.UserStatus{}, http.StatusBadRequest, errors.New("no fields to update")
-	}
-
-	if err := db.Model(&models.Profile{}).
-		Where("userid = ?", req.UserID).
-		Updates(updates).Error; err != nil {
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
-	}
-
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
-	}
-
-	expiry := int64(0)
-	if profile.StatusTimeout != "" {
-		if parsed, err := strconv.ParseInt(profile.StatusTimeout, 10, 64); err == nil {
-			expiry = parsed
-		}
-	}
-
-	visibility := "public"
-	if profile.StatusVisibility != "" {
-		visibility = profile.StatusVisibility
-	}
-
-	status := models.UserStatus{
-		Text:       profile.Text,
-		Emoji:      profile.Icon,
-		Expiry:     expiry,
-		Visibility: visibility,
-		Online:     profile.Online,
-	}
-
-	if logger != nil {
-		logger.Info("status updated", "user_id", req.UserID)
-		notification := models.Notification[models.StatusUpdate]
-		notification.SectionType = models.ChannelsSection
-		notification.NotificationId = utility.GenerateUUID()
-		notification.ModificationDetails = &models.ModificationDetails{
-			UserId: req.UserID,
-		}
-		notification.Content = struct {
-			UserID string            `json:"user_id"`
-			Status models.UserStatus `json:"status"`
-		}{
-			UserID: req.UserID,
-			Status: status,
-		}
-
-		channelID := fmt.Sprintf("user:%s", req.UserID)
-		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
-			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
-		}
-	}
-
-	return status, http.StatusOK, nil
-}
-
-// SetUserStatus sets a new status for a user and returns the saved status.
-// Text is required; emoji, expiry, and visibility are optional.
-func SetUserStatus(req models.SetStatusRequest, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
-	var profile models.Profile
-
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.UserStatus{}, http.StatusNotFound, fmt.Errorf("profile not found for user")
-		}
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
-	}
-
-	updates := map[string]any{
-		"text": req.Text,
-	}
-
-	if req.Emoji != nil {
-		updates["icon"] = *req.Emoji
-	} else {
-		updates["icon"] = ""
-	}
-
-	if req.Expiry != nil {
-		updates["status_timeout"] = strconv.FormatInt(*req.Expiry, 10)
-	} else {
-		updates["status_timeout"] = ""
-	}
-
-	if req.Visibility != nil {
-		updates["status_visibility"] = *req.Visibility
-	} else {
-		updates["status_visibility"] = "public"
-	}
-
-	if err := db.Model(&models.Profile{}).
-		Where("userid = ?", req.UserID).
-		Updates(updates).Error; err != nil {
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to update status: %w", err)
-	}
-
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
-	}
-
-	expiry := int64(0)
-	if profile.StatusTimeout != "" {
-		if parsed, err := strconv.ParseInt(profile.StatusTimeout, 10, 64); err == nil {
-			expiry = parsed
-		}
-	}
-
-	visibility := "public"
-	if profile.StatusVisibility != "" {
-		visibility = profile.StatusVisibility
-	}
-
-	status := models.UserStatus{
-		Text:       profile.Text,
-		Emoji:      profile.Icon,
-		Expiry:     expiry,
-		Visibility: visibility,
-		Online:     profile.Online,
-	}
-
-	if logger != nil {
-		logger.Info("status set", "user_id", req.UserID)
-		notification := models.Notification[models.StatusUpdate]
-		notification.SectionType = models.ChannelsSection
-		notification.NotificationId = utility.GenerateUUID()
-		notification.ModificationDetails = &models.ModificationDetails{
-			UserId: req.UserID,
-		}
-		notification.Content = struct {
-			UserID string            `json:"user_id"`
-			Status models.UserStatus `json:"status"`
-		}{
-			UserID: req.UserID,
-			Status: status,
-		}
-
-		channelID := fmt.Sprintf("user:%s", req.UserID)
-		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
-			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
-		}
-	}
-
-	return status, http.StatusCreated, nil
-}
-
 // GetUserStatus retrieves the current status for a user.
 // Returns a UserStatus object with default values if no status is set or profile not found.
 func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
@@ -541,4 +362,100 @@ func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
 	}
 
 	return profile.Online, http.StatusOK, nil
+}
+
+// UpdateProfileStatusWithJobScheduling updates a user's profile status and handles River job scheduling.
+func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
+	var profileModel models.Profile
+
+	status, code, err := profileModel.UpdateProfileStatus(db, req, logger)
+	if err != nil {
+		return status, code, err
+	}
+
+	// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
+	if req.StatusExpiry == "" && !req.ClearStatus {
+		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
+			logger.Error("failed to reload profile to check river_job_id", "error", err)
+			return status, code, nil
+		}
+
+		if profileModel.RiverJobID != nil && storage.DB.River != nil {
+			ctx := context.Background()
+			_, cancelErr := storage.DB.River.JobCancel(ctx, *profileModel.RiverJobID)
+			if cancelErr != nil {
+				logger.Error("failed to cancel existing clear status job %d: %v", *profileModel.RiverJobID, cancelErr)
+			}
+		}
+
+		if err := db.Model(&models.Profile{}).
+			Where("userid = ?", req.UserId).
+			Update("river_job_id", nil).Error; err != nil {
+			logger.Error("failed to clear river_job_id: %v", err)
+		}
+	}
+
+	if req.StatusExpiry != "" && !req.ClearStatus {
+		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
+			logger.Error("failed to reload profile for job scheduling", "error", err)
+			return status, code, nil
+		}
+
+		var expiryTimestamp int64
+		expiryTimestamp, err = profileModel.ParseStatusExpiry(req.StatusExpiry)
+		if err != nil {
+			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+		}
+
+		if expiryTimestamp > 0 {
+			if profileModel.RiverJobID != nil && storage.DB.River != nil {
+				ctx := context.Background()
+				_, cancelErr := storage.DB.River.JobCancel(ctx, *profileModel.RiverJobID)
+				if cancelErr != nil {
+					logger.Error("failed to cancel existing clear status job %d: %v", *profileModel.RiverJobID, cancelErr)
+				}
+			}
+
+			jobArgs := &models.ClearUserStatusJobArgs{
+				UserID: req.UserId,
+				OrgID:  "",
+			}
+			scheduledAt := time.Unix(expiryTimestamp, 0)
+			insertRes, jobErr := InsertClearStatusJob(context.Background(), storage.DB, jobArgs, scheduledAt)
+			if jobErr != nil {
+				logger.Error("failed to insert clear status job: %v", jobErr)
+			} else if insertRes != nil {
+				if err := db.Model(&models.Profile{}).
+					Where("userid = ?", req.UserId).
+					Update("river_job_id", insertRes.Job.ID).Error; err != nil {
+					logger.Error("failed to update river_job_id: %v", err)
+				}
+			}
+		} else {
+			if err := db.Model(&models.Profile{}).
+				Where("userid = ?", req.UserId).
+				Update("river_job_id", nil).Error; err != nil {
+				logger.Error("failed to clear river_job_id: %v", err)
+			}
+		}
+	}
+
+	return status, code, nil
+}
+
+// InsertClearStatusJob schedules a job to clear user status after it expires.
+func InsertClearStatusJob(ctx context.Context, db *storage.Database, args *models.ClearUserStatusJobArgs, scheduledAt time.Time) (*rivertype.JobInsertResult, error) {
+	client := storage.DB.River
+	if client == nil {
+		return nil, nil
+	}
+	insertRes, err := client.Insert(ctx, args, &river.InsertOpts{
+		MaxAttempts: 3,
+		ScheduledAt: scheduledAt,
+		Priority:    3,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert clear status job: %w", err)
+	}
+	return insertRes, nil
 }

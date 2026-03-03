@@ -3,6 +3,7 @@ package send
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strings"
 
@@ -113,34 +114,29 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 
 	sender := mailConfig.Username
 	subject := e.Subject
-	From := fmt.Sprintf("%s <%s>", "Telex.im", "notifications@telex.im")
+	From := fmt.Sprintf("%s <%s>", "Zedu.chat", "notifications@zedu.chat")
 	recipients := e.To
 	mime := "\nMIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", From, recipients[0], subject, mime, e.Body))
 
-	conn, err := tls.Dial(
-		"tcp",
-		mailConfig.Server+":"+mailConfig.Port,
-		&tls.Config{
-			InsecureSkipVerify: false,
-			ServerName:         mailConfig.Server,
-		})
-
+	conn, err := net.Dial("tcp", mailConfig.Server+":"+mailConfig.Port)
 	if err != nil {
-
 		return fmt.Errorf("failed to connect to the server: %v", err)
-
 	}
 
-	defer conn.Close()
-
 	client, err := smtp.NewClient(conn, mailConfig.Server)
-
 	if err != nil {
 		return fmt.Errorf("failed to create SMTP client: %v", err)
 	}
 
 	defer client.Quit()
+
+	if err = client.StartTLS(&tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         mailConfig.Server,
+	}); err != nil {
+		return fmt.Errorf("failed to start TLS: %v", err)
+	}
 
 	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("failed to authenticate: %v", err)
