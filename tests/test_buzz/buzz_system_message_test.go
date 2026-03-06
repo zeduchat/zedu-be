@@ -333,7 +333,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		msg := threads[0]
 
-		startPattern := regexp.MustCompile(`^@([\w-]+)\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)$`)
+		startPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)</p><p></p>$`)
 		if !startPattern.MatchString(msg.Content) {
 			t.Errorf("Start message does not match expected format. Got: %s", msg.Content)
 		}
@@ -362,7 +362,7 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		endMsg := afterEndThreads[0]
-		endPattern := regexp.MustCompile(`^@([\w-]+)\s+ended\s+the\s+buzz\s+\((\d+)\s+participants\)$`)
+		endPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+ended\s+the\s+buzz\s+\((\d+)\s+participants\)</p><p></p>$`)
 		if !endPattern.MatchString(endMsg.Content) {
 			t.Errorf("End message does not match expected format. Got: %s", endMsg.Content)
 		}
@@ -698,20 +698,22 @@ func filterMessagesByType(threads []models.ThreadDocument, msgType string) []mod
 }
 
 func validateBuzzStartMessageContent(t *testing.T, content, username string, participantCount int) bool {
-	expected := fmt.Sprintf("@%s started a buzz (%d participants)", username, participantCount)
-	var check = content == expected
+	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> started a buzz \(%d participants\)</p><p></p>$`, username, username, participantCount)
+	re := regexp.MustCompile(pattern)
+	var check = re.MatchString(content)
 	if !check {
-		t.Logf("Expected: %s", expected)
+		t.Logf("Expected pattern: %s", pattern)
 		t.Logf("Got: %s", content)
 	}
 	return check
 }
 
 func validateBuzzEndMessageContent(t *testing.T, content, username string, participantCount int) bool {
-	expected := fmt.Sprintf("@%s ended the buzz (%d participants)", username, participantCount)
-	var check = content == expected
+	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> ended the buzz \(%d participants\)</p><p></p>$`, username, username, participantCount)
+	re := regexp.MustCompile(pattern)
+	var check = re.MatchString(content)
 	if !check {
-		t.Logf("Expected: %s", expected)
+		t.Logf("Expected pattern: %s", pattern)
 		t.Logf("Got: %s", content)
 	}
 	return check

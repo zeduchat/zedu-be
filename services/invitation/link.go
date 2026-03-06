@@ -351,12 +351,15 @@ func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, l
 		return err
 	}
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("%s joined this channel", profile.UserName),
+		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined this channel</p><p></p>", orgmgt.UserID, profile.UserName, profile.UserName),
 		Type:       "system",
 		UserId:     orgmgt.UserID,
 		ChannelsID: chans.ID,
 		OrgId:      chans.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions: []models.Mention{
+			{ID: orgmgt.UserID, Type: "user"},
+		},
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
