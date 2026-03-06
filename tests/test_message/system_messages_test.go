@@ -158,7 +158,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 			return
 		}
 
-		expectedContent := fmt.Sprintf("started a conversation with @%s", user2SignUpData.UserName)
+		expectedContent := fmt.Sprintf("<p>started a conversation with <span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> </p><p></p>", user2.ID, user2SignUpData.UserName, user2SignUpData.UserName)
 		if content != expectedContent {
 			t.Errorf("System message content mismatch. Expected: '%s', Got: '%s'", expectedContent, content)
 		} else {
@@ -220,15 +220,15 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 		}
 
 		usernames := []string{
-			fmt.Sprintf("@%s", user1SignUpData.UserName),
-			fmt.Sprintf("@%s", user2SignUpData.UserName),
-			fmt.Sprintf("@%s", user3SignUpData.UserName),
-			fmt.Sprintf("@%s", user4SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user1.ID, user1SignUpData.UserName, user1SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user2.ID, user2SignUpData.UserName, user2SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user3.ID, user3SignUpData.UserName, user3SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user4.ID, user4SignUpData.UserName, user4SignUpData.UserName),
 		}
 
-		for _, username := range usernames {
-			if !strings.Contains(content, username) {
-				t.Errorf("System message doesn't contain username '%s'", username)
+		for _, usernameSpan := range usernames {
+			if !strings.Contains(content, usernameSpan) {
+				t.Errorf("System message doesn't contain username span '%s'", usernameSpan)
 			}
 		}
 
@@ -307,7 +307,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 			return
 		}
 
-		expectedContent := fmt.Sprintf("@%s joined the group", user2SignUpData.UserName)
+		expectedContent := fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined the group</p><p></p>", user2.ID, user2SignUpData.UserName, user2SignUpData.UserName)
 		if content != expectedContent {
 			t.Errorf("System message content mismatch. Expected: '%s', Got: '%s'", expectedContent, content)
 		} else {
@@ -376,7 +376,7 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 			return
 		}
 
-		expectedContent := fmt.Sprintf("@%s left the group", user1SignUpData.UserName)
+		expectedContent := fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> left the group</p><p></p>", user1.ID, user1SignUpData.UserName, user1SignUpData.UserName)
 		if content != expectedContent {
 			t.Errorf("System message content mismatch. Expected: '%s', Got: '%s'", expectedContent, content)
 		} else {
@@ -449,13 +449,13 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 		}
 
 		expectedUsernames := []string{
-			fmt.Sprintf("@%s", user2SignUpData.UserName),
-			fmt.Sprintf("@%s", user3SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user2.ID, user2SignUpData.UserName, user2SignUpData.UserName),
+			fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", user3.ID, user3SignUpData.UserName, user3SignUpData.UserName),
 		}
 
-		for _, username := range expectedUsernames {
-			if !strings.Contains(content, username) {
-				t.Errorf("System message doesn't contain username '%s'", username)
+		for _, usernameSpan := range expectedUsernames {
+			if !strings.Contains(content, usernameSpan) {
+				t.Errorf("System message doesn't contain username span '%s'", usernameSpan)
 			}
 		}
 

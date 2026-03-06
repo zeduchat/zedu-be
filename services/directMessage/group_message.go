@@ -64,7 +64,7 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, base *storage.Datab
 			} else {
 				lastUser := usernames[len(usernames)-1]
 				otherUsers := strings.Join(usernames[:len(usernames)-1], ", ")
-				content = fmt.Sprintf("<p>%s, and %s joined the group</p><p></p>", otherUsers, lastUser)
+				content = fmt.Sprintf("<p>%s and %s joined the group</p><p></p>", otherUsers, lastUser)
 			}
 
 			systemMsg := models.CreateThreadMsgReq{
@@ -211,7 +211,7 @@ func AddParticipantsToGroupDM(req models.AddParticipantsRequest, base *storage.D
 			} else {
 				lastUser := usernames[len(usernames)-1]
 				otherUsers := strings.Join(usernames[:len(usernames)-1], ", ")
-				content = fmt.Sprintf("<p>%s, and %s joined the group</p><p></p>", otherUsers, lastUser)
+				content = fmt.Sprintf("<p>%s and %s joined the group</p><p></p>", otherUsers, lastUser)
 			}
 
 			systemMsg := models.CreateThreadMsgReq{

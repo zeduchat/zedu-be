@@ -403,7 +403,7 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 	} else {
 		lastUser := displayNames[len(displayNames)-1]
 		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
-		content = fmt.Sprintf("<p>%s, and %s joined #%s</p><p></p>", otherUsers, lastUser, ch.Name)
+		content = fmt.Sprintf("<p>%s and %s joined #%s</p><p></p>", otherUsers, lastUser, ch.Name)
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
@@ -469,7 +469,7 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 	} else {
 		lastUser := displayNames[len(displayNames)-1]
 		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
-		content = fmt.Sprintf("<p>%s, and %s left #%s</p><p></p>", otherUsers, lastUser, ch.Name)
+		content = fmt.Sprintf("<p>%s and %s left #%s</p><p></p>", otherUsers, lastUser, ch.Name)
 	}
 
 	systemMsg := models.CreateThreadMsgReq{

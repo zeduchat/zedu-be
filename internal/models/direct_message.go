@@ -342,8 +342,8 @@ func (dm *DmChannels) UpsertGroupDescription(db *gorm.DB, req GroupDescriptionRe
 func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChannelsResponse, error) {
 	var (
 		user           User
-		previewThread  []Threads
-		participants   []Participant
+		previewThread  = []Threads{}
+		participants   = []Participant{}
 		previewMessage string
 	)
 
