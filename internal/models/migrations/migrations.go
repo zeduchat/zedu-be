@@ -94,6 +94,7 @@ func AuthMigrationModels() []any {
 		models.BuzzParticipant{},
 		models.BuzzNote{},
 		models.Shares{},
+		models.AccountDeletionRequest{},
 	} // an array of db models, example: User{}
 }
 
