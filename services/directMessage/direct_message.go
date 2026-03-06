@@ -68,7 +68,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 					appName := utility.GetString(agentDetails, "app_name")
 					if appName != "" {
 						systemMsg := models.CreateThreadMsgReq{
-							Content:    fmt.Sprintf("started a conversation with @%s", appName),
+							Content:    fmt.Sprintf("<p>started a conversation with <span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> </p><p></p>", req.ParticipantId, appName, appName),
 							Type:       "system",
 							UserId:     "",
 							AgentId:    req.ParticipantId,
@@ -76,6 +76,9 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 							ChannelsID: resp.ID,
 							OrgId:      req.OrgId,
 							ThreadId:   utility.GenerateUUID(),
+							Mentions: []models.Mention{
+								{ID: req.ParticipantId, Type: "bot"},
+							},
 						}
 
 						_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
@@ -96,12 +99,15 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 				}
 
 				systemMsg := models.CreateThreadMsgReq{
-					Content:    fmt.Sprintf("started a conversation with @%s", userDetails.Profile.UserName),
+					Content:    fmt.Sprintf("<p>started a conversation with <span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> </p><p></p>", userDetails.ID, userDetails.Profile.UserName, userDetails.Profile.UserName),
 					Type:       "system",
 					UserId:     req.UserId,
 					ChannelsID: resp.ID,
 					OrgId:      req.OrgId,
 					ThreadId:   utility.GenerateUUID(),
+					Mentions: []models.Mention{
+						{ID: userDetails.ID, Type: "user"},
+					},
 				}
 
 				_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})

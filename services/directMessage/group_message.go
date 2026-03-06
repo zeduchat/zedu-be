@@ -44,20 +44,27 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, base *storage.Datab
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 				}
-				usernames = append(usernames, "@"+userDetails.Profile.UserName)
+				usernames = append(usernames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userDetails.ID, userDetails.Profile.UserName, userDetails.Profile.UserName))
 			}
 		}
 
 		if len(usernames) > 0 {
-			var content string
+			var (
+				content  string
+				mentions []models.Mention
+			)
+			for _, pID := range participants {
+				mentions = append(mentions, models.Mention{ID: pID, Type: "user"})
+			}
+
 			if len(usernames) == 1 {
-				content = fmt.Sprintf("%s joined the group", usernames[0])
+				content = fmt.Sprintf("<p>%s joined the group</p><p></p>", usernames[0])
 			} else if len(usernames) == 2 {
-				content = fmt.Sprintf("%s and %s joined the group", usernames[0], usernames[1])
+				content = fmt.Sprintf("<p>%s and %s joined the group</p><p></p>", usernames[0], usernames[1])
 			} else {
 				lastUser := usernames[len(usernames)-1]
 				otherUsers := strings.Join(usernames[:len(usernames)-1], ", ")
-				content = fmt.Sprintf("%s, and %s joined the group", otherUsers, lastUser)
+				content = fmt.Sprintf("<p>%s, and %s joined the group</p><p></p>", otherUsers, lastUser)
 			}
 
 			systemMsg := models.CreateThreadMsgReq{
@@ -67,6 +74,7 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, base *storage.Datab
 				ChannelsID: resp.ChannelId,
 				OrgId:      req.OrgId,
 				ThreadId:   utility.GenerateUUID(),
+				Mentions:   mentions,
 			}
 
 			_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
@@ -100,12 +108,15 @@ func LeaveGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, l
 		}
 
 		systemMsg := models.CreateThreadMsgReq{
-			Content:    fmt.Sprintf("@%s left the group", userDetails.Profile.UserName),
+			Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> left the group</p><p></p>", userDetails.ID, userDetails.Profile.UserName, userDetails.Profile.UserName),
 			Type:       "system",
 			UserId:     req.UserId,
 			ChannelsID: req.ChannelId,
 			OrgId:      req.OrgId,
 			ThreadId:   utility.GenerateUUID(),
+			Mentions: []models.Mention{
+				{ID: req.UserId, Type: "user"},
+			},
 		}
 
 		_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
@@ -139,12 +150,15 @@ func JoinGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, lo
 		}
 
 		systemMsg := models.CreateThreadMsgReq{
-			Content:    fmt.Sprintf("@%s joined the group", userDetails.Profile.UserName),
+			Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined the group</p><p></p>", userDetails.ID, userDetails.Profile.UserName, userDetails.Profile.UserName),
 			Type:       "system",
 			UserId:     req.UserId,
 			ChannelsID: req.ChannelId,
 			OrgId:      req.OrgId,
 			ThreadId:   utility.GenerateUUID(),
+			Mentions: []models.Mention{
+				{ID: req.UserId, Type: "user"},
+			},
 		}
 
 		_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})
@@ -177,20 +191,27 @@ func AddParticipantsToGroupDM(req models.AddParticipantsRequest, base *storage.D
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
 				}
-				usernames = append(usernames, "@"+userDetails.Profile.UserName)
+				usernames = append(usernames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userDetails.ID, userDetails.Profile.UserName, userDetails.Profile.UserName))
 			}
 		}
 
 		if len(usernames) > 0 {
-			var content string
+			var (
+				content  string
+				mentions []models.Mention
+			)
+			for _, uID := range req.UserIds {
+				mentions = append(mentions, models.Mention{ID: uID, Type: "user"})
+			}
+
 			if len(usernames) == 1 {
-				content = fmt.Sprintf("%s joined the group", usernames[0])
+				content = fmt.Sprintf("<p>%s joined the group</p><p></p>", usernames[0])
 			} else if len(usernames) == 2 {
-				content = fmt.Sprintf("%s and %s joined the group", usernames[0], usernames[1])
+				content = fmt.Sprintf("<p>%s and %s joined the group</p><p></p>", usernames[0], usernames[1])
 			} else {
 				lastUser := usernames[len(usernames)-1]
 				otherUsers := strings.Join(usernames[:len(usernames)-1], ", ")
-				content = fmt.Sprintf("%s, and %s joined the group", otherUsers, lastUser)
+				content = fmt.Sprintf("<p>%s, and %s joined the group</p><p></p>", otherUsers, lastUser)
 			}
 
 			systemMsg := models.CreateThreadMsgReq{
@@ -200,6 +221,7 @@ func AddParticipantsToGroupDM(req models.AddParticipantsRequest, base *storage.D
 				ChannelsID: req.ChannelId,
 				OrgId:      req.OrgId,
 				ThreadId:   utility.GenerateUUID(),
+				Mentions:   mentions,
 			}
 
 			_, _, saveErr := CreateThreadDmMessage(systemMsg, base, logger, request.ExternalRequest{Logger: logger})

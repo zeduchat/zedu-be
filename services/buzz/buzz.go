@@ -1389,9 +1389,9 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 	var content string
 
 	if eventType == "started" {
-		content = fmt.Sprintf("@%s started a buzz (%d participants)", displayName, participantCount)
+		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> started a buzz (%d participants)</p><p></p>", hostID, displayName, displayName, participantCount)
 	} else {
-		content = fmt.Sprintf("@%s ended the buzz (%d participants)", displayName, participantCount)
+		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> ended the buzz (%d participants)</p><p></p>", hostID, displayName, displayName, participantCount)
 	}
 
 	var orgID string
