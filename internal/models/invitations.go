@@ -132,7 +132,7 @@ func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, erro
 }
 
 func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
-	result := db.Delete(i, "id = ?", id)
+	result := db.Where("id = ?", id).Delete(&Invitation{})
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
 	}
@@ -203,7 +203,7 @@ func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string, logger 
 
 func (i *Invitation) UpdateInvitation(db *gorm.DB) error {
 
-	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", i.Email, i.OrganisationID)
+	result, err := postgresql.UpdateFields(db, i, i, "email = ? AND organisation_id = ?", i.Email, i.OrganisationID)
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (i *Invitation) UpdateInvitation(db *gorm.DB) error {
 
 func (i *Invitation) UpdateResendInvitation(db *gorm.DB, email string) error {
 
-	result, err := postgresql.UpdateFields(db, i, &i, "email = ? AND organisation_id = ?", email, i.OrganisationID)
+	result, err := postgresql.UpdateFields(db, i, i, "email = ? AND organisation_id = ?", email, i.OrganisationID)
 
 	if err != nil {
 

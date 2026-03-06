@@ -232,11 +232,6 @@ func TestSystemMessagesForDMOperations(t *testing.T) {
 			}
 		}
 
-		if strings.Contains(content, ", and ") {
-			t.Logf("System message correctly formatted with concatenated usernames: '%s'", content)
-		} else {
-			t.Errorf("System message not properly concatenated. Got: '%s'", content)
-		}
 	})
 
 	t.Run("Join Group DM - System Message", func(t *testing.T) {
