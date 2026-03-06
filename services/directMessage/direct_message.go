@@ -18,7 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalRequest, base *storage.Database, logger *utility.Logger) (*models.DmChannelsResponse, int, error) {
+func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalRequest, base *storage.Database, logger *utility.Logger, c *gin.Context) (*models.DmChannelsResponse, int, error) {
 
 	var (
 		dmchans models.DmChannels
@@ -33,6 +33,12 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 	} else {
 		dmchans.ChannelId = dmfetch.ChannelId
 		dmchans.ID = dmfetch.ID
+		dmchans.UserId = req.UserId
+		resp, err := dmchans.GetDmChannelResponse(base.Postgresql, c)
+		if err != nil {
+			return nil, http.StatusInternalServerError, err
+		}
+		return &resp, http.StatusOK, nil
 	}
 	dmchans.ChatType = req.ChatType
 	dmchans.ChannelType = "dm"
