@@ -36,6 +36,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 		dmchans.UserId = req.UserId
 		resp, err := dmchans.GetDmChannelResponse(base.Postgresql, c)
 		if err != nil {
+			logger.Error("failed to get DM channel response for user %s and participant %s, err: %v", req.UserId, req.ParticipantId, err)
 			return nil, http.StatusInternalServerError, err
 		}
 		return &resp, http.StatusOK, nil
