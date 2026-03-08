@@ -21884,7 +21884,7 @@ paths:
                               default_avatar_url:
                                 type: string
 
-  /search/organisation/{orgId}/:
+  /search/organisation/{orgId}:
     get:
       tags:
         - Search
@@ -22092,7 +22092,7 @@ paths:
                     type: string
                     example: "invalid organisation id"
 
-  /search/channel/{channelId}/:
+  /search/channel/{channelId}:
     get:
       tags:
         - Search
