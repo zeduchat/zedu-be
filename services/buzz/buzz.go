@@ -155,7 +155,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 				ChatType:      "user",
 			}
 
-			dmResp, code, err := dm.CreateDmChannel(dmReq, request.ExternalRequest{Logger: logger, Test: false}, db, logger)
+			dmResp, code, err := dm.CreateDmChannel(dmReq, request.ExternalRequest{Logger: logger, Test: false}, db, logger, nil)
 			if err != nil {
 				logger.Error("failed to create DM channel: %v", err)
 				return resp, code, errors.New("failed to create DM channel for buzz")
@@ -603,9 +603,13 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		newHostID = newParticipants[0]
 	}
 
-	buzz.ParticipantIDs = newParticipants
+	updates := map[string]interface{}{
+		"participants": newParticipants,
+		"host_id":      buzz.HostID,
+		"updated_at":   time.Now().UTC(),
+	}
 
-	if err = tx.Model(&buzz).Updates(buzz).Error; err != nil {
+	if err = tx.Model(&buzz).Updates(updates).Error; err != nil {
 		tx.Rollback()
 		logger.Error("Failed to update buzz: %v", err)
 		return nil, http.StatusInternalServerError, errors.New("failed to update buzz")
@@ -1389,9 +1393,9 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 	var content string
 
 	if eventType == "started" {
-		content = fmt.Sprintf("@%s started a buzz (%d participants)", displayName, participantCount)
+		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> started a buzz (%d participants)</p><p></p>", hostID, displayName, displayName, participantCount)
 	} else {
-		content = fmt.Sprintf("@%s ended the buzz (%d participants)", displayName, participantCount)
+		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> ended the buzz (%d participants)</p><p></p>", hostID, displayName, displayName, participantCount)
 	}
 
 	var orgID string

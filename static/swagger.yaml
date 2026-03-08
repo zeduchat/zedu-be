@@ -116,6 +116,8 @@ tags:
     description: API endpoints for buying and tracking shares
   - name: Slash Commands
     description: API endpoints for default slash commands
+  - name: account
+    description: API for account management operations
 paths:
   # Auth paths
   /auth/register:
@@ -28800,6 +28802,144 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /account/delete-account:
+    post:
+      tags:
+        - account
+      summary: Submit account deletion request
+      description: |-
+        Creates an account deletion request. This endpoint does not delete any data from the database.
+        Instead, it stores the deletion request information for review and processing.
+        The organization ID is automatically extracted from the authenticated user's JWT token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fullname
+                - email
+                - reason
+              properties:
+                fullname:
+                  type: string
+                  description: Full name of the user requesting account deletion
+                  example: "John Doe"
+                  minLength: 1
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                  description: Email address of the user requesting account deletion
+                  example: "john.doe@example.com"
+                reason:
+                  type: string
+                  description: Reason for requesting account deletion
+                  example: "Privacy concerns"
+                additional_info:
+                  type: string
+                  description: Additional information regarding the deletion request
+                  example: "I would like my data removed from your system"
+      responses:
+        "201":
+          description: Account deletion request submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            description: Unique identifier for the deletion request
+                            example: "550e8400-e29b-41d4-a716-446655440000"
+                          fullname:
+                            type: string
+                            example: "John Doe"
+                          email:
+                            type: string
+                            format: email
+                            example: "john.doe@example.com"
+                          reason:
+                            type: string
+                            example: "Privacy concerns"
+                          additional_info:
+                            type: string
+                            nullable: true
+                            example: "Additional details"
+                          org_id:
+                            type: string
+                            format: uuid
+                            description: Organization ID (extracted from authenticated user context)
+                            example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: "2025-03-06T12:29:00Z"
+              example:
+                status: "success"
+                status_code: 201
+                message: "Account deletion request submitted successfully"
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  fullname: "John Doe"
+                  email: "john.doe@example.com"
+                  reason: "Privacy concerns"
+                  additional_info: "Additional details"
+                  org_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                  created_at: "2025-03-06T12:29:00Z"
+        "400":
+          description: Bad Request - Invalid input or malformed JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+              example:
+                status: "error"
+                status_code: 400
+                message: "Failed to parse request body"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+              example:
+                status: "Unauthorized"
+                status_code: 401
+                message: "Failed to retrieve organization"
+        "422":
+          description: Unprocessable Entity - Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+              example:
+                status: "error"
+                status_code: 422
+                message: "Validation failed"
+                errors:
+                  - field: "email"
+                    message: "Email is required"
+        "500":
+          description: Internal Server Error - Failed to create deletion request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: "error"
+                status_code: 500
+                message: "Failed to create deletion request"
+
 components:
   schemas:
     BuzzRecording:
@@ -28907,16 +29047,21 @@ components:
           maxLength: 64
           example: ":spiral_calendar_pad:"
         expiry:
-          type: integer
-          format: int64
-          description: Unix timestamp in seconds after which the status expires
-          example: 1715107200
+          type: string
+          description: Human-readable expiry time in user's timezone. Case-insensitive.
+          enum:
+          - "30 minutes"
+          - "1 hour"
+          - "Today"
+          - "This week"
+          - "Don't remove"
+          example: "Today"
         visibility:
           type: string
           enum:
-            - public
-            - contacts
-            - private
+          - public
+          - contacts
+          - private
           description: Status visibility level
           example: "public"
 
@@ -30316,43 +30461,97 @@ components:
           type: string
           example: "users retrieved successfully"
         data:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                format: uuid
-              email:
-                type: string
-                example: "user@example.com"
-              name:
-                type: string
-                example: "Full Name"
-              avatar_url:
-                type: string
-                example: "https://example.com/avatar.png"
-              default_avatar_url:
-                type: string
-                example: "https://example.com/avatar.png"
-              created_at:
-                type: string
-                format: date-time
-              last_log_in_at:
-                type: string
-                format: date-time
-                nullable: true
-              last_activity_at:
-                type: string
-                format: date-time
-                nullable: true
-              activity_length:
-                type: string
-                example: "2 days"
-                nullable: true
-              referrals:
-                type: integer
-                example: 0
+          type: object
+          properties:
+            stats:
+              type: object
+              properties:
+                total_signups:
+                  type: integer
+                  example: 0
+                total_growth_num:
+                  type: number
+                  example: 0
+                new_today:
+                  type: integer
+                  example: 0
+                new_today_percent:
+                  type: number
+                  example: 0
+                yesterday:
+                  type: integer
+                  example: 0
+                this_week:
+                  type: integer
+                  example: 0
+                free_users:
+                  type: integer
+                  example: 0
+                free_users_change_percent:
+                  type: number
+                  example: 0
+                paid_users:
+                  type: integer
+                  example: 0
+                paid_users_change_percent:
+                  type: number
+                  example: 0
+                new_users_month:
+                  type: integer
+                  example: 0
+                new_users_month_change_percent:
+                  type: number
+                  example: 0
+                active_users_month:
+                  type: integer
+                  example: 0
+                active_users_month_change_percent:
+                  type: number
+                  example: 0
+                avg_session_length_month:
+                  type: string
+                  example: "0s"
+                avg_session_length_change_percent:
+                  type: number
+                  example: 0
+            users:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    example: "user@example.com"
+                  name:
+                    type: string
+                    example: "Full Name"
+                  avatar_url:
+                    type: string
+                    example: "https://example.com/avatar.png"
+                  default_avatar_url:
+                    type: string
+                    example: "https://example.com/avatar.png"
+                  created_at:
+                    type: string
+                    format: date-time
+                  last_log_in_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  last_activity_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  activity_length:
+                    type: string
+                    example: "2 days"
+                    nullable: true
+                  referrals:
+                    type: integer
+                    example: 0
         pagination:
           type: object
           properties:
@@ -34070,6 +34269,14 @@ components:
                     this_week:
                       type: integer
                       description: Number of invitations sent this week
+                    invites_conversion_month:
+                      type: number
+                      format: float
+                      description: Conversion percentage of invitations in the last month (accepted / total * 100)
+                    invites_conversion_change_percent:
+                      type: number
+                      format: float
+                      description: Month-over-month conversion rate change
                 growth_trends:
                   type: array
                   description: Last 6 months of invitation data

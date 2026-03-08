@@ -56,11 +56,11 @@ type storageConfig struct {
 }
 
 type transcodingConfig struct {
-	Width            int `json:"width"`
-	Height           int `json:"height"`
-	Fps              int `json:"fps"`
-	Bitrate          int `json:"bitrate"`
-	MixedVideoLayout int `json:"mixedVideoLayout"`
+	Width            int    `json:"width"`
+	Height           int    `json:"height"`
+	Fps              int    `json:"fps"`
+	Bitrate          int    `json:"bitrate"`
+	MixedVideoLayout int    `json:"mixedVideoLayout"`
 	BackgroundColor  string `json:"backgroundColor"`
 }
 
@@ -70,8 +70,14 @@ type recordingConfig struct {
 	ChannelType        int               `json:"channelType"`
 	VideoStreamType    int               `json:"videoStreamType"`
 	TranscodingConfig  transcodingConfig `json:"transcodingConfig"`
-	SubscribeAudioUIDs []string          `json:"subscribeAudioUIDs"`
-	SubscribeVideoUIDs []string          `json:"subscribeVideoUIDs"`
+	AudioProfile       int               `json:"audioProfile"`
+	StreamMode         string            `json:"streamMode"`
+	SubscribeAudioUids []string          `json:"subscribeAudioUids"`
+	SubscribeVideoUids []string          `json:"subscribeVideoUids"`
+}
+
+type recordingFileConfig struct {
+	AVFileType []string `json:"avFileType"`
 }
 
 type startRecordingRequest struct {
@@ -81,9 +87,10 @@ type startRecordingRequest struct {
 }
 
 type startClientRequest struct {
-	Token           string          `json:"token,omitempty"`
-	RecordingConfig recordingConfig `json:"recordingConfig"`
-	StorageConfig   storageConfig   `json:"storageConfig"`
+	Token               string              `json:"token,omitempty"`
+	RecordingConfig     recordingConfig     `json:"recordingConfig"`
+	StorageConfig       storageConfig       `json:"storageConfig"`
+	RecordingFileConfig recordingFileConfig `json:"recordingFileConfig"`
 }
 
 type startResponse struct {
@@ -221,16 +228,23 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 			RecordingConfig: recordingConfig{
 				MaxIdleTime:        maxIdleSecs,
 				StreamTypes:        2,
-				ChannelType:        1,
+				ChannelType:        0,
+				AudioProfile:       1,
 				VideoStreamType:    0,
+				SubscribeAudioUids: []string{"#allstream#"},
+				SubscribeVideoUids: []string{"#allstream#"},
+				StreamMode:         "standard",
 				TranscodingConfig: transcodingConfig{
-					Width:            640,
-					Height:           360,
+					Width:            1280,
+					Height:           720,
 					Fps:              15,
-					Bitrate:         500,
+					Bitrate:          1500,
 					MixedVideoLayout: 1,
-					BackgroundColor:  "#000000",
+					BackgroundColor:  "#FF0000",
 				},
+			},
+			RecordingFileConfig: recordingFileConfig{
+				AVFileType: []string{"hls", "mp4"},
 			},
 			StorageConfig: storageConfig{
 				Vendor:         recordingStorageVendorS3,

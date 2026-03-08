@@ -189,6 +189,34 @@ func RegisterCustomValidations(v *validator.Validate) {
 		value := fl.Field().String()
 		return IsValidEmoji(value)
 	})
+
+	_ = v.RegisterValidation("status_expiry", func(fl validator.FieldLevel) bool {
+		value := fl.Field().String()
+		if value == "" {
+			return true
+		}
+
+		lowerValue := strings.ToLower(strings.TrimSpace(value))
+
+		validOptions := []string{
+			"30 minutes",
+			"30 minute",
+			"1 hour",
+			"1 hr",
+			"today",
+			"this week",
+			"don't remove",
+			"dont remove",
+			"do not remove",
+		}
+
+		for _, opt := range validOptions {
+			if lowerValue == opt {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func ValidateTimeRange(value string) bool {

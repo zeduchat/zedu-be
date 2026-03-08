@@ -60,12 +60,15 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("%s created #%s", profile.UserName, channel.Name),
+		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> created #%s</p><p></p>", req.UserId, profile.UserName, profile.UserName, channel.Name),
 		Type:       "system",
 		UserId:     req.UserId,
 		ChannelsID: channel.ID,
 		OrgId:      channel.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions: []models.Mention{
+			{ID: req.UserId, Type: "user"},
+		},
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
@@ -155,12 +158,15 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("joined #%s", channel.Name),
+		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined #%s</p><p></p>", req.UserID, req.Username, req.Username, channel.Name),
 		Type:       "system",
 		UserId:     req.UserID,
 		ChannelsID: channel.ID,
 		OrgId:      channel.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions: []models.Mention{
+			{ID: req.UserID, Type: "user"},
+		},
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
@@ -187,13 +193,19 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 		return http.StatusBadRequest, errors.New("channel does not exist")
 	}
 
+	var user models.User
+	userDetails, _ := user.GetUserByID(db.Postgresql, user_id)
+
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("left #%s", chanResp.Name),
+		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> left #%s</p><p></p>", user_id, userDetails.Profile.UserName, userDetails.Profile.UserName, chanResp.Name),
 		Type:       "system",
 		UserId:     user_id,
 		ChannelsID: channels_id,
-		OrgId:      channel.OrganisationID,
+		OrgId:      chanResp.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions: []models.Mention{
+			{ID: user_id, Type: "user"},
+		},
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
@@ -330,12 +342,15 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("joined #%s", channel.Name),
+		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined #%s</p><p></p>", req.UserID, req.Username, req.Username, channel.Name),
 		Type:       "system",
 		UserId:     req.UserID,
 		ChannelsID: channel.ID,
 		OrgId:      channel.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions: []models.Mention{
+			{ID: req.UserID, Type: "user"},
+		},
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
@@ -359,30 +374,46 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		return err
 	}
 
-	usernames := []string{}
+	var (
+		mentionList  []models.Mention
+		displayNames []string
+	)
 
 	for _, userId := range validUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId)
 		if err != nil {
 			logger.Error("Failed to get user %s username", userId)
+			continue
 		}
 
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		uName := userDetails.Profile.UserName
+		if uName == "" {
+			uName = strings.Split(userDetails.Email, "@")[0]
 		}
 
-		if userDetails.Profile.UserName != "" {
-			usernames = append(usernames, "@"+userDetails.Profile.UserName)
-		}
+		mentionList = append(mentionList, models.Mention{ID: userId, Type: "user"})
+		displayNames = append(displayNames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userId, uName, uName))
+	}
+
+	var content string
+	if len(displayNames) == 1 {
+		content = fmt.Sprintf("<p>%s joined #%s</p><p></p>", displayNames[0], ch.Name)
+	} else if len(displayNames) == 2 {
+		content = fmt.Sprintf("<p>%s and %s joined #%s</p><p></p>", displayNames[0], displayNames[1], ch.Name)
+	} else {
+		lastUser := displayNames[len(displayNames)-1]
+		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
+		content = fmt.Sprintf("<p>%s and %s joined #%s</p><p></p>", otherUsers, lastUser, ch.Name)
 	}
 
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("joined #%s along with %s", ch.Name, strings.Join(usernames[1:], ", ")),
+		Content:    content,
 		Type:       "system",
 		UserId:     validUserIds[0],
 		ChannelsID: ch.ID,
 		OrgId:      ch.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions:   mentionList,
 	}
 
 	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
@@ -407,7 +438,10 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 		return err
 	}
 
-	usernames := []string{}
+	var (
+		mentionList  []models.Mention
+		displayNames []string
+	)
 
 	for _, userId := range removedUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId)
@@ -415,25 +449,37 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 			logger.Error("Failed to get user %s username", userId)
 			continue
 		}
-		if userDetails.Profile.UserName == "" {
-			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
+		uName := userDetails.Profile.UserName
+		if uName == "" {
+			uName = strings.Split(userDetails.Email, "@")[0]
 		}
-		if userDetails.Profile.UserName != "" {
-			usernames = append(usernames, "@"+userDetails.Profile.UserName)
-		}
+		mentionList = append(mentionList, models.Mention{ID: userId, Type: "user"})
+		displayNames = append(displayNames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userId, uName, uName))
 	}
 
-	if len(usernames) == 0 {
+	if len(displayNames) == 0 {
 		return nil
 	}
 
+	var content string
+	if len(displayNames) == 1 {
+		content = fmt.Sprintf("<p>%s left #%s</p><p></p>", displayNames[0], ch.Name)
+	} else if len(displayNames) == 2 {
+		content = fmt.Sprintf("<p>%s and %s left #%s</p><p></p>", displayNames[0], displayNames[1], ch.Name)
+	} else {
+		lastUser := displayNames[len(displayNames)-1]
+		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
+		content = fmt.Sprintf("<p>%s and %s left #%s</p><p></p>", otherUsers, lastUser, ch.Name)
+	}
+
 	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("left #%s: %s", ch.Name, strings.Join(usernames, ", ")),
+		Content:    content,
 		Type:       "system",
 		UserId:     removedUserIds[0],
 		ChannelsID: ch.ID,
 		OrgId:      ch.OrganisationID,
 		ThreadId:   utility.GenerateUUID(),
+		Mentions:   mentionList,
 	}
 
 	if _, err := thread.SaveThreadMessage(systemMsg, db, logger); err != nil {
