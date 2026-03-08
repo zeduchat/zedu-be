@@ -19,6 +19,7 @@ import (
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/lib/pq"
 )
 
 const (
@@ -604,7 +605,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	}
 
 	updates := map[string]interface{}{
-		"participants": newParticipants,
+		"participants": pq.StringArray(newParticipants),
 		"host_id":      buzz.HostID,
 		"updated_at":   time.Now().UTC(),
 	}
