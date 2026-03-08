@@ -603,9 +603,13 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		newHostID = newParticipants[0]
 	}
 
-	buzz.ParticipantIDs = newParticipants
+	updates := map[string]interface{}{
+		"participants": newParticipants,
+		"host_id":      buzz.HostID,
+		"updated_at":   time.Now().UTC(),
+	}
 
-	if err = tx.Model(&buzz).Updates(buzz).Error; err != nil {
+	if err = tx.Model(&buzz).Updates(updates).Error; err != nil {
 		tx.Rollback()
 		logger.Error("Failed to update buzz: %v", err)
 		return nil, http.StatusInternalServerError, errors.New("failed to update buzz")
