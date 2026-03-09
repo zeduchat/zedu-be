@@ -53,8 +53,25 @@ const (
 type AuditAction string
 
 const (
+	// Admin Actions
 	ActionAdminCreate AuditAction = "admin.create"
 	ActionAdminUpdate AuditAction = "admin.update"
+
+	// User Management
+	ActionUserCreate            AuditAction = "user.create"
+	ActionUserDeactivate        AuditAction = "user.deactivate"
+	ActionUserReactivate        AuditAction = "user.reactivate"
+	ActionProfileUpdate         AuditAction = "user.profile_update"
+	ActionEmailChange           AuditAction = "user.email_change"
+	ActionPhoneNumberChange     AuditAction = "user.phone_number_change"
+	ActionPlanUpgraded          AuditAction = "user.plan_upgraded"
+	ActionPlanDowngraded        AuditAction = "user.plan_downgraded"
+	ActionSubscriptionCancelled AuditAction = "user.subscriptipon_cancelled"
+	ActionOrganisationJoined    AuditAction = "user.organisation_joined"
+	ActionOrganisationLeft      AuditAction = "user.organisation_left"
+	ActionCredentialsUpdated    AuditAction = "user.credentials_updated" // API tokens / OAuth apps changed
+	ActionMFAEnabled            AuditAction = "user.mfa_enabled"
+	ActionMFADisabled           AuditAction = "user.mfa_disabled"
 )
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
