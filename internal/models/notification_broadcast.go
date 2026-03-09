@@ -3,8 +3,8 @@ package models
 import "time"
 
 type BroadcastNotificationRequest struct {
-	Title       string     `json:"title" binding:"required"`
-	Message     string     `json:"message" binding:"required"`
+	Title       string     `json:"title" validate:"required"`
+	Message     string     `json:"message" validate:"required"`
 	AvatarUrl   string     `json:"avatar_url"`
 	ScheduledAt *time.Time `json:"scheduled_at"`
 }

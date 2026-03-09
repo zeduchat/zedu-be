@@ -1,0 +1,276 @@
+package test_admin
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
+)
+
+func TestBroadcastNotification(t *testing.T) {
+	r, _, _, db := SetupAdminTestRouter()
+	superAdminID, superAdminToken := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	user1ID := utility.GenerateUUID()
+	user2ID := utility.GenerateUUID()
+	user3ID := utility.GenerateUUID()
+
+	users := []models.User{
+		{
+			ID:                      user1ID,
+			Name:                    "Test User 1",
+			Email:                   "user1@test.com",
+			OneSignalSubscriptionID: "onesignal_user1",
+			IsActive:                true,
+		},
+		{
+			ID:                      user2ID,
+			Name:                    "Test User 2",
+			Email:                   "user2@test.com",
+			OneSignalSubscriptionID: "onesignal_user2",
+			IsActive:                true,
+		},
+		{
+			ID:                      user3ID,
+			Name:                    "Test User 3",
+			Email:                   "user3@test.com",
+			OneSignalSubscriptionID: "",
+			IsActive:                true,
+		},
+	}
+	for _, user := range users {
+		db.Postgresql.Create(&user)
+	}
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, superAdminID, []string{})
+		for _, user := range users {
+			db.Postgresql.Exec("DELETE FROM users WHERE id = ?", user.ID)
+		}
+		db.Postgresql.Exec("DELETE FROM broadcast_notification_logs WHERE admin_id = ?", superAdminID)
+		db.Postgresql.Exec("DELETE FROM audit_logs WHERE actor_id = ? AND action = ?", superAdminID, models.ActionBroadcastNotificationCreated)
+	})
+
+	t.Run("Broadcast Notification - Success", func(t *testing.T) {
+		payload := models.BroadcastNotificationRequest{
+			Title:     "Test Broadcast",
+			Message:   "This is a test broadcast notification",
+			AvatarUrl: "https://example.com/icon.png",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		response := tst.ParseResponse(rr)
+		assert.Equal(t, "success", response["status"])
+		assert.Equal(t, "Broadcast notification sent successfully", response["message"])
+
+		data := response["data"].(map[string]any)
+		assert.NotEmpty(t, data["id"])
+		assert.Equal(t, payload.Title, data["title"])
+		assert.Equal(t, payload.Message, data["message"])
+
+		// DB has pre-existing users — assert relative correctness, not exact counts
+		totalTargeted := data["total_users_targeted"].(float64)
+		successfullySent := data["successfully_sent"].(float64)
+		assert.GreaterOrEqual(t, totalTargeted, float64(3))    // at least our 3 users
+		assert.GreaterOrEqual(t, successfullySent, float64(2)) // at least our 2 with subscription IDs
+		assert.LessOrEqual(t, successfullySent, totalTargeted) // sent ≤ targeted
+	})
+
+	t.Run("Broadcast Notification - Validation Error - Missing Title", func(t *testing.T) {
+		// Use empty string so ShouldBindJSON passes, but validator rejects it
+		payload := map[string]any{
+			"title":      "",
+			"message":    "This is a test broadcast notification",
+			"avatar_url": "https://example.com/icon.png",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		response := tst.ParseResponse(rr)
+		assert.Equal(t, "error", response["status"])
+		assert.Equal(t, "Validation failed", response["message"])
+	})
+
+	t.Run("Broadcast Notification - Validation Error - Missing Message", func(t *testing.T) {
+		payload := map[string]any{
+			"title":      "Test Broadcast",
+			"message":    "",
+			"avatar_url": "https://example.com/icon.png",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		response := tst.ParseResponse(rr)
+		assert.Equal(t, "error", response["status"])
+		assert.Equal(t, "Validation failed", response["message"])
+	})
+
+	t.Run("Broadcast Notification - Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer([]byte("invalid json")))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+		response := tst.ParseResponse(rr)
+		assert.Equal(t, "error", response["status"])
+		assert.Equal(t, "Failed to parse request body", response["message"])
+	})
+}
+
+func TestBroadcastNotificationAuditLogs(t *testing.T) {
+	r, _, _, db := SetupAdminTestRouter()
+	superAdminID, superAdminToken := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	userID := utility.GenerateUUID()
+	user := models.User{
+		ID:                      userID,
+		Name:                    "Audit Test User",
+		Email:                   "audit@test.com",
+		OneSignalSubscriptionID: "onesignal_audit",
+		IsActive:                true,
+	}
+	db.Postgresql.Create(&user)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, superAdminID, []string{})
+		db.Postgresql.Exec("DELETE FROM users WHERE id = ?", userID)
+		db.Postgresql.Exec("DELETE FROM broadcast_notification_logs WHERE admin_id = ?", superAdminID)
+		db.Postgresql.Exec("DELETE FROM audit_logs WHERE actor_id = ? AND action = ?", superAdminID, models.ActionBroadcastNotificationCreated)
+	})
+
+	t.Run("Broadcast Notification Creates Audit Log", func(t *testing.T) {
+		payload := models.BroadcastNotificationRequest{
+			Title:   "Audit Test Broadcast",
+			Message: "Testing audit logging",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", "203.0.113.1") // add this
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		// Scope by actor_id + action only — these are already unique to this admin
+		// who was just created for this test, so there can only be 1 log
+		var auditLogs []models.AuditLog
+		db.Postgresql.Where(
+			"actor_id = ? AND action = ?",
+			superAdminID,
+			models.ActionBroadcastNotificationCreated,
+		).Find(&auditLogs)
+
+		assert.Len(t, auditLogs, 1)
+		auditLog := auditLogs[0]
+		assert.Equal(t, models.ActionBroadcastNotificationCreated, auditLog.Action)
+		assert.Equal(t, models.ResourceNotification, auditLog.ResourceType)
+		assert.NotEmpty(t, auditLog.ResourceID)
+		assert.Contains(t, auditLog.Description, "sent broadcast notification")
+		assert.NotEmpty(t, auditLog.IPAddress)
+		assert.NotEmpty(t, auditLog.UserAgent)
+	})
+
+	t.Run("Broadcast Notification Creates Broadcast Log", func(t *testing.T) {
+		payload := models.BroadcastNotificationRequest{
+			Title:   "Broadcast Log Test",
+			Message: "Testing broadcast logging",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", "203.0.113.1")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		// Scope by admin + unique title to isolate this test's log
+		var broadcastLogs []models.BroadcastNotificationLog
+		db.Postgresql.Where("admin_id = ? AND title = ?", superAdminID, payload.Title).Find(&broadcastLogs)
+
+		assert.Len(t, broadcastLogs, 1)
+		broadcastLog := broadcastLogs[0]
+		assert.Equal(t, payload.Title, broadcastLog.Title)
+		assert.Equal(t, payload.Message, broadcastLog.Message)
+		assert.Equal(t, broadcastLog.SuccessfullySent+broadcastLog.FailedCount, broadcastLog.TotalUsersTargeted)
+		assert.NotEmpty(t, broadcastLog.IPAddress)
+		assert.NotEmpty(t, broadcastLog.UserAgent)
+	})
+}
+
+func TestBroadcastNotificationNoUsers(t *testing.T) {
+	r, _, _, db := SetupAdminTestRouter()
+	superAdminID, superAdminToken := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	db.Postgresql.Exec("UPDATE users SET is_active = false")
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, superAdminID, []string{})
+		db.Postgresql.Exec("UPDATE users SET is_active = true")
+		db.Postgresql.Exec("DELETE FROM broadcast_notification_logs WHERE admin_id = ?", superAdminID)
+		db.Postgresql.Exec("DELETE FROM audit_logs WHERE actor_id = ? AND action = ?", superAdminID, models.ActionBroadcastNotificationCreated)
+	})
+
+	t.Run("Broadcast Notification With No Active Users", func(t *testing.T) {
+		payload := models.BroadcastNotificationRequest{
+			Title:   "No Users Broadcast",
+			Message: "This should handle no users gracefully",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		response := tst.ParseResponse(rr)
+		assert.Equal(t, "success", response["status"])
+
+		data := response["data"].(map[string]any)
+		assert.Equal(t, float64(0), data["total_users_targeted"])
+		assert.Equal(t, float64(0), data["successfully_sent"])
+	})
+}
