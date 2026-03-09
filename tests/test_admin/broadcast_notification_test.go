@@ -181,7 +181,7 @@ func TestBroadcastNotificationAuditLogs(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
 		req.Header.Set("Authorization", "Bearer "+superAdminToken)
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Forwarded-For", "203.0.113.1") // add this
+		req.Header.Set("X-Forwarded-For", "203.0.113.1")
 
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
