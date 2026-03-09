@@ -330,3 +330,21 @@ func SendOneSignalNotificationToUser(logger *utility.Logger, db *gorm.DB, userID
 
 	return nil
 }
+
+// PushOneSignalToUsersForBroadcast sends a OneSignal broadcast notification to multiple users
+// Used for admin broadcast notifications to all users
+func PushOneSignalToUsersForBroadcast(req models.PushRequest, logger *utility.Logger, db *gorm.DB, subscriptionIDs []string) error {
+	if len(subscriptionIDs) == 0 {
+		logger.Info("No subscription IDs provided for broadcast notification")
+		return nil
+	}
+
+	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to send broadcast OneSignal notification: %s", err.Error()))
+		return fmt.Errorf("failed to send broadcast notification: %w", err)
+	}
+
+	logger.Info("Successfully sent broadcast notification to %d users", len(subscriptionIDs))
+	return nil
+}

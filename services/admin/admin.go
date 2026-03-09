@@ -13,6 +13,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
@@ -181,5 +182,118 @@ func GetPlansWithPackages(db *gorm.DB) (*PlansResponse, error) {
 	return &PlansResponse{
 		Plans:            plans,
 		AICreditPackages: packages,
+	}, nil
+}
+
+// BroadcastNotificationToAllUsers sends a broadcast notification to all users via OneSignal
+func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logger,
+	adminID, adminEmail, ipAddress, userAgent string,
+	req models.BroadcastNotificationRequest,
+) (*models.BroadcastNotificationResponse, error) {
+	var users []models.User
+	if err := db.Postgresql.
+		Where("is_active = ?", true).
+		Select("id", "onesignal_subscription_id").
+		Find(&users).Error; err != nil {
+		logger.Error("Failed to fetch users for broadcast: %s", err.Error())
+		return nil, fmt.Errorf("failed to fetch users: %w", err)
+	}
+
+	if len(users) == 0 {
+		logger.Info("No active users found for broadcast notification")
+		return &models.BroadcastNotificationResponse{
+			ID:                 utility.GenerateUUID(),
+			Title:              req.Title,
+			Message:            req.Message,
+			TotalUsersTargeted: 0,
+			SuccessfullySent:   0,
+			CreatedAt:          time.Now(),
+			ScheduledAt:        req.ScheduledAt,
+		}, nil
+	}
+
+	// Build OneSignal subscription IDs
+	subscriptionIDs := make([]string, 0, len(users))
+	for _, user := range users {
+		if user.OneSignalSubscriptionID != "" {
+			subscriptionIDs = append(subscriptionIDs, user.OneSignalSubscriptionID)
+		}
+	}
+
+	totalUsersTargeted := len(users)
+	successfullySent := len(subscriptionIDs)
+
+	// Send broadcast notification via OneSignal
+	pushReq := models.PushRequest{
+		Title:     req.Title,
+		Message:   req.Message,
+		AvatarUrl: req.AvatarUrl,
+	}
+
+	if len(subscriptionIDs) > 0 {
+		err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, logger, db.Postgresql, subscriptionIDs)
+		if err != nil {
+			logger.Error("Failed to send broadcast notification: %s", err.Error())
+			// Don't fail completely, log it and continue
+			successfullySent = 0
+		}
+	}
+
+	// Create audit log entry
+	logID := utility.GenerateUUID()
+	oldValJSON, _ := json.Marshal(nil)
+	newValJSON, _ := json.Marshal(map[string]any{
+		"title":   req.Title,
+		"message": req.Message,
+		"users":   totalUsersTargeted,
+	})
+
+	auditLog := models.AuditLog{
+		ID:           logID,
+		ActorID:      adminID,
+		ActorEmail:   adminEmail,
+		Action:       models.ActionBroadcastNotificationCreated,
+		ResourceType: models.ResourceNotification,
+		ResourceID:   logID,
+		OldValues:    string(oldValJSON),
+		NewValues:    string(newValJSON),
+		Description:  fmt.Sprintf("Admin %s sent broadcast notification to %d users", adminEmail, totalUsersTargeted),
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+	}
+
+	if err := db.Postgresql.Create(&auditLog).Error; err != nil {
+		logger.Error("Failed to create audit log: %s", err.Error())
+		// Don't fail the notification if audit log fails
+	}
+
+	// Log broadcast notification
+	broadcastLog := models.BroadcastNotificationLog{
+		ID:                 utility.GenerateUUID(),
+		AdminID:            adminID,
+		AdminEmail:         adminEmail,
+		Title:              req.Title,
+		Message:            req.Message,
+		AvatarUrl:          req.AvatarUrl,
+		TotalUsersTargeted: totalUsersTargeted,
+		SuccessfullySent:   successfullySent,
+		FailedCount:        totalUsersTargeted - successfullySent,
+		ScheduledAt:        req.ScheduledAt,
+		IPAddress:          ipAddress,
+		UserAgent:          userAgent,
+	}
+
+	if err := db.Postgresql.Create(&broadcastLog).Error; err != nil {
+		logger.Error("Failed to create broadcast notification log: %s", err.Error())
+	}
+
+	return &models.BroadcastNotificationResponse{
+		ID:                 broadcastLog.ID,
+		Title:              req.Title,
+		Message:            req.Message,
+		TotalUsersTargeted: totalUsersTargeted,
+		SuccessfullySent:   successfullySent,
+		CreatedAt:          time.Now(),
+		ScheduledAt:        req.ScheduledAt,
 	}, nil
 }
