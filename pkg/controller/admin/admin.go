@@ -271,3 +271,75 @@ func (base *Controller) GetPlans(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Plans retrieved successfully", response)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) BroadcastNotification(c *gin.Context) {
+	var req models.BroadcastNotificationRequest
+
+	// Bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to parse broadcast notification request", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Validate request
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Get admin info from context (set by middleware)
+	requesterID, exists := c.Get("user_id")
+	if !exists {
+		base.Logger.Error("Admin ID not found in context")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Admin ID not found", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	adminID := requesterID.(string)
+
+	// Get admin email
+	adminModel := &models.Admin{}
+	if err := base.Db.Postgresql.Where("id = ?", adminID).First(&adminModel).Error; err != nil {
+		base.Logger.Error("Failed to get admin details", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get admin details", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	// Get client IP and user agent for audit trail
+	ipAddress := audit_utility.GetClientIP(c)
+	userAgent := c.GetHeader("User-Agent")
+	if userAgent == "" {
+		userAgent = "Unknown/Direct API Request"
+	}
+
+	// Call service to broadcast notification
+	response, err := admin.BroadcastNotificationToAllUsers(
+		base.Db,
+		base.Logger,
+		adminID,
+		adminModel.Email,
+		ipAddress,
+		userAgent,
+		req,
+	)
+
+	if err != nil {
+		base.Logger.Error("Failed to broadcast notification", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send broadcast notification", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(
+		http.StatusOK,
+		"Broadcast notification sent successfully",
+		response,
+	)
+	c.JSON(http.StatusOK, rd)
+}
