@@ -31,6 +31,7 @@ type AuditLog struct {
 	ID           string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	ActorID      string       `gorm:"type:uuid;not null;index" json:"actor_id"`
 	ActorEmail   string       `gorm:"type:varchar(255)" json:"actor_email"`
+	ActorRole    string       `gorm:"type:varchar(50)" json:"actor_role"`
 	Action       AuditAction  `gorm:"type:varchar(100);not null;index" json:"action"`
 	ResourceType ResourceType `gorm:"type:varchar(50);index" json:"resource_type"`
 	ResourceID   string       `gorm:"type:varchar(100);index" json:"resource_id"`
@@ -47,31 +48,29 @@ type AuditLog struct {
 type ResourceType string
 
 const (
-	ResourceAdmin ResourceType = "admin"
+	ResourceAdmin   ResourceType = "admin"
+	ResourceUser    ResourceType = "user"
+	ResourceBilling ResourceType = "billing"
+	ResourceFiles   ResourceType = "files"
+	ResourceSystem  ResourceType = "system"
+	ResourceData    ResourceType = "data"
 )
 
 type AuditAction string
 
 const (
 	// Admin Actions
-	ActionAdminCreate AuditAction = "admin.create"
-	ActionAdminUpdate AuditAction = "admin.update"
+	ActionAdminCreate     AuditAction = "admin.create"
+	ActionAdminRoleUpdate AuditAction = "admin.role_update"
+	ActionAdminLogin      AuditAction = "admin.login"
 
 	// User Management
-	ActionUserCreate            AuditAction = "user.create"
-	ActionUserDeactivate        AuditAction = "user.deactivate"
-	ActionUserReactivate        AuditAction = "user.reactivate"
-	ActionProfileUpdate         AuditAction = "user.profile_update"
-	ActionEmailChange           AuditAction = "user.email_change"
-	ActionPhoneNumberChange     AuditAction = "user.phone_number_change"
-	ActionPlanUpgraded          AuditAction = "user.plan_upgraded"
-	ActionPlanDowngraded        AuditAction = "user.plan_downgraded"
-	ActionSubscriptionCancelled AuditAction = "user.subscriptipon_cancelled"
-	ActionOrganisationJoined    AuditAction = "user.organisation_joined"
-	ActionOrganisationLeft      AuditAction = "user.organisation_left"
-	ActionCredentialsUpdated    AuditAction = "user.credentials_updated" // API tokens / OAuth apps changed
-	ActionMFAEnabled            AuditAction = "user.mfa_enabled"
-	ActionMFADisabled           AuditAction = "user.mfa_disabled"
+	ActionUserCreate         AuditAction = "user.create"
+	ActionUserDeactivate     AuditAction = "user.deactivate"
+	ActionUserReactivate     AuditAction = "user.reactivate"
+	ActionProfileUpdate      AuditAction = "user.profile_update"
+	ActionOrganisationJoined AuditAction = "user.organisation_joined"
+	ActionOrganisationLeft   AuditAction = "user.organisation_left"
 )
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
@@ -185,4 +184,14 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 	}
 
 	return logs, paginationResponse, nil
+}
+
+func (a *AuditLog) CreateAuditLog(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &a)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
