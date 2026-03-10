@@ -113,3 +113,22 @@ func getBrowserName(userAgent string) string {
 		return "Unknown"
 	}
 }
+
+func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action models.AuditAction, resourceType models.ResourceType, resourceID string, oldValues, newValues, description, ipAddress, userAgent string) error {
+	audit := models.AuditLog{
+		ID:           utility.GenerateUUID(),
+		ActorID:      actorID,
+		ActorEmail:   actorEmail,
+		ActorRole:    actorRole,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		OldValues:    oldValues,
+		NewValues:    newValues,
+		Description:  description,
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+	}
+
+	return audit.CreateAuditLog(db)
+}
