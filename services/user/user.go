@@ -279,6 +279,7 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 			fmt.Sprintf("User %s updated profile of %s", currentUser.Email, targetUser.Email),
 			audit_utility.GetClientIP(c),
 			c.GetHeader("User-Agent"),
+			true,
 		); err != nil {
 			// Log error but don't fail the operation
 			fmt.Printf("failed to create audit log: %v\n", err)
@@ -349,6 +350,7 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 		fmt.Sprintf("User %s reactivated account for %s", actorEmail, user.Email),
 		audit_utility.GetClientIP(ctx),
 		ctx.GetHeader("User-Agent"),
+		true,
 	); err != nil {
 		fmt.Printf("failed to create audit log: %v\n", err)
 	}
@@ -395,6 +397,7 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 		fmt.Sprintf("User %s deactivated account for %s", actorEmail, user.Email),
 		"", // IP address not available in this context
 		"", // User agent not available in this context
+		true,
 	); err != nil {
 		fmt.Printf("failed to create audit log: %v\n", err)
 	}

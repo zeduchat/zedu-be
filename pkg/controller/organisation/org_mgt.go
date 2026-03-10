@@ -113,6 +113,7 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		fmt.Sprintf("User %s removed user %s from organisation %s", ownerEmail, userId, orgId),
 		audit_utility.GetClientIP(c),
 		c.GetHeader("User-Agent"),
+		true,
 	); err != nil {
 		base.Logger.Error("Failed to create audit log for user leaving organisation", err)
 	}

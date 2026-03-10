@@ -91,6 +91,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		fmt.Sprintf("Admin %s logged in", admin.Email),
 		audit_utility.GetClientIP(c),
 		c.GetHeader("User-Agent"),
+		true,
 	); err != nil {
 		// Log error but don't fail the request
 		fmt.Printf("failed to create audit log for admin login: %v\n", err)
@@ -183,6 +184,7 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 			fmt.Sprintf("Superadmin %s created new admin account for %s", requester.Email, admin.Email),
 			audit_utility.GetClientIP(c),
 			c.GetHeader("User-Agent"),
+			true,
 		); err != nil {
 			// Log error but don't fail the request
 			fmt.Printf("failed to create audit log for admin creation: %v\n", err)

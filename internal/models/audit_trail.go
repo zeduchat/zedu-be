@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -41,7 +42,8 @@ type AuditLog struct {
 
 	Description string    `gorm:"type:text" json:"description"`
 	IPAddress   string    `gorm:"type:varchar(45)" json:"ip_address"`
-	UserAgent   string    `gorm:"type:text" json:"user_agent"` // Helps identify if action was via Script vs Browser
+	UserAgent   string    `gorm:"type:text" json:"user_agent"`                               // Helps identify if action was via Script vs Browser
+	Success     bool      `gorm:"column:success;not null;default:true;index" json:"success"` // true when action completed successfully
 	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime;index" json:"created_at"`
 }
 
@@ -160,6 +162,15 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 	if date := c.Query("date"); date != "" {
 		conditions = append(conditions, "DATE(created_at) = ?")
 		values = append(values, date)
+	}
+
+	if successStr := c.Query("success"); successStr != "" {
+		// parse boolean from query param
+		successBool, err := strconv.ParseBool(successStr)
+		if err == nil {
+			conditions = append(conditions, "success = ?")
+			values = append(values, successBool)
+		}
 	}
 
 	queryStr := ""

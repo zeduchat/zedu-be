@@ -303,6 +303,7 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		fmt.Sprintf("User %s joined organisation %s", actorEmail, orgId),
 		audit_utility.GetClientIP(c),
 		c.GetHeader("User-Agent"),
+		true,
 	); err != nil {
 		base.Logger.Error("failed to create audit log for organisation join: " + err.Error())
 	}

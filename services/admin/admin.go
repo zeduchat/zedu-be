@@ -122,6 +122,7 @@ func ConfirmAdminRoleChange(db *storage.Database, logger *utility.Logger, token,
 			fmt.Sprintf("Superadmin %s changed role of %s from %s to %s", requester.Email, confirmation.TargetAdminEmail, confirmation.OldRole, confirmation.NewRole),
 			ipAddress,
 			userAgent,
+			true,
 		); err != nil {
 			logger.Error("failed to create audit log: " + err.Error())
 			return fmt.Errorf("failed to create audit log (transaction rolled back): %w", err)

@@ -159,6 +159,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		fmt.Sprintf("User %s created account", user.Email),
 		ipAddress,
 		c.GetHeader("User-Agent"),
+		true,
 	); err != nil {
 		logger.Error("failed to create audit log for user creation: " + err.Error())
 	}

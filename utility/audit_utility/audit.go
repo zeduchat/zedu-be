@@ -114,7 +114,7 @@ func getBrowserName(userAgent string) string {
 	}
 }
 
-func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action models.AuditAction, resourceType models.ResourceType, resourceID string, oldValues, newValues, description, ipAddress, userAgent string) error {
+func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action models.AuditAction, resourceType models.ResourceType, resourceID string, oldValues, newValues, description, ipAddress, userAgent string, success bool) error {
 	audit := models.AuditLog{
 		ID:           utility.GenerateUUID(),
 		ActorID:      actorID,
@@ -128,6 +128,7 @@ func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action m
 		Description:  description,
 		IPAddress:    ipAddress,
 		UserAgent:    userAgent,
+		Success:      success,
 	}
 
 	return audit.CreateAuditLog(db)
