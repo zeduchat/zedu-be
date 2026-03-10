@@ -69,8 +69,8 @@ const (
 	ActionUserDeactivate     AuditAction = "user.deactivate"
 	ActionUserReactivate     AuditAction = "user.reactivate"
 	ActionProfileUpdate      AuditAction = "user.profile_update"
-	ActionOrganisationJoined AuditAction = "user.organisation_joined"
-	ActionOrganisationLeft   AuditAction = "user.organisation_left"
+	ActionOrganisationJoined AuditAction = "user.joined_organisation"
+	ActionOrganisationLeft   AuditAction = "user.left_organisation"
 )
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
