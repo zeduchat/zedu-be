@@ -681,6 +681,37 @@ func DeleteAICreditPackage(db *gorm.DB, packageID string) error {
 	return db.Delete(&pkg).Error
 }
 
+func GetAICreditPackagesFiltered(db *gorm.DB, status, search string, c *gin.Context) ([]AICreditPackage, postgresql.PaginationResponse, error) {
+	var packages []AICreditPackage
+	query := db.Model(&AICreditPackage{})
+
+	if status == "inactive" {
+		query = query.Unscoped().Where("deleted_at IS NOT NULL")
+	}
+
+	if search != "" {
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+search+"%")
+	}
+
+	query = query.Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&packages,
+		nil,
+	)
+	if err != nil {
+		return packages, paginationResponse, err
+	}
+
+	return packages, paginationResponse, nil
+}
+
 func GetAllCreditTransactions(db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
 	var transactions []CreditTransaction
 

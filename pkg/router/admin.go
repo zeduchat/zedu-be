@@ -39,12 +39,15 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.DELETE("/billing/plans/:plan_id", admin.DeletePlan)
 
 		// AI Credit packages management
+		adminAuthUrl.GET("/billing/credit-packages/stats", admin.GetAICreditPackageStats)
+		adminAuthUrl.GET("/billing/credit-packages", admin.GetAICreditPackagesFiltered)
 		adminAuthUrl.POST("/billing/credit-packages", admin.CreateAICreditPackage)
 		adminAuthUrl.PUT("/billing/credit-packages/:package_id", admin.UpdateAICreditPackage)
 		adminAuthUrl.DELETE("/billing/credit-packages/:package_id", admin.DeleteAICreditPackage)
 
 		// Admin transactions history
-		adminAuthUrl.GET("/billing/transactions", admin.GetAllCreditTransactions)
+		adminAuthUrl.GET("/billing/transactions/stats", admin.GetAdminTransactionStats)
+		adminAuthUrl.GET("/billing/transactions", admin.GetAdminTransactionsHistory)
 	}
 
 	// Super admin only endpoints

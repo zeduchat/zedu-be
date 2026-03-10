@@ -2,9 +2,9 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -73,8 +73,8 @@ func (base *Controller) CreatePlan(c *gin.Context) {
 func (base *Controller) UpdatePlan(c *gin.Context) {
 	planID := c.Param("plan_id")
 
-	if _, err := uuid.Parse(planID); err != nil {
-		base.Logger.Error("Invalid plan ID format", err)
+	if !utility.IsValidUUID(planID) {
+		base.Logger.Error("Invalid plan ID format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid plan ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -104,8 +104,8 @@ func (base *Controller) UpdatePlan(c *gin.Context) {
 func (base *Controller) DeletePlan(c *gin.Context) {
 	planID := c.Param("plan_id")
 
-	if _, err := uuid.Parse(planID); err != nil {
-		base.Logger.Error("Invalid plan ID format", err)
+	if !utility.IsValidUUID(planID) {
+		base.Logger.Error("Invalid plan ID format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid plan ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -156,8 +156,8 @@ func (base *Controller) CreateAICreditPackage(c *gin.Context) {
 func (base *Controller) UpdateAICreditPackage(c *gin.Context) {
 	packageID := c.Param("package_id")
 
-	if _, err := uuid.Parse(packageID); err != nil {
-		base.Logger.Error("Invalid package ID format", err)
+	if !utility.IsValidUUID(packageID) {
+		base.Logger.Error("Invalid package ID format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid package ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -187,8 +187,8 @@ func (base *Controller) UpdateAICreditPackage(c *gin.Context) {
 func (base *Controller) DeleteAICreditPackage(c *gin.Context) {
 	packageID := c.Param("package_id")
 
-	if _, err := uuid.Parse(packageID); err != nil {
-		base.Logger.Error("Invalid package ID format", err)
+	if !utility.IsValidUUID(packageID) {
+		base.Logger.Error("Invalid package ID format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid package ID format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -206,12 +206,29 @@ func (base *Controller) DeleteAICreditPackage(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
-func (base *Controller) GetAllCreditTransactions(c *gin.Context) {
-	transactions, paginationResponse, err := models.GetAllCreditTransactions(base.Db.Postgresql, c)
+func (base *Controller) GetAICreditPackageStats(c *gin.Context) {
+	stats, err := models.GetAICreditPackageStats(base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("Failed to fetch credit transactions", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to fetch credit transactions", err.Error(), nil)
-		c.JSON(http.StatusBadRequest, rd)
+		base.Logger.Error("Failed to fetch AI credit package stats", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch AI credit package stats", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("AI credit package stats retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "AI credit package stats retrieved successfully", stats)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAICreditPackagesFiltered(c *gin.Context) {
+	status := c.Query("status")
+	search := c.Query("search")
+
+	packages, paginationResponse, err := models.GetAICreditPackagesFiltered(base.Db.Postgresql, status, search, c)
+	if err != nil {
+		base.Logger.Error("Failed to fetch AI credit packages", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch AI credit packages", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
 
@@ -222,7 +239,70 @@ func (base *Controller) GetAllCreditTransactions(c *gin.Context) {
 		"total_items":  paginationResponse.TotalItems,
 	}
 
-	base.Logger.Info("Credit transactions retrieved successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "Credit transactions retrieved successfully", transactions, paginationData)
+	base.Logger.Info("AI credit packages retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "AI credit packages retrieved successfully", packages, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAdminTransactionStats(c *gin.Context) {
+	stats, err := models.GetAdminTransactionStats(base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("Failed to fetch transaction stats", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch transaction stats", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	base.Logger.Info("Transaction stats retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Transaction stats retrieved successfully", stats)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAdminTransactionsHistory(c *gin.Context) {
+	page := 1
+	pageSize := 10
+
+	if p := c.Query("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+	if ps := c.Query("page_size"); ps != "" {
+		if val, err := strconv.Atoi(ps); err == nil && val > 0 {
+			pageSize = val
+		}
+	}
+
+	filters := models.AdminTransactionFilters{
+		Search:   c.Query("search"),
+		Duration: c.Query("duration"),
+		Type:     c.Query("type"),
+		Status:   c.Query("status"),
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	transactions, totalCount, err := models.GetAdminTransactionsHistory(base.Db.Postgresql, filters)
+	if err != nil {
+		base.Logger.Error("Failed to fetch transactions history", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch transactions history", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	totalPages := int(totalCount) / pageSize
+	if int(totalCount)%pageSize != 0 {
+		totalPages++
+	}
+
+	paginationData := map[string]any{
+		"current_page": page,
+		"total_pages":  totalPages,
+		"page_size":    pageSize,
+		"total_items":  totalCount,
+	}
+
+	base.Logger.Info("Transactions history retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Transactions history retrieved successfully", transactions, paginationData)
 	c.JSON(http.StatusOK, rd)
 }

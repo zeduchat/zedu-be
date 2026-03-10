@@ -42,10 +42,13 @@ func setupBillingTestRouter() (*gin.Engine, *storage.Database) {
 		adminUrl.POST("/billing/plans", adminCtl.CreatePlan)
 		adminUrl.PUT("/billing/plans/:plan_id", adminCtl.UpdatePlan)
 		adminUrl.DELETE("/billing/plans/:plan_id", adminCtl.DeletePlan)
+		adminUrl.GET("/billing/credit-packages/stats", adminCtl.GetAICreditPackageStats)
+		adminUrl.GET("/billing/credit-packages", adminCtl.GetAICreditPackagesFiltered)
 		adminUrl.POST("/billing/credit-packages", adminCtl.CreateAICreditPackage)
 		adminUrl.PUT("/billing/credit-packages/:package_id", adminCtl.UpdateAICreditPackage)
 		adminUrl.DELETE("/billing/credit-packages/:package_id", adminCtl.DeleteAICreditPackage)
-		adminUrl.GET("/billing/transactions", adminCtl.GetAllCreditTransactions)
+		adminUrl.GET("/billing/transactions/stats", adminCtl.GetAdminTransactionStats)
+		adminUrl.GET("/billing/transactions", adminCtl.GetAdminTransactionsHistory)
 	}
 
 	return r, db
@@ -61,7 +64,7 @@ func TestGetSubscriptionBillingStats_Success(t *testing.T) {
 	var createdOrgIDs []string
 
 	// Create orgs with active subscriptions
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		orgID := CreateOrganizationWithCredit(t, db.Postgresql, float64(i*100))
 		createdOrgIDs = append(createdOrgIDs, orgID)
 
@@ -615,7 +618,7 @@ func TestDeleteAICreditPackage_InvalidID(t *testing.T) {
 
 // --- Transactions History ---
 
-func TestGetAllCreditTransactions_Success(t *testing.T) {
+func TestGetAdminTransactionsHistory_Success(t *testing.T) {
 	_ = tst.Setup()
 	r, db := setupBillingTestRouter()
 
@@ -658,7 +661,7 @@ func TestGetAllCreditTransactions_Success(t *testing.T) {
 	}
 }
 
-func TestGetAllCreditTransactions_Unauthorized(t *testing.T) {
+func TestGetAdminTransactionsHistory_Unauthorized(t *testing.T) {
 	_ = tst.Setup()
 	r, _ := setupBillingTestRouter()
 
@@ -670,7 +673,7 @@ func TestGetAllCreditTransactions_Unauthorized(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
 }
 
-func TestGetAllCreditTransactions_WithPagination(t *testing.T) {
+func TestGetAdminTransactionsHistory_WithPagination(t *testing.T) {
 	_ = tst.Setup()
 	r, db := setupBillingTestRouter()
 
@@ -680,7 +683,7 @@ func TestGetAllCreditTransactions_WithPagination(t *testing.T) {
 	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 500.00)
 	createdOrgIDs = append(createdOrgIDs, orgID)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		CreateCreditTransaction(t, db.Postgresql, orgID, float64(i*10+10))
 	}
 
@@ -706,4 +709,335 @@ func TestGetAllCreditTransactions_WithPagination(t *testing.T) {
 	if ok {
 		assert.Equal(t, float64(2), pagination["page_size"])
 	}
+}
+
+func TestGetAdminTransactionsHistory_FilterByType(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+	var createdOrgIDs []string
+
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	createdOrgIDs = append(createdOrgIDs, orgID)
+	CreateCreditTransaction(t, db.Postgresql, orgID, 50.00)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
+
+	// Filter by credit_pack type
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions?type=credit_pack", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+	assert.NotNil(t, data["data"])
+
+	// Verify all returned items are credit pack type
+	transactions, ok := data["data"].([]any)
+	if ok {
+		for _, txn := range transactions {
+			txnMap := txn.(map[string]any)
+			assert.Equal(t, "CREDIT_PACK", txnMap["type"])
+		}
+	}
+}
+
+func TestGetAdminTransactionsHistory_FilterByDuration(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+	var createdOrgIDs []string
+
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	createdOrgIDs = append(createdOrgIDs, orgID)
+	CreateCreditTransaction(t, db.Postgresql, orgID, 50.00)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions?duration=last_30_days", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+	assert.NotNil(t, data["data"])
+}
+
+// --- Transaction Stats ---
+
+func TestGetAdminTransactionStats_Success(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+	var createdOrgIDs []string
+
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 200.00)
+	createdOrgIDs = append(createdOrgIDs, orgID)
+	CreateCreditTransaction(t, db.Postgresql, orgID, 100.00)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions/stats", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+
+	stats, ok := data["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data['data'] is not a map, got: %T", data["data"])
+	}
+
+	// Verify all 4 stat fields exist
+	_, hasTotalRevenue := stats["total_revenue"]
+	_, hasTotalTransactions := stats["total_transactions"]
+	_, hasSuccessfulPayments := stats["successful_payments"]
+	_, hasRefunds := stats["refunds"]
+
+	assert.True(t, hasTotalRevenue, "total_revenue field missing")
+	assert.True(t, hasTotalTransactions, "total_transactions field missing")
+	assert.True(t, hasSuccessfulPayments, "successful_payments field missing")
+	assert.True(t, hasRefunds, "refunds field missing")
+
+	// Verify each stat has value and percentage_change
+	for _, key := range []string{"total_revenue", "total_transactions", "successful_payments", "refunds"} {
+		metric, ok := stats[key].(map[string]any)
+		if ok {
+			_, hasValue := metric["value"]
+			_, hasPercentChange := metric["percentage_change"]
+			assert.True(t, hasValue, fmt.Sprintf("%s missing value field", key))
+			assert.True(t, hasPercentChange, fmt.Sprintf("%s missing percentage_change field", key))
+		}
+	}
+}
+
+func TestGetAdminTransactionStats_Unauthorized(t *testing.T) {
+	_ = tst.Setup()
+	r, _ := setupBillingTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions/stats", nil)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+// --- AI Credit Package Stats ---
+
+func TestGetAICreditPackageStats_Success(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+	var createdOrgIDs []string
+
+	// Create orgs with credit transactions and usage
+	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 500.00)
+	createdOrgIDs = append(createdOrgIDs, org1ID)
+	org2ID := CreateOrganizationWithCredit(t, db.Postgresql, 300.00)
+	createdOrgIDs = append(createdOrgIDs, org2ID)
+
+	CreateCreditTransaction(t, db.Postgresql, org1ID, 200.00)
+	CreateCreditUsage(t, db.Postgresql, org1ID, 50.00)
+	CreateCreditUsage(t, db.Postgresql, org2ID, 30.00)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
+	})
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages/stats", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+
+	stats, ok := data["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("data['data'] is not a map, got: %T", data["data"])
+	}
+
+	_, hasTotalCreditsSold := stats["total_credits_sold"]
+	_, hasMonthlyCreditRevenue := stats["monthly_credit_revenue"]
+	_, hasUnusedCredits := stats["unused_credits"]
+	_, hasCreditBurnRate := stats["credit_burn_rate"]
+
+	assert.True(t, hasTotalCreditsSold, "total_credits_sold field missing")
+	assert.True(t, hasMonthlyCreditRevenue, "monthly_credit_revenue field missing")
+	assert.True(t, hasUnusedCredits, "unused_credits field missing")
+	assert.True(t, hasCreditBurnRate, "credit_burn_rate field missing")
+
+	assert.GreaterOrEqual(t, stats["total_credits_sold"].(float64), float64(0))
+	assert.GreaterOrEqual(t, stats["monthly_credit_revenue"].(float64), float64(0))
+	assert.GreaterOrEqual(t, stats["unused_credits"].(float64), float64(0))
+	assert.GreaterOrEqual(t, stats["credit_burn_rate"].(float64), float64(0))
+}
+
+func TestGetAICreditPackageStats_Unauthorized(t *testing.T) {
+	_ = tst.Setup()
+	r, _ := setupBillingTestRouter()
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages/stats", nil)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+// --- AI Credit Packages Filtered List ---
+
+func TestGetAICreditPackagesFiltered_Success(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, nil)
+	})
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+	assert.NotNil(t, data["data"])
+	assert.NotNil(t, data["pagination"])
+}
+
+func TestGetAICreditPackagesFiltered_WithSearch(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	// Create a uniquely named package to search for
+	pkgName := fmt.Sprintf("SearchTestPkg %s", utility.RandomString(8))
+	pkg, err := models.CreateAICreditPackage(db.Postgresql, models.CreateAICreditPackageRequest{
+		Name:        pkgName,
+		Description: "For search test",
+		Price:       10,
+		Credits:     1000,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create test package: %v", err)
+	}
+
+	t.Cleanup(func() {
+		db.Postgresql.Exec("DELETE FROM ai_credit_packages WHERE id = ?", pkg.ID)
+		CleanupSpecificTestData(db.Postgresql, adminID, nil)
+	})
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/billing/credit-packages?search=%s", pkgName[:14]), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+
+	packages, ok := data["data"].([]any)
+	if ok && len(packages) > 0 {
+		found := false
+		for _, p := range packages {
+			pkg := p.(map[string]any)
+			if pkg["name"] == pkgName {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "Expected to find the searched package")
+	}
+}
+
+func TestGetAICreditPackagesFiltered_ByStatus(t *testing.T) {
+	_ = tst.Setup()
+	r, db := setupBillingTestRouter()
+
+	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, adminID, nil)
+	})
+
+	// Test active status filter
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages?status=active", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if !assert.Equal(t, http.StatusOK, rr.Code) {
+		t.Logf("Response body: %s", rr.Body.String())
+		t.FailNow()
+	}
+
+	data := tst.ParseResponse(rr)
+	assert.Equal(t, "success", data["status"])
+
+	// Test inactive status filter
+	req2, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages?status=inactive", nil)
+	req2.Header.Set("Authorization", "Bearer "+token)
+
+	rr2 := httptest.NewRecorder()
+	r.ServeHTTP(rr2, req2)
+
+	assert.Equal(t, http.StatusOK, rr2.Code)
+
+	data2 := tst.ParseResponse(rr2)
+	assert.Equal(t, "success", data2["status"])
 }
