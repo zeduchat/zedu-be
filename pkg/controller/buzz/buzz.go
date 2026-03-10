@@ -643,7 +643,7 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 		ChannelType:      buzzRecord.ChannelType,
 	}
 
-	publishChannel := buzzID
+	publishChannel := buzzRecord.ChannelID
 	if buzzRecord.BuzzType == models.BuzzTypeOrganization {
 		publishChannel = utility.ExtractBuzzCode(buzzID)
 	}
