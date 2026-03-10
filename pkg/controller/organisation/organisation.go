@@ -2,6 +2,7 @@ package organisation
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,9 +10,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/services/organisation"
 	service "github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func (base *Controller) CreateOrganisation(c *gin.Context) {
@@ -272,6 +275,36 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, rd)
 		}
 		return
+	}
+
+	// Create audit log for organisation join
+	userClaims := common.GetAllUserClaims(c)
+	actorID, _ := userClaims["user_id"].(string)
+
+	var actorEmail string
+	if actorID != "" {
+		var user models.User
+		actor, err := user.GetUserByID(base.Db.Postgresql, actorID)
+		if err == nil {
+			actorEmail = actor.Email
+		}
+	}
+
+	if err := audit_utility.CreateAuditLog(
+		base.Db.Postgresql,
+		actorID,
+		actorEmail,
+		"user",
+		models.ActionOrganisationJoined,
+		models.ResourceUser,
+		req.UserId,
+		"",
+		"",
+		fmt.Sprintf("User %s joined organisation %s", actorEmail, orgId),
+		audit_utility.GetClientIP(c),
+		c.GetHeader("User-Agent"),
+	); err != nil {
+		base.Logger.Error("failed to create audit log for organisation join: " + err.Error())
 	}
 
 	base.Logger.Info("user added to organisation successfully")

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -16,7 +17,9 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
@@ -74,10 +77,29 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		"access_token": tokenData.AccessToken,
 	}
 
+	// Create audit log for admin login
+	if err := audit_utility.CreateAuditLog(
+		db,
+		admin.ID,
+		admin.Email,
+		admin.Role,
+		models.ActionAdminLogin,
+		models.ResourceAdmin,
+		admin.ID,
+		"",
+		"",
+		fmt.Sprintf("Admin %s logged in", admin.Email),
+		audit_utility.GetClientIP(c),
+		c.GetHeader("User-Agent"),
+	); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("failed to create audit log for admin login: %v\n", err)
+	}
+
 	return responseData, http.StatusOK, nil
 }
 
-func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Context) (gin.H, error) {
+func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Context, logger *utility.Logger) (gin.H, error) {
 	var (
 		email        = strings.ToLower(req.Email)
 		responseData gin.H
@@ -132,6 +154,42 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 	err = access_token.CreateAccessToken(db.Postgresql, tokens)
 	if err != nil {
 		return nil, fmt.Errorf("error saving token: %w", err)
+	}
+
+	// Get requester information for audit logging
+	var requester *models.Admin
+	if claims, exists := c.Get("adminClaims"); exists {
+		if claimsMap, ok := claims.(jwt.MapClaims); ok {
+			if adminID, ok := claimsMap["admin_id"].(string); ok {
+				if reqAdmin, err := models.GetAdminById(db.Postgresql, adminID); err == nil {
+					requester = reqAdmin
+				}
+			}
+		}
+	}
+
+	// Create audit log for admin creation (only if requester was found)
+	if requester != nil {
+		if err := audit_utility.CreateAuditLog(
+			db.Postgresql,
+			requester.ID,
+			requester.Email,
+			requester.Role,
+			models.ActionAdminCreate,
+			models.ResourceAdmin,
+			admin.ID,
+			"",
+			"",
+			fmt.Sprintf("Superadmin %s created new admin account for %s", requester.Email, admin.Email),
+			audit_utility.GetClientIP(c),
+			c.GetHeader("User-Agent"),
+		); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("failed to create audit log for admin creation: %v\n", err)
+		}
+
+		// Broadcast audit event
+		telexaudit.CreateAdminAudit(db, logger, requester.Email, admin.Email)
 	}
 
 	responseData = gin.H{

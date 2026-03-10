@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,7 +16,9 @@ import (
 	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 // Inactivity threshold used to determine if a user is currently in an active streak.
@@ -235,6 +238,14 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 
 	isSuperAdmin := currentUser.CheckUserIsAdmin(db)
 	if isSuperAdmin || currentUserID == userIDStr {
+		// Capture old values for audit logging
+		oldValues := map[string]interface{}{
+			"name":       targetUser.Name,
+			"first_name": targetUser.Profile.FirstName,
+			"last_name":  targetUser.Profile.LastName,
+			"phone":      targetUser.Profile.Phone,
+		}
+		oldValJSON, _ := json.Marshal(oldValues)
 
 		targetUser.Name = userData.UserName
 		targetUser.Profile.FirstName = userData.FirstName
@@ -244,6 +255,33 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 		err = targetUser.Update(db)
 		if err != nil {
 			return &targetUser, http.StatusInternalServerError, err
+		}
+
+		// Create audit log for profile update
+		newValues := map[string]interface{}{
+			"name":       targetUser.Name,
+			"first_name": targetUser.Profile.FirstName,
+			"last_name":  targetUser.Profile.LastName,
+			"phone":      targetUser.Profile.Phone,
+		}
+		newValJSON, _ := json.Marshal(newValues)
+
+		if err := audit_utility.CreateAuditLog(
+			db,
+			currentUserID,
+			currentUser.Email,
+			"user",
+			models.ActionProfileUpdate,
+			models.ResourceUser,
+			targetUser.ID,
+			string(oldValJSON),
+			string(newValJSON),
+			fmt.Sprintf("User %s updated profile of %s", currentUser.Email, targetUser.Email),
+			audit_utility.GetClientIP(c),
+			c.GetHeader("User-Agent"),
+		); err != nil {
+			// Log error but don't fail the operation
+			fmt.Printf("failed to create audit log: %v\n", err)
 		}
 
 	} else {
@@ -286,6 +324,35 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 		return http.StatusInternalServerError, err
 	}
 
+	// Create audit log for user reactivation
+	userClaims := common.GetAllUserClaims(ctx)
+	actorID, _ := userClaims["user_id"].(string)
+
+	var actorEmail string
+	if actorID != "" {
+		actor, _, err := GetUser(actorID, db)
+		if err == nil {
+			actorEmail = actor.Email
+		}
+	}
+
+	if err := audit_utility.CreateAuditLog(
+		db,
+		actorID,
+		actorEmail,
+		"user",
+		models.ActionUserReactivate,
+		models.ResourceUser,
+		user.ID,
+		"",
+		"",
+		fmt.Sprintf("User %s reactivated account for %s", actorEmail, user.Email),
+		audit_utility.GetClientIP(ctx),
+		ctx.GetHeader("User-Agent"),
+	); err != nil {
+		fmt.Printf("failed to create audit log: %v\n", err)
+	}
+
 	return http.StatusOK, nil
 }
 
@@ -306,6 +373,30 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 
 	if err := user.DeactivateUser(db, user.ID); err != nil {
 		return http.StatusInternalServerError, err
+	}
+
+	// Create audit log for user deactivation
+	var actorEmail string
+	actor, _, err := GetUser(loggedInUserID, db)
+	if err == nil {
+		actorEmail = actor.Email
+	}
+
+	if err := audit_utility.CreateAuditLog(
+		db,
+		loggedInUserID,
+		actorEmail,
+		"user",
+		models.ActionUserDeactivate,
+		models.ResourceUser,
+		user.ID,
+		"",
+		"",
+		fmt.Sprintf("User %s deactivated account for %s", actorEmail, user.Email),
+		"", // IP address not available in this context
+		"", // User agent not available in this context
+	); err != nil {
+		fmt.Printf("failed to create audit log: %v\n", err)
 	}
 
 	return http.StatusOK, nil

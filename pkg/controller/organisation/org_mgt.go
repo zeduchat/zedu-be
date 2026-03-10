@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
@@ -81,6 +83,38 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to remove member", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
+	}
+
+	// Audit logging for user leaving organisation
+	auditData := map[string]interface{}{
+		"organisation_id": orgId,
+		"user_id":         userId,
+		"removed_by":      ownerId,
+	}
+	auditDataJSON, _ := json.Marshal(auditData)
+
+	var ownerEmail string
+	var user models.User
+	owner, err := user.GetUserByID(base.Db.Postgresql, ownerId)
+	if err == nil {
+		ownerEmail = owner.Email
+	}
+
+	if err := audit_utility.CreateAuditLog(
+		base.Db.Postgresql,
+		ownerId,
+		ownerEmail,
+		"user",
+		models.ActionOrganisationLeft,
+		models.ResourceUser,
+		userId,
+		"",
+		string(auditDataJSON),
+		fmt.Sprintf("User %s removed user %s from organisation %s", ownerEmail, userId, orgId),
+		audit_utility.GetClientIP(c),
+		c.GetHeader("User-Agent"),
+	); err != nil {
+		base.Logger.Error("Failed to create audit log for user leaving organisation", err)
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "success", "member removed successfully", nil)

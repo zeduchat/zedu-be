@@ -143,12 +143,30 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to update user status: %w", err)
 	}
 
+	ipAddress := audit_utility.GetClientIP(c)
+
+	// Create audit log for user creation
+	if err := audit_utility.CreateAuditLog(
+		db,
+		user.ID,
+		user.Email,
+		"user",
+		models.ActionUserCreate,
+		models.ResourceUser,
+		user.ID,
+		"",
+		"",
+		fmt.Sprintf("User %s created account", user.Email),
+		ipAddress,
+		c.GetHeader("User-Agent"),
+	); err != nil {
+		logger.Error("failed to create audit log for user creation: " + err.Error())
+	}
+
 	userData, err := user.GetUserByID(db, user.ID)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
-
-	ipAddress := audit_utility.GetClientIP(c)
 
 	response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
 
