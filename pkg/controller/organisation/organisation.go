@@ -250,47 +250,33 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		return
 	}
 
-	err := base.Validator.Struct(&req)
-	if err != nil {
+	if err := base.Validator.Struct(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
 
-	err = service.AddUserToOrganisation(orgId, req, base.Db.Postgresql)
-
-	if err != nil {
-		switch err.Error() {
-		case "organisation not found":
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to add user to organisation", nil)
-			c.JSON(http.StatusNotFound, rd)
-		case "user not found":
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to add user to organisation", nil)
-			c.JSON(http.StatusNotFound, rd)
-		case "user already added to organisation":
-			rd := utility.BuildErrorResponse(http.StatusConflict, "error", err.Error(), "failed to add user to organisation", nil)
-			c.JSON(http.StatusNotFound, rd)
-		default:
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add user to organisation", err.Error(), nil)
-			c.JSON(http.StatusInternalServerError, rd)
-		}
-		return
-	}
-
-	// Create audit log for organisation join
 	userClaims := common.GetAllUserClaims(c)
 	actorID, _ := userClaims["user_id"].(string)
 
 	var actorEmail string
 	if actorID != "" {
 		var user models.User
-		actor, err := user.GetUserByID(base.Db.Postgresql, actorID)
-		if err == nil {
+		if actor, err := user.GetUserByID(base.Db.Postgresql, actorID); err == nil {
 			actorEmail = actor.Email
 		}
 	}
 
-	if err := audit_utility.CreateAuditLog(
+	addErr := service.AddUserToOrganisation(orgId, req, base.Db.Postgresql)
+
+	// Audit the attempt — success or failure.
+	success := addErr == nil
+	description := fmt.Sprintf("User %s joined organisation %s", actorEmail, orgId)
+	if !success {
+		description = fmt.Sprintf("User %s failed to join organisation %s: %v", actorEmail, orgId, addErr)
+	}
+
+	if auditErr := audit_utility.CreateAuditLog(
 		base.Db.Postgresql,
 		actorID,
 		actorEmail,
@@ -300,12 +286,30 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		req.UserId,
 		"",
 		"",
-		fmt.Sprintf("User %s joined organisation %s", actorEmail, orgId),
+		description,
 		audit_utility.GetClientIP(c),
 		c.GetHeader("User-Agent"),
-		true,
-	); err != nil {
-		base.Logger.Error("failed to create audit log for organisation join: " + err.Error())
+		success,
+	); auditErr != nil {
+		base.Logger.Error("failed to create audit log for organisation join: " + auditErr.Error())
+	}
+
+	if addErr != nil {
+		switch addErr.Error() {
+		case "organisation not found":
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", addErr.Error(), "failed to add user to organisation", nil)
+			c.JSON(http.StatusNotFound, rd)
+		case "user not found":
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", addErr.Error(), "failed to add user to organisation", nil)
+			c.JSON(http.StatusNotFound, rd)
+		case "user already added to organisation":
+			rd := utility.BuildErrorResponse(http.StatusConflict, "error", addErr.Error(), "failed to add user to organisation", nil)
+			c.JSON(http.StatusConflict, rd)
+		default:
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to add user to organisation", addErr.Error(), nil)
+			c.JSON(http.StatusInternalServerError, rd)
+		}
+		return
 	}
 
 	base.Logger.Info("user added to organisation successfully")

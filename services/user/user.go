@@ -252,12 +252,10 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 		targetUser.Profile.LastName = userData.LastName
 		targetUser.Profile.Phone = userData.PhoneNumber
 
-		err = targetUser.Update(db)
-		if err != nil {
-			return &targetUser, http.StatusInternalServerError, err
-		}
+		updateErr := targetUser.Update(db)
 
-		// Create audit log for profile update
+		// Determine new values and success state for the audit log.
+		// We always log the attempt — both on success and failure.
 		newValues := map[string]interface{}{
 			"name":       targetUser.Name,
 			"first_name": targetUser.Profile.FirstName,
@@ -266,7 +264,13 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 		}
 		newValJSON, _ := json.Marshal(newValues)
 
-		if err := audit_utility.CreateAuditLog(
+		description := fmt.Sprintf("User %s updated profile of %s", currentUser.Email, targetUser.Email)
+		success := updateErr == nil
+		if !success {
+			description = fmt.Sprintf("User %s failed to update profile of %s: %v", currentUser.Email, targetUser.Email, updateErr)
+		}
+
+		if auditErr := audit_utility.CreateAuditLog(
 			db,
 			currentUserID,
 			currentUser.Email,
@@ -276,13 +280,16 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 			targetUser.ID,
 			string(oldValJSON),
 			string(newValJSON),
-			fmt.Sprintf("User %s updated profile of %s", currentUser.Email, targetUser.Email),
+			description,
 			audit_utility.GetClientIP(c),
 			c.GetHeader("User-Agent"),
-			true,
-		); err != nil {
-			// Log error but don't fail the operation
-			fmt.Printf("failed to create audit log: %v\n", err)
+			success, // ← correctly reflects the outcome of the update
+		); auditErr != nil {
+			fmt.Printf("failed to create audit log: %v\n", auditErr)
+		}
+
+		if updateErr != nil {
+			return &targetUser, http.StatusInternalServerError, updateErr
 		}
 
 	} else {
@@ -321,23 +328,27 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 		return http.StatusBadRequest, err
 	}
 
-	if err := user.ActivateUser(db, user.ID); err != nil {
-		return http.StatusInternalServerError, err
-	}
+	activateErr := user.ActivateUser(db, user.ID)
 
-	// Create audit log for user reactivation
+	// Resolve actor info for the audit log.
 	userClaims := common.GetAllUserClaims(ctx)
 	actorID, _ := userClaims["user_id"].(string)
 
 	var actorEmail string
 	if actorID != "" {
-		actor, _, err := GetUser(actorID, db)
-		if err == nil {
+		if actor, _, err := GetUser(actorID, db); err == nil {
 			actorEmail = actor.Email
 		}
 	}
 
-	if err := audit_utility.CreateAuditLog(
+	description := fmt.Sprintf("User %s reactivated account for %s", actorEmail, user.Email)
+	success := activateErr == nil
+	if !success {
+		description = fmt.Sprintf("User %s failed to reactivate account for %s: %v", actorEmail, user.Email, activateErr)
+	}
+
+	// Always log the attempt — success or failure.
+	if auditErr := audit_utility.CreateAuditLog(
 		db,
 		actorID,
 		actorEmail,
@@ -347,17 +358,23 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 		user.ID,
 		"",
 		"",
-		fmt.Sprintf("User %s reactivated account for %s", actorEmail, user.Email),
+		description,
 		audit_utility.GetClientIP(ctx),
 		ctx.GetHeader("User-Agent"),
-		true,
-	); err != nil {
-		fmt.Printf("failed to create audit log: %v\n", err)
+		success, // ← correctly reflects the outcome of ActivateUser
+	); auditErr != nil {
+		fmt.Printf("failed to create audit log: %v\n", auditErr)
+	}
+
+	if activateErr != nil {
+		return http.StatusInternalServerError, activateErr
 	}
 
 	return http.StatusOK, nil
 }
 
+// NOTE: Consider adding *gin.Context here in the future so IP and UserAgent
+// can be captured for the audit log, just like ActivateUser does.
 func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 	var user models.User
 
@@ -373,18 +390,21 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 		return http.StatusBadRequest, err
 	}
 
-	if err := user.DeactivateUser(db, user.ID); err != nil {
-		return http.StatusInternalServerError, err
-	}
+	deactivateErr := user.DeactivateUser(db, user.ID)
 
-	// Create audit log for user deactivation
 	var actorEmail string
-	actor, _, err := GetUser(loggedInUserID, db)
-	if err == nil {
+	if actor, _, err := GetUser(loggedInUserID, db); err == nil {
 		actorEmail = actor.Email
 	}
 
-	if err := audit_utility.CreateAuditLog(
+	description := fmt.Sprintf("User %s deactivated account for %s", actorEmail, user.Email)
+	success := deactivateErr == nil
+	if !success {
+		description = fmt.Sprintf("User %s failed to deactivate account for %s: %v", actorEmail, user.Email, deactivateErr)
+	}
+
+	// Always log the attempt — success or failure.
+	if auditErr := audit_utility.CreateAuditLog(
 		db,
 		loggedInUserID,
 		actorEmail,
@@ -394,12 +414,16 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 		user.ID,
 		"",
 		"",
-		fmt.Sprintf("User %s deactivated account for %s", actorEmail, user.Email),
-		"", // IP address not available in this context
-		"", // User agent not available in this context
-		true,
-	); err != nil {
-		fmt.Printf("failed to create audit log: %v\n", err)
+		description,
+		"",
+		"",
+		success,
+	); auditErr != nil {
+		fmt.Printf("failed to create audit log: %v\n", auditErr)
+	}
+
+	if deactivateErr != nil {
+		return http.StatusInternalServerError, deactivateErr
 	}
 
 	return http.StatusOK, nil

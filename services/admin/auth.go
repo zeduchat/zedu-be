@@ -29,23 +29,76 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		cfg          = config.GetConfig().Admin
 	)
 
+	var loginErr error
 	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {
-		err := admin.GetOrCreateSuperAdmin(db, cfg)
-		if err != nil {
-			return responseData, http.StatusInternalServerError, fmt.Errorf("error creating super admin: %w", err)
+		loginErr = admin.GetOrCreateSuperAdmin(db, cfg)
+		if loginErr != nil {
+			return responseData, http.StatusInternalServerError, fmt.Errorf("error creating super admin: %w", loginErr)
 		}
 	} else {
 		exists := postgresql.CheckExists(db, &admin, "email = ?", strings.ToLower(req.Email))
 		if !exists {
+			if auditErr := audit_utility.CreateAuditLog(
+				db,
+				"",
+				req.Email,
+				"",
+				models.ActionAdminLogin,
+				models.ResourceAdmin,
+				"",
+				"",
+				"",
+				fmt.Sprintf("Admin login failed: no account found for %s", req.Email),
+				audit_utility.GetClientIP(c),
+				c.GetHeader("User-Agent"),
+				false,
+			); auditErr != nil {
+				fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+			}
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
 
 		if !utility.CompareHash(req.Password, admin.Password) {
+			if auditErr := audit_utility.CreateAuditLog(
+				db,
+				admin.ID,
+				admin.Email,
+				admin.Role,
+				models.ActionAdminLogin,
+				models.ResourceAdmin,
+				admin.ID,
+				"",
+				"",
+				fmt.Sprintf("Admin login failed: incorrect password for %s", admin.Email),
+				audit_utility.GetClientIP(c),
+				c.GetHeader("User-Agent"),
+				false,
+			); auditErr != nil {
+				fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+			}
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
 	}
 
 	if !admin.IsActive {
+		// Audit the attempt against a deactivated account.
+		if auditErr := audit_utility.CreateAuditLog(
+			db,
+			admin.ID,
+			admin.Email,
+			admin.Role,
+			models.ActionAdminLogin,
+			models.ResourceAdmin,
+			admin.ID,
+			"",
+			"",
+			fmt.Sprintf("Admin login failed: account deactivated for %s", admin.Email),
+			audit_utility.GetClientIP(c),
+			c.GetHeader("User-Agent"),
+			false,
+		); auditErr != nil {
+			fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+		}
 		return responseData, http.StatusForbidden, fmt.Errorf("admin account is deactivated")
 	}
 
@@ -77,8 +130,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		"access_token": tokenData.AccessToken,
 	}
 
-	// Create audit log for admin login
-	if err := audit_utility.CreateAuditLog(
+	if auditErr := audit_utility.CreateAuditLog(
 		db,
 		admin.ID,
 		admin.Email,
@@ -92,9 +144,8 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		audit_utility.GetClientIP(c),
 		c.GetHeader("User-Agent"),
 		true,
-	); err != nil {
-		// Log error but don't fail the request
-		fmt.Printf("failed to create audit log for admin login: %v\n", err)
+	); auditErr != nil {
+		fmt.Printf("failed to create audit log for admin login: %v\n", auditErr)
 	}
 
 	return responseData, http.StatusOK, nil
@@ -116,7 +167,7 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		return nil, fmt.Errorf("email is not registered as a Telex user")
 	}
 
-	plaintextPass, err := GenerateStrongPassword(16) // 16-char password
+	plaintextPass, err := GenerateStrongPassword(16)
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +186,57 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		IsActive: true,
 	}
 
-	err = admin.CreateAdmin(db.Postgresql)
-	if err != nil {
-		return nil, err
+	var requester *models.Admin
+	if claims, exists := c.Get("adminClaims"); exists {
+		if claimsMap, ok := claims.(jwt.MapClaims); ok {
+			if adminID, ok := claimsMap["admin_id"].(string); ok {
+				if reqAdmin, err := models.GetAdminById(db.Postgresql, adminID); err == nil {
+					requester = reqAdmin
+				}
+			}
+		}
+	}
+
+	requesterID, requesterEmail, requesterRole := "", "", ""
+	if requester != nil {
+		requesterID = requester.ID
+		requesterEmail = requester.Email
+		requesterRole = requester.Role
+	}
+
+	createErr := admin.CreateAdmin(db.Postgresql)
+
+	success := createErr == nil
+	description := fmt.Sprintf("Superadmin %s created new admin account for %s", requesterEmail, admin.Email)
+	if !success {
+		description = fmt.Sprintf("Superadmin %s failed to create admin account for %s: %v", requesterEmail, admin.Email, createErr)
+	}
+
+	if auditErr := audit_utility.CreateAuditLog(
+		db.Postgresql,
+		requesterID,
+		requesterEmail,
+		requesterRole,
+		models.ActionAdminCreate,
+		models.ResourceAdmin,
+		admin.ID,
+		"",
+		"",
+		description,
+		audit_utility.GetClientIP(c),
+		c.GetHeader("User-Agent"),
+		success,
+	); auditErr != nil {
+		fmt.Printf("failed to create audit log for admin creation: %v\n", auditErr)
+	}
+
+	if createErr != nil {
+		return nil, createErr
+	}
+
+	// Broadcast audit event only on success, and only when requester is known.
+	if requester != nil {
+		telexaudit.CreateAdminAudit(db, logger, requester.Email, admin.Email)
 	}
 
 	tokenData, err := middleware.CreateAdminToken(admin, c)
@@ -155,43 +254,6 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 	err = access_token.CreateAccessToken(db.Postgresql, tokens)
 	if err != nil {
 		return nil, fmt.Errorf("error saving token: %w", err)
-	}
-
-	// Get requester information for audit logging
-	var requester *models.Admin
-	if claims, exists := c.Get("adminClaims"); exists {
-		if claimsMap, ok := claims.(jwt.MapClaims); ok {
-			if adminID, ok := claimsMap["admin_id"].(string); ok {
-				if reqAdmin, err := models.GetAdminById(db.Postgresql, adminID); err == nil {
-					requester = reqAdmin
-				}
-			}
-		}
-	}
-
-	// Create audit log for admin creation (only if requester was found)
-	if requester != nil {
-		if err := audit_utility.CreateAuditLog(
-			db.Postgresql,
-			requester.ID,
-			requester.Email,
-			requester.Role,
-			models.ActionAdminCreate,
-			models.ResourceAdmin,
-			admin.ID,
-			"",
-			"",
-			fmt.Sprintf("Superadmin %s created new admin account for %s", requester.Email, admin.Email),
-			audit_utility.GetClientIP(c),
-			c.GetHeader("User-Agent"),
-			true,
-		); err != nil {
-			// Log error but don't fail the request
-			fmt.Printf("failed to create audit log for admin creation: %v\n", err)
-		}
-
-		// Broadcast audit event
-		telexaudit.CreateAdminAudit(db, logger, requester.Email, admin.Email)
 	}
 
 	responseData = gin.H{
