@@ -128,3 +128,60 @@ func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []st
 
 	return SendBatchNotifications(logger, subscriptionIDs, req)
 }
+
+func SendDirectCallNotification(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest, callData map[string]interface{}) error {
+	if len(subscriptionIDs) == 0 {
+		return fmt.Errorf("no subscription IDs provided")
+	}
+
+	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
+		return fmt.Errorf("OneSignal client not initialized")
+	}
+
+	contentsMap := onesignalapi.LanguageStringMap{}
+	contentsMap.SetEn(req.Message)
+
+	headingsMap := onesignalapi.LanguageStringMap{}
+	formattedTitle := fmt.Sprintf("%s", strings.Title(strings.ToLower(req.Title)))
+	headingsMap.SetEn(formattedTitle)
+
+	notification := onesignalapi.NewNotification(Client.AppID)
+	notification.SetIncludeSubscriptionIds(subscriptionIDs)
+	notification.SetContents(contentsMap)
+	notification.SetHeadings(headingsMap)
+	notification.SetData(callData)
+
+	if req.AvatarUrl != "" {
+		notification.SetLargeIcon(req.AvatarUrl)
+		notification.SetBigPicture(req.AvatarUrl)
+	}
+
+	ctx := context.WithValue(context.Background(), onesignalapi.RestApiKey, Client.ApiKey)
+
+	response, httpResp, err := Client.Client.DefaultApi.CreateNotification(ctx).
+		Notification(*notification).
+		Execute()
+
+	if err != nil {
+		logger.Error("SendDirectCallNotification: error sending notification: %v", err)
+		return fmt.Errorf("error sending direct call notification: %v", err)
+	}
+
+	if httpResp != nil && httpResp.StatusCode >= 400 {
+		logger.Error("SendDirectCallNotification: API error (status %d)", httpResp.StatusCode)
+		return fmt.Errorf("OneSignal API error (status %d)", httpResp.StatusCode)
+	}
+
+	if response == nil {
+		logger.Error("OneSignal API returned nil response")
+		return fmt.Errorf("OneSignal API returned nil response")
+	}
+
+	notificationID := ""
+	if response.Id != nil {
+		notificationID = *response.Id
+	}
+
+	logger.Info("Successfully sent OneSignal direct call notification to %d recipients. ID: %s", len(subscriptionIDs), notificationID)
+	return nil
+}
