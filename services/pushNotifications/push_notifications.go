@@ -300,3 +300,33 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 
 	return nil
 }
+
+// SendOneSignalNotificationToUser sends a OneSignal push notification to a specific user
+func SendOneSignalNotificationToUser(logger *utility.Logger, db *gorm.DB, userID string, req models.OneSignalPushRequest) error {
+	user := &models.User{}
+
+	subscriptionID, err := user.GetOneSignalSubscriptionID(db, userID)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to get OneSignal subscription ID: %s", err.Error()))
+		return fmt.Errorf("failed to get OneSignal subscription ID")
+	}
+
+	if subscriptionID == "" {
+		logger.Info("User %s has no OneSignal subscription ID", userID)
+		return fmt.Errorf("user has no OneSignal subscription ID")
+	}
+
+	pushReq := models.PushRequest{
+		Title:     req.Title,
+		Message:   req.Message,
+		AvatarUrl: req.AvatarUrl,
+	}
+
+	err = onesignal.SendNotification(logger, subscriptionID, pushReq)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to send OneSignal notification: %s", err.Error()))
+		return fmt.Errorf("failed to send OneSignal notification")
+	}
+
+	return nil
+}
