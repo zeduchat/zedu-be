@@ -80,15 +80,11 @@ func ListAppActivity(db *gorm.DB, c *gin.Context, filter ActivityFilter) (AppAct
 		query = query.Where("actor_role = ?", filter.Role)
 	}
 
-	if filter.Status != "" {
-		// Status is inferred from action prefix: "failed_" => failed, else success
-		// We store status via a naming convention or a dedicated column if available.
-		// Using action string prefix convention: actions starting with "failed" are failed.
-		if filter.Status == "failed" {
-			query = query.Where("action ILIKE 'failed%'")
-		} else if filter.Status == "success" {
-			query = query.Where("action NOT ILIKE 'failed%'")
-		}
+	switch filter.Status {
+	case "failed":
+		query = query.Where("success = ?", false)
+	case "success":
+		query = query.Where("success = ?", true)
 	}
 
 	if filter.Action != "" {
@@ -193,7 +189,7 @@ func ListAppActivity(db *gorm.DB, c *gin.Context, filter ActivityFilter) (AppAct
 		go func() {
 			defer wg.Done()
 			db.Model(&models.AuditLog{}).
-				Where("created_at >= ? AND action ILIKE 'failed%'", last30Days).
+				Where("created_at >= ? AND success = ?", last30Days, false).
 				Count(&stats.FailedActionsMonth)
 		}()
 
@@ -201,7 +197,7 @@ func ListAppActivity(db *gorm.DB, c *gin.Context, filter ActivityFilter) (AppAct
 		go func() {
 			defer wg.Done()
 			db.Model(&models.AuditLog{}).
-				Where("created_at >= ? AND created_at < ? AND action ILIKE 'failed%'", last60Days, last30Days).
+				Where("created_at >= ? AND created_at < ? AND success = ?", last60Days, last30Days, false).
 				Count(&prevFailed)
 		}()
 
@@ -267,7 +263,7 @@ func ListAppActivity(db *gorm.DB, c *gin.Context, filter ActivityFilter) (AppAct
 		actor := actorMap[l.ActorID]
 
 		status := "success"
-		if len(l.Action) >= 6 && string(l.Action)[:6] == "failed" {
+		if !l.Success {
 			status = "failed"
 		}
 
