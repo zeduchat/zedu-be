@@ -118,6 +118,8 @@ tags:
     description: API endpoints for default slash commands
   - name: account
     description: API for account management operations
+  - name: OneSignal Notification
+    description: API for sending OneSignal notifications
 paths:
   # Auth paths
   /auth/register:
@@ -19188,6 +19190,73 @@ paths:
                     example: 200
 
         "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /notifications/onesignal/send:
+    post:
+      tags:
+        - OneSignal Notification
+      security:
+        - bearerAuth: []
+      summary: Send OneSignal notification to the logged-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Notification Title"
+                message:
+                  type: string
+                  example: "This is a test notification message"
+                avatar_url:
+                  type: string
+                  example: "https://example.com/avatar.png"
+              required:
+                - title
+                - message
+      responses:
+        "200":
+          description: OneSignal notification sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "OneSignal notification sent successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
           description: Invalid input
           content:
             application/json:
