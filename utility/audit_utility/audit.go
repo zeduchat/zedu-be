@@ -123,8 +123,8 @@ func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action m
 		Action:       action,
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
-		OldValues:    oldValues,
-		NewValues:    newValues,
+		OldValues:    normalizeJSON(oldValues),
+		NewValues:    normalizeJSON(newValues),
 		Description:  description,
 		IPAddress:    ipAddress,
 		UserAgent:    userAgent,
@@ -132,4 +132,11 @@ func CreateAuditLog(db *gorm.DB, actorID, actorEmail, actorRole string, action m
 	}
 
 	return audit.CreateAuditLog(db)
+}
+
+func normalizeJSON(s string) string {
+	if s == "" {
+		return "{}"
+	}
+	return s
 }
