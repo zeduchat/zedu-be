@@ -316,7 +316,7 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 
 }
 
-func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) {
+func ActivateUser(userIDStr string, db *gorm.DB, c *gin.Context) (int, error) {
 	var user models.User
 
 	user, err := user.GetUserByID(db, userIDStr)
@@ -330,7 +330,7 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	activateErr := user.ActivateUser(db, user.ID)
 
 	// Resolve actor info for the audit log.
-	userClaims := common.GetAllUserClaims(ctx)
+	userClaims := common.GetAllUserClaims(c)
 	actorID, _ := userClaims["user_id"].(string)
 
 	var actorEmail string
@@ -355,8 +355,8 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 		ResourceType: models.ResourceUser,
 		ResourceID:   user.ID,
 		Description:  description,
-		IPAddress:    audit_utility.GetClientIP(ctx),
-		UserAgent:    ctx.GetHeader("User-Agent"),
+		IPAddress:    audit_utility.GetClientIP(c),
+		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
 		fmt.Printf("failed to create audit log: %v\n", auditErr)
@@ -368,9 +368,7 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	return http.StatusOK, nil
 }
 
-// NOTE: Consider adding *gin.Context here in the future so IP and UserAgent
-// can be captured for the audit log, just like ActivateUser does.
-func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
+func DeactiveUser(db *gorm.DB, userID, loggedInUserID string, c *gin.Context) (int, error) {
 	var user models.User
 
 	if userID == loggedInUserID {
@@ -407,8 +405,8 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 		ResourceType: models.ResourceUser,
 		ResourceID:   user.ID,
 		Description:  description,
-		IPAddress:    "", //TODO: get the ip and user agent
-		UserAgent:    "",
+		IPAddress:    audit_utility.GetClientIP(c),
+		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
 		fmt.Printf("failed to create audit log: %v\n", auditErr) //TODO: use logger for this

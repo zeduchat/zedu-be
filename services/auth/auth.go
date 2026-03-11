@@ -138,8 +138,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		ResourceID:   user.ID,
 		Description:  description,
 		IPAddress:    ipAddress,
-		UserAgent:    c.GetHeader("User-Agent"), //TODO: utility function to get user agent
-
+		UserAgent:    c.GetHeader("User-Agent"),
 	}); auditErr != nil {
 		logger.Error("failed to create audit log for user creation: " + auditErr.Error())
 	}
