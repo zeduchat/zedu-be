@@ -5728,6 +5728,345 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /buzz/direct-call:
+    post:
+      tags:
+        - buzz
+      summary: Initiate a direct call in a DM or Group DM
+      description: |
+        Creates a new buzz call within a DM or Group DM channel. Automatically adds all channel members as participants.
+        The caller's participant status is set to `accepted`. All other participants are set to `pending`.
+        A real-time Centrifugo event (`direct_call_initiated`) is published to the channel, and a OneSignal push
+        notification ("Incoming Call") is sent to all non-caller participants.
+        Ringing timeout is 5 minutes from `created_at`; after that, `respond` with any action resolves to `timeout`.
+      operationId: initiateDirectCall
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel_id
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: ID of the DM or Group DM channel
+            example:
+              channel_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+      responses:
+        "201":
+          description: Direct call initiated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          buzz_id:
+                            type: string
+                            format: uuid
+                          buzz_code:
+                            type: string
+                          channel_id:
+                            type: string
+                            format: uuid
+                          caller_id:
+                            type: string
+                            format: uuid
+                          caller_name:
+                            type: string
+                          status:
+                            type: string
+                            example: active
+                          participants:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                user_id:
+                                  type: string
+                                  format: uuid
+                                username:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum: [accepted, pending, declined, timeout]
+                          created_at:
+                            type: string
+                            format: date-time
+                          agora_token:
+                            type: object
+                            properties:
+                              token:
+                                type: string
+                              app_id:
+                                type: string
+                              channel_name:
+                                type: string
+                              uid:
+                                type: string
+              example:
+                status: "success"
+                status_code: 201
+                message: "direct call initiated successfully"
+                data:
+                  buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  buzz_code: "ACC68"
+                  channel_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                  caller_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                  caller_name: "johndoe"
+                  status: "active"
+                  participants:
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      username: "johndoe"
+                      status: "accepted"
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                      username: "janesmith"
+                      status: "pending"
+                  created_at: "2024-01-15T10:30:00Z"
+                  agora_token:
+                    token: "007eJxSYOCa..."
+                    app_id: "your-agora-app-id"
+                    channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                    uid: "019acc68-ad4f-721e-9c4b-d2064d445227"
+        "400":
+          description: Bad Request (channel is not a DM or Group DM)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (caller is not a member of the channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (channel does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "409":
+          description: Conflict (channel already has an active call)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/{buzzId}/respond:
+    post:
+      tags:
+        - buzz
+      summary: Accept, decline, or timeout a direct call
+      description: |
+        Responds to an incoming direct call. The authenticated user must be a pending participant.
+        - `accept`: Joins the call, generates an Agora RTC token, and publishes a `direct_call_response` centrifugo event.
+        - `decline`: Marks the participant as declined and publishes a centrifugo event.
+        - `timeout`: Client-side signal that ringing timed out. If the call's `created_at` is older than 5 minutes,
+          any action is automatically overridden to `timeout`.
+        Centrifugo payload (`direct_call_response` event) contains the full updated `participants[]` array.
+      operationId: respondToDirectCall
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: buzzId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the buzz (direct call) to respond to
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline, timeout]
+                  description: Response action for the incoming call
+            examples:
+              accept:
+                summary: Accept the call
+                value:
+                  action: "accept"
+              decline:
+                summary: Decline the call
+                value:
+                  action: "decline"
+              timeout:
+                summary: Ringing timed out
+                value:
+                  action: "timeout"
+      responses:
+        "200":
+          description: Call response recorded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          buzz_id:
+                            type: string
+                            format: uuid
+                          buzz_code:
+                            type: string
+                          channel_id:
+                            type: string
+                            format: uuid
+                          caller_id:
+                            type: string
+                            format: uuid
+                          caller_name:
+                            type: string
+                          status:
+                            type: string
+                          participants:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                user_id:
+                                  type: string
+                                  format: uuid
+                                username:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum: [accepted, pending, declined, timeout]
+                          agora_token:
+                            description: Present only when action is `accept` and Agora is available
+                            type: object
+                            nullable: true
+                            properties:
+                              token:
+                                type: string
+                              app_id:
+                                type: string
+                              channel_name:
+                                type: string
+                              uid:
+                                type: string
+              examples:
+                accepted:
+                  summary: Call accepted
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "call response recorded successfully"
+                    data:
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      caller_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      caller_name: "johndoe"
+                      status: "active"
+                      participants:
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                          username: "johndoe"
+                          status: "accepted"
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                          username: "janesmith"
+                          status: "accepted"
+                      agora_token:
+                        token: "007eJxSYOCa..."
+                        app_id: "your-agora-app-id"
+                        channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                        uid: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                declined:
+                  summary: Call declined
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "call response recorded successfully"
+                    data:
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      participants:
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                          username: "johndoe"
+                          status: "accepted"
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                          username: "janesmith"
+                          status: "declined"
+                      agora_token: null
+        "400":
+          description: Bad Request (participant already responded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (not a participant in this call)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (call does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "409":
+          description: Conflict (call has ended)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /buzz/invitations/pending:
     get:
       tags:
