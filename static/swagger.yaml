@@ -19251,17 +19251,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
         "500":
           description: Internal Server Error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-          description: Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BadRequestErrorSchema"
 
         "422":
           description: Unprocessed Entity
