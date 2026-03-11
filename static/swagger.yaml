@@ -9034,6 +9034,127 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /backoffice/dashboard/activity:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve app activity logs with stats and filters
+      description: |-
+        Returns a paginated list of audit log activities including user info, role, action, resource, status, and timestamps.
+
+        Also returns dashboard statistics for the current month (total activities, admin actions, user actions, failed actions) with percentage changes compared to the previous 30-day period.
+
+        Supports filtering by search term, role, status, action type, and date range.
+
+        **Access**: Admins and Superadmins only.
+      operationId: getAppActivity
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search activities by actor email, role, description, or action (case-insensitive)
+          schema:
+            type: string
+            example: "john@example.com"
+        - name: role
+          in: query
+          required: false
+          description: Filter by actor role
+          schema:
+            type: string
+            enum: [user, admin, superadmin]
+            example: "admin"
+        - name: status
+          in: query
+          required: false
+          description: Filter by action status (inferred from action naming convention)
+          schema:
+            type: string
+            enum: [success, failed]
+            example: "success"
+        - name: action
+          in: query
+          required: false
+          description: Filter by exact action type (e.g. the activity dropdown in the UI)
+          schema:
+            type: string
+            example: "user.created"
+        - name: duration
+          in: query
+          required: false
+          description: Preset date range filter applied to the activity list. For custom date range, use `custom` and provide `start_date`/`end_date`. Omit or use `all_time` for no date filtering.
+          schema:
+            type: string
+            enum: [last_3_months, last_month, last_year, custom, all_time]
+            example: "last_3_months"
+        - name: start_date
+          in: query
+          required: false
+          description: Custom start date (YYYY-MM-DD). Used with `duration=custom`, or can be provided directly without `duration`.
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: end_date
+          in: query
+          required: false
+          description: Custom end date (YYYY-MM-DD). Used with `duration=custom`, or can be provided directly without `duration`.
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include monthly dashboard statistics (default true). Set to false for faster paginated requests. Stats are always based on the last 30 days regardless of other filters.
+          schema:
+            type: boolean
+            default: true
+            example: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: App activity retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppActivityResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
   /backoffice/admins/users/invites:
     get:
       tags:
@@ -31373,6 +31494,97 @@ components:
             total_pages:
               type: integer
               example: 1
+    AppActivityResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "app activity retrieved successfully"
+        data:
+          type: object
+          properties:
+            activity_stats:
+              type: object
+              properties:
+                total_activities_month:
+                  type: integer
+                  example: 142
+                total_activities_month_change:
+                  type: number
+                  format: float
+                  description: Percentage change vs previous 30-day period
+                  example: 12.5
+                admin_actions_month:
+                  type: integer
+                  example: 38
+                admin_actions_month_change:
+                  type: number
+                  format: float
+                  example: -4.2
+                user_actions_month:
+                  type: integer
+                  example: 104
+                user_actions_month_change:
+                  type: number
+                  format: float
+                  example: 20.0
+                failed_actions_month:
+                  type: integer
+                  example: 7
+                failed_actions_month_change:
+                  type: number
+                  format: float
+                  example: 0.0
+            activities:
+              type: array
+              items:
+                type: object
+                properties:
+                  activity_id:
+                    type: string
+                    example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "u1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      name:
+                        type: string
+                        example: "Jane Doe"
+                      email:
+                        type: string
+                        example: "jane@example.com"
+                      avatar_url:
+                        type: string
+                        example: "https://cdn.example.com/avatars/jane.png"
+                  role:
+                    type: string
+                    example: "admin"
+                  action:
+                    type: string
+                    description: The verb portion of the action (e.g. last segment of "user.created")
+                    example: "created"
+                  resource:
+                    type: string
+                    example: "user"
+                  status:
+                    type: string
+                    enum: [success, failed]
+                    example: "success"
+                  details:
+                    type: object
+                    properties:
+                      description:
+                        type: string
+                        example: "Admin created a new user account"
+                      timestamp:
+                        type: string
+                        format: date-time
+                        example: "2024-06-15T10:30:00Z"
 
     AdminUsersResponseSchema:
       type: object
