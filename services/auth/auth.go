@@ -129,21 +129,18 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		description = fmt.Sprintf("User %s failed to create account: %v", user.Email, createErr)
 	}
 
-	if auditErr := audit_utility.CreateAuditLog(
-		db,
-		user.ID,
-		user.Email,
-		"user",
-		models.ActionUserCreate,
-		models.ResourceUser,
-		user.ID,
-		"",
-		"",
-		description,
-		ipAddress,
-		c.GetHeader("User-Agent"),
-		success,
-	); auditErr != nil {
+	if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
+		ActorID:      user.ID,
+		ActorEmail:   user.Email,
+		ActorRole:    "user",
+		Action:       models.ActionUserCreate,
+		ResourceType: models.ResourceUser,
+		ResourceID:   user.ID,
+		Description:  description,
+		IPAddress:    ipAddress,
+		UserAgent:    c.GetHeader("User-Agent"), //TODO: utility function to get user agent
+
+	}); auditErr != nil {
 		logger.Error("failed to create audit log for user creation: " + auditErr.Error())
 	}
 

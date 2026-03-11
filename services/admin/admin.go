@@ -109,21 +109,20 @@ func ConfirmAdminRoleChange(db *storage.Database, logger *utility.Logger, token,
 		oldValJSON, _ := json.Marshal(map[string]string{"role": confirmation.OldRole})
 		newValJSON, _ := json.Marshal(map[string]string{"role": confirmation.NewRole})
 
-		if err := audit_utility.CreateAuditLog(
-			tx,
-			requesterID,
-			requester.Email,
-			requester.Role,
-			models.ActionAdminRoleUpdate,
-			models.ResourceAdmin,
-			confirmation.TargetAdminID,
-			string(oldValJSON),
-			string(newValJSON),
-			fmt.Sprintf("Superadmin %s changed role of %s from %s to %s", requester.Email, confirmation.TargetAdminEmail, confirmation.OldRole, confirmation.NewRole),
-			ipAddress,
-			userAgent,
-			true,
-		); err != nil {
+		if err := audit_utility.CreateAuditLog(tx, audit_utility.AuditLogParams{
+			ActorID:      requesterID,
+			ActorEmail:   requester.Email,
+			ActorRole:    requester.Role,
+			Action:       models.ActionAdminRoleUpdate,
+			ResourceType: models.ResourceAdmin,
+			ResourceID:   confirmation.TargetAdminID,
+			OldValues:    string(oldValJSON),
+			NewValues:    string(newValJSON),
+			Description:  fmt.Sprintf("Superadmin %s changed role of %s from %s to %s", requester.Email, confirmation.TargetAdminEmail, confirmation.OldRole, confirmation.NewRole),
+			IPAddress:    ipAddress,
+			UserAgent:    userAgent,
+			Success:      true,
+		}); err != nil {
 			logger.Error("failed to create audit log: " + err.Error())
 			return fmt.Errorf("failed to create audit log (transaction rolled back): %w", err)
 		}

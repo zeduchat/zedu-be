@@ -270,22 +270,21 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 			description = fmt.Sprintf("User %s failed to update profile of %s: %v", currentUser.Email, targetUser.Email, updateErr)
 		}
 
-		if auditErr := audit_utility.CreateAuditLog(
-			db,
-			currentUserID,
-			currentUser.Email,
-			"user",
-			models.ActionProfileUpdate,
-			models.ResourceUser,
-			targetUser.ID,
-			string(oldValJSON),
-			string(newValJSON),
-			description,
-			audit_utility.GetClientIP(c),
-			c.GetHeader("User-Agent"),
-			success, // ← correctly reflects the outcome of the update
-		); auditErr != nil {
-			fmt.Printf("failed to create audit log: %v\n", auditErr)
+		if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
+			ActorID:      currentUserID,
+			ActorEmail:   currentUser.Email,
+			ActorRole:    "user",
+			Action:       models.ActionProfileUpdate,
+			ResourceType: models.ResourceUser,
+			ResourceID:   targetUser.ID,
+			OldValues:    string(oldValJSON),
+			NewValues:    string(newValJSON),
+			Description:  description,
+			IPAddress:    audit_utility.GetClientIP(c),
+			UserAgent:    c.GetHeader("User-Agent"),
+			Success:      success,
+		}); auditErr != nil {
+			fmt.Printf("failed to create audit log: %v\n", auditErr) //TODO: logger
 		}
 
 		if updateErr != nil {
@@ -348,24 +347,20 @@ func ActivateUser(userIDStr string, db *gorm.DB, ctx *gin.Context) (int, error) 
 	}
 
 	// Always log the attempt — success or failure.
-	if auditErr := audit_utility.CreateAuditLog(
-		db,
-		actorID,
-		actorEmail,
-		"user",
-		models.ActionUserReactivate,
-		models.ResourceUser,
-		user.ID,
-		"",
-		"",
-		description,
-		audit_utility.GetClientIP(ctx),
-		ctx.GetHeader("User-Agent"),
-		success, // ← correctly reflects the outcome of ActivateUser
-	); auditErr != nil {
+	if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
+		ActorID:      actorID,
+		ActorEmail:   actorEmail,
+		ActorRole:    "user",
+		Action:       models.ActionUserReactivate,
+		ResourceType: models.ResourceUser,
+		ResourceID:   user.ID,
+		Description:  description,
+		IPAddress:    audit_utility.GetClientIP(ctx),
+		UserAgent:    ctx.GetHeader("User-Agent"),
+		Success:      success,
+	}); auditErr != nil {
 		fmt.Printf("failed to create audit log: %v\n", auditErr)
 	}
-
 	if activateErr != nil {
 		return http.StatusInternalServerError, activateErr
 	}
@@ -404,22 +399,19 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string) (int, error) {
 	}
 
 	// Always log the attempt — success or failure.
-	if auditErr := audit_utility.CreateAuditLog(
-		db,
-		loggedInUserID,
-		actorEmail,
-		"user",
-		models.ActionUserDeactivate,
-		models.ResourceUser,
-		user.ID,
-		"",
-		"",
-		description,
-		"",
-		"",
-		success,
-	); auditErr != nil {
-		fmt.Printf("failed to create audit log: %v\n", auditErr)
+	if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
+		ActorID:      loggedInUserID,
+		ActorEmail:   actorEmail,
+		ActorRole:    "user",
+		Action:       models.ActionUserDeactivate,
+		ResourceType: models.ResourceUser,
+		ResourceID:   user.ID,
+		Description:  description,
+		IPAddress:    "", //TODO: get the ip and user agent
+		UserAgent:    "",
+		Success:      success,
+	}); auditErr != nil {
+		fmt.Printf("failed to create audit log: %v\n", auditErr) //TODO: use logger for this
 	}
 
 	if deactivateErr != nil {

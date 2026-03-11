@@ -276,21 +276,18 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		description = fmt.Sprintf("User %s failed to join organisation %s: %v", actorEmail, orgId, addErr)
 	}
 
-	if auditErr := audit_utility.CreateAuditLog(
-		base.Db.Postgresql,
-		actorID,
-		actorEmail,
-		"user",
-		models.ActionOrganisationJoined,
-		models.ResourceUser,
-		req.UserId,
-		"",
-		"",
-		description,
-		audit_utility.GetClientIP(c),
-		c.GetHeader("User-Agent"),
-		success,
-	); auditErr != nil {
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:      actorID,
+		ActorEmail:   actorEmail,
+		ActorRole:    "user",
+		Action:       models.ActionOrganisationJoined,
+		ResourceType: models.ResourceUser,
+		ResourceID:   req.UserId, //TODO: correct resource??
+		Description:  description,
+		IPAddress:    audit_utility.GetClientIP(c),
+		UserAgent:    c.GetHeader("user-Agent"),
+		Success:      success,
+	}); auditErr != nil {
 		base.Logger.Error("failed to create audit log for organisation join: " + auditErr.Error())
 	}
 

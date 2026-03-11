@@ -99,21 +99,19 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		description = fmt.Sprintf("User %s failed to remove user %s from organisation %s: %v", ownerEmail, userId, orgId, removeErr)
 	}
 
-	if auditErr := audit_utility.CreateAuditLog(
-		base.Db.Postgresql,
-		ownerId,
-		ownerEmail,
-		"user",
-		models.ActionOrganisationLeft,
-		models.ResourceUser,
-		userId,
-		"",
-		string(auditDataJSON),
-		description,
-		audit_utility.GetClientIP(c),
-		c.GetHeader("User-Agent"),
-		success,
-	); auditErr != nil {
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:      ownerId,
+		ActorEmail:   ownerEmail,
+		ActorRole:    "user",
+		Action:       models.ActionOrganisationLeft,
+		ResourceType: models.ResourceUser,
+		ResourceID:   userId,
+		NewValues:    string(auditDataJSON), // TODO: is there a reason to wrap around string
+		Description:  description,
+		IPAddress:    audit_utility.GetClientIP(c),
+		UserAgent:    c.GetHeader("User-Agent"),
+		Success:      success,
+	}); auditErr != nil {
 		base.Logger.Error("Failed to create audit log for user leaving organisation", auditErr)
 	}
 
