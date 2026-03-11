@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
@@ -299,17 +300,40 @@ func resolveUsername(db *gorm.DB, logger *utility.Logger, userID string) string 
 	return user.Email
 }
 
+func resolveUserProfile(db *gorm.DB, logger *utility.Logger, userID string) (username, avatarURL string) {
+	var profile models.Profile
+	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
+		logger.Error("resolveUserProfile: failed to fetch profile for %s: %v", userID, err)
+		return resolveUsername(db, logger, userID), ""
+	}
+	name := profile.UserName
+	if name == "" {
+		var user models.User
+		if err := db.Where("id = ?", userID).First(&user).Error; err == nil {
+			if idx := strings.Index(user.Email, "@"); idx != -1 {
+				name = user.Email[:idx]
+			} else {
+				name = user.Email
+			}
+		}
+	}
+	return name, profile.AvatarURL
+}
+
 func buildCallParticipants(db *gorm.DB, logger *utility.Logger, participantIDs []string, callerID string) []models.DirectCallParticipant {
 	result := make([]models.DirectCallParticipant, 0, len(participantIDs))
 	for _, uid := range participantIDs {
-		status := models.CallStatusPending
+		joinStatus := models.CallStatusPending
 		if uid == callerID {
-			status = models.CallStatusAccepted
+			joinStatus = models.CallStatusAccepted
 		}
+		username, avatarURL := resolveUserProfile(db, logger, uid)
 		result = append(result, models.DirectCallParticipant{
-			UserID:   uid,
-			Username: resolveUsername(db, logger, uid),
-			Status:   status,
+			UserID:           uid,
+			Username:         username,
+			AvatarURL:        avatarURL,
+			DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(uid),
+			JoinStatus:       joinStatus,
 		})
 	}
 	return result
@@ -323,10 +347,13 @@ func fetchCallParticipants(db *gorm.DB, logger *utility.Logger, buzzID string) [
 	}
 	result := make([]models.DirectCallParticipant, 0, len(participants))
 	for _, p := range participants {
+		username, avatarURL := resolveUserProfile(db, logger, p.UserID)
 		result = append(result, models.DirectCallParticipant{
-			UserID:   p.UserID,
-			Username: resolveUsername(db, logger, p.UserID),
-			Status:   p.Status,
+			UserID:           p.UserID,
+			Username:         username,
+			AvatarURL:        avatarURL,
+			DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(p.UserID),
+			JoinStatus:       p.Status,
 		})
 	}
 	return result

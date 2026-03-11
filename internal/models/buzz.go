@@ -103,6 +103,7 @@ type ParticipantMetadata struct {
 	AvatarURL     *string    `json:"avatar_url,omitempty"`
 	JoinedAt      time.Time  `json:"joined_at"`
 	Status        string     `json:"status"`
+	JoinStatus    string     `json:"join_status"`
 	StatusSticker *string    `json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
 	MediaState    *string    `json:"media_state,omitempty"`
@@ -248,6 +249,7 @@ type ParticipantDetails struct {
 	Username   string  `json:"username"`
 	AvatarURL  *string `json:"avatar_url,omitempty"`
 	Email      string  `json:"email,omitempty"`
+	JoinStatus string  `json:"join_status,omitempty"`
 	MediaState *string `json:"media_state,omitempty"`
 }
 
@@ -618,9 +620,11 @@ const (
 )
 
 type DirectCallParticipant struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Status   string `json:"status"`
+	UserID           string `json:"user_id"`
+	Username         string `json:"username"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	JoinStatus       string `json:"join_status"`
 }
 
 type InitiateDirectCallRequest struct {

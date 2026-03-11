@@ -78,6 +78,7 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 			p.avatar_url,
 			bp.joined_at,
 			bp.status,
+			bp.status as join_status,
 			bp.status_sticker,
 			bp.sticker_set_at,
 			bp.media_state
@@ -517,6 +518,7 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 			UserID:     p.UserID,
 			Username:   p.UserName,
 			AvatarURL:  p.AvatarURL,
+			JoinStatus: p.JoinStatus,
 			MediaState: p.MediaState,
 		})
 	}
@@ -675,6 +677,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 			UserID:     p.UserID,
 			Username:   p.UserName,
 			AvatarURL:  p.AvatarURL,
+			JoinStatus: p.JoinStatus,
 			MediaState: p.MediaState,
 		})
 	}
