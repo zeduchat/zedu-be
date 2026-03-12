@@ -3,6 +3,7 @@ package buzz
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -133,13 +134,25 @@ func InitiateDirectCall(db *storage.Database, logger *utility.Logger, channelID,
 		Participants: callParticipants,
 		CreatedAt:    now,
 	}
+
 	notification.ModificationDetails = &models.ModificationDetails{
 		ChannelId: channelID,
 	}
+
 	notification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
-		logger.Error("direct call: failed to publish centrifugo event: %v", err)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", channelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	if orgID != "" {
+		broadcastChannels := make([]string, 0, len(participantIDs))
+		for _, uid := range participantIDs {
+			broadcastChannels = append(broadcastChannels, fmt.Sprintf("%s/%s", orgID, uid))
+		}
+
+		if err := centrifuge.BatchBroadcastToChannel(logger, broadcastChannels, notification); err != nil {
+			logger.Error("direct call: failed to broadcast centrifugo event: %v", err)
+		}
 	}
 
 	go notifyCallParticipants(db, logger, participantIDs, callerID, callerName, channelID, buzz.ID)
@@ -250,8 +263,22 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 	}
 	respNotification.NotificationId = utility.GenerateUUID()
 
-	if err := centrifuge.PublishChannel(logger, buzz.ChannelID, respNotification); err != nil {
-		logger.Error("respond to call: failed to publish centrifugo event: %v", err)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	if orgID != "" {
+		participantIDs, err := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
+		if err == nil {
+			broadcastChannels := make([]string, 0, len(participantIDs))
+			for _, uid := range participantIDs {
+				broadcastChannels = append(broadcastChannels, fmt.Sprintf("%s/%s", orgID, uid))
+			}
+			if err := centrifuge.BatchBroadcastToChannel(logger, broadcastChannels, respNotification); err != nil {
+				logger.Error("respond to call: failed to broadcast centrifugo event: %v", err)
+			}
+		} else {
+			logger.Error("respond to call: failed to fetch channel participants for broadcast: %v", err)
+		}
 	}
 
 	resp = models.DirectCallResponse{
