@@ -67,7 +67,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		},
 	}
 
-	channelID := fmt.Sprintf("user:%s", job.Args.UserID)
+	channelID := fmt.Sprintf("org:%s", job.Args.OrgID)
 	if err := centrifuge.PublishChannel(w.logger, channelID, notification); err != nil {
 		w.logger.Error("Failed to publish status cleared event", "error", err, "channel_id", channelID)
 	}
