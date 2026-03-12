@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -455,6 +456,344 @@ func GetPlatformCreditSummary(db *gorm.DB) (PlatformCreditMetrics, error) {
 	}
 
 	return metrics, nil
+}
+
+type AICreditPackageStats struct {
+	TotalCreditsSold     int64   `json:"total_credits_sold"`
+	MonthlyCreditRevenue float64 `json:"monthly_credit_revenue"`
+	UnusedCredits        float64 `json:"unused_credits"`
+	CreditBurnRate       float64 `json:"credit_burn_rate"`
+}
+
+func GetAICreditPackageStats(db *gorm.DB) (AICreditPackageStats, error) {
+	var stats AICreditPackageStats
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	// Total credits sold: count of top-up transactions
+	if err := db.Model(&CreditTransaction{}).
+		Where("type = ?", "Top-up").
+		Count(&stats.TotalCreditsSold).Error; err != nil {
+		return stats, fmt.Errorf("failed to count total credits sold: %w", err)
+	}
+
+	// Monthly credit revenue: sum of top-up amounts this month
+	if err := db.Model(&CreditTransaction{}).
+		Where("type = ? AND created_at >= ?", "Top-up", startOfMonth).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&stats.MonthlyCreditRevenue).Error; err != nil {
+		return stats, fmt.Errorf("failed to calculate monthly credit revenue: %w", err)
+	}
+
+	// Unused credits: sum of all org credit balances
+	if err := db.Model(&Organisation{}).
+		Select("COALESCE(SUM(credit_balance), 0)").
+		Scan(&stats.UnusedCredits).Error; err != nil {
+		return stats, fmt.Errorf("failed to calculate unused credits: %w", err)
+	}
+
+	// Credit burn rate: average daily credit usage this month
+	var totalUsageThisMonth float64
+	if err := db.Model(&CreditUsage{}).
+		Where("created_at >= ?", startOfMonth).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&totalUsageThisMonth).Error; err != nil {
+		return stats, fmt.Errorf("failed to calculate credit burn rate: %w", err)
+	}
+
+	daysElapsed := now.Sub(startOfMonth).Hours() / 24
+	if daysElapsed < 1 {
+		daysElapsed = 1
+	}
+	stats.CreditBurnRate = math.Round((totalUsageThisMonth/daysElapsed)*100) / 100
+
+	return stats, nil
+}
+
+// --- Admin Transactions History (unified view) ---
+
+type AdminTransaction struct {
+	ID            string    `json:"id"`
+	CustomerName  string    `json:"customer_name"`
+	CustomerEmail string    `json:"customer_email"`
+	Type          string    `json:"type"`
+	Amount        float64   `json:"amount"`
+	Date          time.Time `json:"date"`
+	Status        string    `json:"status"`
+}
+
+type AdminTransactionFilters struct {
+	Search   string
+	Duration string
+	Type     string
+	Status   string
+	Page     int
+	PageSize int
+}
+
+type AdminTransactionStatsMetric struct {
+	Value            float64 `json:"value"`
+	PercentageChange float64 `json:"percentage_change"`
+}
+
+type AdminTransactionStats struct {
+	TotalRevenue       AdminTransactionStatsMetric `json:"total_revenue"`
+	TotalTransactions  AdminTransactionStatsMetric `json:"total_transactions"`
+	SuccessfulPayments AdminTransactionStatsMetric `json:"successful_payments"`
+	Refunds            AdminTransactionStatsMetric `json:"refunds"`
+}
+
+func buildDurationFilter(duration string) time.Time {
+	now := time.Now()
+	switch duration {
+	case "last_7_days":
+		return now.AddDate(0, 0, -7)
+	case "last_30_days":
+		return now.AddDate(0, 0, -30)
+	case "last_3_months":
+		return now.AddDate(0, -3, 0)
+	case "last_6_months":
+		return now.AddDate(0, -6, 0)
+	case "last_year":
+		return now.AddDate(-1, 0, 0)
+	default:
+		return time.Time{} // no filter
+	}
+}
+
+func GetAdminTransactionsHistory(db *gorm.DB, filters AdminTransactionFilters) ([]AdminTransaction, int64, error) {
+	var transactions []AdminTransaction
+	var totalCount int64
+
+	// Build the UNION query for both credit pack and subscription transactions
+	baseQuery := `
+		SELECT id, customer_name, customer_email, type, amount, date, status FROM (
+			SELECT
+				ct.id as id,
+				COALESCE(o.name, '') as customer_name,
+				COALESCE(o.email, '') as customer_email,
+				'CREDIT_PACK' as type,
+				ct.amount as amount,
+				ct.created_at as date,
+				CASE
+					WHEN ct.type = 'Refund' THEN 'Refund'
+					WHEN psw.session_id IS NOT NULL THEN 'Paid'
+					WHEN ct.stripe_session_id IS NULL THEN 'Paid'
+					ELSE 'Pending'
+				END as status
+			FROM credit_transactions ct
+			LEFT JOIN organisations o ON ct.organisation_id = o.id
+			LEFT JOIN processed_stripe_webhooks psw ON ct.stripe_session_id = psw.session_id
+			WHERE ct.updated_at IS NOT NULL
+
+			UNION ALL
+
+			SELECT
+				op.id as id,
+				COALESCE(o.name, '') as customer_name,
+				COALESCE(o.email, '') as customer_email,
+				'SUBSCRIPTION' as type,
+				COALESCE(p.fee, 0) as amount,
+				op.created_at as date,
+				CASE
+					WHEN op.status = 'Active' THEN 'Paid'
+					WHEN op.status = 'Inactive' THEN 'Paid'
+					ELSE 'Pending'
+				END as status
+			FROM organisation_plans op
+			LEFT JOIN organisations o ON op.organisation_id = o.id
+			LEFT JOIN plans p ON op.plan_id::uuid = p.id
+			WHERE op.deleted_at IS NULL
+		) unified`
+
+	var whereClauses []string
+	var args []interface{}
+
+	// Duration filter
+	if filters.Duration != "" {
+		startDate := buildDurationFilter(filters.Duration)
+		if !startDate.IsZero() {
+			whereClauses = append(whereClauses, "date >= ?")
+			args = append(args, startDate)
+		}
+	}
+
+	// Type filter
+	if filters.Type != "" {
+		switch filters.Type {
+		case "subscription":
+			whereClauses = append(whereClauses, "type = ?")
+			args = append(args, "SUBSCRIPTION")
+		case "credit_pack":
+			whereClauses = append(whereClauses, "type = ?")
+			args = append(args, "CREDIT_PACK")
+		}
+	}
+
+	// Status filter
+	if filters.Status != "" {
+		switch filters.Status {
+		case "paid":
+			whereClauses = append(whereClauses, "status = ?")
+			args = append(args, "Paid")
+		case "pending":
+			whereClauses = append(whereClauses, "status = ?")
+			args = append(args, "Pending")
+		case "failed":
+			whereClauses = append(whereClauses, "status = ?")
+			args = append(args, "Failed")
+		}
+	}
+
+	// Search filter
+	if filters.Search != "" {
+		searchTerm := "%" + filters.Search + "%"
+		whereClauses = append(whereClauses, "(LOWER(customer_name) LIKE LOWER(?) OR LOWER(customer_email) LIKE LOWER(?) OR LOWER(id::text) LIKE LOWER(?))")
+		args = append(args, searchTerm, searchTerm, searchTerm)
+	}
+
+	whereSQL := ""
+	if len(whereClauses) > 0 {
+		whereSQL = " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	// Count query
+	countQuery := "SELECT COUNT(*) FROM (" + baseQuery + whereSQL + ") counted"
+	if err := db.Raw(countQuery, args...).Scan(&totalCount).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count transactions: %w", err)
+	}
+
+	// Paginated data query
+	if filters.PageSize <= 0 {
+		filters.PageSize = 10
+	}
+	if filters.Page <= 0 {
+		filters.Page = 1
+	}
+	offset := (filters.Page - 1) * filters.PageSize
+
+	dataQuery := baseQuery + whereSQL + " ORDER BY date DESC LIMIT ? OFFSET ?"
+	dataArgs := append(args, filters.PageSize, offset)
+
+	if err := db.Raw(dataQuery, dataArgs...).Scan(&transactions).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch transactions: %w", err)
+	}
+
+	return transactions, totalCount, nil
+}
+
+func GetAdminTransactionStats(db *gorm.DB) (AdminTransactionStats, error) {
+	var stats AdminTransactionStats
+	now := time.Now()
+
+	startOfCurrentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	startOfLastMonth := startOfCurrentMonth.AddDate(0, -1, 0)
+
+	// --- Total Revenue ---
+	var currentRevenue, lastMonthRevenue float64
+
+	// Credit pack revenue (current month)
+	db.Model(&CreditTransaction{}).
+		Where("type = ? AND created_at >= ?", "Top-up", startOfCurrentMonth).
+		Select("COALESCE(SUM(amount), 0)").Scan(&currentRevenue)
+
+	// Subscription revenue (current month)
+	var subRevenue float64
+	db.Raw(`SELECT COALESCE(SUM(p.fee), 0) FROM organisation_plans op
+		JOIN plans p ON op.plan_id::uuid = p.id
+		WHERE op.created_at >= ? AND op.deleted_at IS NULL`, startOfCurrentMonth).Scan(&subRevenue)
+	currentRevenue += subRevenue
+
+	// Last month revenue
+	db.Model(&CreditTransaction{}).
+		Where("type = ? AND created_at >= ? AND created_at < ?", "Top-up", startOfLastMonth, startOfCurrentMonth).
+		Select("COALESCE(SUM(amount), 0)").Scan(&lastMonthRevenue)
+
+	var lastSubRevenue float64
+	db.Raw(`SELECT COALESCE(SUM(p.fee), 0) FROM organisation_plans op
+		JOIN plans p ON op.plan_id::uuid = p.id
+		WHERE op.created_at >= ? AND op.created_at < ? AND op.deleted_at IS NULL`, startOfLastMonth, startOfCurrentMonth).Scan(&lastSubRevenue)
+	lastMonthRevenue += lastSubRevenue
+
+	stats.TotalRevenue.Value = currentRevenue
+	if lastMonthRevenue > 0 {
+		stats.TotalRevenue.PercentageChange = math.Round(((currentRevenue-lastMonthRevenue)/lastMonthRevenue)*1000) / 10
+	} else if currentRevenue > 0 {
+		stats.TotalRevenue.PercentageChange = 100
+	}
+
+	// --- Total Transactions ---
+	var currentTxCount, lastMonthTxCount int64
+
+	db.Model(&CreditTransaction{}).Where("created_at >= ?", startOfCurrentMonth).Count(&currentTxCount)
+	var currentSubCount int64
+	db.Model(&OrganisationPlan{}).Where("created_at >= ? AND deleted_at IS NULL", startOfCurrentMonth).Count(&currentSubCount)
+	currentTxCount += currentSubCount
+
+	db.Model(&CreditTransaction{}).Where("created_at >= ? AND created_at < ?", startOfLastMonth, startOfCurrentMonth).Count(&lastMonthTxCount)
+	var lastSubCount int64
+	db.Model(&OrganisationPlan{}).Where("created_at >= ? AND created_at < ? AND deleted_at IS NULL", startOfLastMonth, startOfCurrentMonth).Count(&lastSubCount)
+	lastMonthTxCount += lastSubCount
+
+	stats.TotalTransactions.Value = float64(currentTxCount)
+	if lastMonthTxCount > 0 {
+		stats.TotalTransactions.PercentageChange = math.Round((float64(currentTxCount-lastMonthTxCount)/float64(lastMonthTxCount))*1000) / 10
+	} else if currentTxCount > 0 {
+		stats.TotalTransactions.PercentageChange = 100
+	}
+
+	// --- Successful Payments ---
+	// Credit transactions that have been processed (have webhook record or no stripe session = manual)
+	var currentPaidCredits int64
+	db.Raw(`SELECT COUNT(*) FROM credit_transactions ct
+		LEFT JOIN processed_stripe_webhooks psw ON ct.stripe_session_id = psw.session_id
+		WHERE ct.created_at >= ? AND ct.type != 'Refund' AND (psw.session_id IS NOT NULL OR ct.stripe_session_id IS NULL)`,
+		startOfCurrentMonth).Scan(&currentPaidCredits)
+
+	// Active subscriptions created this month
+	var currentPaidSubs int64
+	db.Model(&OrganisationPlan{}).
+		Where("created_at >= ? AND status IN (?, ?) AND deleted_at IS NULL", startOfCurrentMonth, "Active", "Inactive").
+		Count(&currentPaidSubs)
+
+	currentSuccessful := currentPaidCredits + currentPaidSubs
+
+	var lastPaidCredits int64
+	db.Raw(`SELECT COUNT(*) FROM credit_transactions ct
+		LEFT JOIN processed_stripe_webhooks psw ON ct.stripe_session_id = psw.session_id
+		WHERE ct.created_at >= ? AND ct.created_at < ? AND ct.type != 'Refund' AND (psw.session_id IS NOT NULL OR ct.stripe_session_id IS NULL)`,
+		startOfLastMonth, startOfCurrentMonth).Scan(&lastPaidCredits)
+
+	var lastPaidSubs int64
+	db.Model(&OrganisationPlan{}).
+		Where("created_at >= ? AND created_at < ? AND status IN (?, ?) AND deleted_at IS NULL", startOfLastMonth, startOfCurrentMonth, "Active", "Inactive").
+		Count(&lastPaidSubs)
+
+	lastSuccessful := lastPaidCredits + lastPaidSubs
+
+	stats.SuccessfulPayments.Value = float64(currentSuccessful)
+	if lastSuccessful > 0 {
+		stats.SuccessfulPayments.PercentageChange = math.Round((float64(currentSuccessful-lastSuccessful)/float64(lastSuccessful))*1000) / 10
+	} else if currentSuccessful > 0 {
+		stats.SuccessfulPayments.PercentageChange = 100
+	}
+
+	// --- Refunds ---
+	var totalRefunds int64
+	db.Model(&CreditTransaction{}).Where("type = ?", "Refund").Count(&totalRefunds)
+
+	stats.Refunds.Value = float64(totalRefunds)
+	// Refund percentage = refunds / total all-time transactions
+	var totalAllTimeTx int64
+	db.Model(&CreditTransaction{}).Count(&totalAllTimeTx)
+	var totalAllTimeSubs int64
+	db.Model(&OrganisationPlan{}).Where("deleted_at IS NULL").Count(&totalAllTimeSubs)
+	totalAll := totalAllTimeTx + totalAllTimeSubs
+	if totalAll > 0 {
+		stats.Refunds.PercentageChange = math.Round((float64(totalRefunds)/float64(totalAll))*1000) / 10
+	}
+
+	return stats, nil
 }
 
 func PublishPlatformCreditUpdate(db *gorm.DB) {

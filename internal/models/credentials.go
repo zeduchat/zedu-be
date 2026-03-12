@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -153,7 +153,7 @@ func (cred *CredentialRequest) CreateCredential(db *gorm.DB) (int, error) {
 	}
 
 	dbCredential := Credential{
-		ID:          uuid.New().String(),
+		ID:          utility.GenerateUUID(),
 		OrgId:       cred.OrgId,
 		AgentId:     cred.AgentId,
 		UserId:      cred.UserId,

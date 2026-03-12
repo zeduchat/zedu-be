@@ -3,8 +3,8 @@ package models
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +23,7 @@ type PinnedFileResponse struct {
 
 func (p *PinnedFile) PinFile(db *gorm.DB) error {
 	if p.ID == "" {
-		p.ID = uuid.New().String()
+		p.ID = utility.GenerateUUID()
 	}
 
 	if p.CheckPinnedFileExists(db) {

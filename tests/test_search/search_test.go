@@ -182,7 +182,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		time.Sleep(2 * time.Second) // wait for ES index refresh
 
-		req1, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=keywordPublicChannel123", org.ID), nil)
+		req1, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=keywordPublicChannel123", org.ID), nil)
 		req1.Header.Set("Authorization", "Bearer "+token1)
 		rr1 := httptest.NewRecorder()
 		r.ServeHTTP(rr1, req1)
@@ -198,7 +198,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 			t.Errorf("User 1 should see 2 results, got %d", len(data1))
 		}
 
-		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=keywordPublicChannel123", org.ID), nil)
+		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=keywordPublicChannel123", org.ID), nil)
 		req2.Header.Set("Authorization", "Bearer "+token2)
 		rr2 := httptest.NewRecorder()
 		r.ServeHTTP(rr2, req2)
@@ -263,7 +263,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		time.Sleep(2 * time.Second) // wait for ES index refresh
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=uniqueKeyword", org.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=uniqueKeyword", org.ID), nil)
 		req.Header.Set("Authorization", "Bearer "+token2)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -326,7 +326,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		time.Sleep(2 * time.Second) // wait for ES index refresh
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=uniqueGroupKeyword", org.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=uniqueGroupKeyword", org.ID), nil)
 		req.Header.Set("Authorization", "Bearer "+token2)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -375,7 +375,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		req1, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=commonWord&page=1&limit=2", org.ID), nil)
+		req1, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=commonWord&page=1&limit=2", org.ID), nil)
 		req1.Header.Set("Authorization", "Bearer "+token1)
 		rr1 := httptest.NewRecorder()
 		r.ServeHTTP(rr1, req1)
@@ -396,7 +396,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 		}
 
 		// Fetch page 2 with limit 2
-		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=commonWord&page=2&limit=2", org.ID), nil)
+		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=commonWord&page=2&limit=2", org.ID), nil)
 		req2.Header.Set("Authorization", "Bearer "+token1)
 		rr2 := httptest.NewRecorder()
 		r.ServeHTTP(rr2, req2)
@@ -449,7 +449,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		queryParam := url.QueryEscape(fmt.Sprintf("keywordFilterMessage in:#%s", channelName))
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s", org.ID, queryParam), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=%s", org.ID, queryParam), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -467,7 +467,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 	})
 
 	t.Run("Filters search (from, in)", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=keywordPublicChannel123+from%%3A%%22%s%%22+in%%3A%%22Public+Channel%%22", org.ID, user1SignUpData.UserName), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=keywordPublicChannel123+from%%3A%%22%s%%22+in%%3A%%22Public+Channel%%22", org.ID, user1SignUpData.UserName), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -546,7 +546,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		// Test `on` filter using YYYY-MM-DD format
 		queryParam := url.QueryEscape("dateKeyword on:2023-01-02")
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s", org.ID, queryParam), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=%s", org.ID, queryParam), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -611,7 +611,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 
 		// Search for exact text with sortby newest
 		queryParam := url.QueryEscape(`exact:"Project deadline"`)
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s&sortby=newest", org.ID, queryParam), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=%s&sortby=newest", org.ID, queryParam), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -635,7 +635,7 @@ func TestSearchScopeAndPagination(t *testing.T) {
 		}
 
 		// Search with sortby oldest
-		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s/?query=%s&sortby=oldest", org.ID, queryParam), nil)
+		req2, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=%s&sortby=oldest", org.ID, queryParam), nil)
 		req2.Header.Set("Authorization", "Bearer "+token1)
 		rr2 := httptest.NewRecorder()
 		r.ServeHTTP(rr2, req2)

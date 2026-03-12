@@ -54,6 +54,8 @@ var (
 	BuzzStickerEvent            NotificationType = "buzz_sticker_event"
 	ThreadNotification          NotificationType = "thread_notification"
 	MuteParticipants            NotificationType = "mute_participants"
+	DirectCallInitiated         NotificationType = "direct_call_initiated"
+	DirectCallResponseEvent     NotificationType = "direct_call_response"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -232,6 +234,12 @@ var Notification = map[NotificationType]Content{
 	},
 	MuteParticipants: Content{
 		NotificationType: MuteParticipants,
+	},
+	DirectCallInitiated: Content{
+		NotificationType: DirectCallInitiated,
+	},
+	DirectCallResponseEvent: Content{
+		NotificationType: DirectCallResponseEvent,
 	},
 }
 

@@ -70,6 +70,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Agents(r, ApiVersion, validator, db, logger)
 	Mongogrations(r, ApiVersion, validator, db, logger)
 	FcmToken(r, ApiVersion, validator, db, logger)
+	OneSignal(r, ApiVersion, validator, db, logger)
 	TelexAI(r, ApiVersion, validator, db, logger)
 	GetRecentLogs(r, ApiVersion, validator, db, logger)
 	SavedMessages(r, ApiVersion, validator, db, logger)
@@ -82,6 +83,7 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 	Translator(r, ApiVersion, validator, db, logger)
 	Shares(r, ApiVersion, validator, db, logger)
 	Activity(r, ApiVersion, validator, db, logger)
+	Account(r, ApiVersion, validator, db, logger)
 	SlashCommands(r, ApiVersion, validator, db, logger)
 
 	r.GET("/", func(c *gin.Context) {

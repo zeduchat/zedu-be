@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 	"github.com/lib/pq"
 )
 
@@ -324,6 +325,413 @@ func GetPlanByID(db *gorm.DB, planID string) (Plan, error) {
 	var plan Plan
 	err := db.Where("id = ?", planID).First(&plan).Error
 	return plan, err
+}
+
+// Admin request types for plan management
+type CreatePlanRequest struct {
+	Name                     string   `json:"name" validate:"required"`
+	Description              string   `json:"description" validate:"required"`
+	Fee                      int      `json:"fee" validate:"min=0"`
+	Benefits                 []string `json:"benefits"`
+	MaxChannels              int      `json:"max_channels"`
+	MaxUsers                 int      `json:"max_users"`
+	MaxNotifications         int      `json:"max_notifications"`
+	CanUpgradeNotifications  bool     `json:"can_upgrade_notifications"`
+	CanAddUnlimitedChannels  bool     `json:"can_add_unlimited_channels"`
+	CanAddUnlimitedUsers     bool     `json:"can_add_unlimited_users"`
+	IsForIndividuals         bool     `json:"is_for_individuals"`
+	IsForSmallBusiness       bool     `json:"is_for_small_business"`
+	IsForLargeEnterprise     bool     `json:"is_for_large_enterprise"`
+	UnlimitedAICoWorkers     bool     `json:"unlimited_ai_co_workers"`
+	CreateYourOwnAICoWorkers bool     `json:"create_your_own_ai_co_workers"`
+	AICreditsPurchasable     bool     `json:"ai_credits_purchasable"`
+	MaxCallDuration          int      `json:"max_call_duration"`
+	MaxBuzzParticipants      int      `json:"max_buzz_participants"`
+	MaxActiveCalls           int      `json:"max_active_calls"`
+	CallRecordsAvailable     bool     `json:"call_records_available"`
+	TranscriptAvailable      bool     `json:"transcript_available"`
+	AdvancedControls         bool     `json:"advanced_controls"`
+	AdvancedControlsUser     bool     `json:"advanced_controls_user"`
+	Credits                  int      `json:"credits"`
+}
+
+type UpdatePlanRequest struct {
+	Name                     *string  `json:"name"`
+	Description              *string  `json:"description"`
+	Fee                      *int     `json:"fee"`
+	Benefits                 []string `json:"benefits"`
+	MaxChannels              *int     `json:"max_channels"`
+	MaxUsers                 *int     `json:"max_users"`
+	MaxNotifications         *int     `json:"max_notifications"`
+	CanUpgradeNotifications  *bool    `json:"can_upgrade_notifications"`
+	CanAddUnlimitedChannels  *bool    `json:"can_add_unlimited_channels"`
+	CanAddUnlimitedUsers     *bool    `json:"can_add_unlimited_users"`
+	IsForIndividuals         *bool    `json:"is_for_individuals"`
+	IsForSmallBusiness       *bool    `json:"is_for_small_business"`
+	IsForLargeEnterprise     *bool    `json:"is_for_large_enterprise"`
+	UnlimitedAICoWorkers     *bool    `json:"unlimited_ai_co_workers"`
+	CreateYourOwnAICoWorkers *bool    `json:"create_your_own_ai_co_workers"`
+	AICreditsPurchasable     *bool    `json:"ai_credits_purchasable"`
+	MaxCallDuration          *int     `json:"max_call_duration"`
+	MaxBuzzParticipants      *int     `json:"max_buzz_participants"`
+	MaxActiveCalls           *int     `json:"max_active_calls"`
+	CallRecordsAvailable     *bool    `json:"call_records_available"`
+	TranscriptAvailable      *bool    `json:"transcript_available"`
+	AdvancedControls         *bool    `json:"advanced_controls"`
+	AdvancedControlsUser     *bool    `json:"advanced_controls_user"`
+	Credits                  *int     `json:"credits"`
+}
+
+type CreateAICreditPackageRequest struct {
+	Name        string   `json:"name" validate:"required"`
+	Description string   `json:"description" validate:"required"`
+	Price       int      `json:"price" validate:"required,min=1"`
+	Credits     int      `json:"credits" validate:"required,min=1"`
+	Benefits    []string `json:"benefits"`
+}
+
+type UpdateAICreditPackageRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Price       *int     `json:"price"`
+	Credits     *int     `json:"credits"`
+	Benefits    []string `json:"benefits"`
+}
+
+type SubscriptionBillingStats struct {
+	TotalActiveSubscriptions int64   `json:"total_active_subscriptions"`
+	MonthlyRecurringRevenue  float64 `json:"monthly_recurring_revenue"`
+	DisabledSubscriptions    int64   `json:"disabled_subscriptions"`
+	ChurnRate                float64 `json:"churn_rate"`
+}
+
+func GetSubscriptionBillingStats(db *gorm.DB) (SubscriptionBillingStats, error) {
+	var stats SubscriptionBillingStats
+
+	// Total active subscriptions
+	if err := db.Model(&OrganisationPlan{}).
+		Where("status = ? AND deleted_at IS NULL", "Active").
+		Count(&stats.TotalActiveSubscriptions).Error; err != nil {
+		return stats, err
+	}
+
+	// Monthly recurring revenue: sum of plan fees for active subscriptions
+	if err := db.Table("organisation_plans").
+		Select("COALESCE(SUM(plans.fee), 0)").
+		Joins("JOIN plans ON organisation_plans.plan_id::uuid = plans.id").
+		Where("organisation_plans.status = ? AND organisation_plans.deleted_at IS NULL", "Active").
+		Scan(&stats.MonthlyRecurringRevenue).Error; err != nil {
+		return stats, err
+	}
+
+	// Disabled subscriptions (Inactive status)
+	if err := db.Model(&OrganisationPlan{}).
+		Where("status = ? AND deleted_at IS NULL", "Inactive").
+		Count(&stats.DisabledSubscriptions).Error; err != nil {
+		return stats, err
+	}
+
+	// Churn rate: disabled this month / (active + disabled this month) * 100
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	var churnedThisMonth int64
+	if err := db.Model(&OrganisationPlan{}).
+		Where("status = ? AND updated_at >= ? AND deleted_at IS NULL", "Inactive", startOfMonth).
+		Count(&churnedThisMonth).Error; err != nil {
+		return stats, err
+	}
+
+	totalBase := stats.TotalActiveSubscriptions + churnedThisMonth
+	if totalBase > 0 {
+		stats.ChurnRate = float64(churnedThisMonth) / float64(totalBase) * 100
+	}
+
+	return stats, nil
+}
+
+func GetPlansFiltered(db *gorm.DB, status, search string) ([]Plan, error) {
+	var plans []Plan
+	query := db.Model(&Plan{})
+
+	if status != "" {
+		if status == "active" {
+			query = query.Where("deleted_at IS NULL")
+		} else if status == "inactive" {
+			query = query.Unscoped().Where("deleted_at IS NOT NULL")
+		}
+	}
+
+	if search != "" {
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+search+"%")
+	}
+
+	if err := query.Order("created_at DESC").Find(&plans).Error; err != nil {
+		return nil, err
+	}
+
+	return plans, nil
+}
+
+func CreatePlan(db *gorm.DB, req CreatePlanRequest) (*Plan, error) {
+	plan := Plan{
+		ID:                       utility.GenerateUUID(),
+		Name:                     req.Name,
+		Description:              req.Description,
+		Fee:                      req.Fee,
+		Benefits:                 pq.StringArray(req.Benefits),
+		MaxChannels:              req.MaxChannels,
+		MaxUsers:                 req.MaxUsers,
+		MaxNotifications:         req.MaxNotifications,
+		CanUpgradeNotifications:  req.CanUpgradeNotifications,
+		CanAddUnlimitedChannels:  req.CanAddUnlimitedChannels,
+		CanAddUnlimitedUsers:     req.CanAddUnlimitedUsers,
+		IsForIndividuals:         req.IsForIndividuals,
+		IsForSmallBusiness:       req.IsForSmallBusiness,
+		IsForLargeEnterprise:     req.IsForLargeEnterprise,
+		UnlimitedAICoWorkers:     req.UnlimitedAICoWorkers,
+		CreateYourOwnAICoWorkers: req.CreateYourOwnAICoWorkers,
+		AICreditsPurchasable:     req.AICreditsPurchasable,
+		MaxCallDuration:          req.MaxCallDuration,
+		MaxBuzzParticipants:      req.MaxBuzzParticipants,
+		MaxActiveCalls:           req.MaxActiveCalls,
+		CallRecordsAvailable:     req.CallRecordsAvailable,
+		TranscriptAvailable:      req.TranscriptAvailable,
+		AdvancedControls:         req.AdvancedControls,
+		AdvancedControlsUser:     req.AdvancedControlsUser,
+		Credits:                  req.Credits,
+	}
+
+	if err := db.Create(&plan).Error; err != nil {
+		return nil, err
+	}
+
+	return &plan, nil
+}
+
+func UpdatePlan(db *gorm.DB, planID string, req UpdatePlanRequest) (*Plan, error) {
+	var plan Plan
+	if err := db.Where("id = ?", planID).First(&plan).Error; err != nil {
+		return nil, err
+	}
+
+	updates := make(map[string]interface{})
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Fee != nil {
+		updates["fee"] = *req.Fee
+	}
+	if req.Benefits != nil {
+		updates["benefits"] = pq.StringArray(req.Benefits)
+	}
+	if req.MaxChannels != nil {
+		updates["max_channels"] = *req.MaxChannels
+	}
+	if req.MaxUsers != nil {
+		updates["max_users"] = *req.MaxUsers
+	}
+	if req.MaxNotifications != nil {
+		updates["max_notifications"] = *req.MaxNotifications
+	}
+	if req.CanUpgradeNotifications != nil {
+		updates["can_upgrade_notifications"] = *req.CanUpgradeNotifications
+	}
+	if req.CanAddUnlimitedChannels != nil {
+		updates["can_add_unlimited_channels"] = *req.CanAddUnlimitedChannels
+	}
+	if req.CanAddUnlimitedUsers != nil {
+		updates["can_add_unlimited_users"] = *req.CanAddUnlimitedUsers
+	}
+	if req.IsForIndividuals != nil {
+		updates["is_for_individuals"] = *req.IsForIndividuals
+	}
+	if req.IsForSmallBusiness != nil {
+		updates["is_for_small_business"] = *req.IsForSmallBusiness
+	}
+	if req.IsForLargeEnterprise != nil {
+		updates["is_for_large_enterprise"] = *req.IsForLargeEnterprise
+	}
+	if req.UnlimitedAICoWorkers != nil {
+		updates["unlimited_ai_co_workers"] = *req.UnlimitedAICoWorkers
+	}
+	if req.CreateYourOwnAICoWorkers != nil {
+		updates["create_your_own_ai_co_workers"] = *req.CreateYourOwnAICoWorkers
+	}
+	if req.AICreditsPurchasable != nil {
+		updates["ai_credits_purchasable"] = *req.AICreditsPurchasable
+	}
+	if req.MaxCallDuration != nil {
+		updates["max_call_duration"] = *req.MaxCallDuration
+	}
+	if req.MaxBuzzParticipants != nil {
+		updates["max_buzz_participants"] = *req.MaxBuzzParticipants
+	}
+	if req.MaxActiveCalls != nil {
+		updates["max_active_calls"] = *req.MaxActiveCalls
+	}
+	if req.CallRecordsAvailable != nil {
+		updates["call_records_available"] = *req.CallRecordsAvailable
+	}
+	if req.TranscriptAvailable != nil {
+		updates["transcript_available"] = *req.TranscriptAvailable
+	}
+	if req.AdvancedControls != nil {
+		updates["advanced_controls"] = *req.AdvancedControls
+	}
+	if req.AdvancedControlsUser != nil {
+		updates["advanced_controls_user"] = *req.AdvancedControlsUser
+	}
+	if req.Credits != nil {
+		updates["credits"] = *req.Credits
+	}
+
+	if len(updates) == 0 {
+		return &plan, nil
+	}
+
+	if err := db.Model(&plan).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	return &plan, nil
+}
+
+func DeletePlan(db *gorm.DB, planID string) error {
+	var plan Plan
+	if err := db.Where("id = ?", planID).First(&plan).Error; err != nil {
+		return errors.New("plan not found")
+	}
+
+	// Check if any active subscriptions use this plan
+	var activeCount int64
+	if err := db.Model(&OrganisationPlan{}).
+		Where("plan_id = ? AND status = ? AND deleted_at IS NULL", planID, "Active").
+		Count(&activeCount).Error; err != nil {
+		return err
+	}
+
+	if activeCount > 0 {
+		return errors.New("cannot delete plan with active subscriptions")
+	}
+
+	return db.Delete(&plan).Error
+}
+
+func CreateAICreditPackage(db *gorm.DB, req CreateAICreditPackageRequest) (*AICreditPackage, error) {
+	pkg := AICreditPackage{
+		ID:          utility.GenerateUUID(),
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Credits:     req.Credits,
+		Benefits:    pq.StringArray(req.Benefits),
+	}
+
+	if err := db.Create(&pkg).Error; err != nil {
+		return nil, err
+	}
+
+	return &pkg, nil
+}
+
+func UpdateAICreditPackage(db *gorm.DB, packageID string, req UpdateAICreditPackageRequest) (*AICreditPackage, error) {
+	var pkg AICreditPackage
+	if err := db.Where("id = ?", packageID).First(&pkg).Error; err != nil {
+		return nil, errors.New("credit package not found")
+	}
+
+	updates := make(map[string]interface{})
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Price != nil {
+		updates["price"] = *req.Price
+	}
+	if req.Credits != nil {
+		updates["credits"] = *req.Credits
+	}
+	if req.Benefits != nil {
+		updates["benefits"] = pq.StringArray(req.Benefits)
+	}
+
+	if len(updates) == 0 {
+		return &pkg, nil
+	}
+
+	if err := db.Model(&pkg).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
+	return &pkg, nil
+}
+
+func DeleteAICreditPackage(db *gorm.DB, packageID string) error {
+	var pkg AICreditPackage
+	if err := db.Where("id = ?", packageID).First(&pkg).Error; err != nil {
+		return errors.New("credit package not found")
+	}
+
+	return db.Delete(&pkg).Error
+}
+
+func GetAICreditPackagesFiltered(db *gorm.DB, status, search string, c *gin.Context) ([]AICreditPackage, postgresql.PaginationResponse, error) {
+	var packages []AICreditPackage
+	query := db.Model(&AICreditPackage{})
+
+	if status == "inactive" {
+		query = query.Unscoped().Where("deleted_at IS NOT NULL")
+	}
+
+	if search != "" {
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+search+"%")
+	}
+
+	query = query.Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&packages,
+		nil,
+	)
+	if err != nil {
+		return packages, paginationResponse, err
+	}
+
+	return packages, paginationResponse, nil
+}
+
+func GetAllCreditTransactions(db *gorm.DB, c *gin.Context) ([]CreditTransaction, postgresql.PaginationResponse, error) {
+	var transactions []CreditTransaction
+
+	query := db.Model(&CreditTransaction{}).Order("created_at DESC")
+
+	pagination := postgresql.GetPagination(c)
+
+	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
+		query,
+		"created_at",
+		"desc",
+		pagination,
+		&transactions,
+		nil,
+	)
+	if err != nil {
+		return transactions, paginationResponse, err
+	}
+
+	return transactions, paginationResponse, err
 }
 
 func TopUpOrgSubscriptionCredit(db *gorm.DB, orgID, planID string, sessionID *string) (*gin.H, int, error) {
