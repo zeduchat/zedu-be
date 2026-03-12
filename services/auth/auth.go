@@ -129,8 +129,13 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		description = fmt.Sprintf("User %s failed to create account: %v", user.Email, createErr)
 	}
 
+	actorID := user.ID
+	if !success {
+		actorID = ""
+	}
+
 	if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
-		ActorID:      user.ID,
+		ActorID:      actorID,
 		ActorEmail:   user.Email,
 		ActorRole:    "user",
 		Action:       models.ActionUserCreate,
