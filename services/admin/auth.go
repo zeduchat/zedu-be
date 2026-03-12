@@ -27,7 +27,9 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		admin        = models.Admin{}
 		responseData gin.H
 		cfg          = config.GetConfig().Admin
+		logger       = utility.NewLogger()
 	)
+	defer logger.Close()
 
 	var loginErr error
 	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {
@@ -47,7 +49,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 				UserAgent:    c.GetHeader("User-Agent"),
 				Success:      false,
 			}); auditErr != nil {
-				fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+				logger.Error("failed to create audit log for admin login failure: %v", auditErr)
 			}
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
@@ -65,7 +67,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 				UserAgent:    c.GetHeader("User-Agent"),
 				Success:      false,
 			}); auditErr != nil {
-				fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+				logger.Error("failed to create audit log for admin login failure: %v", auditErr)
 			}
 			return responseData, http.StatusBadRequest, fmt.Errorf("invalid credentials")
 		}
@@ -85,7 +87,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 			UserAgent:    c.GetHeader("User-Agent"),
 			Success:      false,
 		}); auditErr != nil {
-			fmt.Printf("failed to create audit log for admin login failure: %v\n", auditErr)
+			logger.Error("failed to create audit log for admin login failure: %v", auditErr)
 		}
 		return responseData, http.StatusForbidden, fmt.Errorf("admin account is deactivated")
 	}
@@ -130,7 +132,7 @@ func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.
 		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      true,
 	}); auditErr != nil {
-		fmt.Printf("failed to create audit log for admin login: %v\n", auditErr)
+		logger.Error("failed to create audit log for admin login: %v", auditErr)
 	}
 
 	return responseData, http.StatusOK, nil
@@ -209,7 +211,7 @@ func CreateAdmin(db *storage.Database, req models.CreateAdminRequest, c *gin.Con
 		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
-		logger.Error("failed to create audit log for admin creation: %v\n", auditErr)
+		logger.Error("failed to create audit log for admin creation: %v", auditErr)
 	}
 
 	if createErr != nil {

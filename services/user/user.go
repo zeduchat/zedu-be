@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
@@ -215,6 +216,8 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 		currentUser models.User
 		targetUser  models.User
 	)
+	logger := utility.NewLogger()
+	defer logger.Close()
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
@@ -284,7 +287,7 @@ func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *g
 			UserAgent:    c.GetHeader("User-Agent"),
 			Success:      success,
 		}); auditErr != nil {
-			fmt.Printf("failed to create audit log: %v\n", auditErr) //TODO: logger
+			logger.Error("failed to create audit log: %v", auditErr)
 		}
 
 		if updateErr != nil {
@@ -318,6 +321,8 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 
 func ActivateUser(userIDStr string, db *gorm.DB, c *gin.Context) (int, error) {
 	var user models.User
+	logger := utility.NewLogger()
+	defer logger.Close()
 
 	user, err := user.GetUserByID(db, userIDStr)
 	if err != nil {
@@ -359,7 +364,7 @@ func ActivateUser(userIDStr string, db *gorm.DB, c *gin.Context) (int, error) {
 		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
-		fmt.Printf("failed to create audit log: %v\n", auditErr)
+		logger.Error("failed to create audit log: %v", auditErr)
 	}
 	if activateErr != nil {
 		return http.StatusInternalServerError, activateErr
@@ -370,6 +375,8 @@ func ActivateUser(userIDStr string, db *gorm.DB, c *gin.Context) (int, error) {
 
 func DeactiveUser(db *gorm.DB, userID, loggedInUserID string, c *gin.Context) (int, error) {
 	var user models.User
+	logger := utility.NewLogger()
+	defer logger.Close()
 
 	if userID == loggedInUserID {
 		return http.StatusForbidden, errors.New("you cannot deactivate your own account")
@@ -409,7 +416,7 @@ func DeactiveUser(db *gorm.DB, userID, loggedInUserID string, c *gin.Context) (i
 		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
-		fmt.Printf("failed to create audit log: %v\n", auditErr) //TODO: use logger for this
+		logger.Error("failed to create audit log: %v", auditErr)
 	}
 
 	if deactivateErr != nil {
