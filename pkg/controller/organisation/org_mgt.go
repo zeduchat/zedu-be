@@ -106,7 +106,7 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		Action:       models.ActionOrganisationLeft,
 		ResourceType: models.ResourceUser,
 		ResourceID:   userId,
-		NewValues:    string(auditDataJSON), // TODO: is there a reason to wrap around string
+		NewValues:    string(auditDataJSON),
 		Description:  description,
 		IPAddress:    audit_utility.GetClientIP(c),
 		UserAgent:    c.GetHeader("User-Agent"),

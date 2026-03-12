@@ -282,7 +282,7 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		ActorRole:    "user",
 		Action:       models.ActionOrganisationJoined,
 		ResourceType: models.ResourceUser,
-		ResourceID:   req.UserId, //TODO: correct resource??
+		ResourceID:   req.UserId,
 		Description:  description,
 		IPAddress:    audit_utility.GetClientIP(c),
 		UserAgent:    c.GetHeader("user-Agent"),
