@@ -24,7 +24,7 @@ func setupActivityRouter(adminCtl admin.Controller) *gin.Engine {
 	return r
 }
 
-func createAuditLog(t *testing.T, db *storage.Database, actorID, actorEmail, actorRole, action string, createdAt time.Time) string {
+func createAuditLog(t *testing.T, db *storage.Database, actorID, actorEmail, actorRole, action string, createdAt time.Time, success bool) string {
 	t.Helper()
 	logID := utility.GenerateUUID()
 	log := models.AuditLog{
@@ -40,14 +40,18 @@ func createAuditLog(t *testing.T, db *storage.Database, actorID, actorEmail, act
 		Description:  fmt.Sprintf("Actor %s performed %s", actorEmail, action),
 		IPAddress:    "",
 		UserAgent:    "",
-		Success:      true,
+		Success:      true, // placeholder; overridden below via raw UPDATE
 		CreatedAt:    createdAt,
 	}
 	if err := db.Postgresql.Create(&log).Error; err != nil {
 		t.Fatalf("failed to create audit log: %v", err)
 	}
-	// Force created_at since GORM may override it
-	db.Postgresql.Model(&models.AuditLog{}).Where("id = ?", logID).Update("created_at", createdAt)
+	// GORM silently skips bool false (zero value) during Create, so we force
+	// both success and created_at with a raw UPDATE after the insert.
+	db.Postgresql.Exec(
+		"UPDATE audit_logs SET success = ?, created_at = ? WHERE id = ?",
+		success, createdAt, logID,
+	)
 	return logID
 }
 
@@ -66,7 +70,7 @@ func TestGetAppActivity_ReturnsOK(t *testing.T) {
 
 	actorID := utility.GenerateUUID()
 	now := time.Now()
-	createAuditLog(t, db, actorID, fmt.Sprintf("actor%s@qa.team", utility.RandomString(5)), "admin", "user.login", now)
+	createAuditLog(t, db, actorID, fmt.Sprintf("actor%s@qa.team", utility.RandomString(5)), "admin", "user.login", now, true)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/activity", nil)
@@ -104,10 +108,11 @@ func TestGetAppActivity_IncludesStats(t *testing.T) {
 	email := fmt.Sprintf("statsactor%s@qa.team", utility.RandomString(5))
 
 	// Create logs in last 30 days
-	createAuditLog(t, db, actorID, email, "admin", "user.create", now.AddDate(0, 0, -5))
-	createAuditLog(t, db, actorID, email, "admin", "user.update", now.AddDate(0, 0, -10))
-	createAuditLog(t, db, actorID, email, "user", "user.login", now.AddDate(0, 0, -2))
-	createAuditLog(t, db, actorID, email, "user", "failed_login", now.AddDate(0, 0, -1))
+	createAuditLog(t, db, actorID, email, "admin", "user.create", now.AddDate(0, 0, -5), true)
+	createAuditLog(t, db, actorID, email, "admin", "user.update", now.AddDate(0, 0, -10), true)
+	createAuditLog(t, db, actorID, email, "user", "user.login", now.AddDate(0, 0, -2), true)
+	// failed_login must have Success: false so the stats query counts it as a failed action
+	createAuditLog(t, db, actorID, email, "user", "failed_login", now.AddDate(0, 0, -1), false)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/activity?include_stats=true", nil)
@@ -153,8 +158,8 @@ func TestGetAppActivity_FilterByRole(t *testing.T) {
 	userEmail := fmt.Sprintf("userrole%s@qa.team", suffix)
 	actorID := utility.GenerateUUID()
 
-	createAuditLog(t, db, actorID, adminEmail, "admin", "user.create", now)
-	createAuditLog(t, db, utility.GenerateUUID(), userEmail, "user", "user.login", now)
+	createAuditLog(t, db, actorID, adminEmail, "admin", "user.create", now, true)
+	createAuditLog(t, db, utility.GenerateUUID(), userEmail, "user", "user.login", now, true)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/activity?role=admin", nil)
@@ -193,8 +198,9 @@ func TestGetAppActivity_FilterByStatus_Failed(t *testing.T) {
 	email := fmt.Sprintf("failedactor%s@qa.team", suffix)
 	actorID := utility.GenerateUUID()
 
-	createAuditLog(t, db, actorID, email, "user", "failed_login", now)
-	createAuditLog(t, db, actorID, email, "user", "user.login", now)
+	// Success: false so the record is counted/filtered as a failed action
+	createAuditLog(t, db, actorID, email, "user", "failed_login", now, false)
+	createAuditLog(t, db, actorID, email, "user", "user.login", now, true)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/activity?status=failed", nil)
@@ -233,8 +239,8 @@ func TestGetAppActivity_FilterByStatus_Success(t *testing.T) {
 	email := fmt.Sprintf("successactor%s@qa.team", suffix)
 	actorID := utility.GenerateUUID()
 
-	createAuditLog(t, db, actorID, email, "user", "user.login", now)
-	createAuditLog(t, db, actorID, email, "user", "failed_login", now)
+	createAuditLog(t, db, actorID, email, "user", "user.login", now, true)
+	createAuditLog(t, db, actorID, email, "user", "failed_login", now, false)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/dashboard/activity?status=success", nil)
@@ -290,7 +296,7 @@ func TestGetAppActivity_FilterBySearch(t *testing.T) {
 		db.Postgresql.Exec("DELETE FROM admins WHERE id = ?", actorID)
 	})
 
-	createAuditLog(t, db, actorID, uniqueEmail, "admin", "user.create", now)
+	createAuditLog(t, db, actorID, uniqueEmail, "admin", "user.create", now, true)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/dashboard/activity?search=%s", uniqueEmail), nil)
@@ -340,9 +346,9 @@ func TestGetAppActivity_FilterByDuration_LastMonth(t *testing.T) {
 	actorID := utility.GenerateUUID()
 
 	// recent log (within last month)
-	createAuditLog(t, db, actorID, email, "admin", "user.create", now.AddDate(0, 0, -15))
+	createAuditLog(t, db, actorID, email, "admin", "user.create", now.AddDate(0, 0, -15), true)
 	// old log (older than 1 month)
-	oldID := createAuditLog(t, db, actorID, email, "admin", "user.delete", now.AddDate(0, -2, 0))
+	oldID := createAuditLog(t, db, actorID, email, "admin", "user.delete", now.AddDate(0, -2, 0), true)
 	db.Postgresql.Model(&models.AuditLog{}).Where("id = ?", oldID).Update("created_at", now.AddDate(0, -2, 0))
 
 	r := setupActivityRouter(adminCtl)
@@ -419,7 +425,7 @@ func TestGetAppActivity_ActivityShape(t *testing.T) {
 	email := fmt.Sprintf("shapeactor%s@qa.team", suffix)
 	actorID := utility.GenerateUUID()
 
-	createAuditLog(t, db, actorID, email, "admin", "user.create", now)
+	createAuditLog(t, db, actorID, email, "admin", "user.create", now, true)
 
 	r := setupActivityRouter(adminCtl)
 	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/dashboard/activity?search=%s", email), nil)
@@ -481,7 +487,7 @@ func TestGetAppActivity_Pagination(t *testing.T) {
 	actorID := utility.GenerateUUID()
 
 	for i := 0; i < 5; i++ {
-		createAuditLog(t, db, actorID, email, "admin", fmt.Sprintf("user.action%d", i), now.Add(time.Duration(-i)*time.Minute))
+		createAuditLog(t, db, actorID, email, "admin", fmt.Sprintf("user.action%d", i), now.Add(time.Duration(-i)*time.Minute), true)
 	}
 
 	r := setupActivityRouter(adminCtl)
