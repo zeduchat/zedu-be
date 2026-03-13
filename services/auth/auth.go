@@ -119,9 +119,37 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		},
 	}
 
-	err = user.CreateUser(db)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
+	createErr := user.CreateUser(db)
+
+	// Audit the creation attempt, whether it succeeded or failed
+	ipAddress := audit_utility.GetClientIP(c)
+	success := createErr == nil
+	description := fmt.Sprintf("User %s created account", user.Email)
+	if !success {
+		description = fmt.Sprintf("User %s failed to create account: %v", user.Email, createErr)
+	}
+
+	actorID := user.ID
+	if !success {
+		actorID = ""
+	}
+
+	if auditErr := audit_utility.CreateAuditLog(db, audit_utility.AuditLogParams{
+		ActorID:      actorID,
+		ActorEmail:   user.Email,
+		ActorRole:    "user",
+		Action:       models.ActionUserCreate,
+		ResourceType: models.ResourceUser,
+		ResourceID:   user.ID,
+		Description:  description,
+		IPAddress:    ipAddress,
+		UserAgent:    c.GetHeader("User-Agent"),
+	}); auditErr != nil {
+		logger.Error("failed to create audit log for user creation: " + auditErr.Error())
+	}
+
+	if createErr != nil {
+		return nil, http.StatusInternalServerError, createErr
 	}
 
 	resetReq := models.SendWelcomeMail{
@@ -147,8 +175,6 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
-
-	ipAddress := audit_utility.GetClientIP(c)
 
 	response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
 

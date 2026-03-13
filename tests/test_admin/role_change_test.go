@@ -131,7 +131,7 @@ func TestAdminRoleChangeFlow(t *testing.T) {
 
 		assert.NotEmpty(t, logs)
 		firstLog := logs[0].(map[string]any)
-		assert.Equal(t, string(models.ActionAdminUpdate), firstLog["action"])
+		assert.Equal(t, string(models.ActionAdminRoleUpdate), firstLog["action"])
 	})
 }
 
