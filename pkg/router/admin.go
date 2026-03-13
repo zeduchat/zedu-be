@@ -26,6 +26,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/dashboard/ai-credits", admin.GetAICreditUsageStats)
 		adminAuthUrl.GET("/dashboard/overview", admin.GetDashboardOverviewStats)
 		adminAuthUrl.GET("/admins/users", admin.ListUsers)
+		adminAuthUrl.GET("/admins/users/:user_id/details", admin.GetUserDetails)
 		adminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 		adminAuthUrl.GET("/plans", admin.GetPlans)
 		adminAuthUrl.GET("/dashboard/user-growth", admin.GetUserGrowth)

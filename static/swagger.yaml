@@ -9333,6 +9333,167 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /backoffice/admins/users/{user_id}/details:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve detailed information for a specific user
+      description: |-
+        Returns comprehensive details for a single user including profile info, credit usage stats,
+        activity information, and app usage metrics.
+
+        **Credit Stats**: Total credits used and total amount spent, with percentage change compared to the previous hour.
+
+        **Activity Info**: Last active timestamp, last login timestamp, activity streak length, and referral count.
+
+        **App Usage**: Total items created (channels + integrations), sessions initiated, average session duration,
+        and key actions performed — all for the last 30 days with percentage change compared to the previous 30-day period.
+
+        **Access**: Admins and Superadmins only.
+      operationId: getUserDetails
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: The UUID of the user to retrieve details for
+          schema:
+            type: string
+            format: uuid
+            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "user details retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      profile:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                          name:
+                            type: string
+                            example: "John Doe"
+                          email:
+                            type: string
+                            example: "johndoe@example.com"
+                          avatar_url:
+                            type: string
+                            example: "https://cdn.example.com/avatars/john.png"
+                          default_avatar_url:
+                            type: string
+                            example: "https://api.telex.im/avatars/a1b2c3d4.svg"
+                          subscription_status:
+                            type: string
+                            enum: [Free, Paid]
+                            example: "Paid"
+                      credit_stats:
+                        type: object
+                        properties:
+                          total_credits_used:
+                            type: number
+                            format: float
+                            example: 125.50
+                          credits_used_change:
+                            type: number
+                            format: float
+                            description: Percentage change compared to previous hour
+                            example: 201.0
+                          total_amount_spent:
+                            type: number
+                            format: float
+                            example: 49.99
+                          amount_spent_change:
+                            type: number
+                            format: float
+                            description: Percentage change compared to previous hour
+                            example: 15.0
+                      activity_info:
+                        type: object
+                        properties:
+                          last_active:
+                            type: string
+                            format: date-time
+                            example: "2024-06-15T10:30:00Z"
+                          last_login:
+                            type: string
+                            format: date-time
+                            example: "2024-06-15T09:00:00Z"
+                          activity_length:
+                            type: string
+                            description: Human-readable activity streak length
+                            example: "active for 5 days"
+                          referrals:
+                            type: integer
+                            example: 3
+                      app_usage:
+                        type: object
+                        properties:
+                          total_items_created:
+                            type: integer
+                            description: Channels + integrations created in the last 30 days
+                            example: 48
+                          total_items_created_change:
+                            type: number
+                            format: float
+                            example: 8.0
+                          sessions_initiated:
+                            type: integer
+                            description: Login sessions in the last 30 days
+                            example: 45
+                          sessions_initiated_change:
+                            type: number
+                            format: float
+                            example: -5.0
+                          avg_session_duration:
+                            type: string
+                            description: Human-readable average session duration (last 30 days)
+                            example: "20m 0s"
+                          avg_session_duration_change:
+                            type: number
+                            format: float
+                            example: 12.0
+                          key_actions_performed:
+                            type: integer
+                            description: Audit log entries for the user in the last 30 days
+                            example: 300
+                          key_actions_change:
+                            type: number
+                            format: float
+                            example: 23.0
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
   /backoffice/dashboard/activity:
     get:
       tags:
