@@ -426,12 +426,15 @@ func notifyCallParticipants(db *storage.Database, logger *utility.Logger, partic
 		return
 	}
 
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID)
 	pushMsg := models.CallPushPayload{
-		BuzzID:     buzzID,
-		ChannelID:  channelID,
-		CallerName: callerName,
-		CallerID:   callerID,
-		Event:      string(models.DirectCallInitiated),
+		BuzzID:           buzzID,
+		ChannelID:        channelID,
+		CallerName:       callerName,
+		CallerID:         callerID,
+		AvatarURL:        avatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(callerID),
+		Event:            string(models.DirectCallInitiated),
 	}
 
 	req := models.PushRequest{
@@ -464,11 +467,13 @@ func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userI
 	}
 
 	callData := map[string]interface{}{
-		"buzz_id":     payload.BuzzID,
-		"channel_id":  payload.ChannelID,
-		"caller_name": payload.CallerName,
-		"caller_id":   payload.CallerID,
-		"event":       payload.Event,
+		"buzz_id":            payload.BuzzID,
+		"channel_id":         payload.ChannelID,
+		"caller_name":        payload.CallerName,
+		"caller_id":          payload.CallerID,
+		"avatar_url":         payload.AvatarURL,
+		"default_avatar_url": payload.DefaultAvatarURL,
+		"event":              payload.Event,
 	}
 
 	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData); err != nil {

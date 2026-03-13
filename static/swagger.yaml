@@ -5940,49 +5940,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: object
-                        properties:
-                          buzz_id:
-                            type: string
-                            format: uuid
-                          buzz_code:
-                            type: string
-                          channel_id:
-                            type: string
-                            format: uuid
-                          caller_id:
-                            type: string
-                            format: uuid
-                          caller_name:
-                            type: string
-                          status:
-                            type: string
-                          participants:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                user_id:
-                                  type: string
-                                  format: uuid
-                                username:
-                                  type: string
-                                status:
-                                  type: string
-                                  enum: [accepted, pending, declined, timeout]
-                          agora_token:
-                            description: Present only when action is `accept` and Agora is available
-                            type: object
-                            nullable: true
-                            properties:
-                              token:
-                                type: string
-                              app_id:
-                                type: string
-                              channel_name:
-                                type: string
-                              uid:
-                                type: string
+                        $ref: "#/components/schemas/DirectCallResponse"
               examples:
                 accepted:
                   summary: Call accepted
@@ -29817,54 +29775,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  /buzz/{id}/respond:
-    post:
-      tags:
-        - buzz
-      summary: Respond to a direct call
-      description: Allows a participant to accept, decline, or mark a call as timed out.
-      operationId: respondToCall
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: "The buzz identifier - UUID or buzzCode."
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                action:
-                  type: string
-                  enum: [accept, decline, timeout]
-              required:
-                - action
-      responses:
-        "200":
-          description: Successfully responded to call
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DirectCallResponse"
-        "400":
-          description: Bad request
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden
-        "404":
-          description: Call not found
-        "409":
-          description: Call already ended
-        "500":
-          description: Internal server error
 
   /buzz/{id}/recording/start:
     post:

@@ -652,11 +652,13 @@ type DirectCallResponse struct {
 }
 
 type CallPushPayload struct {
-	BuzzID     string `json:"buzz_id"`
-	ChannelID  string `json:"channel_id"`
-	CallerName string `json:"caller_name"`
-	CallerID   string `json:"caller_id"`
-	Event      string `json:"event"`
+	BuzzID           string `json:"buzz_id"`
+	ChannelID        string `json:"channel_id"`
+	CallerName       string `json:"caller_name"`
+	CallerID         string `json:"caller_id"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	Event            string `json:"event"`
 }
 
 type DirectCallCentrifugoPayload struct {
