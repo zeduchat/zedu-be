@@ -27,6 +27,7 @@ const (
 	DefaultBuzzDurationMinutes = 2 * 60 // 2 hours
 )
 
+
 func getPublishChannel(buzz *models.Buzz) string {
 	if buzz.BuzzType == models.BuzzTypeOrganization {
 		return utility.ExtractBuzzCode(buzz.ID)
