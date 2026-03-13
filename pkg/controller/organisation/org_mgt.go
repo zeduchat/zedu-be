@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
@@ -75,10 +77,47 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		return
 	}
 
-	err := organisation.RemoveMemberFromOrganisation(ownerId, orgId, userId, base.Db.Postgresql)
-	if err != nil {
-		base.Logger.Error("failed to remove member", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to remove member", err.Error(), nil)
+	var ownerEmail string
+	var user models.User
+	if owner, err := user.GetUserByID(base.Db.Postgresql, ownerId); err == nil {
+		ownerEmail = owner.Email
+	}
+
+	removeErr := organisation.RemoveMemberFromOrganisation(ownerId, orgId, userId, base.Db.Postgresql)
+
+	// Audit the attempt — success or failure.
+	auditData := map[string]interface{}{
+		"organisation_id": orgId,
+		"user_id":         userId,
+		"removed_by":      ownerId,
+	}
+	auditDataJSON, _ := json.Marshal(auditData)
+
+	success := removeErr == nil
+	description := fmt.Sprintf("User %s removed user %s from organisation %s", ownerEmail, userId, orgId)
+	if !success {
+		description = fmt.Sprintf("User %s failed to remove user %s from organisation %s: %v", ownerEmail, userId, orgId, removeErr)
+	}
+
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:      ownerId,
+		ActorEmail:   ownerEmail,
+		ActorRole:    "user",
+		Action:       models.ActionOrganisationLeft,
+		ResourceType: models.ResourceUser,
+		ResourceID:   userId,
+		NewValues:    string(auditDataJSON),
+		Description:  description,
+		IPAddress:    audit_utility.GetClientIP(c),
+		UserAgent:    c.GetHeader("User-Agent"),
+		Success:      success,
+	}); auditErr != nil {
+		base.Logger.Error("Failed to create audit log for user leaving organisation", auditErr)
+	}
+
+	if removeErr != nil {
+		base.Logger.Error("failed to remove member", removeErr)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to remove member", removeErr.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}

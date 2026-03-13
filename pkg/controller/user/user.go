@@ -171,7 +171,7 @@ func (base *Controller) DeactiveUser(ctx *gin.Context) {
 		return
 	}
 
-	code, err := service.DeactiveUser(base.Db.Postgresql, userID, loggedUserID)
+	code, err := service.DeactiveUser(base.Db.Postgresql, userID, loggedUserID, ctx)
 	if err != nil {
 		base.Logger.Error("failed to deactivate user", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)

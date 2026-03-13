@@ -43,7 +43,7 @@ func (base *Controller) CreateAdmin(c *gin.Context) {
 		return
 	}
 
-	response, err := admin.CreateAdmin(base.Db, req, c)
+	response, err := admin.CreateAdmin(base.Db, req, c, base.Logger)
 	if err != nil {
 		base.Logger.Error("Failed to create group", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to add an admin", err.Error(), nil)

@@ -94,3 +94,27 @@ func RoleChangeAudit(db *storage.Database, logger *utility.Logger, requesterEmai
 	_, _, err := webhook.PostFeedWebhook(db, logger, req)
 	return err
 }
+
+func CreateAdminAudit(db *storage.Database, logger *utility.Logger, requesterEmail, targetEmail string) error {
+	var req models.CreateWebhookHistoryRequest
+
+	channelID := config.Config.Channels.Audit
+
+	if _, err := uuid.Parse(channelID); err != nil {
+		if logger != nil {
+			logger.Info("error parsing channel id")
+		}
+		return nil
+	}
+
+	req.ChannelID = channelID
+	req.UserName = "Security Monitor"
+	req.EventName = "Admin Created"
+	req.Status = "success"
+	req.Message = fmt.Sprintf("Superadmin (%s) created new admin account for %s",
+		requesterEmail, targetEmail)
+	req.AvatarURL = fmt.Sprintf("%s/TelexIcon.svg", config.Config.App.FRONTEND_URL)
+
+	_, _, err := webhook.PostFeedWebhook(db, logger, req)
+	return err
+}
