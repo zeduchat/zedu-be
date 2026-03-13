@@ -194,10 +194,10 @@ func TestDirectCallInitiate_DM_Success(t *testing.T) {
 	otherPending := false
 	for _, p := range participants {
 		part := p.(map[string]interface{})
-		if part["user_id"] == users[0].ID && part["status"] == models.CallStatusAccepted {
+		if part["user_id"] == users[0].ID && part["join_status"] == models.CallStatusAccepted {
 			callerAccepted = true
 		}
-		if part["user_id"] == users[1].ID && part["status"] == models.CallStatusPending {
+		if part["user_id"] == users[1].ID && part["join_status"] == models.CallStatusPending {
 			otherPending = true
 		}
 	}
@@ -255,12 +255,12 @@ func TestDirectCallInitiate_GroupDM_Success(t *testing.T) {
 	for _, p := range participants {
 		part := p.(map[string]interface{})
 		if part["user_id"] == users[0].ID {
-			if part["status"] != models.CallStatusAccepted {
-				t.Errorf("caller should have status 'accepted', got %v", part["status"])
+			if part["join_status"] != models.CallStatusAccepted {
+				t.Errorf("caller should have status 'accepted', got %v", part["join_status"])
 			}
 		} else {
-			if part["status"] != models.CallStatusPending {
-				t.Errorf("others should have status 'pending', got %v", part["status"])
+			if part["join_status"] != models.CallStatusPending {
+				t.Errorf("others should have status 'pending', got %v", part["join_status"])
 			}
 		}
 	}
@@ -385,7 +385,7 @@ func TestDirectCallRespond_Accept(t *testing.T) {
 	allAccepted := false
 	for _, p := range participants {
 		part := p.(map[string]interface{})
-		if part["user_id"] == users[1].ID && part["status"] == models.CallStatusAccepted {
+		if part["user_id"] == users[1].ID && part["join_status"] == models.CallStatusAccepted {
 			allAccepted = true
 		}
 	}
@@ -451,7 +451,7 @@ func TestDirectCallRespond_Decline(t *testing.T) {
 	declined := false
 	for _, p := range participants {
 		part := p.(map[string]interface{})
-		if part["user_id"] == users[1].ID && part["status"] == models.CallStatusDeclined {
+		if part["user_id"] == users[1].ID && part["join_status"] == models.CallStatusDeclined {
 			declined = true
 		}
 	}
@@ -523,7 +523,7 @@ func TestDirectCallRespond_Timeout(t *testing.T) {
 	timedOut := false
 	for _, p := range participants {
 		part := p.(map[string]interface{})
-		if part["user_id"] == users[1].ID && part["status"] == models.CallStatusTimeout {
+		if part["user_id"] == users[1].ID && part["join_status"] == models.CallStatusTimeout {
 			timedOut = true
 		}
 	}

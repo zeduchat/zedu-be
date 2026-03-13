@@ -196,6 +196,16 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	}
 	logger.Info("permission validated for user %s to create buzz in channel %s", hostID, channelID)
 
+	// Reject if there is already an active buzz in this channel
+	var activeBuzzCount int64
+	db.Postgresql.Model(&models.Buzz{}).
+		Where("channel_id = ? AND status = ?", channelID, models.BuzzStatusActive).
+		Count(&activeBuzzCount)
+	if activeBuzzCount > 0 {
+		logger.Info("active buzz already exists in channel %s", channelID)
+		return resp, http.StatusConflict, errors.New("an active buzz already exists in this channel")
+	}
+
 	// Determine channel type (regular, DM, or group DM)
 	channelType, err := permissions.GetChannelType(db.Postgresql, channelID)
 	if err != nil {
