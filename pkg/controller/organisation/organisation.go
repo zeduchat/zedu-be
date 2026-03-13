@@ -285,7 +285,7 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 		ResourceID:   req.UserId,
 		Description:  description,
 		IPAddress:    audit_utility.GetClientIP(c),
-		UserAgent:    c.GetHeader("user-Agent"),
+		UserAgent:    c.GetHeader("User-Agent"),
 		Success:      success,
 	}); auditErr != nil {
 		base.Logger.Error("failed to create audit log for organisation join: " + auditErr.Error())
