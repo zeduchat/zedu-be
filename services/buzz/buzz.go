@@ -96,7 +96,20 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 	return participants, nil
 }
 
-func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
+func findLastJoinedUser(participants []models.ParticipantMetadata) *models.ParticipantMetadata {
+	if len(participants) == 0 {
+		return nil
+	}
+	last := &participants[0]
+	for i := 1; i < len(participants); i++ {
+		if participants[i].JoinedAt.After(last.JoinedAt) {
+			last = &participants[i]
+		}
+	}
+	return last
+}
+
+func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, lastUserJoined *models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
 
 	var user models.User
 	userDetails, userErr := user.GetUserByID(db, buzz.HostID)
@@ -120,6 +133,7 @@ func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetada
 		HostName:        userDetails.Profile.UserName,
 		RecordingStatus: recordingStatus,
 		IsRecording:     isRecording,
+		LastJoinedUser:  lastUserJoined,
 	}
 }
 
@@ -270,7 +284,9 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
-	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, logger)
+	lastUserJoined := findLastJoinedUser(participantMetadata)
+
+	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, lastUserJoined, logger)
 	resp = models.BuzzCreateResponse{
 		BuzzID:          metadataResp.BuzzID,
 		BuzzCode:        metadataResp.BuzzCode,
@@ -400,7 +416,9 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	recordingStatus, isRecording := fetchBuzzRecordingStatus(db.Postgresql, buzz.ID)
 
-	metadataResp := buildBuzzMetadataResponse(db.Postgresql, buzz, participantMetadata, logger)
+	lastUserJoined := findLastJoinedUser(participantMetadata)
+
+	metadataResp := buildBuzzMetadataResponse(db.Postgresql, buzz, participantMetadata, lastUserJoined, logger)
 	resp = models.JoinBuzzResponse{
 		BuzzID:          metadataResp.BuzzID,
 		BuzzCode:        metadataResp.BuzzCode,
@@ -967,7 +985,9 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		}
 	}
 
-	resp = buildBuzzMetadataResponse(db.Postgresql, &buzz, activeParticipantMetadata, logger)
+lastUserJoined := findLastJoinedUser(participantMetadata)
+
+	resp = buildBuzzMetadataResponse(db.Postgresql, &buzz, activeParticipantMetadata, lastUserJoined, logger)
 	logger.Info("generating Agora RTC token for host %s in buzz %s", userID, buzzID)
 	service := agora.Client.Service
 	if service == nil {
@@ -1282,7 +1302,9 @@ func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, 
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
 	}
 
-	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, logger)
+lastUserJoined := findLastJoinedUser(participantMetadata)
+
+	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, lastUserJoined, logger)
 	resp = models.BuzzCreateResponse{
 		BuzzID:          metadataResp.BuzzID,
 		HostID:          metadataResp.HostID,

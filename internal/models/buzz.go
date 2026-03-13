@@ -157,6 +157,7 @@ type BuzzMetadataResponse struct {
 	HostName        string                  `json:"host_name"`
 	RecordingStatus string                  `json:"recording_status"`
 	IsRecording     bool                    `json:"is_recording"`
+	LastJoinedUser  *ParticipantMetadata    `json:"last_joined_user,omitempty"`
 }
 
 type ActiveBuzzIndicator struct {
