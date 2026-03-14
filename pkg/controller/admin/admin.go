@@ -75,7 +75,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, c)
+	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, base.Logger, c)
 	if err != nil {
 		base.Logger.Error("Failed to login admin", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

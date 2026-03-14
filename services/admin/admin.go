@@ -222,6 +222,7 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 
 	totalUsersTargeted := len(users)
 	successfullySent := len(subscriptionIDs)
+	broadcastSuccess := true
 
 	// Send broadcast notification via OneSignal
 	pushReq := models.PushRequest{
@@ -231,40 +232,12 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 	}
 
 	if len(subscriptionIDs) > 0 {
-		err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, logger, db.Postgresql, subscriptionIDs)
-		if err != nil {
+		if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, logger, db.Postgresql, subscriptionIDs); err != nil {
 			logger.Error("Failed to send broadcast notification: %s", err.Error())
 			// Don't fail completely, log it and continue
 			successfullySent = 0
+			broadcastSuccess = false
 		}
-	}
-
-	// Create audit log entry
-	logID := utility.GenerateUUID()
-	oldValJSON, _ := json.Marshal(nil)
-	newValJSON, _ := json.Marshal(map[string]any{
-		"title":   req.Title,
-		"message": req.Message,
-		"users":   totalUsersTargeted,
-	})
-
-	auditLog := models.AuditLog{
-		ID:           logID,
-		ActorID:      adminID,
-		ActorEmail:   adminEmail,
-		Action:       models.ActionBroadcastNotificationCreated,
-		ResourceType: models.ResourceNotification,
-		ResourceID:   logID,
-		OldValues:    string(oldValJSON),
-		NewValues:    string(newValJSON),
-		Description:  fmt.Sprintf("Admin %s sent broadcast notification to %d users", adminEmail, totalUsersTargeted),
-		IPAddress:    ipAddress,
-		UserAgent:    userAgent,
-	}
-
-	if err := db.Postgresql.Create(&auditLog).Error; err != nil {
-		logger.Error("Failed to create audit log: %s", err.Error())
-		// Don't fail the notification if audit log fails
 	}
 
 	// Log broadcast notification
@@ -285,6 +258,34 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 
 	if err := db.Postgresql.Create(&broadcastLog).Error; err != nil {
 		logger.Error("Failed to create broadcast notification log: %s", err.Error())
+	}
+
+	// Create audit log entry
+	description := fmt.Sprintf("Admin %s sent broadcast notification to %d users", adminEmail, totalUsersTargeted)
+	if !broadcastSuccess {
+		description = fmt.Sprintf("Admin %s failed to send broadcast notification to %d users", adminEmail, totalUsersTargeted)
+	}
+
+	newValJSON, _ := json.Marshal(map[string]any{
+		"title":   req.Title,
+		"message": req.Message,
+		"users":   totalUsersTargeted,
+	})
+
+	if auditErr := audit_utility.CreateAuditLog(db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:      adminID,
+		ActorEmail:   adminEmail,
+		ActorRole:    "admin",
+		Action:       models.ActionBroadcastNotificationCreated,
+		ResourceType: models.ResourceNotification,
+		ResourceID:   broadcastLog.ID,
+		NewValues:    string(newValJSON),
+		Description:  description,
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+		Success:      broadcastSuccess,
+	}); auditErr != nil {
+		logger.Error("Failed to create audit log for broadcast notification: %v", auditErr)
 	}
 
 	return &models.BroadcastNotificationResponse{
