@@ -188,8 +188,6 @@ func TestBroadcastNotificationAuditLogs(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rr.Code)
 
-		// Scope by actor_id + action only — these are already unique to this admin
-		// who was just created for this test, so there can only be 1 log
 		var auditLogs []models.AuditLog
 		db.Postgresql.Where(
 			"actor_id = ? AND action = ?",
@@ -202,6 +200,8 @@ func TestBroadcastNotificationAuditLogs(t *testing.T) {
 		assert.Equal(t, models.ActionBroadcastNotificationCreated, auditLog.Action)
 		assert.Equal(t, models.ResourceNotification, auditLog.ResourceType)
 		assert.NotEmpty(t, auditLog.ResourceID)
+		assert.Equal(t, "admin", auditLog.ActorRole)
+		assert.True(t, auditLog.Success)
 		assert.Contains(t, auditLog.Description, "sent broadcast notification")
 		assert.NotEmpty(t, auditLog.IPAddress)
 		assert.NotEmpty(t, auditLog.UserAgent)

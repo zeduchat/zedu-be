@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -22,9 +23,21 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+var (
+	testLogger *utility.Logger
+	loggerOnce sync.Once
+)
+
+func getTestLogger() *utility.Logger {
+	loggerOnce.Do(func() {
+		testLogger = tst.Setup()
+	})
+	return testLogger
+}
+
 func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *storage.Database) {
 	gin.SetMode(gin.TestMode)
-	logger := tst.Setup()
+	logger := getTestLogger()
 	db := storage.Connection()
 	validator := validator.New()
 
@@ -58,6 +71,24 @@ func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 	{
 		adminUrl.GET("/dashboard/credits-summary", adminController.GetPlatformCreditsSummary)
 		adminUrl.POST("/notifications/broadcast", adminController.BroadcastNotification)
+
+		// Billing - plans
+		adminUrl.GET("/billing/stats", adminController.GetSubscriptionBillingStats)
+		adminUrl.GET("/billing/plans", adminController.GetPlansFiltered)
+		adminUrl.POST("/billing/plans", adminController.CreatePlan)
+		adminUrl.PUT("/billing/plans/:plan_id", adminController.UpdatePlan)
+		adminUrl.DELETE("/billing/plans/:plan_id", adminController.DeletePlan)
+
+		// Billing - credit packages
+		adminUrl.GET("/billing/credit-packages/stats", adminController.GetAICreditPackageStats)
+		adminUrl.GET("/billing/credit-packages", adminController.GetAICreditPackagesFiltered)
+		adminUrl.POST("/billing/credit-packages", adminController.CreateAICreditPackage)
+		adminUrl.PUT("/billing/credit-packages/:package_id", adminController.UpdateAICreditPackage)
+		adminUrl.DELETE("/billing/credit-packages/:package_id", adminController.DeleteAICreditPackage)
+
+		// Billing - transactions
+		adminUrl.GET("/billing/transactions/stats", adminController.GetAdminTransactionStats)
+		adminUrl.GET("/billing/transactions", adminController.GetAdminTransactionsHistory)
 	}
 
 	superAdminAuthUrl := r.Group(fmt.Sprintf("%s/backoffice", apiVersion),
@@ -75,7 +106,6 @@ func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 	}
 }
 
-// loginAdmin logs in via the HTTP endpoint and returns the access token.
 func loginAdmin(t *testing.T, r *gin.Engine, email, password string) string {
 	t.Helper()
 	loginPayload := map[string]string{"email": email, "password": password}
@@ -111,8 +141,6 @@ func CreateSuperAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Databa
 	return token
 }
 
-// CreateSuperAdminAndGetTokenWithID creates a super admin, logs in via the HTTP
-// endpoint, and returns both the admin ID and a valid access token.
 func CreateSuperAdminAndGetTokenWithID(t *testing.T, r *gin.Engine, db *storage.Database) (string, string) {
 	t.Helper()
 	const rawPassword = "password"
@@ -155,8 +183,6 @@ func CreateAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Database, r
 
 	return loginAdmin(t, r, adminUser.Email, rawPassword)
 }
-
-// --- helpers below are unchanged ---
 
 func CreateCreditTransaction(t *testing.T, db *gorm.DB, orgID string, amount float64) {
 	transaction := models.CreditTransaction{
