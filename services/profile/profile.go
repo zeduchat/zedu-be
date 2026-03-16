@@ -342,7 +342,7 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 		}
 
 		// Broadcast to organization channel so other users can see the update
-		channelID := fmt.Sprintf("org:%s", req.OrgID)
+		channelID := req.OrgID
 		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
 			logger.Error("failed to publish presence update event", "error", err, "channel_id", channelID)
 		}

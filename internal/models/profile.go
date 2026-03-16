@@ -334,7 +334,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			Status: status,
 		}
 
-		channelID := fmt.Sprintf("org:%s", req.OrgId)
+		channelID := req.OrgId
 		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
 			logger.Error("failed to publish status update event", "error", err, "channel_id", channelID)
 		}
