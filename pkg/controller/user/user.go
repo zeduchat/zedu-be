@@ -197,6 +197,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 
 	userClaims := common.GetAllUserClaims(c)
 	loggedUserID, ok := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
 	if !ok {
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
 		c.JSON(http.StatusUnauthorized, rd)
@@ -233,7 +234,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 	updateReq := models.UpdateProfileStatus{
 		Online: true,
 		UserId: userID,
-		OrgId:  "",
+		OrgId:  orgID,
 	}
 
 	if req.Text != nil {
@@ -263,6 +264,7 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 
 	userClaims := common.GetAllUserClaims(c)
 	userID, ok := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
 	userIdParam := c.Param("user_id")
 
 	if !utility.IsValidUUID(userIdParam) {
@@ -314,7 +316,7 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 		StatusExpiry: "",
 		Online:       true,
 		UserId:       userID,
-		OrgId:        "",
+		OrgId:        orgID,
 	}
 
 	if req.Emoji != nil {
@@ -323,6 +325,9 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 	if req.Expiry != nil {
 		updateReq.StatusExpiry = *req.Expiry
 	}
+
+	base.Logger.Info("Setting user status - UserID: %s, OrgID: %s, Text: %s, Expiry: %q, Icon: %q",
+		userID, orgID, req.Text, updateReq.StatusExpiry, updateReq.Icon)
 
 	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)
 	if err != nil {
