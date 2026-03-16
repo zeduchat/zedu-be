@@ -5884,13 +5884,14 @@ paths:
     post:
       tags:
         - buzz
-      summary: Accept, decline, or timeout a direct call
+      summary: Accept, decline, timeout, or cancel a direct call
       description: |
         Responds to an incoming direct call. The authenticated user must be a pending participant.
         - `accept`: Joins the call, generates an Agora RTC token, and publishes a `direct_call_response` centrifugo event.
         - `decline`: Marks the participant as declined and publishes a centrifugo event.
         - `timeout`: Client-side signal that ringing timed out. If the call's `created_at` is older than 5 minutes,
           any action is automatically overridden to `timeout`.
+        - `cancel`: The host cancels the call. This ends the call for everyone and publishes a `direct_call_canceled` centrifugo event.
         Centrifugo payload (`direct_call_response` event) contains the full updated `participants[]` array.
       operationId: respondToDirectCall
       security:
@@ -5914,7 +5915,7 @@ paths:
               properties:
                 action:
                   type: string
-                  enum: [accept, decline, timeout]
+                  enum: [accept, decline, timeout, cancel]
                   description: Response action for the incoming call
             examples:
               accept:
@@ -5929,6 +5930,10 @@ paths:
                 summary: Ringing timed out
                 value:
                   action: "timeout"
+              cancel:
+                summary: Host cancels the call
+                value:
+                  action: "cancel"
       responses:
         "200":
           description: Call response recorded successfully

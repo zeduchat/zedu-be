@@ -633,7 +633,7 @@ type InitiateDirectCallRequest struct {
 }
 
 type RespondToCallRequest struct {
-	Action string `json:"action" validate:"required,oneof=accept decline timeout"`
+	Action string `json:"action" validate:"required,oneof=accept decline timeout cancel"`
 }
 
 type DirectCallResponse struct {
