@@ -107,7 +107,7 @@ func PushFCMToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB)
 	}
 
 	title := fmt.Sprintf("#%s ", req.ChannelName)
-	body := fmt.Sprintf("(@%s): %s", req.Username, req.Message)
+	body := fmt.Sprintf("(%s): %s", req.Username, req.Message)
 
 	err = firebase.SendNotificationByFCMTokens(logger, *fcmTokens, title, body)
 
@@ -290,7 +290,7 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 	}
 
 	req.Title = fmt.Sprintf("#%s ", req.ChannelName)
-	req.Message = fmt.Sprintf("(@%s): %s", req.Username, req.Message)
+	req.Message = fmt.Sprintf("(%s): %s", req.Username, req.Message)
 
 	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req)
 	if err != nil {
