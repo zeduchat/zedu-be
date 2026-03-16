@@ -113,3 +113,45 @@ func getBrowserName(userAgent string) string {
 		return "Unknown"
 	}
 }
+
+type AuditLogParams struct {
+	ActorID      string
+	ActorEmail   string
+	ActorRole    string
+	Action       models.AuditAction
+	ResourceType models.ResourceType
+	ResourceID   string
+	OldValues    string
+	NewValues    string
+	Description  string
+	IPAddress    string
+	UserAgent    string
+	Success      bool
+}
+
+func CreateAuditLog(db *gorm.DB, params AuditLogParams) error {
+	audit := models.AuditLog{
+		ID:           utility.GenerateUUID(),
+		ActorID:      params.ActorID,
+		ActorEmail:   params.ActorEmail,
+		ActorRole:    params.ActorRole,
+		Action:       params.Action,
+		ResourceType: params.ResourceType,
+		ResourceID:   params.ResourceID,
+		OldValues:    normalizeJSON(params.OldValues),
+		NewValues:    normalizeJSON(params.NewValues),
+		Description:  params.Description,
+		IPAddress:    params.IPAddress,
+		UserAgent:    params.UserAgent,
+		Success:      params.Success,
+	}
+
+	return audit.CreateAuditLog(db)
+}
+
+func normalizeJSON(s string) string {
+	if s == "" {
+		return "{}"
+	}
+	return s
+}

@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ type AuditLog struct {
 	ID           string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	ActorID      string       `gorm:"type:uuid;not null;index" json:"actor_id"`
 	ActorEmail   string       `gorm:"type:varchar(255)" json:"actor_email"`
+	ActorRole    string       `gorm:"type:varchar(50)" json:"actor_role"`
 	Action       AuditAction  `gorm:"type:varchar(100);not null;index" json:"action"`
 	ResourceType ResourceType `gorm:"type:varchar(50);index" json:"resource_type"`
 	ResourceID   string       `gorm:"type:varchar(100);index" json:"resource_id"`
@@ -40,21 +42,37 @@ type AuditLog struct {
 
 	Description string    `gorm:"type:text" json:"description"`
 	IPAddress   string    `gorm:"type:varchar(45)" json:"ip_address"`
-	UserAgent   string    `gorm:"type:text" json:"user_agent"` // Helps identify if action was via Script vs Browser
+	UserAgent   string    `gorm:"type:text" json:"user_agent"`                               // Helps identify if action was via Script vs Browser
+	Success     bool      `gorm:"column:success;not null;default:true;index" json:"success"` // true when action completed successfully
 	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime;index" json:"created_at"`
 }
 
 type ResourceType string
 
 const (
-	ResourceAdmin ResourceType = "admin"
+	ResourceAdmin   ResourceType = "admin"
+	ResourceUser    ResourceType = "user"
+	ResourceBilling ResourceType = "billing"
+	ResourceFiles   ResourceType = "files"
+	ResourceSystem  ResourceType = "system"
+	ResourceData    ResourceType = "data"
 )
 
 type AuditAction string
 
 const (
-	ActionAdminCreate AuditAction = "admin.create"
-	ActionAdminUpdate AuditAction = "admin.update"
+	// Admin Actions
+	ActionAdminCreate     AuditAction = "admin.create"
+	ActionAdminRoleUpdate AuditAction = "admin.role_update"
+	ActionAdminLogin      AuditAction = "admin.login"
+
+	// User Management
+	ActionUserCreate         AuditAction = "user.create"
+	ActionUserDeactivate     AuditAction = "user.deactivate"
+	ActionUserReactivate     AuditAction = "user.reactivate"
+	ActionProfileUpdate      AuditAction = "user.profile_update"
+	ActionOrganisationJoined AuditAction = "user.joined_organisation"
+	ActionOrganisationLeft   AuditAction = "user.left_organisation"
 )
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
@@ -146,6 +164,15 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 		values = append(values, date)
 	}
 
+	if successStr := c.Query("success"); successStr != "" {
+		// parse boolean from query param
+		successBool, err := strconv.ParseBool(successStr)
+		if err == nil {
+			conditions = append(conditions, "success = ?")
+			values = append(values, successBool)
+		}
+	}
+
 	queryStr := ""
 	if len(conditions) > 0 {
 		queryStr = strings.Join(conditions, " AND ")
@@ -168,4 +195,14 @@ func (a *AuditLog) GetAuditHistory(db *gorm.DB, c *gin.Context) ([]AuditLog, pos
 	}
 
 	return logs, paginationResponse, nil
+}
+
+func (a *AuditLog) CreateAuditLog(db *gorm.DB) error {
+	err := postgresql.CreateOneRecord(db, &a)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

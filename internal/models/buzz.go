@@ -157,6 +157,7 @@ type BuzzMetadataResponse struct {
 	HostName        string                  `json:"host_name"`
 	RecordingStatus string                  `json:"recording_status"`
 	IsRecording     bool                    `json:"is_recording"`
+	LastJoinedUser  *ParticipantMetadata    `json:"last_joined_user,omitempty"`
 }
 
 type ActiveBuzzIndicator struct {
@@ -642,9 +643,23 @@ type DirectCallResponse struct {
 	CallerID     string                  `json:"caller_id"`
 	CallerName   string                  `json:"caller_name"`
 	Status       string                  `json:"status"`
+	JoinStatus   string                  `json:"join_status"`
 	Participants []DirectCallParticipant `json:"participants"`
+	UserJoined   *DirectCallParticipant  `json:"user_joined,omitempty"`
+	UserRejected *DirectCallParticipant  `json:"user_rejected,omitempty"`
+	UserTimeout  *DirectCallParticipant  `json:"user_timeout,omitempty"`
 	CreatedAt    time.Time               `json:"created_at"`
 	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token,omitempty"`
+}
+
+type CallPushPayload struct {
+	BuzzID           string `json:"buzz_id"`
+	ChannelID        string `json:"channel_id"`
+	CallerName       string `json:"caller_name"`
+	CallerID         string `json:"caller_id"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	Event            string `json:"event"`
 }
 
 type DirectCallCentrifugoPayload struct {
@@ -653,7 +668,11 @@ type DirectCallCentrifugoPayload struct {
 	ChannelID    string                  `json:"channel_id"`
 	CallerID     string                  `json:"caller_id"`
 	CallerName   string                  `json:"caller_name"`
+	JoinStatus   string                  `json:"join_status"`
 	Participants []DirectCallParticipant `json:"participants"`
+	UserJoined   *DirectCallParticipant  `json:"user_joined,omitempty"`
+	UserRejected *DirectCallParticipant  `json:"user_rejected,omitempty"`
+	UserTimeout  *DirectCallParticipant  `json:"user_timeout,omitempty"`
 	CreatedAt    time.Time               `json:"created_at"`
 }
 

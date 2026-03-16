@@ -1,7 +1,6 @@
 package buzz
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -245,19 +244,39 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 
 	allParticipants := fetchCallParticipants(db.Postgresql, logger, buzzID)
 
+	var respondingUser *models.DirectCallParticipant
+	for i := range allParticipants {
+		if allParticipants[i].UserID == userID {
+			respondingUser = &allParticipants[i]
+			break
+		}
+	}
+
 	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID)
 
 	respNotification := models.Notification[models.DirectCallResponseEvent]
 	respNotification.SectionType = models.ChannelsSection
-	respNotification.Content = models.DirectCallCentrifugoPayload{
+	payload := models.DirectCallCentrifugoPayload{
 		Event:        string(models.DirectCallResponseEvent),
 		BuzzID:       buzzID,
 		ChannelID:    buzz.ChannelID,
 		CallerID:     buzz.HostID,
 		CallerName:   callerName,
+		JoinStatus:   resolvedAction,
 		Participants: allParticipants,
 		CreatedAt:    buzz.CreatedAt,
 	}
+
+	switch newStatus {
+	case models.CallStatusAccepted:
+		payload.UserJoined = respondingUser
+	case models.CallStatusDeclined:
+		payload.UserRejected = respondingUser
+	case models.CallStatusTimeout:
+		payload.UserTimeout = respondingUser
+	}
+
+	respNotification.Content = payload
 	respNotification.ModificationDetails = &models.ModificationDetails{
 		ChannelId: buzz.ChannelID,
 	}
@@ -288,9 +307,19 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		CallerID:     buzz.HostID,
 		CallerName:   callerName,
 		Status:       buzz.Status,
+		JoinStatus:   resolvedAction,
 		Participants: allParticipants,
 		CreatedAt:    buzz.CreatedAt,
 		AgoraToken:   agoraToken,
+	}
+
+	switch newStatus {
+	case models.CallStatusAccepted:
+		resp.UserJoined = respondingUser
+	case models.CallStatusDeclined:
+		resp.UserRejected = respondingUser
+	case models.CallStatusTimeout:
+		resp.UserTimeout = respondingUser
 	}
 
 	logger.Info("user %s responded to call %s with action: %s (resolved: %s)", userID, buzzID, action, newStatus)
@@ -386,14 +415,6 @@ func fetchCallParticipants(db *gorm.DB, logger *utility.Logger, buzzID string) [
 	return result
 }
 
-type callPushPayload struct {
-	BuzzID     string `json:"buzz_id"`
-	ChannelID  string `json:"channel_id"`
-	CallerName string `json:"caller_name"`
-	CallerID   string `json:"caller_id"`
-	Event      string `json:"event"`
-}
-
 func notifyCallParticipants(db *storage.Database, logger *utility.Logger, participantIDs []string, callerID, callerName, channelID, buzzID string) {
 	others := make([]string, 0, len(participantIDs)-1)
 	for _, uid := range participantIDs {
@@ -405,26 +426,27 @@ func notifyCallParticipants(db *storage.Database, logger *utility.Logger, partic
 		return
 	}
 
-	pushMsg := callPushPayload{
-		BuzzID:     buzzID,
-		ChannelID:  channelID,
-		CallerName: callerName,
-		CallerID:   callerID,
-		Event:      string(models.DirectCallInitiated),
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID)
+	pushMsg := models.CallPushPayload{
+		BuzzID:           buzzID,
+		ChannelID:        channelID,
+		CallerName:       callerName,
+		CallerID:         callerID,
+		AvatarURL:        avatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(callerID),
+		Event:            string(models.DirectCallInitiated),
 	}
-
-	msgBytes, _ := json.Marshal(pushMsg)
 
 	req := models.PushRequest{
 		Title:   "Incoming Call",
-		Message: string(msgBytes),
+		Message: fmt.Sprintf("You have a new call from %s", callerName),
 		UserIds: others,
 	}
 
 	sendDirectCallOneSignal(db, logger, others, req, pushMsg)
 }
 
-func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userIDs []string, req models.PushRequest, payload callPushPayload) {
+func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userIDs []string, req models.PushRequest, payload models.CallPushPayload) {
 	var users []models.User
 	if err := db.Postgresql.Where("id IN ?", userIDs).
 		Select("id", "onesignal_subscription_id").
@@ -445,11 +467,13 @@ func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userI
 	}
 
 	callData := map[string]interface{}{
-		"buzz_id":     payload.BuzzID,
-		"channel_id":  payload.ChannelID,
-		"caller_name": payload.CallerName,
-		"caller_id":   payload.CallerID,
-		"event":       payload.Event,
+		"buzz_id":            payload.BuzzID,
+		"channel_id":         payload.ChannelID,
+		"caller_name":        payload.CallerName,
+		"caller_id":          payload.CallerID,
+		"avatar_url":         payload.AvatarURL,
+		"default_avatar_url": payload.DefaultAvatarURL,
+		"event":              payload.Event,
 	}
 
 	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData); err != nil {
