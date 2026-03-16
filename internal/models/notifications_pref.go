@@ -56,6 +56,7 @@ var (
 	MuteParticipants            NotificationType = "mute_participants"
 	DirectCallInitiated         NotificationType = "direct_call_initiated"
 	DirectCallResponseEvent     NotificationType = "direct_call_response"
+	DirectCallCanceled          NotificationType = "direct_call_canceled"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
@@ -240,6 +241,9 @@ var Notification = map[NotificationType]Content{
 	},
 	DirectCallResponseEvent: Content{
 		NotificationType: DirectCallResponseEvent,
+	},
+	DirectCallCanceled: Content{
+		NotificationType: DirectCallCanceled,
 	},
 }
 

@@ -187,6 +187,10 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		return resp, http.StatusConflict, errors.New("call has already ended")
 	}
 
+	if userID == buzz.HostID && action == "cancel" {
+		return handleDirectCallCancellation(db, logger, buzz, buzzID)
+	}
+
 	var participant models.BuzzParticipant
 	if err := db.Postgresql.Where("buzz_id = ? AND user_id = ?", buzzID, userID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -444,6 +448,86 @@ func notifyCallParticipants(db *storage.Database, logger *utility.Logger, partic
 	}
 
 	sendDirectCallOneSignal(db, logger, others, req, pushMsg)
+}
+
+func notifyCallCanceled(db *storage.Database, logger *utility.Logger, participantIDs []string, callerID, callerName, channelID, buzzID string) {
+	others := make([]string, 0, len(participantIDs)-1)
+	for _, uid := range participantIDs {
+		if uid != callerID {
+			others = append(others, uid)
+		}
+	}
+	if len(others) == 0 {
+		return
+	}
+
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID)
+	pushMsg := models.CallPushPayload{
+		BuzzID:           buzzID,
+		ChannelID:        channelID,
+		CallerName:       callerName,
+		CallerID:         callerID,
+		AvatarURL:        avatarURL,
+		DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(callerID),
+		Event:            string(models.DirectCallCanceled),
+	}
+
+	req := models.PushRequest{
+		Title:   "Call Canceled",
+		Message: fmt.Sprintf("%s has canceled the call", callerName),
+		UserIds: others,
+	}
+
+	sendDirectCallOneSignal(db, logger, others, req, pushMsg)
+}
+
+func handleDirectCallCancellation(db *storage.Database, logger *utility.Logger, buzz models.Buzz, buzzID string) (models.DirectCallResponse, int, error) {
+	participantIDs, _ := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
+	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID)
+
+	// notify onesignal
+	go notifyCallCanceled(db, logger, participantIDs, buzz.HostID, callerName, buzz.ChannelID, buzz.ID)
+
+	// notify centrifugo
+	respNotification := models.Notification[models.DirectCallCanceled]
+	respNotification.SectionType = models.ChannelsSection
+	respNotification.NotificationId = utility.GenerateUUID()
+	respNotification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: buzz.ChannelID,
+	}
+	respNotification.Content = models.DirectCallCentrifugoPayload{
+		Event:      string(models.DirectCallCanceled),
+		BuzzID:     buzzID,
+		ChannelID:  buzz.ChannelID,
+		CallerID:   buzz.HostID,
+		CallerName: callerName,
+		CreatedAt:  buzz.CreatedAt,
+	}
+
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	if orgID != "" {
+		broadcastChannels := make([]string, 0, len(participantIDs))
+		for _, uid := range participantIDs {
+			broadcastChannels = append(broadcastChannels, fmt.Sprintf("%s/%s", orgID, uid))
+		}
+		if err := centrifuge.BatchBroadcastToChannel(logger, broadcastChannels, respNotification); err != nil {
+			logger.Error("respond to call: failed to broadcast centrifugo cancel event: %v", err)
+		}
+	}
+
+	resp := models.DirectCallResponse{
+		BuzzID:     buzzID,
+		BuzzCode:   utility.ExtractBuzzCode(buzzID),
+		ChannelID:  buzz.ChannelID,
+		CallerID:   buzz.HostID,
+		CallerName: callerName,
+		Status:     models.BuzzStatusEnded,
+		CreatedAt:  buzz.CreatedAt,
+	}
+
+	return resp, http.StatusOK, nil
 }
 
 func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userIDs []string, req models.PushRequest, payload models.CallPushPayload) {
