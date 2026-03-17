@@ -163,33 +163,33 @@ func TestBuzzCreate(t *testing.T) {
 		}
 	})
 
-	// t.Run("Create Buzz - Duplicate (Channel Already Has Active Buzz)", func(t *testing.T) {
-	// 	r := gin.Default()
-	// 	buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
-	// 	{
-	// 		buzzUrl.POST("/create", buzzController.Create)
-	// 	}
+	t.Run("Create Buzz - Duplicate (Channel Already Has Active Buzz)", func(t *testing.T) {
+		r := gin.Default()
+		buzzUrl := r.Group("/api/v1/buzz", middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+		{
+			buzzUrl.POST("/create", buzzController.Create)
+		}
 
-	// 	createBuzzReq := models.CreateBuzzRequest{
-	// 		ChannelID: channelID,
-	// 	}
+		createBuzzReq := models.CreateBuzzRequest{
+			ChannelID: channelID,
+		}
 
-	// 	var b bytes.Buffer
-	// 	json.NewEncoder(&b).Encode(createBuzzReq)
-	// 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
-	// 	req.Header.Set("Content-Type", "application/json")
-	// 	req.Header.Set("Authorization", "Bearer "+token)
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(createBuzzReq)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/create", &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
 
-	// 	rr := httptest.NewRecorder()
-	// 	r.ServeHTTP(rr, req)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
 
-	// 	tst.AssertStatusCode(t, rr.Code, http.StatusConflict)
+		tst.AssertStatusCode(t, rr.Code, http.StatusCreated)
 
-	// 	data := tst.ParseResponse(rr)
-	// 	code := int(data["status_code"].(float64))
-	// 	tst.AssertStatusCode(t, code, http.StatusConflict)
+		data := tst.ParseResponse(rr)
+		code := int(data["status_code"].(float64))
+		tst.AssertStatusCode(t, code, http.StatusCreated)
 
-	// 	message := data["message"].(string)
-	// 	tst.AssertResponseMessage(t, message, "channel already has an active buzz")
-	// })
+		message := data["message"].(string)
+		tst.AssertResponseMessage(t, message, "buzz created successfully") // JoinBuzz returns this message
+	})
 }

@@ -251,14 +251,16 @@ func TestBuzzCreateInDM(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
 
-		t.Logf("Response Status: %d", rr.Code)
-		t.Logf("Response Body: %s", rr.Body.String())
+		tst.AssertStatusCode(t, rr.Code, http.StatusCreated)
 
-		// if rr.Code != http.StatusConflict && rr.Code != http.StatusBadRequest {
-		// 	t.Errorf("Expected status 409 or 400 for duplicate buzz, got %d", rr.Code)
-		// }
+		data := tst.ParseResponse(rr)
+		code := int(data["status_code"].(float64))
+		tst.AssertStatusCode(t, code, http.StatusCreated)
 
-		t.Logf("✅ Correctly prevented duplicate buzz in DM")
+		message := data["message"].(string)
+		tst.AssertResponseMessage(t, message, "buzz created successfully")
+
+		t.Logf("✅ Successfully returned existing buzz in DM")
 	})
 }
 

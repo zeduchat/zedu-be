@@ -231,14 +231,37 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	}
 	logger.Info("permission validated for user %s to create buzz in channel %s", hostID, channelID)
 
-	// Reject if there is already an active buzz in this channel
-	var activeBuzzCount int64
-	db.Postgresql.Model(&models.Buzz{}).
-		Where("channel_id = ? AND status = ?", channelID, models.BuzzStatusActive).
-		Count(&activeBuzzCount)
-	if activeBuzzCount > 0 {
-		logger.Info("active buzz already exists in channel %s", channelID)
-		return resp, http.StatusConflict, errors.New("an active buzz already exists in this channel")
+	// If there is already an active buzz in this channel, return it
+	var existingBuzz models.Buzz
+	err = db.Postgresql.Where("channel_id = ? AND status = ?", channelID, models.BuzzStatusActive).First(&existingBuzz).Error
+	if err == nil {
+		logger.Info("active buzz already exists in channel %s, joining user %s", channelID, hostID)
+
+		joinResp, code, err := JoinBuzz(db, logger, existingBuzz.ID, hostID)
+		if err != nil {
+			logger.Error("failed to join existing buzz: %v", err)
+			return resp, code, err
+		}
+
+		// Re-fetch existing buzz to get updated participant IDs
+		db.Postgresql.Where("id = ?", existingBuzz.ID).First(&existingBuzz)
+
+		resp = models.BuzzCreateResponse{
+			BuzzID:          joinResp.BuzzID,
+			BuzzCode:        joinResp.BuzzCode,
+			HostID:          joinResp.HostID,
+			ChannelID:       joinResp.ChannelID,
+			Status:          joinResp.Status,
+			CreatedAt:       joinResp.CreatedAt,
+			StartedAt:       joinResp.StartedAt,
+			EndedAt:         joinResp.EndedAt,
+			ParticipantIDs:  existingBuzz.ParticipantIDs,
+			Participants:    joinResp.Participants,
+			AgoraToken:      joinResp.AgoraToken,
+			IsRecording:     joinResp.IsRecording,
+			RecordingStatus: joinResp.RecordingStatus,
+		}
+		return resp, http.StatusCreated, nil
 	}
 
 	// Determine channel type (regular, DM, or group DM)
@@ -832,6 +855,22 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 		return nil, statusCode, errors.New(errMsg)
 	}
 	logger.Info("permission validated for host %s to end buzz %s", hostID, buzzID)
+
+	// Handle direct call cancellation logic if it's a DM or Group DM
+	if buzz.ChannelType == models.ChannelTypeDM || buzz.ChannelType == models.ChannelTypeGroupDM {
+		resp, code, err := handleDirectCallCancellation(db, logger, *buzz, buzzID)
+		if err != nil {
+			return nil, code, err
+		}
+		return &models.BuzzEndResponse{
+			BuzzID:    resp.BuzzID,
+			BuzzCode:  resp.BuzzCode,
+			ChannelID: resp.ChannelID,
+			HostID:    resp.CallerID,
+			EndedAt:   time.Now().UTC(),
+			Status:    resp.Status,
+		}, code, nil
+	}
 
 	now := time.Now().UTC()
 
