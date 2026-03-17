@@ -187,10 +187,6 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		return resp, http.StatusConflict, errors.New("call has already ended")
 	}
 
-	if userID == buzz.HostID && action == "cancel" {
-		return handleDirectCallCancellation(db, logger, buzz, buzzID)
-	}
-
 	var participant models.BuzzParticipant
 	if err := db.Postgresql.Where("buzz_id = ? AND user_id = ?", buzzID, userID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

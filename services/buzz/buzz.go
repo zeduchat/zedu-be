@@ -833,6 +833,22 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 	}
 	logger.Info("permission validated for host %s to end buzz %s", hostID, buzzID)
 
+	// Handle direct call cancellation logic if it's a DM or Group DM
+	if buzz.ChannelType == models.ChannelTypeDM || buzz.ChannelType == models.ChannelTypeGroupDM {
+		resp, code, err := handleDirectCallCancellation(db, logger, *buzz, buzzID)
+		if err != nil {
+			return nil, code, err
+		}
+		return &models.BuzzEndResponse{
+			BuzzID:    resp.BuzzID,
+			BuzzCode:  resp.BuzzCode,
+			ChannelID: resp.ChannelID,
+			HostID:    resp.CallerID,
+			EndedAt:   time.Now().UTC(),
+			Status:    resp.Status,
+		}, code, nil
+	}
+
 	now := time.Now().UTC()
 
 	// Update buzz status in transaction
