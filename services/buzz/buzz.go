@@ -261,7 +261,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 			IsRecording:     joinResp.IsRecording,
 			RecordingStatus: joinResp.RecordingStatus,
 		}
-		return resp, http.StatusOK, nil
+		return resp, http.StatusCreated, nil
 	}
 
 	// Determine channel type (regular, DM, or group DM)
