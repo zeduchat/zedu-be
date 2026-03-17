@@ -190,6 +190,6 @@ func TestBuzzCreate(t *testing.T) {
 		tst.AssertStatusCode(t, code, http.StatusOK)
 
 		message := data["message"].(string)
-		tst.AssertResponseMessage(t, message, "buzz joined successfully") // JoinBuzz returns this message
+		tst.AssertResponseMessage(t, message, "buzz created successfully") // JoinBuzz returns this message
 	})
 }

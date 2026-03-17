@@ -258,7 +258,7 @@ func TestBuzzCreateInDM(t *testing.T) {
 		tst.AssertStatusCode(t, code, http.StatusOK)
 
 		message := data["message"].(string)
-		tst.AssertResponseMessage(t, message, "buzz joined successfully")
+		tst.AssertResponseMessage(t, message, "buzz created successfully")
 
 		t.Logf("✅ Successfully returned existing buzz in DM")
 	})
