@@ -190,6 +190,7 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 	var participant models.BuzzParticipant
 	if err := db.Postgresql.Where("buzz_id = ? AND user_id = ?", buzzID, userID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("respond to call: participant not found for user: %s in buzz: %s", userID, buzzID)
 			return resp, http.StatusForbidden, errors.New("you are not a participant in this call")
 		}
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant")
