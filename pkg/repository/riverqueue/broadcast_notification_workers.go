@@ -37,7 +37,7 @@ func (w *BroadcastNotificationWorker) Work(ctx context.Context, job *river.Job[m
 	}
 
 	// Fetch users in batches
-	batchSize := 1000
+	batchSize := 100
 	offset := 0
 	totalSent := 0
 	totalFailed := 0
