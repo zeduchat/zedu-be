@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/services/admin"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -80,16 +81,22 @@ func TestBroadcastNotification(t *testing.T) {
 		assert.Equal(t, "Broadcast notification sent successfully", response["message"])
 
 		data := response["data"].(map[string]any)
-		assert.NotEmpty(t, data["id"])
+		broadcastID := data["id"].(string)
+		assert.NotEmpty(t, broadcastID)
 		assert.Equal(t, payload.Title, data["title"])
 		assert.Equal(t, payload.Message, data["message"])
 
-		// DB has pre-existing users — assert relative correctness, not exact counts
+		// Counts are 0 initially since processing is async
 		totalTargeted := data["total_users_targeted"].(float64)
 		successfullySent := data["successfully_sent"].(float64)
-		assert.GreaterOrEqual(t, totalTargeted, float64(3))    // at least our 3 users
-		assert.GreaterOrEqual(t, successfullySent, float64(2)) // at least our 2 with subscription IDs
-		assert.LessOrEqual(t, successfullySent, totalTargeted) // sent ≤ targeted
+		assert.Equal(t, float64(0), totalTargeted)
+		assert.Equal(t, float64(0), successfullySent)
+
+		// Verify broadcast log was created with 'started' status
+		var broadcastLog models.BroadcastNotificationLog
+		err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error
+		assert.NoError(t, err)
+		assert.Equal(t, "started", broadcastLog.Status)
 	})
 
 	t.Run("Broadcast Notification - Validation Error - Missing Title", func(t *testing.T) {
@@ -232,7 +239,9 @@ func TestBroadcastNotificationAuditLogs(t *testing.T) {
 		broadcastLog := broadcastLogs[0]
 		assert.Equal(t, payload.Title, broadcastLog.Title)
 		assert.Equal(t, payload.Message, broadcastLog.Message)
-		assert.Equal(t, broadcastLog.SuccessfullySent+broadcastLog.FailedCount, broadcastLog.TotalUsersTargeted)
+		assert.Equal(t, "started", broadcastLog.Status)     // Status should be 'started' initially
+		assert.Equal(t, 0, broadcastLog.TotalUsersTargeted) // Will be updated by worker
+		assert.Equal(t, 0, broadcastLog.SuccessfullySent)   // Will be updated by worker
 		assert.NotEmpty(t, broadcastLog.IPAddress)
 		assert.NotEmpty(t, broadcastLog.UserAgent)
 	})
@@ -272,5 +281,82 @@ func TestBroadcastNotificationNoUsers(t *testing.T) {
 		data := response["data"].(map[string]any)
 		assert.Equal(t, float64(0), data["total_users_targeted"])
 		assert.Equal(t, float64(0), data["successfully_sent"])
+	})
+}
+
+func TestBroadcastNotificationStatus(t *testing.T) {
+	r, _, _, db := SetupAdminTestRouter()
+	superAdminID, superAdminToken := CreateSuperAdminAndGetTokenWithID(t, r, db)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, superAdminID, []string{})
+		db.Postgresql.Exec("DELETE FROM broadcast_notification_logs WHERE admin_id = ?", superAdminID)
+		db.Postgresql.Exec("DELETE FROM audit_logs WHERE actor_id = ? AND action = ?", superAdminID, models.ActionBroadcastNotificationCreated)
+	})
+
+	t.Run("Get Broadcast Notification Status - Started", func(t *testing.T) {
+		// Create a broadcast notification
+		payload := models.BroadcastNotificationRequest{
+			Title:   "Status Test Broadcast",
+			Message: "Testing status field",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		response := tst.ParseResponse(rr)
+		data := response["data"].(map[string]any)
+		broadcastID := data["id"].(string)
+
+		// Verify the broadcast log has 'started' status
+		var broadcastLog models.BroadcastNotificationLog
+		err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error
+		assert.NoError(t, err)
+		assert.Equal(t, "started", broadcastLog.Status)
+		assert.Equal(t, payload.Title, broadcastLog.Title)
+		assert.Equal(t, payload.Message, broadcastLog.Message)
+	})
+
+	t.Run("Get Broadcast Notification Status - Not Found", func(t *testing.T) {
+		nonExistentID := utility.GenerateUUID()
+
+		// Attempt to retrieve non-existent broadcast notification
+		broadcastLog, err := admin.GetBroadcastNotificationStatus(db, nonExistentID)
+		assert.Error(t, err)
+		assert.Nil(t, broadcastLog)
+	})
+
+	t.Run("Broadcast Log Contains Admin Information", func(t *testing.T) {
+		payload := models.BroadcastNotificationRequest{
+			Title:   "Admin Info Test",
+			Message: "Testing admin information is saved",
+		}
+
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/notifications/broadcast", bytes.NewBuffer(body))
+		req.Header.Set("Authorization", "Bearer "+superAdminToken)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Forwarded-For", "203.0.113.1")
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+
+		var broadcastLogs []models.BroadcastNotificationLog
+		db.Postgresql.Where("admin_id = ? AND title = ?", superAdminID, payload.Title).Find(&broadcastLogs)
+
+		assert.Len(t, broadcastLogs, 1)
+		log := broadcastLogs[0]
+		assert.Equal(t, superAdminID, log.AdminID)
+		assert.NotEmpty(t, log.AdminEmail)
+		assert.Equal(t, "203.0.113.1", log.IPAddress)
+		assert.NotEmpty(t, log.UserAgent)
 	})
 }

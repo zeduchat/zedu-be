@@ -29,6 +29,7 @@ type BroadcastNotificationLog struct {
 	TotalUsersTargeted int        `gorm:"not null" json:"total_users_targeted"`
 	SuccessfullySent   int        `gorm:"not null" json:"successfully_sent"`
 	FailedCount        int        `gorm:"not null" json:"failed_count"`
+	Status             string     `gorm:"type:varchar(20);default:'started'" json:"status"`
 	ScheduledAt        *time.Time `gorm:"type:timestamp;null" json:"scheduled_at"`
 	IPAddress          string     `gorm:"type:varchar(45)" json:"ip_address"`
 	UserAgent          string     `gorm:"type:text" json:"user_agent"`

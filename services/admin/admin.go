@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
@@ -190,67 +190,19 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 	adminID, adminEmail, ipAddress, userAgent string,
 	req models.BroadcastNotificationRequest,
 ) (*models.BroadcastNotificationResponse, error) {
-	var users []models.User
-	if err := db.Postgresql.
-		Where("is_active = ?", true).
-		Select("id", "onesignal_subscription_id").
-		Find(&users).Error; err != nil {
-		logger.Error("Failed to fetch users for broadcast: %s", err.Error())
-		return nil, fmt.Errorf("failed to fetch users: %w", err)
-	}
-
-	if len(users) == 0 {
-		logger.Info("No active users found for broadcast notification")
-		return &models.BroadcastNotificationResponse{
-			ID:                 utility.GenerateUUID(),
-			Title:              req.Title,
-			Message:            req.Message,
-			TotalUsersTargeted: 0,
-			SuccessfullySent:   0,
-			CreatedAt:          time.Now(),
-			ScheduledAt:        req.ScheduledAt,
-		}, nil
-	}
-
-	// Build OneSignal subscription IDs
-	subscriptionIDs := make([]string, 0, len(users))
-	for _, user := range users {
-		if user.OneSignalSubscriptionID != "" {
-			subscriptionIDs = append(subscriptionIDs, user.OneSignalSubscriptionID)
-		}
-	}
-
-	totalUsersTargeted := len(users)
-	successfullySent := len(subscriptionIDs)
-	broadcastSuccess := true
-
-	// Send broadcast notification via OneSignal
-	pushReq := models.PushRequest{
-		Title:     req.Title,
-		Message:   req.Message,
-		AvatarUrl: req.AvatarUrl,
-	}
-
-	if len(subscriptionIDs) > 0 {
-		if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, logger, db.Postgresql, subscriptionIDs); err != nil {
-			logger.Error("Failed to send broadcast notification: %s", err.Error())
-			// Don't fail completely, log it and continue
-			successfullySent = 0
-			broadcastSuccess = false
-		}
-	}
-
-	// Log broadcast notification
+	// Create initial broadcast log with status "started"
+	broadcastLogID := utility.GenerateUUID()
 	broadcastLog := models.BroadcastNotificationLog{
-		ID:                 utility.GenerateUUID(),
+		ID:                 broadcastLogID,
 		AdminID:            adminID,
 		AdminEmail:         adminEmail,
 		Title:              req.Title,
 		Message:            req.Message,
 		AvatarUrl:          req.AvatarUrl,
-		TotalUsersTargeted: totalUsersTargeted,
-		SuccessfullySent:   successfullySent,
-		FailedCount:        totalUsersTargeted - successfullySent,
+		TotalUsersTargeted: 0, // Will be updated by the worker
+		SuccessfullySent:   0,
+		FailedCount:        0,
+		Status:             "started",
 		ScheduledAt:        req.ScheduledAt,
 		IPAddress:          ipAddress,
 		UserAgent:          userAgent,
@@ -258,18 +210,37 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 
 	if err := db.Postgresql.Create(&broadcastLog).Error; err != nil {
 		logger.Error("Failed to create broadcast notification log: %s", err.Error())
+		return nil, fmt.Errorf("failed to create broadcast log: %w", err)
+	}
+
+	// Enqueue the broadcast notification job
+	jobArgs := models.BroadcastNotificationJobArgs{
+		BroadcastLogID: broadcastLogID,
+		AdminID:        adminID,
+		AdminEmail:     adminEmail,
+		Title:          req.Title,
+		Message:        req.Message,
+		AvatarUrl:      req.AvatarUrl,
+		IPAddress:      ipAddress,
+		UserAgent:      userAgent,
+	}
+
+	_, err := jobArgs.InsertBroadcastNotificationJob(context.Background(), db)
+	if err != nil {
+		logger.Error("Failed to enqueue broadcast notification job: %s", err.Error())
+		// Update status to failed
+		db.Postgresql.Model(&models.BroadcastNotificationLog{}).
+			Where("id = ?", broadcastLogID).
+			Update("status", "failed")
+		return nil, fmt.Errorf("failed to enqueue broadcast job: %w", err)
 	}
 
 	// Create audit log entry
-	description := fmt.Sprintf("Admin %s sent broadcast notification to %d users", adminEmail, totalUsersTargeted)
-	if !broadcastSuccess {
-		description = fmt.Sprintf("Admin %s failed to send broadcast notification to %d users", adminEmail, totalUsersTargeted)
-	}
-
+	description := fmt.Sprintf("Admin %s sent broadcast notification to all users", adminEmail)
 	newValJSON, _ := json.Marshal(map[string]any{
 		"title":   req.Title,
 		"message": req.Message,
-		"users":   totalUsersTargeted,
+		"status":  "started",
 	})
 
 	if auditErr := audit_utility.CreateAuditLog(db.Postgresql, audit_utility.AuditLogParams{
@@ -278,23 +249,32 @@ func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logge
 		ActorRole:    "admin",
 		Action:       models.ActionBroadcastNotificationCreated,
 		ResourceType: models.ResourceNotification,
-		ResourceID:   broadcastLog.ID,
+		ResourceID:   broadcastLogID,
 		NewValues:    string(newValJSON),
 		Description:  description,
 		IPAddress:    ipAddress,
 		UserAgent:    userAgent,
-		Success:      broadcastSuccess,
+		Success:      true,
 	}); auditErr != nil {
 		logger.Error("Failed to create audit log for broadcast notification: %v", auditErr)
 	}
 
 	return &models.BroadcastNotificationResponse{
-		ID:                 broadcastLog.ID,
+		ID:                 broadcastLogID,
 		Title:              req.Title,
 		Message:            req.Message,
-		TotalUsersTargeted: totalUsersTargeted,
-		SuccessfullySent:   successfullySent,
-		CreatedAt:          time.Now(),
+		TotalUsersTargeted: 0, // Will be updated by worker
+		SuccessfullySent:   0,
+		CreatedAt:          broadcastLog.CreatedAt,
 		ScheduledAt:        req.ScheduledAt,
 	}, nil
+}
+
+// GetBroadcastNotificationStatus retrieves the status of a broadcast notification by ID
+func GetBroadcastNotificationStatus(db *storage.Database, broadcastID string) (*models.BroadcastNotificationLog, error) {
+	var broadcastLog models.BroadcastNotificationLog
+	if err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error; err != nil {
+		return nil, err
+	}
+	return &broadcastLog, nil
 }
