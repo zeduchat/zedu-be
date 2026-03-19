@@ -70,14 +70,8 @@ type recordingConfig struct {
 	ChannelType        int               `json:"channelType"`
 	VideoStreamType    int               `json:"videoStreamType"`
 	TranscodingConfig  transcodingConfig `json:"transcodingConfig"`
-	AudioProfile       int               `json:"audioProfile"`
-	StreamMode         string            `json:"streamMode"`
-	SubscribeAudioUids []string          `json:"subscribeAudioUids"`
-	SubscribeVideoUids []string          `json:"subscribeVideoUids"`
-}
-
-type recordingFileConfig struct {
-	AVFileType []string `json:"avFileType"`
+	SubscribeAudioUIDs []string          `json:"subscribeAudioUIDs"`
+	SubscribeVideoUIDs []string          `json:"subscribeVideoUIDs"`
 }
 
 type startRecordingRequest struct {
@@ -87,10 +81,9 @@ type startRecordingRequest struct {
 }
 
 type startClientRequest struct {
-	Token               string              `json:"token,omitempty"`
-	RecordingConfig     recordingConfig     `json:"recordingConfig"`
-	StorageConfig       storageConfig       `json:"storageConfig"`
-	RecordingFileConfig recordingFileConfig `json:"recordingFileConfig"`
+	Token           string          `json:"token,omitempty"`
+	RecordingConfig recordingConfig `json:"recordingConfig"`
+	StorageConfig   storageConfig   `json:"storageConfig"`
 }
 
 type startResponse struct {
@@ -226,25 +219,18 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 		ClientRequest: startClientRequest{
 			Token: token,
 			RecordingConfig: recordingConfig{
-				MaxIdleTime:        maxIdleSecs,
-				StreamTypes:        2,
-				ChannelType:        0,
-				AudioProfile:       1,
-				VideoStreamType:    0,
-				SubscribeAudioUids: []string{"#allstream#"},
-				SubscribeVideoUids: []string{"#allstream#"},
-				StreamMode:         "standard",
+				MaxIdleTime:     maxIdleSecs,
+				StreamTypes:     2,
+				ChannelType:     1,
+				VideoStreamType: 0,
 				TranscodingConfig: transcodingConfig{
-					Width:            1280,
-					Height:           720,
+					Width:            640,
+					Height:           360,
 					Fps:              15,
 					Bitrate:          1500,
 					MixedVideoLayout: 1,
-					BackgroundColor:  "#FF0000",
+					BackgroundColor:  "#000000",
 				},
-			},
-			RecordingFileConfig: recordingFileConfig{
-				AVFileType: []string{"hls", "mp4"},
 			},
 			StorageConfig: storageConfig{
 				Vendor:         recordingStorageVendorS3,
