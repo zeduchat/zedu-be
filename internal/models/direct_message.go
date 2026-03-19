@@ -339,9 +339,135 @@ func (dm *DmChannels) UpsertGroupDescription(db *gorm.DB, req GroupDescriptionRe
 	return nil
 }
 
+func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChannelsResponse, error) {
+	var (
+		user           User
+		previewThread  = []Threads{}
+		participants   = []Participant{}
+		previewMessage string
+	)
+
+	threadCtx := &gin.Context{
+		Request: &http.Request{
+			URL: &url.URL{
+				RawQuery: "page=1&limit=50",
+			},
+		},
+	}
+
+	if c != nil && c.Request != nil {
+		threadCtx.Request.Header = c.Request.Header
+	}
+
+	var thread Threads
+	threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, dm.UserId, dm.ChannelId)
+	if threadErr == nil && len(threads) > 0 {
+		previewThread = threads
+		previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
+	}
+
+	switch dm.ChannelType {
+	case "dm", "":
+		userDetails, err := user.GetUserByID(db, *dm.ParticipantId)
+		if err != nil {
+			return DmChannelsResponse{}, err
+		}
+
+		participants = []Participant{NewParticipant(userDetails, false, "user")}
+
+		return DmChannelsResponse{
+			ID:               dm.ChannelId,
+			Name:             participants[0].Username,
+			AvatarUrl:        userDetails.Profile.AvatarURL,
+			DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(userDetails.ID),
+			ParticipantId:    *dm.ParticipantId,
+			ParticipantEmail: userDetails.Email,
+			ChannelType:      "dm",
+			LastThreadId:     dm.LastThreadId,
+			ThreadCount:      dm.ThreadCount,
+			LastReadAt:       dm.LastReadAt,
+			PreviewMessage:   previewMessage,
+			PreviewThread:    previewThread,
+			Participants:     participants,
+			CreatedAt:        dm.CreatedAt,
+		}, nil
+
+	case "group_dm":
+		type ParticipantWithProfile struct {
+			UserId    string
+			Title     string
+			AvatarURL string
+			UserName  string
+			Email     string
+			Online    bool
+		}
+
+		var participantsWithProfile []ParticipantWithProfile
+		err := db.Table("channel_participants cp").
+			Select(`
+				cp.user_id,
+				COALESCE(p.title, '') as title,
+				COALESCE(p.avatar_url, '') as avatar_url,
+				COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
+				u.email,
+				p.online
+			`).
+			Joins("JOIN users u ON u.id = cp.user_id").
+			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dm.ChannelId).
+			Scan(&participantsWithProfile).Error
+
+		if err != nil {
+			return DmChannelsResponse{}, err
+		}
+
+		usernames := []string{}
+		profilePic, defaultAvatar, email := "", "", ""
+
+		for _, part := range participantsWithProfile {
+			userDetails, err := user.GetUserByID(db, part.UserId)
+			if err != nil {
+				continue
+			}
+
+			p := NewParticipant(userDetails, part.UserId == dm.UserId, "user")
+			usernames = append(usernames, p.Username)
+			participants = append(participants, p)
+
+			if profilePic == "" {
+				profilePic = userDetails.Profile.AvatarURL
+				defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)
+				email = userDetails.Email
+			}
+		}
+
+		sort.Strings(usernames)
+
+		var chanParti ChannelParticipant
+		postgresql.CheckExists(db, &chanParti, "channel_id = ? AND user_id = ?", dm.ChannelId, dm.UserId)
+
+		return DmChannelsResponse{
+			ID:               dm.ChannelId,
+			Name:             strings.Join(usernames, ", "),
+			AvatarUrl:        profilePic,
+			DefaultAvatarUrl: defaultAvatar,
+			ParticipantEmail: email,
+			ChannelType:      "group_dm",
+			LastThreadId:     chanParti.LastThreadId,
+			ThreadCount:      chanParti.ThreadCount,
+			LastReadAt:       chanParti.LastReadAt,
+			PreviewMessage:   previewMessage,
+			PreviewThread:    previewThread,
+			Participants:     participants,
+			CreatedAt:        dm.CreatedAt,
+		}, nil
+	}
+
+	return DmChannelsResponse{}, errors.New("unsupported channel type")
+}
+
 func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
 	var (
-		user    User
 		orderBy string
 		order   string
 		args    []any
@@ -430,137 +556,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	}
 
 	for _, dmchan := range dmchans {
-		previewThread := []Threads{}
-		participants := []Participant{}
-
-		threadCtx := &gin.Context{
-			Request: &http.Request{
-				URL: &url.URL{
-					RawQuery: "page=1&limit=50",
-				},
-			},
+		resp, err := dmchan.GetDmChannelResponse(db, c)
+		if err != nil {
+			return nil, paginationResp, err
 		}
-
-		var thread Threads
-		threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, db, dm.UserId, dmchan.ChannelId)
-		if threadErr == nil && len(threads) > 0 {
-			previewThread = threads
-		}
-
-		previewMessage := ""
-		if len(previewThread) > 0 {
-			previewMessage = BuildPreviewMessage(previewThread[0].Content, previewThread[0].Media)
-		}
-
-		switch dmchan.ChannelType {
-		case "dm", "":
-			userDetails, err := user.GetUserByID(db, *dmchan.ParticipantId)
-			if err != nil {
-				return nil, paginationResp, err
-			}
-
-			participants = []Participant{NewParticipant(userDetails, false, "user")}
-
-			dmChansResp = append(dmChansResp, DmChannelsResponse{
-				ID:               dmchan.ChannelId,
-				Name:             participants[0].Username,
-				AvatarUrl:        userDetails.Profile.AvatarURL,
-				DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(userDetails.ID),
-				ParticipantId:    *dmchan.ParticipantId,
-				ParticipantEmail: userDetails.Email,
-				ChannelType:      "dm",
-				LastThreadId:     dmchan.LastThreadId,
-				ThreadCount:      dmchan.ThreadCount,
-				LastReadAt:       dmchan.LastReadAt,
-				PreviewMessage:   previewMessage,
-				PreviewThread:    previewThread,
-				Participants:     participants,
-				CreatedAt:        dmchan.CreatedAt,
-			})
-		case "group_dm":
-
-			type ParticipantWithProfile struct {
-				UserId    string
-				Title     string
-				AvatarURL string
-				UserName  string
-				Email     string
-				Online    bool
-			}
-
-			var participantsWithProfile []ParticipantWithProfile
-
-			err = db.Table("channel_participants cp").
-				Select(`
-					cp.user_id,
-					COALESCE(p.title, '') as title,
-					COALESCE(p.avatar_url, '') as avatar_url,
-					COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as user_name,
-					u.email,
-					p.online
-				`).
-				Joins("JOIN users u ON u.id = cp.user_id").
-				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
-				Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchan.ChannelId).
-				Scan(&participantsWithProfile).Error
-
-			usernames := []string{}
-			profilePic := ""
-			defaultAvatar := ""
-			email := ""
-
-			for _, part := range participantsWithProfile {
-
-				userDetails, err := user.GetUserByID(db, part.UserId)
-				if err != nil {
-					return nil, paginationResp, err
-				}
-
-				p := NewParticipant(userDetails, part.UserId == dmchan.UserId, "user")
-				usernames = append(usernames, p.Username)
-
-				participants = append(participants, p)
-
-				if profilePic == "" {
-					profilePic = userDetails.Profile.AvatarURL
-				}
-
-				if defaultAvatar == "" {
-					defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)
-				}
-
-				if email == "" {
-					email = userDetails.Email
-				}
-			}
-
-			sort.Strings(usernames)
-
-			var chanParti ChannelParticipant
-
-			exist := postgresql.CheckExists(db, &chanParti, "channel_id = ? AND user_id = ?", dmchan.ChannelId, dm.UserId)
-			if !exist {
-				return nil, paginationResp, fmt.Errorf("user not found in channel")
-			}
-
-			dmChansResp = append(dmChansResp, DmChannelsResponse{
-				ID:               dmchan.ChannelId,
-				Name:             strings.Join(usernames, ", "),
-				AvatarUrl:        profilePic,
-				DefaultAvatarUrl: defaultAvatar,
-				ParticipantEmail: email,
-				ChannelType:      "group_dm",
-				LastThreadId:     chanParti.LastThreadId,
-				ThreadCount:      chanParti.ThreadCount,
-				LastReadAt:       chanParti.LastReadAt,
-				PreviewMessage:   previewMessage,
-				PreviewThread:    previewThread,
-				Participants:     participants,
-				CreatedAt:        dmchan.CreatedAt,
-			})
-
-		}
-
+		dmChansResp = append(dmChansResp, resp)
 	}
 
 	slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {

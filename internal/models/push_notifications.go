@@ -13,3 +13,8 @@ type PushRequest struct {
 	Payload     any
 	Title       string `json:"title"`
 }
+type OneSignalPushRequest struct {
+	Title     string `json:"title" validate:"required"`
+	Message   string `json:"message" validate:"required"`
+	AvatarUrl string `json:"avatar_url"`
+}

@@ -206,15 +206,15 @@ func CanCreateBuzz(db *gorm.DB, channelID, hostID string) error {
 	}
 
 	// Check if channel already has an active buzz
-	hasActiveBuzz, err := HasActiveBuzzInChannel(db, channelID)
-	if err != nil {
-		// Log the database error but return a user-friendly error
-		// to prevent 500 errors from propagating
-		return ErrChannelNotFound
-	}
-	if hasActiveBuzz {
-		return ErrBuzzAlreadyActive
-	}
+	// hasActiveBuzz, err := HasActiveBuzzInChannel(db, channelID)
+	// if err != nil {
+	// 	// Log the database error but return a user-friendly error
+	// 	// to prevent 500 errors from propagating
+	// 	return ErrChannelNotFound
+	// }
+	// if hasActiveBuzz {
+	// 	return ErrBuzzAlreadyActive
+	// }
 
 	return nil
 }

@@ -61,7 +61,7 @@ func (base *Controller) CreateDmChannel(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := dm.CreateDmChannel(req, base.ExtReq, base.Db, base.Logger)
+	respData, code, err := dm.CreateDmChannel(req, base.ExtReq, base.Db, base.Logger, c)
 	if err != nil {
 		base.Logger.Error("error creating dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)

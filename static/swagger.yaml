@@ -116,6 +116,10 @@ tags:
     description: API endpoints for buying and tracking shares
   - name: Slash Commands
     description: API endpoints for default slash commands
+  - name: account
+    description: API for account management operations
+  - name: OneSignal Notification
+    description: API for sending OneSignal notifications
 paths:
   # Auth paths
   /auth/register:
@@ -5724,6 +5728,308 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /buzz/direct-call:
+    post:
+      tags:
+        - buzz
+      summary: Initiate a direct call in a DM or Group DM
+      description: |
+        Creates a new buzz call within a DM or Group DM channel. Automatically adds all channel members as participants.
+        The caller's participant status is set to `accepted`. All other participants are set to `pending`.
+        A real-time Centrifugo event (`direct_call_initiated`) is published to the channel, and a OneSignal push
+        notification ("Incoming Call") is sent to all non-caller participants.
+        Ringing timeout is 5 minutes from `created_at`; after that, `respond` with any action resolves to `timeout`.
+      operationId: initiateDirectCall
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel_id
+              properties:
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: ID of the DM or Group DM channel
+            example:
+              channel_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+      responses:
+        "201":
+          description: Direct call initiated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          buzz_id:
+                            type: string
+                            format: uuid
+                          buzz_code:
+                            type: string
+                          channel_id:
+                            type: string
+                            format: uuid
+                          caller_id:
+                            type: string
+                            format: uuid
+                          caller_name:
+                            type: string
+                          status:
+                            type: string
+                            example: active
+                          participants:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                user_id:
+                                  type: string
+                                  format: uuid
+                                username:
+                                  type: string
+                                status:
+                                  type: string
+                                  enum: [accepted, pending, declined, timeout]
+                          created_at:
+                            type: string
+                            format: date-time
+                          agora_token:
+                            type: object
+                            properties:
+                              token:
+                                type: string
+                              app_id:
+                                type: string
+                              channel_name:
+                                type: string
+                              uid:
+                                type: string
+              example:
+                status: "success"
+                status_code: 201
+                message: "direct call initiated successfully"
+                data:
+                  buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                  buzz_code: "ACC68"
+                  channel_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                  caller_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                  caller_name: "johndoe"
+                  status: "active"
+                  participants:
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      username: "johndoe"
+                      status: "accepted"
+                    - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                      username: "janesmith"
+                      status: "pending"
+                  created_at: "2024-01-15T10:30:00Z"
+                  agora_token:
+                    token: "007eJxSYOCa..."
+                    app_id: "your-agora-app-id"
+                    channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                    uid: "019acc68-ad4f-721e-9c4b-d2064d445227"
+        "400":
+          description: Bad Request (channel is not a DM or Group DM)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (caller is not a member of the channel)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (channel does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "409":
+          description: Conflict (channel already has an active call)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /buzz/{buzzId}/respond:
+    post:
+      tags:
+        - buzz
+      summary: Accept, decline, timeout, or cancel a direct call
+      description: |
+        Responds to an incoming direct call. The authenticated user must be a pending participant.
+        - `accept`: Joins the call, generates an Agora RTC token, and publishes a `direct_call_response` centrifugo event.
+        - `decline`: Marks the participant as declined and publishes a centrifugo event.
+        - `timeout`: Client-side signal that ringing timed out. If the call's `created_at` is older than 5 minutes,
+          any action is automatically overridden to `timeout`.
+        - `cancel`: The host cancels the call. This ends the call for everyone and publishes a `direct_call_canceled` centrifugo event.
+        Centrifugo payload (`direct_call_response` event) contains the full updated `participants[]` array.
+      operationId: respondToDirectCall
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: buzzId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the buzz (direct call) to respond to
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [accept, decline, timeout, cancel]
+                  description: Response action for the incoming call
+            examples:
+              accept:
+                summary: Accept the call
+                value:
+                  action: "accept"
+              decline:
+                summary: Decline the call
+                value:
+                  action: "decline"
+              timeout:
+                summary: Ringing timed out
+                value:
+                  action: "timeout"
+              cancel:
+                summary: Host cancels the call
+                value:
+                  action: "cancel"
+      responses:
+        "200":
+          description: Call response recorded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/DirectCallResponse"
+              examples:
+                accepted:
+                  summary: Call accepted
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "call response recorded successfully"
+                    data:
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      channel_id: "019acc68-ad4f-721e-9c4b-d2064d445226"
+                      caller_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                      caller_name: "johndoe"
+                      status: "active"
+                      participants:
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                          username: "johndoe"
+                          status: "accepted"
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                          username: "janesmith"
+                          status: "accepted"
+                      agora_token:
+                        token: "007eJxSYOCa..."
+                        app_id: "your-agora-app-id"
+                        channel_name: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                        uid: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                declined:
+                  summary: Call declined
+                  value:
+                    status: "success"
+                    status_code: 200
+                    message: "call response recorded successfully"
+                    data:
+                      buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+                      participants:
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445227"
+                          username: "johndoe"
+                          status: "accepted"
+                        - user_id: "019acc68-ad4f-721e-9c4b-d2064d445228"
+                          username: "janesmith"
+                          status: "declined"
+                      agora_token: null
+        "400":
+          description: Bad Request (participant already responded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (not a participant in this call)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Not Found (call does not exist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "409":
+          description: Conflict (call has ended)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Unprocessable entity - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /buzz/invitations/pending:
     get:
       tags:
@@ -9032,6 +9338,288 @@ paths:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
 
+  /backoffice/admins/users/{user_id}/details:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve detailed information for a specific user
+      description: |-
+        Returns comprehensive details for a single user including profile info, credit usage stats,
+        activity information, and app usage metrics.
+
+        **Credit Stats**: Total credits used and total amount spent, with percentage change compared to the previous hour.
+
+        **Activity Info**: Last active timestamp, last login timestamp, activity streak length, and referral count.
+
+        **App Usage**: Total items created (channels + integrations), sessions initiated, average session duration,
+        and key actions performed — all for the last 30 days with percentage change compared to the previous 30-day period.
+
+        **Access**: Admins and Superadmins only.
+      operationId: getUserDetails
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: The UUID of the user to retrieve details for
+          schema:
+            type: string
+            format: uuid
+            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "user details retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      profile:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                          name:
+                            type: string
+                            example: "John Doe"
+                          email:
+                            type: string
+                            example: "johndoe@example.com"
+                          avatar_url:
+                            type: string
+                            example: "https://cdn.example.com/avatars/john.png"
+                          default_avatar_url:
+                            type: string
+                            example: "https://api.telex.im/avatars/a1b2c3d4.svg"
+                          subscription_status:
+                            type: string
+                            enum: [Free, Paid]
+                            example: "Paid"
+                      credit_stats:
+                        type: object
+                        properties:
+                          total_credits_used:
+                            type: number
+                            format: float
+                            example: 125.50
+                          credits_used_change:
+                            type: number
+                            format: float
+                            description: Percentage change compared to previous hour
+                            example: 201.0
+                          total_amount_spent:
+                            type: number
+                            format: float
+                            example: 49.99
+                          amount_spent_change:
+                            type: number
+                            format: float
+                            description: Percentage change compared to previous hour
+                            example: 15.0
+                      activity_info:
+                        type: object
+                        properties:
+                          last_active:
+                            type: string
+                            format: date-time
+                            example: "2024-06-15T10:30:00Z"
+                          last_login:
+                            type: string
+                            format: date-time
+                            example: "2024-06-15T09:00:00Z"
+                          activity_length:
+                            type: string
+                            description: Human-readable activity streak length
+                            example: "active for 5 days"
+                          referrals:
+                            type: integer
+                            example: 3
+                      app_usage:
+                        type: object
+                        properties:
+                          total_items_created:
+                            type: integer
+                            description: Channels + integrations created in the last 30 days
+                            example: 48
+                          total_items_created_change:
+                            type: number
+                            format: float
+                            example: 8.0
+                          sessions_initiated:
+                            type: integer
+                            description: Login sessions in the last 30 days
+                            example: 45
+                          sessions_initiated_change:
+                            type: number
+                            format: float
+                            example: -5.0
+                          avg_session_duration:
+                            type: string
+                            description: Human-readable average session duration (last 30 days)
+                            example: "20m 0s"
+                          avg_session_duration_change:
+                            type: number
+                            format: float
+                            example: 12.0
+                          key_actions_performed:
+                            type: integer
+                            description: Audit log entries for the user in the last 30 days
+                            example: 300
+                          key_actions_change:
+                            type: number
+                            format: float
+                            example: 23.0
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+  /backoffice/dashboard/activity:
+    get:
+      tags:
+        - Admin
+      summary: Retrieve app activity logs with stats and filters
+      description: |-
+        Returns a paginated list of audit log activities including user info, role, action, resource, status, and timestamps.
+
+        Also returns dashboard statistics for the current month (total activities, admin actions, user actions, failed actions) with percentage changes compared to the previous 30-day period.
+
+        Supports filtering by search term, role, status, action type, and date range.
+
+        **Access**: Admins and Superadmins only.
+      operationId: getAppActivity
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination (default is 1)
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of items per page (default is 10)
+          schema:
+            type: integer
+            default: 10
+            example: 10
+        - name: search
+          in: query
+          required: false
+          description: Search activities by actor email, role, description, or action (case-insensitive)
+          schema:
+            type: string
+            example: "john@example.com"
+        - name: role
+          in: query
+          required: false
+          description: Filter by actor role
+          schema:
+            type: string
+            enum: [user, admin, superadmin]
+            example: "admin"
+        - name: status
+          in: query
+          required: false
+          description: Filter by action status (inferred from action naming convention)
+          schema:
+            type: string
+            enum: [success, failed]
+            example: "success"
+        - name: action
+          in: query
+          required: false
+          description: Filter by exact action type (e.g. the activity dropdown in the UI)
+          schema:
+            type: string
+            example: "user.created"
+        - name: duration
+          in: query
+          required: false
+          description: Preset date range filter applied to the activity list. For custom date range, use `custom` and provide `start_date`/`end_date`. Omit or use `all_time` for no date filtering.
+          schema:
+            type: string
+            enum: [last_3_months, last_month, last_year, custom, all_time]
+            example: "last_3_months"
+        - name: start_date
+          in: query
+          required: false
+          description: Custom start date (YYYY-MM-DD). Used with `duration=custom`, or can be provided directly without `duration`.
+          schema:
+            type: string
+            format: date
+            example: "2024-01-01"
+        - name: end_date
+          in: query
+          required: false
+          description: Custom end date (YYYY-MM-DD). Used with `duration=custom`, or can be provided directly without `duration`.
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
+        - name: include_stats
+          in: query
+          required: false
+          description: Whether to include monthly dashboard statistics (default true). Set to false for faster paginated requests. Stats are always based on the last 30 days regardless of other filters.
+          schema:
+            type: boolean
+            default: true
+            example: true
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: App activity retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppActivityResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+
   /backoffice/admins/users/invites:
     get:
       tags:
@@ -9883,6 +10471,932 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ForbiddenErrorSchema"
+
+  # ==================== Billing Management ====================
+
+  /backoffice/billing/stats:
+    get:
+      tags:
+        - Admin
+      summary: Get subscription billing stats
+      description: Returns stat cards for the Subscription Plans tab — active subscriptions, MRR, disabled subscriptions, and churn rate.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Subscription billing stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Subscription billing stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      total_active_subscriptions:
+                        type: integer
+                        example: 142
+                      monthly_recurring_revenue:
+                        type: number
+                        example: 7100.00
+                      disabled_subscriptions:
+                        type: integer
+                        example: 23
+                      churn_rate:
+                        type: number
+                        example: 4.5
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch subscription billing stats"
+
+  /backoffice/billing/plans:
+    get:
+      tags:
+        - Admin
+      summary: Get filtered subscription plans
+      description: Returns a list of subscription plans with optional status and search filters.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Filter by plan status (active = not deleted, inactive = soft-deleted)
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search plans by name (case-insensitive partial match)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Plans retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                          example: "Pro"
+                        description:
+                          type: string
+                          example: "Ideal for growing teams"
+                        fee:
+                          type: number
+                          example: 20
+                        benefits:
+                          type: array
+                          items:
+                            type: string
+                        max_channels:
+                          type: integer
+                          example: -1
+                        max_users:
+                          type: integer
+                          example: -1
+                        max_buzz_participants:
+                          type: integer
+                          example: 50
+                        max_active_calls:
+                          type: integer
+                          example: 50
+                        ai_credits_purchasable:
+                          type: boolean
+                          example: true
+                        created_at:
+                          type: string
+                          format: date-time
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    post:
+      tags:
+        - Admin
+      summary: Create a subscription plan
+      description: Creates a new subscription plan with the specified configuration.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - fee
+              properties:
+                name:
+                  type: string
+                  example: "Enterprise"
+                description:
+                  type: string
+                  example: "For large organizations"
+                fee:
+                  type: number
+                  example: 99
+                benefits:
+                  type: array
+                  items:
+                    type: string
+                  example: ["Unlimited channels", "Priority support"]
+                max_channels:
+                  type: integer
+                  example: -1
+                max_users:
+                  type: integer
+                  example: -1
+                max_buzz_participants:
+                  type: integer
+                  example: 100
+                max_active_calls:
+                  type: integer
+                  example: 100
+                ai_credits_purchasable:
+                  type: boolean
+                  example: true
+                credits:
+                  type: integer
+                  example: 5000
+      responses:
+        "201":
+          description: Plan created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "Plan created successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      fee:
+                        type: number
+        "400":
+          description: Bad request / Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /backoffice/billing/plans/{plan_id}:
+    put:
+      tags:
+        - Admin
+      summary: Update a subscription plan
+      description: Partially updates a subscription plan. Only send the fields you want to change.
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The plan ID to update
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                fee:
+                  type: number
+                benefits:
+                  type: array
+                  items:
+                    type: string
+                max_channels:
+                  type: integer
+                max_users:
+                  type: integer
+                max_buzz_participants:
+                  type: integer
+                max_active_calls:
+                  type: integer
+                ai_credits_purchasable:
+                  type: boolean
+                credits:
+                  type: integer
+      responses:
+        "200":
+          description: Plan updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Plan updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      fee:
+                        type: number
+        "400":
+          description: Bad request / Invalid plan ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    delete:
+      tags:
+        - Admin
+      summary: Delete a subscription plan
+      description: Soft-deletes a subscription plan. Fails if any organisation has an active subscription to this plan.
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The plan ID to delete
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Plan deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Plan deleted successfully"
+        "400":
+          description: Bad request — plan has active subscriptions or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /backoffice/billing/credit-packages/stats:
+    get:
+      tags:
+        - Admin
+      summary: Get AI credit package stats
+      description: Returns stat cards for the AI Credit Packages tab — total credits sold, monthly revenue, unused credits, and burn rate.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit package stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "AI credit package stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      total_credits_sold:
+                        type: integer
+                        example: 8420
+                      monthly_credit_revenue:
+                        type: number
+                        example: 3250.00
+                      unused_credits:
+                        type: number
+                        example: 12500.00
+                      credit_burn_rate:
+                        type: number
+                        example: 145.50
+                        description: Average daily credit usage this month
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch AI credit package stats"
+
+  /backoffice/billing/credit-packages:
+    get:
+      tags:
+        - Admin
+      summary: Get filtered AI credit packages
+      description: Returns a paginated list of AI credit packages with optional status and search filters.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Filter by package status (active = not deleted, inactive = soft-deleted)
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search packages by name (case-insensitive partial match)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit packages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "AI credit packages retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        name:
+                          type: string
+                          example: "Starter Pack"
+                        description:
+                          type: string
+                          example: "Perfect for individuals trying AI"
+                        price:
+                          type: integer
+                          example: 15
+                        credits:
+                          type: integer
+                          example: 1000
+                        benefits:
+                          type: array
+                          items:
+                            type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 5
+                      page_size:
+                        type: integer
+                        example: 10
+                      total_items:
+                        type: integer
+                        example: 48
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    post:
+      tags:
+        - Admin
+      summary: Create an AI credit package
+      description: Creates a new AI credit package.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - price
+                - credits
+              properties:
+                name:
+                  type: string
+                  example: "Power Pack"
+                description:
+                  type: string
+                  example: "For power users"
+                price:
+                  type: integer
+                  example: 50
+                credits:
+                  type: integer
+                  example: 5000
+                benefits:
+                  type: array
+                  items:
+                    type: string
+                  example: ["5000 AI credits", "Priority support"]
+      responses:
+        "201":
+          description: AI credit package created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "AI credit package created successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      price:
+                        type: integer
+                      credits:
+                        type: integer
+        "400":
+          description: Bad request / Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /backoffice/billing/credit-packages/{package_id}:
+    put:
+      tags:
+        - Admin
+      summary: Update an AI credit package
+      description: Partially updates an AI credit package. Only send the fields you want to change.
+      parameters:
+        - in: path
+          name: package_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The package ID to update
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: integer
+                credits:
+                  type: integer
+                benefits:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: AI credit package updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "AI credit package updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      price:
+                        type: integer
+                      credits:
+                        type: integer
+        "400":
+          description: Bad request / Invalid package ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    delete:
+      tags:
+        - Admin
+      summary: Delete an AI credit package
+      description: Soft-deletes an AI credit package.
+      parameters:
+        - in: path
+          name: package_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The package ID to delete
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: AI credit package deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "AI credit package deleted successfully"
+        "400":
+          description: Bad request / Invalid package ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
+  /backoffice/billing/transactions/stats:
+    get:
+      tags:
+        - Admin
+      summary: Get transaction stats
+      description: Returns 4 stat cards for the Transactions History tab — total revenue, total transactions, successful payments, and refunds, each with month-over-month percentage change.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Transaction stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Transaction stats retrieved successfully"
+                  data:
+                    type: object
+                    properties:
+                      total_revenue:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                            example: 12500.00
+                          percentage_change:
+                            type: number
+                            example: 15.3
+                            description: Month-over-month change (%)
+                      total_transactions:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                            example: 452
+                          percentage_change:
+                            type: number
+                            example: 8.7
+                      successful_payments:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                            example: 430
+                          percentage_change:
+                            type: number
+                            example: 10.2
+                      refunds:
+                        type: object
+                        properties:
+                          value:
+                            type: number
+                            example: 5
+                          percentage_change:
+                            type: number
+                            example: 1.1
+                            description: Refunds as percentage of total all-time transactions
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch transaction stats"
+
+  /backoffice/billing/transactions:
+    get:
+      tags:
+        - Admin
+      summary: Get transactions history
+      description: Returns a unified, paginated list of all payment transactions (subscriptions + credit pack purchases) with search, duration, type, and status filters.
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by customer name, email, or transaction ID
+        - in: query
+          name: duration
+          schema:
+            type: string
+            enum: [last_7_days, last_30_days, last_3_months, last_6_months, last_year]
+          description: Filter by time period
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [subscription, credit_pack]
+          description: Filter by transaction type
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [paid, pending, failed]
+          description: Filter by payment status
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Transactions history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Transactions history retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        customer_name:
+                          type: string
+                          example: "Acme Corp"
+                        customer_email:
+                          type: string
+                          example: "admin@acme.com"
+                        type:
+                          type: string
+                          enum: [SUBSCRIPTION, CREDIT_PACK]
+                          example: "SUBSCRIPTION"
+                        amount:
+                          type: number
+                          example: 50.00
+                        date:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+                          enum: [Paid, Pending, Failed, Refund]
+                          example: "Paid"
+                  pagination:
+                    type: object
+                    properties:
+                      current_page:
+                        type: integer
+                        example: 1
+                      total_pages:
+                        type: integer
+                        example: 46
+                      page_size:
+                        type: integer
+                        example: 10
+                      total_items:
+                        type: integer
+                        example: 452
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "error"
+                  message:
+                    type: string
+                    example: "Failed to fetch transactions history"
 
   /invite/change-status:
     post:
@@ -18265,6 +19779,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+  /notifications/onesignal/send:
+    post:
+      tags:
+        - OneSignal Notification
+      security:
+        - bearerAuth: []
+      summary: Send OneSignal notification to the logged-in user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Notification Title"
+                message:
+                  type: string
+                  example: "This is a test notification message"
+                avatar_url:
+                  type: string
+                  example: "https://example.com/avatar.png"
+              required:
+                - title
+                - message
+      responses:
+        "200":
+          description: OneSignal notification sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "OneSignal notification sent successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
         "422":
           description: Unprocessed Entity
@@ -21882,7 +23464,7 @@ paths:
                               default_avatar_url:
                                 type: string
 
-  /search/organisation/{orgId}/:
+  /search/organisation/{orgId}:
     get:
       tags:
         - Search
@@ -22090,7 +23672,7 @@ paths:
                     type: string
                     example: "invalid organisation id"
 
-  /search/channel/{channelId}/:
+  /search/channel/{channelId}:
     get:
       tags:
         - Search
@@ -28800,8 +30382,196 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /account/delete-account:
+    post:
+      tags:
+        - account
+      summary: Submit account deletion request
+      description: |-
+        Creates an account deletion request. This endpoint does not delete any data from the database.
+        Instead, it stores the deletion request information for review and processing.
+        The organization ID is automatically extracted from the authenticated user's JWT token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fullname
+                - email
+                - reason
+              properties:
+                fullname:
+                  type: string
+                  description: Full name of the user requesting account deletion
+                  example: "John Doe"
+                  minLength: 1
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                  description: Email address of the user requesting account deletion
+                  example: "john.doe@example.com"
+                reason:
+                  type: string
+                  description: Reason for requesting account deletion
+                  example: "Privacy concerns"
+                additional_info:
+                  type: string
+                  description: Additional information regarding the deletion request
+                  example: "I would like my data removed from your system"
+      responses:
+        "201":
+          description: Account deletion request submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                            description: Unique identifier for the deletion request
+                            example: "550e8400-e29b-41d4-a716-446655440000"
+                          fullname:
+                            type: string
+                            example: "John Doe"
+                          email:
+                            type: string
+                            format: email
+                            example: "john.doe@example.com"
+                          reason:
+                            type: string
+                            example: "Privacy concerns"
+                          additional_info:
+                            type: string
+                            nullable: true
+                            example: "Additional details"
+                          org_id:
+                            type: string
+                            format: uuid
+                            description: Organization ID (extracted from authenticated user context)
+                            example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: "2025-03-06T12:29:00Z"
+              example:
+                status: "success"
+                status_code: 201
+                message: "Account deletion request submitted successfully"
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  fullname: "John Doe"
+                  email: "john.doe@example.com"
+                  reason: "Privacy concerns"
+                  additional_info: "Additional details"
+                  org_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                  created_at: "2025-03-06T12:29:00Z"
+        "400":
+          description: Bad Request - Invalid input or malformed JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+              example:
+                status: "error"
+                status_code: 400
+                message: "Failed to parse request body"
+        "401":
+          description: Unauthorized - Invalid or missing authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+              example:
+                status: "Unauthorized"
+                status_code: 401
+                message: "Failed to retrieve organization"
+        "422":
+          description: Unprocessable Entity - Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+              example:
+                status: "error"
+                status_code: 422
+                message: "Validation failed"
+                errors:
+                  - field: "email"
+                    message: "Email is required"
+        "500":
+          description: Internal Server Error - Failed to create deletion request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: "error"
+                status_code: 500
+                message: "Failed to create deletion request"
+
 components:
   schemas:
+    DirectCallParticipant:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        avatar_url:
+          type: string
+        default_avatar_url:
+          type: string
+        join_status:
+          type: string
+
+    DirectCallResponse:
+      type: object
+      properties:
+        buzz_id:
+          type: string
+          format: uuid
+        buzz_code:
+          type: string
+        channel_id:
+          type: string
+          format: uuid
+        caller_id:
+          type: string
+          format: uuid
+        caller_name:
+          type: string
+        status:
+          type: string
+        join_status:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/DirectCallParticipant"
+        user_joined:
+          $ref: "#/components/schemas/DirectCallParticipant"
+        user_rejected:
+          $ref: "#/components/schemas/DirectCallParticipant"
+        user_timeout:
+          $ref: "#/components/schemas/DirectCallParticipant"
+        created_at:
+          type: string
+          format: date-time
+        agora_token:
+          $ref: "#/components/schemas/BuzzAgoraTokenResponse"
     BuzzRecording:
       type: object
       properties:
@@ -30307,6 +32077,97 @@ components:
             total_pages:
               type: integer
               example: 1
+    AppActivityResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+        message:
+          type: string
+          example: "app activity retrieved successfully"
+        data:
+          type: object
+          properties:
+            activity_stats:
+              type: object
+              properties:
+                total_activities_month:
+                  type: integer
+                  example: 142
+                total_activities_month_change:
+                  type: number
+                  format: float
+                  description: Percentage change vs previous 30-day period
+                  example: 12.5
+                admin_actions_month:
+                  type: integer
+                  example: 38
+                admin_actions_month_change:
+                  type: number
+                  format: float
+                  example: -4.2
+                user_actions_month:
+                  type: integer
+                  example: 104
+                user_actions_month_change:
+                  type: number
+                  format: float
+                  example: 20.0
+                failed_actions_month:
+                  type: integer
+                  example: 7
+                failed_actions_month_change:
+                  type: number
+                  format: float
+                  example: 0.0
+            activities:
+              type: array
+              items:
+                type: object
+                properties:
+                  activity_id:
+                    type: string
+                    example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "u1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      name:
+                        type: string
+                        example: "Jane Doe"
+                      email:
+                        type: string
+                        example: "jane@example.com"
+                      avatar_url:
+                        type: string
+                        example: "https://cdn.example.com/avatars/jane.png"
+                  role:
+                    type: string
+                    example: "admin"
+                  action:
+                    type: string
+                    description: The verb portion of the action (e.g. last segment of "user.created")
+                    example: "created"
+                  resource:
+                    type: string
+                    example: "user"
+                  status:
+                    type: string
+                    enum: [success, failed]
+                    example: "success"
+                  details:
+                    type: object
+                    properties:
+                      description:
+                        type: string
+                        example: "Admin created a new user account"
+                      timestamp:
+                        type: string
+                        format: date-time
+                        example: "2024-06-15T10:30:00Z"
 
     AdminUsersResponseSchema:
       type: object

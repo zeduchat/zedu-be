@@ -2,7 +2,6 @@ package riverqueueBg
 
 import (
 	"context"
-	"fmt"
 	"runtime/debug"
 
 	"github.com/hngprojects/telex_be/internal/models"
@@ -67,7 +66,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		},
 	}
 
-	channelID := fmt.Sprintf("user:%s", job.Args.UserID)
+	channelID := job.Args.OrgID
 	if err := centrifuge.PublishChannel(w.logger, channelID, notification); err != nil {
 		w.logger.Error("Failed to publish status cleared event", "error", err, "channel_id", channelID)
 	}

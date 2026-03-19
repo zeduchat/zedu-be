@@ -342,7 +342,7 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 		}
 
 		// Broadcast to organization channel so other users can see the update
-		channelID := fmt.Sprintf("org:%s", req.OrgID)
+		channelID := req.OrgID
 		if err := centrifuge.PublishChannel(logger, channelID, notification); err != nil {
 			logger.Error("failed to publish presence update event", "error", err, "channel_id", channelID)
 		}
@@ -395,7 +395,11 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 		}
 	}
 
-	if req.StatusExpiry != "" && !req.ClearStatus {
+	if req.StatusExpiry == "" {
+		logger.Info("Skipping clear status job scheduling for user %s: StatusExpiry is empty", req.UserId)
+	} else if req.ClearStatus {
+		logger.Info("Skipping clear status job scheduling for user %s: ClearStatus flag is true", req.UserId)
+	} else {
 		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
 			logger.Error("failed to reload profile for job scheduling", "error", err)
 			return status, code, nil
@@ -405,6 +409,10 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 		expiryTimestamp, err = profileModel.ParseStatusExpiry(req.StatusExpiry)
 		if err != nil {
 			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+		}
+
+		if expiryTimestamp <= 0 {
+			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusExpiry: '%s' - likely 'don't remove')", req.UserId, expiryTimestamp, req.StatusExpiry)
 		}
 
 		if expiryTimestamp > 0 {
@@ -418,18 +426,22 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 
 			jobArgs := &models.ClearUserStatusJobArgs{
 				UserID: req.UserId,
-				OrgID:  "",
+				OrgID:  req.OrgId,
 			}
 			scheduledAt := time.Unix(expiryTimestamp, 0)
+			logger.Info("Scheduling clear status job for user %s at %s (OrgID: %s)", req.UserId, scheduledAt.Format(time.RFC3339), req.OrgId)
 			insertRes, jobErr := InsertClearStatusJob(context.Background(), storage.DB, jobArgs, scheduledAt)
 			if jobErr != nil {
-				logger.Error("failed to insert clear status job: %v", jobErr)
+				logger.Error("failed to insert clear status job for user %s: %v", req.UserId, jobErr)
 			} else if insertRes != nil {
+				logger.Info("Successfully scheduled clear status job %d for user %s", insertRes.Job.ID, req.UserId)
 				if err := db.Model(&models.Profile{}).
 					Where("userid = ?", req.UserId).
 					Update("river_job_id", insertRes.Job.ID).Error; err != nil {
 					logger.Error("failed to update river_job_id: %v", err)
 				}
+			} else {
+				logger.Error("failed to insert clear status job for user %s: insert result is nil", req.UserId)
 			}
 		} else {
 			if err := db.Model(&models.Profile{}).
@@ -447,7 +459,7 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 func InsertClearStatusJob(ctx context.Context, db *storage.Database, args *models.ClearUserStatusJobArgs, scheduledAt time.Time) (*rivertype.JobInsertResult, error) {
 	client := storage.DB.River
 	if client == nil {
-		return nil, nil
+		return nil, fmt.Errorf("river client is not initialized")
 	}
 	insertRes, err := client.Insert(ctx, args, &river.InsertOpts{
 		MaxAttempts: 3,

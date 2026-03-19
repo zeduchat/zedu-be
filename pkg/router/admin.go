@@ -26,10 +26,30 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/dashboard/ai-credits", admin.GetAICreditUsageStats)
 		adminAuthUrl.GET("/dashboard/overview", admin.GetDashboardOverviewStats)
 		adminAuthUrl.GET("/admins/users", admin.ListUsers)
+		adminAuthUrl.GET("/admins/users/:user_id/details", admin.GetUserDetails)
 		adminAuthUrl.GET("/admins/users/invites", admin.InviteLeaderboard)
 		adminAuthUrl.GET("/plans", admin.GetPlans)
 		adminAuthUrl.GET("/dashboard/user-growth", admin.GetUserGrowth)
 		adminAuthUrl.GET("/admins/invitations/dashboard", admin.GetInvitationDashboard)
+		adminAuthUrl.GET("/dashboard/activity", admin.GetAppActivity)
+
+		// Billing management
+		adminAuthUrl.GET("/billing/stats", admin.GetSubscriptionBillingStats)
+		adminAuthUrl.GET("/billing/plans", admin.GetPlansFiltered)
+		adminAuthUrl.POST("/billing/plans", admin.CreatePlan)
+		adminAuthUrl.PUT("/billing/plans/:plan_id", admin.UpdatePlan)
+		adminAuthUrl.DELETE("/billing/plans/:plan_id", admin.DeletePlan)
+
+		// AI Credit packages management
+		adminAuthUrl.GET("/billing/credit-packages/stats", admin.GetAICreditPackageStats)
+		adminAuthUrl.GET("/billing/credit-packages", admin.GetAICreditPackagesFiltered)
+		adminAuthUrl.POST("/billing/credit-packages", admin.CreateAICreditPackage)
+		adminAuthUrl.PUT("/billing/credit-packages/:package_id", admin.UpdateAICreditPackage)
+		adminAuthUrl.DELETE("/billing/credit-packages/:package_id", admin.DeleteAICreditPackage)
+
+		// Admin transactions history
+		adminAuthUrl.GET("/billing/transactions/stats", admin.GetAdminTransactionStats)
+		adminAuthUrl.GET("/billing/transactions", admin.GetAdminTransactionsHistory)
 	}
 
 	// Super admin only endpoints

@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	telexaudit "github.com/hngprojects/telex_be/services/telexAudit"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 type AdminRoleInitiateResponse struct {
@@ -108,21 +109,20 @@ func ConfirmAdminRoleChange(db *storage.Database, logger *utility.Logger, token,
 		oldValJSON, _ := json.Marshal(map[string]string{"role": confirmation.OldRole})
 		newValJSON, _ := json.Marshal(map[string]string{"role": confirmation.NewRole})
 
-		audit := models.AuditLog{
-			ID:           utility.GenerateUUID(),
+		if err := audit_utility.CreateAuditLog(tx, audit_utility.AuditLogParams{
 			ActorID:      requesterID,
 			ActorEmail:   requester.Email,
-			Action:       models.ActionAdminUpdate,
-			ResourceID:   confirmation.TargetAdminID,
+			ActorRole:    requester.Role,
+			Action:       models.ActionAdminRoleUpdate,
 			ResourceType: models.ResourceAdmin,
+			ResourceID:   confirmation.TargetAdminID,
 			OldValues:    string(oldValJSON),
 			NewValues:    string(newValJSON),
 			Description:  fmt.Sprintf("Superadmin %s changed role of %s from %s to %s", requester.Email, confirmation.TargetAdminEmail, confirmation.OldRole, confirmation.NewRole),
 			IPAddress:    ipAddress,
 			UserAgent:    userAgent,
-		}
-
-		if err := tx.Create(&audit).Error; err != nil {
+			Success:      true,
+		}); err != nil {
 			logger.Error("failed to create audit log: " + err.Error())
 			return fmt.Errorf("failed to create audit log (transaction rolled back): %w", err)
 		}

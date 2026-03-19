@@ -103,6 +103,7 @@ type ParticipantMetadata struct {
 	AvatarURL     *string    `json:"avatar_url,omitempty"`
 	JoinedAt      time.Time  `json:"joined_at"`
 	Status        string     `json:"status"`
+	JoinStatus    string     `json:"join_status"`
 	StatusSticker *string    `json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
 	MediaState    *string    `json:"media_state,omitempty"`
@@ -156,6 +157,7 @@ type BuzzMetadataResponse struct {
 	HostName        string                  `json:"host_name"`
 	RecordingStatus string                  `json:"recording_status"`
 	IsRecording     bool                    `json:"is_recording"`
+	LastJoinedUser  *ParticipantMetadata    `json:"last_joined_user,omitempty"`
 }
 
 type ActiveBuzzIndicator struct {
@@ -248,6 +250,7 @@ type ParticipantDetails struct {
 	Username   string  `json:"username"`
 	AvatarURL  *string `json:"avatar_url,omitempty"`
 	Email      string  `json:"email,omitempty"`
+	JoinStatus string  `json:"join_status,omitempty"`
 	MediaState *string `json:"media_state,omitempty"`
 }
 
@@ -606,4 +609,122 @@ type BuzzTimeWarningPayload struct {
 	RemainingMinutes int       `json:"remaining_minutes"`
 	EstimatedEndTime time.Time `json:"estimated_end_time"`
 	Timestamp        time.Time `json:"timestamp"`
+}
+
+const (
+	DirectCallRingingTimeoutMinutes = 5
+
+	CallStatusPending  = "pending"
+	CallStatusAccepted = "accepted"
+	CallStatusDeclined = "declined"
+	CallStatusTimeout  = "timeout"
+)
+
+type DirectCallParticipant struct {
+	UserID           string `json:"user_id"`
+	Username         string `json:"username"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	JoinStatus       string `json:"join_status"`
+}
+
+type InitiateDirectCallRequest struct {
+	ChannelID string `json:"channel_id" validate:"required,uuid"`
+}
+
+type RespondToCallRequest struct {
+	Action string `json:"action" validate:"required,oneof=accept decline timeout cancel"`
+}
+
+type DirectCallResponse struct {
+	BuzzID       string                  `json:"buzz_id"`
+	BuzzCode     string                  `json:"buzz_code"`
+	ChannelID    string                  `json:"channel_id"`
+	CallerID     string                  `json:"caller_id"`
+	CallerName   string                  `json:"caller_name"`
+	Status       string                  `json:"status"`
+	JoinStatus   string                  `json:"join_status"`
+	Participants []DirectCallParticipant `json:"participants"`
+	UserJoined   *DirectCallParticipant  `json:"user_joined,omitempty"`
+	UserRejected *DirectCallParticipant  `json:"user_rejected,omitempty"`
+	UserTimeout  *DirectCallParticipant  `json:"user_timeout,omitempty"`
+	CreatedAt    time.Time               `json:"created_at"`
+	AgoraToken   *BuzzAgoraTokenResponse `json:"agora_token,omitempty"`
+}
+
+type CallPushPayload struct {
+	BuzzID           string `json:"buzz_id"`
+	ChannelID        string `json:"channel_id"`
+	CallerName       string `json:"caller_name"`
+	CallerID         string `json:"caller_id"`
+	AvatarURL        string `json:"avatar_url"`
+	DefaultAvatarURL string `json:"default_avatar_url"`
+	Event            string `json:"event"`
+}
+
+type DirectCallCentrifugoPayload struct {
+	Event        string                  `json:"event"`
+	BuzzID       string                  `json:"buzz_id"`
+	ChannelID    string                  `json:"channel_id"`
+	CallerID     string                  `json:"caller_id"`
+	CallerName   string                  `json:"caller_name"`
+	JoinStatus   string                  `json:"join_status"`
+	Participants []DirectCallParticipant `json:"participants"`
+	UserJoined   *DirectCallParticipant  `json:"user_joined,omitempty"`
+	UserRejected *DirectCallParticipant  `json:"user_rejected,omitempty"`
+	UserTimeout  *DirectCallParticipant  `json:"user_timeout,omitempty"`
+	CreatedAt    time.Time               `json:"created_at"`
+}
+
+func GetDMParticipants(db *gorm.DB, channelID string) ([]string, error) {
+	var dmChannel DmChannels
+	if err := db.Where("channel_id = ?", channelID).First(&dmChannel).Error; err != nil {
+		return nil, errors.New("channel not found")
+	}
+
+	if dmChannel.ChannelType == "group_dm" {
+		var participants []ChannelParticipant
+		if err := db.Where("channel_id = ? AND deleted_at IS NULL", channelID).Find(&participants).Error; err != nil {
+			return nil, err
+		}
+		ids := make([]string, 0, len(participants))
+		for _, p := range participants {
+			ids = append(ids, p.UserId)
+		}
+		return ids, nil
+	}
+
+	var allDMs []DmChannels
+	if err := db.Where("channel_id = ?", channelID).Find(&allDMs).Error; err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool)
+	ids := []string{}
+	for _, dm := range allDMs {
+		if !seen[dm.UserId] {
+			seen[dm.UserId] = true
+			ids = append(ids, dm.UserId)
+		}
+		if dm.ParticipantId != nil && !seen[*dm.ParticipantId] {
+			seen[*dm.ParticipantId] = true
+			ids = append(ids, *dm.ParticipantId)
+		}
+	}
+	return ids, nil
+}
+
+func GetDMChannelType(db *gorm.DB, channelID string) (string, error) {
+	var dmChannel DmChannels
+	if err := db.Where("channel_id = ?", channelID).First(&dmChannel).Error; err != nil {
+		return "", errors.New("channel not found")
+	}
+	return dmChannel.ChannelType, nil
+}
+
+func (b *Buzz) AppendParticipant(db *gorm.DB, userID string) error {
+	return db.Exec(
+		"UPDATE buzzs SET participants = array_append(participants, ?) WHERE id = ? AND NOT (? = ANY(participants))",
+		userID, b.ID, userID,
+	).Error
 }

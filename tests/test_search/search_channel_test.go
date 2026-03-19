@@ -136,7 +136,7 @@ func TestChannelSearchEndpoint(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	t.Run("Authorized member can search private channel", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s/?query=Secret", privateChannel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s?query=Secret", privateChannel.ID), nil)
 
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
@@ -169,7 +169,7 @@ func TestChannelSearchEndpoint(t *testing.T) {
 	})
 
 	t.Run("Unauthorized user cannot search private channel", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s/?query=Secret", privateChannel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s?query=Secret", privateChannel.ID), nil)
 		req.Header.Set("Authorization", "Bearer "+token2)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
@@ -211,7 +211,7 @@ func TestChannelSearchEndpoint(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	t.Run("Authorized member can search public channel", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s/?query=Public", publicChannel.ID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/channel/%s?query=Public", publicChannel.ID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		rr := httptest.NewRecorder()
 		r.ServeHTTP(rr, req)
