@@ -22,14 +22,12 @@ import (
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
-func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func LoginAdmin(req models.AdminLoginRequest, db *gorm.DB, logger *utility.Logger, c *gin.Context) (gin.H, int, error) {
 	var (
 		admin        = models.Admin{}
 		responseData gin.H
 		cfg          = config.GetConfig().Admin
-		logger       = utility.NewLogger()
 	)
-	defer logger.Close()
 
 	var loginErr error
 	if req.Email == cfg.SUPER_ADMIN_EMAIL && req.Password == cfg.SUPER_ADMIN_PASSWORD {

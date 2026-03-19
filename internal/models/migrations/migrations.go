@@ -9,6 +9,7 @@ func AuthMigrationModels() []any {
 	return []any{
 		models.BuzzRecording{},
 		models.AuditLog{},
+		models.BroadcastNotificationLog{},
 		models.DmChannels{},
 		models.DmFavourite{},
 		models.Group{},

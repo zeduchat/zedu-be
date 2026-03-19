@@ -8,67 +8,25 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/pkg/controller/admin"
-	"github.com/hngprojects/telex_be/pkg/middleware"
-	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/utility"
 	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
-
-func setupBillingTestRouter() (*gin.Engine, *storage.Database) {
-	gin.SetMode(gin.TestMode)
-	logger := utility.NewLogger()
-	db := storage.Connection()
-	validatorRef := validator.New()
-
-	adminCtl := &admin.Controller{
-		Db:        db,
-		Validator: validatorRef,
-		Logger:    logger,
-		ExtReq:    request.ExternalRequest{Logger: logger, Test: true},
-	}
-
-	r := gin.Default()
-	adminUrl := r.Group("/api/v1/backoffice", middleware.AdminAuthorize(db.Postgresql))
-	{
-		adminUrl.GET("/billing/stats", adminCtl.GetSubscriptionBillingStats)
-		adminUrl.GET("/billing/plans", adminCtl.GetPlansFiltered)
-		adminUrl.POST("/billing/plans", adminCtl.CreatePlan)
-		adminUrl.PUT("/billing/plans/:plan_id", adminCtl.UpdatePlan)
-		adminUrl.DELETE("/billing/plans/:plan_id", adminCtl.DeletePlan)
-		adminUrl.GET("/billing/credit-packages/stats", adminCtl.GetAICreditPackageStats)
-		adminUrl.GET("/billing/credit-packages", adminCtl.GetAICreditPackagesFiltered)
-		adminUrl.POST("/billing/credit-packages", adminCtl.CreateAICreditPackage)
-		adminUrl.PUT("/billing/credit-packages/:package_id", adminCtl.UpdateAICreditPackage)
-		adminUrl.DELETE("/billing/credit-packages/:package_id", adminCtl.DeleteAICreditPackage)
-		adminUrl.GET("/billing/transactions/stats", adminCtl.GetAdminTransactionStats)
-		adminUrl.GET("/billing/transactions", adminCtl.GetAdminTransactionsHistory)
-	}
-
-	return r, db
-}
 
 // --- Subscription Billing Stats ---
 
 func TestGetSubscriptionBillingStats_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
 
-	// Create orgs with active subscriptions
 	for i := range 3 {
 		orgID := CreateOrganizationWithCredit(t, db.Postgresql, float64(i*100))
 		createdOrgIDs = append(createdOrgIDs, orgID)
 
-		// Create an active organisation plan
 		var freePlan models.Plan
 		db.Postgresql.Where("name = ?", "Free").First(&freePlan)
 		if freePlan.ID != "" {
@@ -121,8 +79,7 @@ func TestGetSubscriptionBillingStats_Success(t *testing.T) {
 }
 
 func TestGetSubscriptionBillingStats_Unauthorized(t *testing.T) {
-	_ = tst.Setup()
-	r, _ := setupBillingTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/stats", nil)
 
@@ -135,26 +92,24 @@ func TestGetSubscriptionBillingStats_Unauthorized(t *testing.T) {
 // --- Plan CRUD ---
 
 func TestCreatePlan_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
 	t.Cleanup(func() {
-		// Clean up the created plan
 		db.Postgresql.Exec("DELETE FROM plans WHERE name = ?", "Test Plan Create")
 		CleanupSpecificTestData(db.Postgresql, adminID, nil)
 	})
 
 	payload := models.CreatePlanRequest{
-		Name:                "Test Plan Create",
-		Description:         "A test plan for unit testing",
-		Fee:                 50,
-		Benefits:            []string{"Benefit 1", "Benefit 2"},
-		MaxChannels:         10,
-		MaxUsers:            100,
-		MaxBuzzParticipants: 25,
-		MaxActiveCalls:      10,
+		Name:                 "Test Plan Create",
+		Description:          "A test plan for unit testing",
+		Fee:                  50,
+		Benefits:             []string{"Benefit 1", "Benefit 2"},
+		MaxChannels:          10,
+		MaxUsers:             100,
+		MaxBuzzParticipants:  25,
+		MaxActiveCalls:       10,
 		AICreditsPurchasable: true,
 	}
 
@@ -186,8 +141,7 @@ func TestCreatePlan_Success(t *testing.T) {
 }
 
 func TestCreatePlan_ValidationError(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -195,7 +149,6 @@ func TestCreatePlan_ValidationError(t *testing.T) {
 		CleanupSpecificTestData(db.Postgresql, adminID, nil)
 	})
 
-	// Missing required name
 	payload := map[string]any{
 		"description": "No name plan",
 		"fee":         10,
@@ -216,12 +169,10 @@ func TestCreatePlan_ValidationError(t *testing.T) {
 }
 
 func TestUpdatePlan_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	// Create a plan to update
 	plan, err := models.CreatePlan(db.Postgresql, models.CreatePlanRequest{
 		Name:        fmt.Sprintf("Update Test Plan %s", utility.RandomString(5)),
 		Description: "Original description",
@@ -270,8 +221,7 @@ func TestUpdatePlan_Success(t *testing.T) {
 }
 
 func TestUpdatePlan_InvalidID(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -292,12 +242,10 @@ func TestUpdatePlan_InvalidID(t *testing.T) {
 }
 
 func TestDeletePlan_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	// Create a plan to delete
 	plan, err := models.CreatePlan(db.Postgresql, models.CreatePlanRequest{
 		Name:        fmt.Sprintf("Delete Test Plan %s", utility.RandomString(5)),
 		Description: "To be deleted",
@@ -328,13 +276,11 @@ func TestDeletePlan_Success(t *testing.T) {
 }
 
 func TestDeletePlan_WithActiveSubscriptions(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
 
-	// Create a plan and an org with an active subscription to it
 	plan, err := models.CreatePlan(db.Postgresql, models.CreatePlanRequest{
 		Name:        fmt.Sprintf("Active Sub Plan %s", utility.RandomString(5)),
 		Description: "Has active subscriptions",
@@ -374,8 +320,7 @@ func TestDeletePlan_WithActiveSubscriptions(t *testing.T) {
 }
 
 func TestGetPlansFiltered_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -400,8 +345,7 @@ func TestGetPlansFiltered_Success(t *testing.T) {
 }
 
 func TestGetPlansFiltered_WithSearch(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -436,8 +380,7 @@ func TestGetPlansFiltered_WithSearch(t *testing.T) {
 // --- AI Credit Package CRUD ---
 
 func TestCreateAICreditPackage_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -484,8 +427,7 @@ func TestCreateAICreditPackage_Success(t *testing.T) {
 }
 
 func TestCreateAICreditPackage_ValidationError(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -493,7 +435,6 @@ func TestCreateAICreditPackage_ValidationError(t *testing.T) {
 		CleanupSpecificTestData(db.Postgresql, adminID, nil)
 	})
 
-	// Missing required fields
 	payload := map[string]any{
 		"description": "No name or price",
 	}
@@ -510,12 +451,10 @@ func TestCreateAICreditPackage_ValidationError(t *testing.T) {
 }
 
 func TestUpdateAICreditPackage_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	// Create a package to update
 	pkg, err := models.CreateAICreditPackage(db.Postgresql, models.CreateAICreditPackageRequest{
 		Name:        fmt.Sprintf("Update Pkg %s", utility.RandomString(5)),
 		Description: "Original",
@@ -561,12 +500,10 @@ func TestUpdateAICreditPackage_Success(t *testing.T) {
 }
 
 func TestDeleteAICreditPackage_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	// Create a package to delete
 	pkg, err := models.CreateAICreditPackage(db.Postgresql, models.CreateAICreditPackageRequest{
 		Name:        fmt.Sprintf("Delete Pkg %s", utility.RandomString(5)),
 		Description: "To be deleted",
@@ -598,8 +535,7 @@ func TestDeleteAICreditPackage_Success(t *testing.T) {
 }
 
 func TestDeleteAICreditPackage_InvalidID(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -619,13 +555,11 @@ func TestDeleteAICreditPackage_InvalidID(t *testing.T) {
 // --- Transactions History ---
 
 func TestGetAdminTransactionsHistory_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
 
-	// Create orgs with transactions
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
 	createdOrgIDs = append(createdOrgIDs, org1ID)
 	org2ID := CreateOrganizationWithCredit(t, db.Postgresql, 200.00)
@@ -662,8 +596,7 @@ func TestGetAdminTransactionsHistory_Success(t *testing.T) {
 }
 
 func TestGetAdminTransactionsHistory_Unauthorized(t *testing.T) {
-	_ = tst.Setup()
-	r, _ := setupBillingTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions", nil)
 
@@ -674,8 +607,7 @@ func TestGetAdminTransactionsHistory_Unauthorized(t *testing.T) {
 }
 
 func TestGetAdminTransactionsHistory_WithPagination(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
@@ -712,8 +644,7 @@ func TestGetAdminTransactionsHistory_WithPagination(t *testing.T) {
 }
 
 func TestGetAdminTransactionsHistory_FilterByType(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
@@ -726,7 +657,6 @@ func TestGetAdminTransactionsHistory_FilterByType(t *testing.T) {
 		CleanupSpecificTestData(db.Postgresql, adminID, createdOrgIDs)
 	})
 
-	// Filter by credit_pack type
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions?type=credit_pack", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -742,7 +672,6 @@ func TestGetAdminTransactionsHistory_FilterByType(t *testing.T) {
 	assert.Equal(t, "success", data["status"])
 	assert.NotNil(t, data["data"])
 
-	// Verify all returned items are credit pack type
 	transactions, ok := data["data"].([]any)
 	if ok {
 		for _, txn := range transactions {
@@ -753,8 +682,7 @@ func TestGetAdminTransactionsHistory_FilterByType(t *testing.T) {
 }
 
 func TestGetAdminTransactionsHistory_FilterByDuration(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
@@ -786,8 +714,7 @@ func TestGetAdminTransactionsHistory_FilterByDuration(t *testing.T) {
 // --- Transaction Stats ---
 
 func TestGetAdminTransactionStats_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
@@ -819,7 +746,6 @@ func TestGetAdminTransactionStats_Success(t *testing.T) {
 		t.Fatalf("data['data'] is not a map, got: %T", data["data"])
 	}
 
-	// Verify all 4 stat fields exist
 	_, hasTotalRevenue := stats["total_revenue"]
 	_, hasTotalTransactions := stats["total_transactions"]
 	_, hasSuccessfulPayments := stats["successful_payments"]
@@ -830,7 +756,6 @@ func TestGetAdminTransactionStats_Success(t *testing.T) {
 	assert.True(t, hasSuccessfulPayments, "successful_payments field missing")
 	assert.True(t, hasRefunds, "refunds field missing")
 
-	// Verify each stat has value and percentage_change
 	for _, key := range []string{"total_revenue", "total_transactions", "successful_payments", "refunds"} {
 		metric, ok := stats[key].(map[string]any)
 		if ok {
@@ -843,8 +768,7 @@ func TestGetAdminTransactionStats_Success(t *testing.T) {
 }
 
 func TestGetAdminTransactionStats_Unauthorized(t *testing.T) {
-	_ = tst.Setup()
-	r, _ := setupBillingTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/transactions/stats", nil)
 
@@ -857,13 +781,11 @@ func TestGetAdminTransactionStats_Unauthorized(t *testing.T) {
 // --- AI Credit Package Stats ---
 
 func TestGetAICreditPackageStats_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	var createdOrgIDs []string
 
-	// Create orgs with credit transactions and usage
 	org1ID := CreateOrganizationWithCredit(t, db.Postgresql, 500.00)
 	createdOrgIDs = append(createdOrgIDs, org1ID)
 	org2ID := CreateOrganizationWithCredit(t, db.Postgresql, 300.00)
@@ -913,8 +835,7 @@ func TestGetAICreditPackageStats_Success(t *testing.T) {
 }
 
 func TestGetAICreditPackageStats_Unauthorized(t *testing.T) {
-	_ = tst.Setup()
-	r, _ := setupBillingTestRouter()
+	r, _, _, _ := SetupAdminTestRouter()
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages/stats", nil)
 
@@ -927,8 +848,7 @@ func TestGetAICreditPackageStats_Unauthorized(t *testing.T) {
 // --- AI Credit Packages Filtered List ---
 
 func TestGetAICreditPackagesFiltered_Success(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -954,12 +874,10 @@ func TestGetAICreditPackagesFiltered_Success(t *testing.T) {
 }
 
 func TestGetAICreditPackagesFiltered_WithSearch(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
-	// Create a uniquely named package to search for
 	pkgName := fmt.Sprintf("SearchTestPkg %s", utility.RandomString(8))
 	pkg, err := models.CreateAICreditPackage(db.Postgresql, models.CreateAICreditPackageRequest{
 		Name:        pkgName,
@@ -1005,8 +923,7 @@ func TestGetAICreditPackagesFiltered_WithSearch(t *testing.T) {
 }
 
 func TestGetAICreditPackagesFiltered_ByStatus(t *testing.T) {
-	_ = tst.Setup()
-	r, db := setupBillingTestRouter()
+	r, _, _, db := SetupAdminTestRouter()
 
 	adminID, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 
@@ -1014,7 +931,6 @@ func TestGetAICreditPackagesFiltered_ByStatus(t *testing.T) {
 		CleanupSpecificTestData(db.Postgresql, adminID, nil)
 	})
 
-	// Test active status filter
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages?status=active", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -1029,7 +945,6 @@ func TestGetAICreditPackagesFiltered_ByStatus(t *testing.T) {
 	data := tst.ParseResponse(rr)
 	assert.Equal(t, "success", data["status"])
 
-	// Test inactive status filter
 	req2, _ := http.NewRequest(http.MethodGet, "/api/v1/backoffice/billing/credit-packages?status=inactive", nil)
 	req2.Header.Set("Authorization", "Bearer "+token)
 

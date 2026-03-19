@@ -1,7 +1,12 @@
 package test_admin
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -14,12 +19,25 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
 
+var (
+	testLogger *utility.Logger
+	loggerOnce sync.Once
+)
+
+func getTestLogger() *utility.Logger {
+	loggerOnce.Do(func() {
+		testLogger = tst.Setup()
+	})
+	return testLogger
+}
+
 func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *storage.Database) {
 	gin.SetMode(gin.TestMode)
-	logger := utility.NewLogger()
+	logger := getTestLogger()
 	db := storage.Connection()
 	validator := validator.New()
 
@@ -52,6 +70,25 @@ func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 		middleware.AdminAuthorize(adminController.Db.Postgresql))
 	{
 		adminUrl.GET("/dashboard/credits-summary", adminController.GetPlatformCreditsSummary)
+		adminUrl.POST("/notifications/broadcast", adminController.BroadcastNotification)
+
+		// Billing - plans
+		adminUrl.GET("/billing/stats", adminController.GetSubscriptionBillingStats)
+		adminUrl.GET("/billing/plans", adminController.GetPlansFiltered)
+		adminUrl.POST("/billing/plans", adminController.CreatePlan)
+		adminUrl.PUT("/billing/plans/:plan_id", adminController.UpdatePlan)
+		adminUrl.DELETE("/billing/plans/:plan_id", adminController.DeletePlan)
+
+		// Billing - credit packages
+		adminUrl.GET("/billing/credit-packages/stats", adminController.GetAICreditPackageStats)
+		adminUrl.GET("/billing/credit-packages", adminController.GetAICreditPackagesFiltered)
+		adminUrl.POST("/billing/credit-packages", adminController.CreateAICreditPackage)
+		adminUrl.PUT("/billing/credit-packages/:package_id", adminController.UpdateAICreditPackage)
+		adminUrl.DELETE("/billing/credit-packages/:package_id", adminController.DeleteAICreditPackage)
+
+		// Billing - transactions
+		adminUrl.GET("/billing/transactions/stats", adminController.GetAdminTransactionStats)
+		adminUrl.GET("/billing/transactions", adminController.GetAdminTransactionsHistory)
 	}
 
 	superAdminAuthUrl := r.Group(fmt.Sprintf("%s/backoffice", apiVersion),
@@ -69,15 +106,45 @@ func SetupAdminRoutes(r *gin.Engine, adminController *admin.Controller) {
 	}
 }
 
+func loginAdmin(t *testing.T, r *gin.Engine, email, password string) string {
+	t.Helper()
+	loginPayload := map[string]string{"email": email, "password": password}
+	body, _ := json.Marshal(loginPayload)
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/backoffice/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Admin login failed, status: %d, body: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode login response: %v", err)
+	}
+
+	data, ok := resp["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("Login response missing 'data' field: %v", resp)
+	}
+	token, ok := data["access_token"].(string)
+	if !ok || token == "" {
+		t.Fatalf("Login response missing 'access_token': %v", data)
+	}
+	return token
+}
+
 func CreateSuperAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Database) string {
 	_, token := CreateSuperAdminAndGetTokenWithID(t, r, db)
 	return token
 }
 
-// CreateSuperAdminAndGetTokenWithID creates a super admin and returns both the admin ID and token
-// for test-specific cleanup
 func CreateSuperAdminAndGetTokenWithID(t *testing.T, r *gin.Engine, db *storage.Database) (string, string) {
-	password, _ := utility.HashPassword("password")
+	t.Helper()
+	const rawPassword = "password"
+	hashedPassword, _ := utility.HashPassword(rawPassword)
 
 	superAdmin := models.Admin{
 		ID:       utility.GenerateUUID(),
@@ -85,81 +152,36 @@ func CreateSuperAdminAndGetTokenWithID(t *testing.T, r *gin.Engine, db *storage.
 		Email:    fmt.Sprintf("superadmin%s@qa.team", utility.RandomString(5)),
 		Role:     models.RoleSuperAdmin,
 		IsActive: true,
-		Password: password,
+		Password: hashedPassword,
 	}
 
-	err := db.Postgresql.Create(&superAdmin).Error
-	if err != nil {
+	if err := db.Postgresql.Create(&superAdmin).Error; err != nil {
 		t.Fatalf("Failed to create superadmin: %v", err)
 	}
 
-	c, _ := gin.CreateTestContext(nil)
-	tokenData, err := middleware.CreateAdminToken(superAdmin, c)
-	if err != nil {
-		t.Fatalf("Failed to create admin token: %v", err)
-	}
-
-	accessToken := models.AccessToken{
-		ID:               tokenData.AccessUuid,
-		OwnerID:          superAdmin.ID,
-		LoginAccessToken: tokenData.AccessToken,
-		IsLive:           true,
-	}
-
-	tokens := map[string]string{
-		"access_token": tokenData.AccessToken,
-		"exp":          "",
-	}
-
-	tokenSaveErr := accessToken.CreateAccessToken(db.Postgresql, tokens)
-	if tokenSaveErr != nil {
-		t.Fatalf("Failed to save access token: %v", tokenSaveErr)
-	}
-
-	return superAdmin.ID, tokenData.AccessToken
+	token := loginAdmin(t, r, superAdmin.Email, rawPassword)
+	return superAdmin.ID, token
 }
 
 func CreateAdminAndGetToken(t *testing.T, r *gin.Engine, db *storage.Database, role string) string {
-	password, _ := utility.HashPassword("password")
+	t.Helper()
+	const rawPassword = "password"
+	hashedPassword, _ := utility.HashPassword(rawPassword)
 
-	admin := models.Admin{
+	adminUser := models.Admin{
 		ID:       utility.GenerateUUID(),
 		Name:     "Admin Test",
 		Email:    fmt.Sprintf("admin%s@qa.team", utility.RandomString(5)),
 		Role:     role,
 		IsActive: true,
-		Password: password,
+		Password: hashedPassword,
 	}
 
-	err := db.Postgresql.Create(&admin).Error
-	if err != nil {
+	if err := db.Postgresql.Create(&adminUser).Error; err != nil {
 		t.Fatalf("Failed to create admin: %v", err)
 	}
 
-	c, _ := gin.CreateTestContext(nil)
-	tokenData, err := middleware.CreateAdminToken(admin, c)
-	if err != nil {
-		t.Fatalf("Failed to create admin token: %v", err)
-	}
-
-	accessToken := models.AccessToken{
-		ID:               tokenData.AccessUuid,
-		OwnerID:          admin.ID,
-		LoginAccessToken: tokenData.AccessToken,
-		IsLive:           true,
-	}
-
-	tokens := map[string]string{
-		"access_token": tokenData.AccessToken,
-		"exp":          "",
-	}
-
-	tokenSaveErr := accessToken.CreateAccessToken(db.Postgresql, tokens)
-	if tokenSaveErr != nil {
-		t.Fatalf("Failed to save access token: %v", tokenSaveErr)
-	}
-
-	return tokenData.AccessToken
+	return loginAdmin(t, r, adminUser.Email, rawPassword)
 }
 
 func CreateCreditTransaction(t *testing.T, db *gorm.DB, orgID string, amount float64) {
@@ -171,9 +193,7 @@ func CreateCreditTransaction(t *testing.T, db *gorm.DB, orgID string, amount flo
 		BalanceAfter:   amount,
 		Type:           "Top-up",
 	}
-
-	err := db.Create(&transaction).Error
-	if err != nil {
+	if err := db.Create(&transaction).Error; err != nil {
 		t.Fatalf("Failed to create credit transaction: %v", err)
 	}
 }
@@ -186,9 +206,7 @@ func CreateCreditUsage(t *testing.T, db *gorm.DB, orgID string, amount float64) 
 		AgentID:        utility.GenerateUUID(),
 		UserID:         nil,
 	}
-
-	err := db.Create(&usage).Error
-	if err != nil {
+	if err := db.Create(&usage).Error; err != nil {
 		t.Fatalf("Failed to create credit usage: %v", err)
 	}
 }
@@ -202,14 +220,11 @@ func CreateOrganizationWithCredit(t *testing.T, db *gorm.DB, creditBalance float
 		CreditBalance: creditBalance,
 		OwnerID:       utility.GenerateUUID(),
 	}
-
-	err := db.Create(&org).Error
-	if err != nil {
-		t.Fatalf("Failed to create organization %s", err)
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("Failed to create organization: %v", err)
 	}
-
 	if creditBalance > 0 {
-		transaction := models.CreditTransaction{
+		tx := models.CreditTransaction{
 			ID:             utility.GenerateUUID(),
 			OrganisationID: orgID,
 			Amount:         creditBalance,
@@ -217,11 +232,10 @@ func CreateOrganizationWithCredit(t *testing.T, db *gorm.DB, creditBalance float
 			BalanceAfter:   creditBalance,
 			Type:           "Top-up",
 		}
-		if err := db.Create(&transaction).Error; err != nil {
+		if err := db.Create(&tx).Error; err != nil {
 			t.Fatalf("Failed to create initial credit transaction: %v", err)
 		}
 	}
-
 	return orgID
 }
 
@@ -233,29 +247,13 @@ func CreateTestCreditPackage(t *testing.T, db *gorm.DB, credits int, price float
 		Price:    price,
 		Currency: "USD",
 	}
-	err := db.Create(&pkg).Error
-	if err != nil {
+	if err := db.Create(&pkg).Error; err != nil {
 		t.Fatalf("Failed to create credit package: %v", err)
 	}
 	return pkg.ID
 }
 
-func cleanupAdmins(db *gorm.DB) {
-	// Get all test admin IDs
-	var adminIDs []string
-	db.Raw("SELECT id FROM admins WHERE email LIKE ?", "%@qa.team%").Scan(&adminIDs)
-
-	// Delete access tokens for each admin
-	for _, adminID := range adminIDs {
-		db.Exec("DELETE FROM access_tokens WHERE owner_id = ?", adminID)
-	}
-
-	// Delete admins
-	db.Exec("DELETE FROM admins WHERE email LIKE ?", "%@qa.team%")
-}
-
 func CleanupSpecificTestData(db *gorm.DB, adminID string, orgIDs []string) {
-	// Delete child records for each org
 	childTables := []struct {
 		table  string
 		column string
@@ -282,8 +280,6 @@ func CleanupSpecificTestData(db *gorm.DB, adminID string, orgIDs []string) {
 		// Delete the organisation
 		db.Exec("DELETE FROM organisations WHERE id = ?", orgID)
 	}
-
-	// Delete access tokens for this specific admin
 	if adminID != "" {
 		db.Exec("DELETE FROM access_tokens WHERE owner_id = ?", adminID)
 		db.Exec("DELETE FROM admins WHERE id = ?", adminID)
