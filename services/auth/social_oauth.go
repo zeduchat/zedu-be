@@ -274,6 +274,18 @@ func isGoogleIDToken(token string) bool {
 	return strings.HasPrefix(token, "eyJ")
 }
 
+func isAppleIDToken(token string) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	if len(token) < 100 {
+		return false
+	}
+
+	return strings.HasPrefix(token, "eyJ")
+}
+
 func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
@@ -281,30 +293,37 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 		sendWelcome  bool
 		responseData gin.H
 		org          models.Organisation
+		idToken      string
 	)
 
-	client := apple.New()
+	if isAppleIDToken(req.Token) {
+		idToken = req.Token
+	} else {
+		client := apple.New()
 
-	secret, err := apple.GenerateClientSecret(config.Config.Apple.PRIVATE_KEY, config.Config.Apple.TEAM_ID, config.Config.Apple.CLIENT_ID, config.Config.Apple.KEY_ID)
-	if err != nil {
-		logger.Error("Failed to generate apple client secret: %v", err)
-		return responseData, http.StatusInternalServerError, fmt.Errorf("failed to generate apple client secret: %v", err)
+		secret, err := apple.GenerateClientSecret(config.Config.Apple.PRIVATE_KEY, config.Config.Apple.TEAM_ID, config.Config.Apple.CLIENT_ID, config.Config.Apple.KEY_ID)
+		if err != nil {
+			logger.Error("Failed to generate apple client secret: %v", err)
+			return responseData, http.StatusInternalServerError, fmt.Errorf("failed to generate apple client secret: %v", err)
+		}
+
+		vReq := apple.AppValidationTokenRequest{
+			ClientID:     config.Config.Apple.CLIENT_ID,
+			ClientSecret: secret,
+			Code:         req.Token,
+		}
+
+		var appleResp apple.ValidationResponse
+		err = client.VerifyAppToken(c.Request.Context(), vReq, &appleResp)
+		if err != nil {
+			logger.Error("Failed to validate apple token: %v", err)
+			return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate apple token: %v", err)
+		}
+
+		idToken = appleResp.IDToken
 	}
 
-	vReq := apple.AppValidationTokenRequest{
-		ClientID:     config.Config.Apple.CLIENT_ID,
-		ClientSecret: secret,
-		Code:         req.Token,
-	}
-
-	var appleResp apple.ValidationResponse
-	err = client.VerifyAppToken(c.Request.Context(), vReq, &appleResp)
-	if err != nil {
-		logger.Error("Failed to validate apple token: %v", err)
-		return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate apple token: %v", err)
-	}
-
-	claim, err := apple.GetClaims(appleResp.IDToken)
+	claim, err := apple.GetClaims(idToken)
 	if err != nil {
 		logger.Error("Failed to get apple claims: %v", err)
 		return responseData, http.StatusBadRequest, fmt.Errorf("failed to get apple claims: %v", err)
