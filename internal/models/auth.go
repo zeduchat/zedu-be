@@ -83,6 +83,10 @@ type FacebookRequestModel struct {
 	Token string `json:"id_token" validate:"required"`
 }
 
+type AppleRequestModel struct {
+	Token string `json:"id_token" validate:"required"`
+}
+
 func (p *PasswordReset) CreatePasswordReset(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &p)

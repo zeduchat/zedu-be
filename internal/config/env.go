@@ -27,6 +27,7 @@ type Configuration struct {
 	OpenRouter   OpenRouter
 	Admin        Admin
 	Google       Google
+	Apple        Apple
 	WebPush      WebPush
 	Agora        Agora
 }
@@ -137,6 +138,10 @@ type BaseConfig struct {
 	GOOGLE_CLIENT_ID     string `mapstructure:"GOOGLE_CLIENT_ID"`
 	GOOGLE_CLIENT_SECRET string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 	GOOGLE_REDIRECT_URI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
+	APPLE_CLIENT_ID      string `mapstructure:"APPLE_CLIENT_ID"`
+	APPLE_TEAM_ID        string `mapstructure:"APPLE_TEAM_ID"`
+	APPLE_KEY_ID         string `mapstructure:"APPLE_KEY_ID"`
+	APPLE_PRIVATE_KEY    string `mapstructure:"APPLE_PRIVATE_KEY"`
 	PubKey               string `mapstructure:"NEXT_PUBLIC_VAPID_PUBLIC_KEY"`
 	PrivKey              string `mapstructure:"NEXT_PUBLIC_VAPID_PRIVATE_KEY"`
 
@@ -294,6 +299,12 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			CLIENT_ID:     config.GOOGLE_CLIENT_ID,
 			CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET,
 			REDIRECT_URI:  config.GOOGLE_REDIRECT_URI,
+		},
+		Apple: Apple{
+			CLIENT_ID:   config.APPLE_CLIENT_ID,
+			TEAM_ID:     config.APPLE_TEAM_ID,
+			KEY_ID:      config.APPLE_KEY_ID,
+			PRIVATE_KEY: config.APPLE_PRIVATE_KEY,
 		},
 		WebPush: WebPush{
 			PubKey:  config.PubKey,

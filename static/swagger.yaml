@@ -418,6 +418,113 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
+  /auth/apple:
+    post:
+      tags:
+        - auth
+      summary: Endpoint for login/registration with Apple ID token from iOS app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_token:
+                  type: string
+              required:
+                - id_token
+
+      responses:
+        "200":
+          description: user sign in succesfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "user sign in successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        example: "access_token"
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "userId_here"
+                          email:
+                            type: string
+                            example: "user@example.com"
+                          fullname:
+                            type: string
+                            example: "John Doe"
+                          is_verified:
+                            type: boolean
+                            example: true
+                          username:
+                            type: string
+                            example: "John Doe"
+                          avatar_url:
+                            type: string
+                            example: "http://example.com/avatar.jpg"
+                          default_avatar_url:
+                            type: string
+                            example: "http://example.com/avatar.jpg"
+                          expires_in:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+                          updated_at:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  message:
+                    type: string
+                    example: "message"
+                  status_code:
+                    type: integer
+                    example: 400
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
   /auth/change-password:
     put:
       tags:
