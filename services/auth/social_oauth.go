@@ -287,6 +287,7 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 
 	secret, err := apple.GenerateClientSecret(config.Config.Apple.PRIVATE_KEY, config.Config.Apple.TEAM_ID, config.Config.Apple.CLIENT_ID, config.Config.Apple.KEY_ID)
 	if err != nil {
+		logger.Error("Failed to generate apple client secret: %v", err)
 		return responseData, http.StatusInternalServerError, fmt.Errorf("failed to generate apple client secret: %v", err)
 	}
 
@@ -299,11 +300,13 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 	var appleResp apple.ValidationResponse
 	err = client.VerifyAppToken(c.Request.Context(), vReq, &appleResp)
 	if err != nil {
+		logger.Error("Failed to validate apple token: %v", err)
 		return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate apple token: %v", err)
 	}
 
 	claim, err := apple.GetClaims(appleResp.IDToken)
 	if err != nil {
+		logger.Error("Failed to get apple claims: %v", err)
 		return responseData, http.StatusBadRequest, fmt.Errorf("failed to get apple claims: %v", err)
 	}
 
@@ -311,6 +314,8 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 	if !ok || email == "" {
 		return responseData, http.StatusBadRequest, fmt.Errorf("email missing in apple token")
 	}
+
+	logger.Info("Apple login successful for email: %s", email)
 
 	name := strings.Split(email, "@")[0]
 	username := strings.ToLower(name)
@@ -327,9 +332,11 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
 	if exists {
+		logger.Info("Existing user found for email: %s", formattedReq.Email)
 		user, err = user.GetUserByEmail(db, formattedReq.Email)
 
 		if err != nil {
+			logger.Error("Failed to fetch existing user: %v", err)
 			return responseData, http.StatusInternalServerError, fmt.Errorf("error fetching user %v", err.Error())
 		}
 
@@ -338,6 +345,7 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 		}
 
 	} else {
+		logger.Info("Creating new user for email: %s", formattedReq.Email)
 
 		user = models.User{
 			ID:             utility.GenerateUUID(),
@@ -386,6 +394,7 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 				return fmt.Errorf("failed to update user org: %w", err)
 			}
 
+			logger.Info("Successfully created user and personal organization for: %s", email)
 			return nil
 		})
 
