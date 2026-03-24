@@ -28,6 +28,7 @@ func Auth(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		authUrl.POST("/email-request", auth.VerifyEmailReq)
 		authUrl.POST("/email-request/verify", auth.VerifyEmailToken)
 		authUrl.POST("/google", auth.GoogleLogin)
+		authUrl.POST("/apple", auth.AppleLogin)
 	}
 
 	authUrlSec := r.Group(
