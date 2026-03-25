@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -182,4 +183,98 @@ func GetPlansWithPackages(db *gorm.DB) (*PlansResponse, error) {
 		Plans:            plans,
 		AICreditPackages: packages,
 	}, nil
+}
+
+// BroadcastNotificationToAllUsers sends a broadcast notification to all users via OneSignal
+func BroadcastNotificationToAllUsers(db *storage.Database, logger *utility.Logger,
+	adminID, adminEmail, ipAddress, userAgent string,
+	req models.BroadcastNotificationRequest,
+) (*models.BroadcastNotificationResponse, error) {
+	// Create initial broadcast log with status "started"
+	broadcastLogID := utility.GenerateUUID()
+	broadcastLog := models.BroadcastNotificationLog{
+		ID:                 broadcastLogID,
+		AdminID:            adminID,
+		AdminEmail:         adminEmail,
+		Title:              req.Title,
+		Message:            req.Message,
+		AvatarUrl:          req.AvatarUrl,
+		TotalUsersTargeted: 0, // Will be updated by the worker
+		SuccessfullySent:   0,
+		FailedCount:        0,
+		Status:             "started",
+		ScheduledAt:        req.ScheduledAt,
+		IPAddress:          ipAddress,
+		UserAgent:          userAgent,
+	}
+
+	if err := db.Postgresql.Create(&broadcastLog).Error; err != nil {
+		logger.Error("Failed to create broadcast notification log: %s", err.Error())
+		return nil, fmt.Errorf("failed to create broadcast log: %w", err)
+	}
+
+	// Enqueue the broadcast notification job
+	jobArgs := models.BroadcastNotificationJobArgs{
+		BroadcastLogID: broadcastLogID,
+		AdminID:        adminID,
+		AdminEmail:     adminEmail,
+		Title:          req.Title,
+		Message:        req.Message,
+		AvatarUrl:      req.AvatarUrl,
+		IPAddress:      ipAddress,
+		UserAgent:      userAgent,
+	}
+
+	_, err := jobArgs.InsertBroadcastNotificationJob(context.Background(), db)
+	if err != nil {
+		logger.Error("Failed to enqueue broadcast notification job: %s", err.Error())
+		// Update status to failed
+		db.Postgresql.Model(&models.BroadcastNotificationLog{}).
+			Where("id = ?", broadcastLogID).
+			Update("status", "failed")
+		return nil, fmt.Errorf("failed to enqueue broadcast job: %w", err)
+	}
+
+	// Create audit log entry
+	description := fmt.Sprintf("Admin %s sent broadcast notification to all users", adminEmail)
+	newValJSON, _ := json.Marshal(map[string]any{
+		"title":   req.Title,
+		"message": req.Message,
+		"status":  "started",
+	})
+
+	if auditErr := audit_utility.CreateAuditLog(db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:      adminID,
+		ActorEmail:   adminEmail,
+		ActorRole:    "admin",
+		Action:       models.ActionBroadcastNotificationCreated,
+		ResourceType: models.ResourceNotification,
+		ResourceID:   broadcastLogID,
+		NewValues:    string(newValJSON),
+		Description:  description,
+		IPAddress:    ipAddress,
+		UserAgent:    userAgent,
+		Success:      true,
+	}); auditErr != nil {
+		logger.Error("Failed to create audit log for broadcast notification: %v", auditErr)
+	}
+
+	return &models.BroadcastNotificationResponse{
+		ID:                 broadcastLogID,
+		Title:              req.Title,
+		Message:            req.Message,
+		TotalUsersTargeted: 0, // Will be updated by worker
+		SuccessfullySent:   0,
+		CreatedAt:          broadcastLog.CreatedAt,
+		ScheduledAt:        req.ScheduledAt,
+	}, nil
+}
+
+// GetBroadcastNotificationStatus retrieves the status of a broadcast notification by ID
+func GetBroadcastNotificationStatus(db *storage.Database, broadcastID string) (*models.BroadcastNotificationLog, error) {
+	var broadcastLog models.BroadcastNotificationLog
+	if err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error; err != nil {
+		return nil, err
+	}
+	return &broadcastLog, nil
 }

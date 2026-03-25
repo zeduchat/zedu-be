@@ -75,7 +75,7 @@ func (base *Controller) LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, c)
+	respData, code, err := admin.LoginAdmin(req, base.Db.Postgresql, base.Logger, c)
 	if err != nil {
 		base.Logger.Error("Failed to login admin", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -269,5 +269,80 @@ func (base *Controller) GetPlans(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Plans retrieved successfully", response)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) BroadcastNotification(c *gin.Context) {
+	var req models.BroadcastNotificationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("Failed to parse broadcast notification request", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err.Error(), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("Validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Read from adminClaims — what AdminAuthorize actually sets
+	claims, exists := c.Get("adminClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Admin claims not found", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	adminClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid admin claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	adminID, ok := adminClaims["admin_id"].(string)
+	if !ok || adminID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Admin ID not found in token", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	// Get admin email from DB
+	adminModel := &models.Admin{}
+	if err := base.Db.Postgresql.Where("id = ?", adminID).First(&adminModel).Error; err != nil {
+		base.Logger.Error("Failed to get admin details", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to get admin details", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	ipAddress := audit_utility.GetClientIP(c)
+	userAgent := c.GetHeader("User-Agent")
+	if userAgent == "" {
+		userAgent = "Unknown/Direct API Request"
+	}
+
+	response, err := admin.BroadcastNotificationToAllUsers(
+		base.Db,
+		base.Logger,
+		adminID,
+		adminModel.Email,
+		ipAddress,
+		userAgent,
+		req,
+	)
+
+	if err != nil {
+		base.Logger.Error("Failed to broadcast notification", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send broadcast notification", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Broadcast notification sent successfully", response)
 	c.JSON(http.StatusOK, rd)
 }

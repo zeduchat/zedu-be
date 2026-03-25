@@ -418,6 +418,113 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
+  /auth/apple:
+    post:
+      tags:
+        - auth
+      summary: Endpoint for login/registration with Apple ID token from iOS app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_token:
+                  type: string
+              required:
+                - id_token
+
+      responses:
+        "200":
+          description: user sign in succesfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "user sign in successfully"
+                  status_code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                        example: "access_token"
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "userId_here"
+                          email:
+                            type: string
+                            example: "user@example.com"
+                          fullname:
+                            type: string
+                            example: "John Doe"
+                          is_verified:
+                            type: boolean
+                            example: true
+                          username:
+                            type: string
+                            example: "John Doe"
+                          avatar_url:
+                            type: string
+                            example: "http://example.com/avatar.jpg"
+                          default_avatar_url:
+                            type: string
+                            example: "http://example.com/avatar.jpg"
+                          expires_in:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+                          created_at:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+                          updated_at:
+                            type: string
+                            format: date-time
+                            example: "1748982383"
+
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Bad Request"
+                  message:
+                    type: string
+                    example: "message"
+                  status_code:
+                    type: integer
+                    example: 400
+        "422":
+          description: Unprocessed Entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+
   /auth/change-password:
     put:
       tags:
@@ -11397,6 +11504,105 @@ paths:
                   message:
                     type: string
                     example: "Failed to fetch transactions history"
+  /backoffice/notifications/broadcast:
+    post:
+      tags:
+        - Admin
+      summary: Broadcast notification to all users
+      description: |-
+        Sends a push notification to all active users on the platform via OneSignal.
+
+        **Access**: Admins only.
+      operationId: broadcastNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - message
+              properties:
+                title:
+                  type: string
+                  example: "Platform Maintenance"
+                message:
+                  type: string
+                  example: "We will be undergoing scheduled maintenance on Saturday at 2am UTC."
+                avatar_url:
+                  type: string
+                  example: "https://example.com/icon.png"
+                scheduled_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: "2026-03-20T02:00:00Z"
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Broadcast notification sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "Broadcast notification sent successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: "019bf8f0-714f-7c12-aea5-77d4edfd3949"
+                      title:
+                        type: string
+                        example: "Platform Maintenance"
+                      message:
+                        type: string
+                        example: "We will be undergoing scheduled maintenance on Saturday at 2am UTC."
+                      total_users_targeted:
+                        type: integer
+                        example: 1042
+                      successfully_sent:
+                        type: integer
+                        example: 1038
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2026-03-14T08:00:00Z"
+                      scheduled_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: "2026-03-20T02:00:00Z"
+        "400":
+          description: Bad request - Validation failed or malformed request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error - Failed to send broadcast notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
 
   /invite/change-status:
     post:

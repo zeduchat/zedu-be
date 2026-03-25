@@ -50,21 +50,23 @@ type AuditLog struct {
 type ResourceType string
 
 const (
-	ResourceAdmin   ResourceType = "admin"
-	ResourceUser    ResourceType = "user"
-	ResourceBilling ResourceType = "billing"
-	ResourceFiles   ResourceType = "files"
-	ResourceSystem  ResourceType = "system"
-	ResourceData    ResourceType = "data"
+	ResourceAdmin        ResourceType = "admin"
+	ResourceUser         ResourceType = "user"
+	ResourceBilling      ResourceType = "billing"
+	ResourceFiles        ResourceType = "files"
+	ResourceSystem       ResourceType = "system"
+	ResourceData         ResourceType = "data"
+	ResourceNotification ResourceType = "notification"
 )
 
 type AuditAction string
 
 const (
 	// Admin Actions
-	ActionAdminCreate     AuditAction = "admin.create"
-	ActionAdminRoleUpdate AuditAction = "admin.role_update"
-	ActionAdminLogin      AuditAction = "admin.login"
+	ActionAdminCreate                  AuditAction = "admin.create"
+	ActionAdminRoleUpdate              AuditAction = "admin.role_update"
+	ActionAdminLogin                   AuditAction = "admin.login"
+	ActionBroadcastNotificationCreated AuditAction = "notification.broadcast_created"
 
 	// User Management
 	ActionUserCreate         AuditAction = "user.create"

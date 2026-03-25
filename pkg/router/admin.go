@@ -31,6 +31,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/plans", admin.GetPlans)
 		adminAuthUrl.GET("/dashboard/user-growth", admin.GetUserGrowth)
 		adminAuthUrl.GET("/admins/invitations/dashboard", admin.GetInvitationDashboard)
+		adminAuthUrl.POST("/notifications/broadcast", admin.BroadcastNotification)
 		adminAuthUrl.GET("/dashboard/activity", admin.GetAppActivity)
 
 		// Billing management

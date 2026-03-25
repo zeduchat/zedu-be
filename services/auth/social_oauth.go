@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Timothylock/go-signin-with-apple/apple"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/gosimple/slug"
@@ -271,4 +272,212 @@ func isGoogleIDToken(token string) bool {
 	}
 	// Check if it starts with base64 encoded JSON header
 	return strings.HasPrefix(token, "eyJ")
+}
+
+func isAppleIDToken(token string) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	if len(token) < 100 {
+		return false
+	}
+
+	return strings.HasPrefix(token, "eyJ")
+}
+
+func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, logger *utility.Logger) (gin.H, int, error) {
+
+	var (
+		reqUser      models.CreateUserRequestModel
+		sendWelcome  bool
+		responseData gin.H
+		org          models.Organisation
+		idToken      string
+	)
+
+	if isAppleIDToken(req.Token) {
+		idToken = req.Token
+	} else {
+		client := apple.New()
+
+		secret, err := apple.GenerateClientSecret(config.Config.Apple.PRIVATE_KEY, config.Config.Apple.TEAM_ID, config.Config.Apple.CLIENT_ID, config.Config.Apple.KEY_ID)
+		if err != nil {
+			logger.Error("Failed to generate apple client secret: %v", err)
+			return responseData, http.StatusInternalServerError, fmt.Errorf("failed to generate apple client secret: %v", err)
+		}
+
+		vReq := apple.AppValidationTokenRequest{
+			ClientID:     config.Config.Apple.CLIENT_ID,
+			ClientSecret: secret,
+			Code:         req.Token,
+		}
+
+		var appleResp apple.ValidationResponse
+		err = client.VerifyAppToken(c.Request.Context(), vReq, &appleResp)
+		if err != nil {
+			logger.Error("Failed to validate apple token: %v", err)
+			return responseData, http.StatusBadRequest, fmt.Errorf("failed to validate apple token: %v", err)
+		}
+
+		idToken = appleResp.IDToken
+	}
+
+	claim, err := apple.GetClaims(idToken)
+	if err != nil {
+		logger.Error("Failed to get apple claims: %v", err)
+		return responseData, http.StatusBadRequest, fmt.Errorf("failed to get apple claims: %v", err)
+	}
+
+	email, ok := (*claim)["email"].(string)
+	if !ok || email == "" {
+		return responseData, http.StatusBadRequest, fmt.Errorf("email missing in apple token")
+	}
+
+	logger.Info("Apple login successful for email: %s", email)
+
+	name := strings.Split(email, "@")[0]
+	username := strings.ToLower(name)
+
+	var user models.User
+
+	reqUser = models.CreateUserRequestModel{
+		Email: email,
+	}
+	formattedReq, err := ValidateCreateUserRequest(reqUser, db)
+	if err != nil {
+		return responseData, http.StatusBadRequest, fmt.Errorf("invalid user data: %v", err)
+	}
+
+	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
+	if exists {
+		logger.Info("Existing user found for email: %s", formattedReq.Email)
+		user, err = user.GetUserByEmail(db, formattedReq.Email)
+
+		if err != nil {
+			logger.Error("Failed to fetch existing user: %v", err)
+			return responseData, http.StatusInternalServerError, fmt.Errorf("error fetching user %v", err.Error())
+		}
+
+		if user.DeletedAt.Valid {
+			return responseData, http.StatusForbidden, fmt.Errorf("account has been deleted")
+		}
+
+	} else {
+		logger.Info("Creating new user for email: %s", formattedReq.Email)
+
+		user = models.User{
+			ID:             utility.GenerateUUID(),
+			Name:           username,
+			Email:          formattedReq.Email,
+			IsVerified:     true,
+			ProfileUpdated: true,
+			IsOnboarded:    true,
+			Profile: models.Profile{
+				FullName: username,
+				UserName: username,
+				ID:       utility.GenerateUUID(),
+			},
+		}
+
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if err := user.CreateUser(tx); err != nil {
+				return fmt.Errorf("failed to create user: %w", err)
+			}
+
+			sendWelcome = true
+
+			ipAddress := audit_utility.GetClientIP(c)
+
+			response, _ := extReq.SendExternalRequest("ipinfo_resolve_ip", ipAddress)
+
+			info, _ := response.(external_models.IPInfoResponse)
+
+			createPersonalOrgReq := models.CreateOrgRequestModel{
+				Name:        username,
+				Description: fmt.Sprintf("%s's organization", username),
+				Email:       email,
+				Type:        "User Default Org",
+				Country:     info.Country,
+				Location:    info.Location,
+			}
+
+			org, err := organisation.CreateOrganisation(createPersonalOrgReq, tx, user.ID, logger)
+			if err != nil {
+				return fmt.Errorf("failed to create user organization: %w", err)
+			}
+
+			user.CurrentOrg = uuid.FromStringOrNil(org.ID)
+
+			if err := tx.Save(&user).Error; err != nil {
+				return fmt.Errorf("failed to update user org: %w", err)
+			}
+
+			logger.Info("Successfully created user and personal organization for: %s", email)
+			return nil
+		})
+
+		if err != nil {
+			return responseData, http.StatusInternalServerError, err
+		}
+	}
+
+	tokenData, err := middleware.CreateToken(user, c)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"exp":          strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	access_token := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+
+	err = access_token.CreateAccessToken(db, tokens)
+
+	if err != nil {
+		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %v", err.Error())
+	}
+
+	org, _ = org.GetOrgByID(db, user.CurrentOrg.String())
+
+	responseData = gin.H{
+		"user": map[string]any{
+			"id":                        user.ID,
+			"user_id":                   user.ID,
+			"email":                     user.Email,
+			"username":                  user.Name,
+			"fullname":                  user.Name,
+			"current_org":               user.CurrentOrg,
+			"current_organisation_slug": slug.Make(org.Name),
+			"is_verified":               user.IsVerified,
+			"profile_updated":           user.ProfileUpdated,
+			"is_onboarded":              user.IsOnboarded,
+			"avatar_url":                user.Profile.AvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(user.ID),
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(user.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(user.UpdatedAt.Unix())),
+			"organisation":              org,
+			"online":                    user.Profile.Online,
+		},
+		"access_token":            tokenData.AccessToken,
+		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+		"notification_token":      access_token.SubAccessToken,
+	}
+	if sendWelcome {
+		resetReq := models.SendWelcomeMail{
+			Email: user.Email,
+		}
+
+		err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+		if err != nil {
+			return responseData, http.StatusInternalServerError, err
+		}
+	}
+
+	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
+
+	return responseData, http.StatusCreated, nil
 }

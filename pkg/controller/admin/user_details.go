@@ -16,6 +16,12 @@ func (base *Controller) GetUserDetails(c *gin.Context) {
 		return
 	}
 
+	if !utility.IsValidUUID(userID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user_id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	response, code, err := admin.GetUserDetails(base.Db.Postgresql, userID)
 	if err != nil {
 		base.Logger.Error("failed to get user details", err)
