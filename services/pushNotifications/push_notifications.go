@@ -225,7 +225,7 @@ func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gor
 		return nil
 	}
 
-	err = onesignal.OptionalSendNotification(logger, subscriptionID, req)
+	err = onesignal.OptionalSendNotification(logger, subscriptionID, req, db, req.UserId)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send OneSignal notification: %s", err.Error()))
 		return nil // Non-critical error, don't fail the notification flow
@@ -277,11 +277,13 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 		return nil
 	}
 
-	// Filter out empty subscription IDs
+	// Filter out empty subscription IDs and collect user IDs
 	subscriptionIDs := make([]string, 0, len(users))
+	userIDs := make([]string, 0, len(users))
 	for _, user := range users {
 		if user.OneSignalSubscriptionID != "" {
 			subscriptionIDs = append(subscriptionIDs, user.OneSignalSubscriptionID)
+			userIDs = append(userIDs, user.ID)
 		}
 	}
 
@@ -292,7 +294,7 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 	req.Title = fmt.Sprintf("#%s ", req.ChannelName)
 	req.Message = fmt.Sprintf("(%s): %s", req.Username, req.Message)
 
-	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req)
+	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req, db, userIDs)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send batch OneSignal notification: %s", err.Error()))
 		return nil // Non-critical error, don't fail the notification flow
@@ -322,7 +324,7 @@ func SendOneSignalNotificationToUser(logger *utility.Logger, db *gorm.DB, userID
 		AvatarUrl: req.AvatarUrl,
 	}
 
-	err = onesignal.SendNotification(logger, subscriptionID, pushReq)
+	err = onesignal.SendNotification(logger, subscriptionID, pushReq, db, userID)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send OneSignal notification: %s", err.Error()))
 		return fmt.Errorf("failed to send OneSignal notification")
@@ -333,13 +335,13 @@ func SendOneSignalNotificationToUser(logger *utility.Logger, db *gorm.DB, userID
 
 // PushOneSignalToUsersForBroadcast sends a OneSignal broadcast notification to multiple users
 // Used for admin broadcast notifications to all users
-func PushOneSignalToUsersForBroadcast(req models.PushRequest, logger *utility.Logger, db *gorm.DB, subscriptionIDs []string) error {
+func PushOneSignalToUsersForBroadcast(req models.PushRequest, logger *utility.Logger, db *gorm.DB, subscriptionIDs []string, userIDs []string) error {
 	if len(subscriptionIDs) == 0 {
 		logger.Info("No subscription IDs provided for broadcast notification")
 		return nil
 	}
 
-	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req)
+	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req, db, userIDs)
 	if err != nil {
 		logger.Error(fmt.Sprintf("failed to send broadcast OneSignal notification: %s", err.Error()))
 		return fmt.Errorf("failed to send broadcast notification: %w", err)

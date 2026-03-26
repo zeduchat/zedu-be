@@ -560,7 +560,7 @@ func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userI
 		"event":              payload.Event,
 	}
 
-	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData); err != nil {
+	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData, db.Postgresql, userIDs); err != nil {
 		logger.Error("sendDirectCallOneSignal: failed to send notification: %v", err)
 	}
 }
