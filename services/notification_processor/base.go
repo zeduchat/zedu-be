@@ -158,6 +158,16 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 		Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
+		Payload: map[string]interface{}{
+			"org_id":       orgId,
+			"channel_id":   channelId,
+			"channel_name": feed.ChannelName,
+			"sender_name":  feed.UserName,
+			"sender_id":    feed.UserId,
+			"avatar_url":   feed.AvatarURL,
+			"content":      stripHTMLTags(feed.Content),
+			"event":        "new_message",
+		},
 	}
 
 	// Push OneSignal notification to channel users
@@ -212,6 +222,16 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       feed.ChannelName,
+				Payload: map[string]interface{}{
+					"org_id":       orgId,
+					"channel_id":   channelId,
+					"channel_name": feed.ChannelName,
+					"sender_name":  feed.UserName,
+					"sender_id":    feed.UserId,
+					"avatar_url":   feed.AvatarURL,
+					"content":      stripHTMLTags(feed.Content),
+					"event":        "new_message",
+				},
 			}
 
 			// Send OneSignal notification to single DM user
@@ -276,6 +296,16 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
+				Payload: map[string]interface{}{
+					"org_id":       orgId,
+					"channel_id":   channelId,
+					"channel_name": feed.ChannelName,
+					"sender_name":  feed.UserName,
+					"sender_id":    feed.UserId,
+					"avatar_url":   feed.AvatarURL,
+					"content":      stripHTMLTags(feed.Content),
+					"event":        "new_message",
+				},
 			}
 
 			// Send OneSignal notification to group DM users

@@ -434,7 +434,9 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	// This way if token generation fails, we haven't polluted the database
 	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
 
-	if remainingTime == 0 {
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		remainingTime = agora.DefaultTokenExpirationSeconds
+	} else if remainingTime == 0 {
 		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
 	}
 
@@ -848,13 +850,13 @@ func EndBuzz(db *storage.Database, logger *utility.Logger, buzzID, hostID string
 	logger.Info("host %s attempting to end buzz %s", hostID, buzzID)
 
 	// Use centralized permission check
-	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, hostID)
+	buzz, err := permissions.IsBuzzActive(db.Postgresql, buzzID)
 	if err != nil {
 		statusCode, errMsg := mapPermissionError(err, "end")
-		logger.Error("permission check failed for user %s ending buzz %s: %v", hostID, buzzID, err)
+		logger.Error("status check failed for user %s ending buzz %s: %v", hostID, buzzID, err)
 		return nil, statusCode, errors.New(errMsg)
 	}
-	logger.Info("permission validated for host %s to end buzz %s", hostID, buzzID)
+	logger.Info("buzz %s status validated for ending", buzzID)
 
 	// Handle direct call cancellation logic if it's a DM or Group DM
 	if buzz.ChannelType == models.ChannelTypeDM || buzz.ChannelType == models.ChannelTypeGroupDM {

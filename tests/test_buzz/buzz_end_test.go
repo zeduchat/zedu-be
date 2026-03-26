@@ -97,7 +97,7 @@ func TestBuzzEnd(t *testing.T) {
 		t.Fatal("failed to obtain buzzID")
 	}
 
-	t.Run("EndBuzzFailsWhenNonHostAttempts", func(t *testing.T) {
+	t.Run("EndBuzzSuccessByNonHost", func(t *testing.T) {
 		// Create a second user (non-host)
 		nonHostEmail := utility.GenerateUUID() + "@qa.team"
 		nonHostSignUp := models.CreateUserRequestModel{Email: nonHostEmail, Password: "password"}
@@ -122,12 +122,13 @@ func TestBuzzEnd(t *testing.T) {
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 
-		tst.AssertStatusCode(t, rr.Code, http.StatusForbidden)
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 		data := tst.ParseResponse(rr)
-		message := data["message"].(string)
-		if message != "only the buzz host can perform this action" {
-			t.Errorf("expected error message 'only the buzz host can perform this action', got %s", message)
+		dataM := data["data"].(map[string]any)
+
+		if dataM["buzz_id"].(string) != buzzID {
+			t.Errorf("expected buzz_id %s, got %s", buzzID, dataM["buzz_id"].(string))
 		}
 	})
 
