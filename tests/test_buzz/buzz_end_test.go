@@ -101,7 +101,7 @@ func TestBuzzEnd(t *testing.T) {
 		// Create a second user (non-host)
 		nonHostEmail := utility.GenerateUUID() + "@qa.team"
 		nonHostSignUp := models.CreateUserRequestModel{Email: nonHostEmail, Password: "password"}
-		nonHostLogin := models.LoginRequestModel{Email: nonHostSignUp.Email, Password: nonHostSignUp.Password}
+		nonHostLogin := models.LoginRequestModel{Email: nonHostEmail, Password: "password"}
 
 		tst.SignupUser(t, router, auth, nonHostSignUp, false)
 		nonHostToken := tst.GetLoginToken(t, router, auth, nonHostLogin)
@@ -109,8 +109,14 @@ func TestBuzzEnd(t *testing.T) {
 			t.Fatalf("failed to obtain non-host login token")
 		}
 
+		// Create a new buzz for this test to avoid conflict
+		newBuzzID, _ := tst.CreateBuzz(t, router, buzzController, db, createBuzzData, hostToken)
+		if newBuzzID == "" {
+			t.Fatal("failed to obtain newBuzzID")
+		}
+
 		// Try to end buzz as non-host
-		url := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
+		url := fmt.Sprintf("/api/v1/buzz/%s/end", newBuzzID)
 		req, err := http.NewRequest(http.MethodPost, url, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -125,10 +131,13 @@ func TestBuzzEnd(t *testing.T) {
 		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 		data := tst.ParseResponse(rr)
-		dataM := data["data"].(map[string]any)
+		dataM, ok := data["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected data field in response, got %v", data)
+		}
 
-		if dataM["buzz_id"].(string) != buzzID {
-			t.Errorf("expected buzz_id %s, got %s", buzzID, dataM["buzz_id"].(string))
+		if dataM["buzz_id"].(string) != newBuzzID {
+			t.Errorf("expected buzz_id %s, got %s", newBuzzID, dataM["buzz_id"].(string))
 		}
 	})
 
@@ -148,7 +157,10 @@ func TestBuzzEnd(t *testing.T) {
 		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 		data := tst.ParseResponse(rr)
-		dataM := data["data"].(map[string]any)
+		dataM, ok := data["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected data field in response, got %v", data)
+		}
 
 		if dataM["buzz_id"].(string) != buzzID {
 			t.Errorf("expected buzz_id %s, got %s", buzzID, dataM["buzz_id"].(string))
