@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	onesignalapi "github.com/OneSignal/onesignal-go-api/v5"
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	onesignalService "github.com/hngprojects/telex_be/services/onesignal"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -39,17 +41,17 @@ func ConnectOneSignal(logger *utility.Logger, cfg config.OneSignal) {
 }
 
 // SendNotification sends a push notification to a single user via OneSignal subscription ID
-func SendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest) error {
+func SendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest, db *gorm.DB, userID string) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		return fmt.Errorf("OneSignal client not initialized")
 	}
 
 	subscriptionIDs := []string{subscriptionID}
-	return SendBatchNotifications(logger, subscriptionIDs, req)
+	return SendBatchNotifications(logger, subscriptionIDs, req, db, []string{userID})
 }
 
 // SendBatchNotifications sends a push notification to multiple users via OneSignal subscription IDs
-func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest) error {
+func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest, db *gorm.DB, userIDs []string) error {
 	if len(subscriptionIDs) == 0 {
 		return fmt.Errorf("no subscription IDs provided")
 	}
@@ -72,8 +74,10 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, re
 	notification.SetContents(contentsMap)
 	notification.SetHeadings(headingsMap)
 
+	var payloadData map[string]interface{}
 	if req.Payload != nil {
 		if data, ok := req.Payload.(map[string]interface{}); ok {
+			payloadData = data
 			notification.SetData(data)
 		}
 	}
@@ -112,30 +116,42 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, re
 	}
 
 	logger.Info("Successfully sent OneSignal notification to %d recipients. ID: %s", len(subscriptionIDs), notificationID)
+
+	// Save notification to database if db and userIDs provided
+	if db != nil && len(userIDs) > 0 && notificationID != "" {
+		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, payloadData)
+		if err != nil {
+			logger.Error("Failed to save notification to database: %v", err)
+			// Don't fail the notification flow if DB save fails
+		} else {
+			logger.Info("Successfully saved notification to database for %d users", len(userIDs))
+		}
+	}
+
 	return nil
 }
 
 // OptionalSendNotification sends a notification without failing if OneSignal is not initialized
-func OptionalSendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest) error {
+func OptionalSendNotification(logger *utility.Logger, subscriptionID string, req models.PushRequest, db *gorm.DB, userID string) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		logger.Info("OneSignal client not initialized, skipping notification")
 		return nil
 	}
 
-	return SendNotification(logger, subscriptionID, req)
+	return SendNotification(logger, subscriptionID, req, db, userID)
 }
 
 // OptionalSendBatchNotifications sends batch notifications without failing if OneSignal is not initialized
-func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest) error {
+func OptionalSendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest, db *gorm.DB, userIDs []string) error {
 	if Client.Client == nil || Client.AppID == "" || Client.ApiKey == "" {
 		logger.Info("OneSignal client not initialized, skipping batch notification")
 		return nil
 	}
 
-	return SendBatchNotifications(logger, subscriptionIDs, req)
+	return SendBatchNotifications(logger, subscriptionIDs, req, db, userIDs)
 }
 
-func SendDirectCallNotification(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest, callData map[string]interface{}) error {
+func SendDirectCallNotification(logger *utility.Logger, subscriptionIDs []string, req models.PushRequest, callData map[string]interface{}, db *gorm.DB, userIDs []string) error {
 	if len(subscriptionIDs) == 0 {
 		return fmt.Errorf("no subscription IDs provided")
 	}
@@ -189,5 +205,17 @@ func SendDirectCallNotification(logger *utility.Logger, subscriptionIDs []string
 	}
 
 	logger.Info("Successfully sent OneSignal direct call notification to %d recipients. ID: %s", len(subscriptionIDs), notificationID)
+
+	// Save notification to database if db and userIDs provided
+	if db != nil && len(userIDs) > 0 && notificationID != "" {
+		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, callData)
+		if err != nil {
+			logger.Error("Failed to save notification to database: %v", err)
+			// Don't fail the notification flow if DB save fails
+		} else {
+			logger.Info("Successfully saved notification to database for %d users", len(userIDs))
+		}
+	}
+
 	return nil
 }

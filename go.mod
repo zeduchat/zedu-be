@@ -11,6 +11,7 @@ require (
 	github.com/AgoraIO-Community/go-tokenbuilder v1.3.0
 	github.com/OneSignal/onesignal-go-api/v5 v5.3.0-beta1
 	github.com/SherClockHolmes/webpush-go v1.4.0
+	github.com/Timothylock/go-signin-with-apple v0.2.7
 	github.com/centrifugal/gocent v2.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/didip/tollbooth v4.0.2+incompatible
@@ -51,6 +52,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/thanhpk/randstr v1.0.6
 	github.com/typesense/typesense-go/v2 v2.0.0
+	github.com/yapingcat/gomedia v0.0.0-20240906162731-17feea57090c
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.42.0
 	google.golang.org/api v0.215.0
@@ -74,7 +76,6 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.48.1 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.48.1 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
-	github.com/Timothylock/go-signin-with-apple v0.2.7 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
@@ -109,9 +110,7 @@ require (
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.2.0 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
-	github.com/yapingcat/gomedia v0.0.0-20240906162731-17feea57090c // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.29.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.29.0 // indirect

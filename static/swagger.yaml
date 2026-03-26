@@ -20061,6 +20061,209 @@ paths:
               schema:
                 $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
+  /users/onesignal-notifications:
+    get:
+      tags:
+        - OneSignal Notification
+      summary: Get user's OneSignal notifications
+      description: |-
+        Retrieves a paginated list of OneSignal notifications sent to the authenticated user.
+        Notifications are automatically tracked when sent through the platform.
+
+        **Features:**
+        - Pagination support for efficient data retrieval
+        - Filter by delivery status (pending, delivered, read, failed)
+        - Date range filtering for custom time periods
+        - Ordered by most recent first (sent_at DESC)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: "Page number for pagination (default: 1)"
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+            example: 1
+        - name: page_size
+          in: query
+          required: false
+          description: "Number of notifications per page (default: 20, max: 100)"
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+            example: 20
+        - name: status
+          in: query
+          required: false
+          description: Filter notifications by delivery status
+          schema:
+            type: string
+            enum: [pending, delivered, read, failed]
+            example: "delivered"
+        - name: start_date
+          in: query
+          required: false
+          description: Filter notifications sent after this date (RFC3339 format)
+          schema:
+            type: string
+            format: date-time
+            example: "2024-03-01T00:00:00Z"
+        - name: end_date
+          in: query
+          required: false
+          description: Filter notifications sent before this date (RFC3339 format)
+          schema:
+            type: string
+            format: date-time
+            example: "2024-03-31T23:59:59Z"
+      responses:
+        "200":
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Response status
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code
+                  message:
+                    type: string
+                    example: Notifications retrieved successfully
+                    description: Response message
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        description: Array of OneSignal notifications
+                        items:
+                          $ref: "#/components/schemas/OneSignalNotificationItem"
+                      pagination:
+                        type: object
+                        description: Pagination metadata
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                            description: Current page number
+                          page_size:
+                            type: integer
+                            example: 20
+                            description: Number of items per page
+                          total_items:
+                            type: integer
+                            example: 100
+                            description: Total number of notifications
+                          total_pages:
+                            type: integer
+                            example: 5
+                            description: Total number of pages
+        "400":
+          description: Bad request - Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized - Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
+  /users/onesignal-notifications/{notification_id}/read:
+    put:
+      tags:
+        - OneSignal Notification
+      summary: Mark notification as read
+      description: |-
+        Marks a specific OneSignal notification as read for the authenticated user.
+        Only the notification recipient can mark it as read.
+
+        **Validation:**
+        - Notification must belong to the authenticated user
+        - Notification ID must be a valid UUID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          description: The UUID of the notification to mark as read
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        "200":
+          description: Notification marked as read successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                    description: Response status
+                  status_code:
+                    type: integer
+                    example: 200
+                    description: HTTP status code
+                  message:
+                    type: string
+                    example: Notification marked as read
+                    description: Response message
+                  data:
+                    type: object
+                    properties:
+                      notification_id:
+                        type: string
+                        format: uuid
+                        example: "550e8400-e29b-41d4-a716-446655440000"
+                        description: The ID of the marked notification
+        "400":
+          description: Bad request - Invalid notification ID format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized - Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "404":
+          description: Not found - Notification does not exist or belongs to another user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   # file management
   /files/upload-files:
     post:
@@ -35548,6 +35751,89 @@ components:
         - status
         - message
         - data
+
+    OneSignalNotificationItem:
+      type: object
+      description: A single OneSignal notification record
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the notification record
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        onesignal_notification_id:
+          type: string
+          description: The notification ID from OneSignal API
+          example: "abc123-xyz789-def456"
+        user_id:
+          type: string
+          format: uuid
+          description: The ID of the user who received this notification
+          example: "019142c8-5408-7a48-8173-f31e6c8e00cd"
+        title:
+          type: string
+          description: The notification title
+          example: "New Message in #general"
+        message:
+          type: string
+          description: The notification message body
+          example: "(john): Hello everyone!"
+        payload:
+          type: object
+          description: Additional metadata (channel_id, org_id, etc.)
+          nullable: true
+          example:
+            channel_id: "chan-123"
+            org_id: "org-456"
+            message_id: "msg-789"
+        avatar_url:
+          type: string
+          format: uri
+          description: URL of the avatar image displayed with the notification
+          nullable: true
+          example: "https://cdn.example.com/avatars/john.jpg"
+        status:
+          type: string
+          enum: [pending, delivered, read, failed]
+          description: Current delivery status of the notification
+          example: "delivered"
+        sent_at:
+          type: string
+          format: date-time
+          description: Timestamp when the notification was sent to OneSignal
+          example: "2024-03-26T10:30:00Z"
+        delivered_at:
+          type: string
+          format: date-time
+          description: Timestamp when the notification was delivered to the device (null if not delivered)
+          nullable: true
+          example: "2024-03-26T10:30:02Z"
+        read_at:
+          type: string
+          format: date-time
+          description: Timestamp when the user marked the notification as read (null if unread)
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the notification record was created
+          example: "2024-03-26T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the notification record was last updated
+          example: "2024-03-26T10:30:02Z"
+      required:
+        - id
+        - onesignal_notification_id
+        - user_id
+        - title
+        - message
+        - status
+        - sent_at
+        - created_at
+        - updated_at
 
     WebhookHistory:
       type: object
