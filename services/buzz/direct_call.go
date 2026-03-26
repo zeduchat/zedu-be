@@ -223,6 +223,9 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		service := agora.Client.Service
 		if service != nil {
 			remaining := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+			if buzz.BuzzType == models.BuzzTypeOrganization {
+				remaining = agora.DefaultTokenExpirationSeconds
+			}
 			if remaining > 0 {
 				token, err := service.GenerateRTCToken(buzzID, userID, userID, remaining)
 				if err != nil {

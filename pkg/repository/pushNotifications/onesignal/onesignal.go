@@ -72,6 +72,12 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, re
 	notification.SetContents(contentsMap)
 	notification.SetHeadings(headingsMap)
 
+	if req.Payload != nil {
+		if data, ok := req.Payload.(map[string]interface{}); ok {
+			notification.SetData(data)
+		}
+	}
+
 	if req.AvatarUrl != "" {
 		notification.SetLargeIcon(req.AvatarUrl)
 		notification.SetBigPicture(req.AvatarUrl)
