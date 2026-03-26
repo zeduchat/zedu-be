@@ -1,21 +1,18 @@
 package onesignal
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 )
 
-type OneSignalNotificationService struct {
-	db *gorm.DB
-}
-
-func NewOneSignalNotificationService(db *gorm.DB) *OneSignalNotificationService {
-	return &OneSignalNotificationService{db: db}
-}
-
-func (s *OneSignalNotificationService) SaveNotification(onesignalID, userID, title, message, avatarURL string, payload map[string]interface{}) (*models.OneSignalNotification, error) {
+func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarURL string, payload map[string]interface{}) (*models.OneSignalNotification, int, error) {
 	notification := &models.OneSignalNotification{
 		OneSignalNotificationID: onesignalID,
 		UserID:                  userID,
@@ -27,15 +24,17 @@ func (s *OneSignalNotificationService) SaveNotification(onesignalID, userID, tit
 		SentAt:                  time.Now(),
 	}
 
-	err := notification.Create(s.db)
+	err := notification.Create(db)
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to save notification: %w", err)
 	}
 
-	return notification, nil
+	return notification, http.StatusCreated, nil
 }
 
-func (s *OneSignalNotificationService) SaveBatchNotifications(onesignalID string, userIDs []string, title, message, avatarURL string, payload map[string]interface{}) error {
+func SaveBatchNotifications(db *gorm.DB, onesignalID string, userIDs []string, title, message, avatarURL string, payload map[string]interface{}) (int, int, error) {
+	successCount := 0
+
 	for _, userID := range userIDs {
 		notification := &models.OneSignalNotification{
 			OneSignalNotificationID: onesignalID,
@@ -48,22 +47,68 @@ func (s *OneSignalNotificationService) SaveBatchNotifications(onesignalID string
 			SentAt:                  time.Now(),
 		}
 
-		err := notification.Create(s.db)
+		err := notification.Create(db)
 		if err != nil {
-			return err
+			continue
 		}
+		successCount++
 	}
-	return nil
+
+	if successCount == 0 {
+		return 0, http.StatusInternalServerError, fmt.Errorf("failed to save any notifications")
+	}
+
+	return successCount, http.StatusOK, nil
 }
 
-func (s *OneSignalNotificationService) GetUserNotifications(userID string, page, pageSize int, status string, startDate, endDate *time.Time) (*models.OneSignalNotificationPaginationResponse, error) {
-	notifications, total, err := models.GetNotificationsByUser(s.db, userID, page, pageSize, status, startDate, endDate)
+func GetUserNotifications(db *gorm.DB, c *gin.Context) (*models.OneSignalNotificationPaginationResponse, int, error) {
+	userID, err := middleware.GetUserClaims(c, db, "user_id")
 	if err != nil {
-		return nil, err
+		return nil, http.StatusUnauthorized, fmt.Errorf("authentication required: %w", err)
 	}
 
-	totalPages := int(total) / pageSize
-	if int(total)%pageSize > 0 {
+	userIDStr, ok := userID.(string)
+	if !ok {
+		return nil, http.StatusBadRequest, fmt.Errorf("invalid user ID type")
+	}
+
+	page := c.GetInt("page")
+	if page < 1 {
+		page = 1
+	}
+
+	pageSize := c.GetInt("page_size")
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	status := c.Query("status")
+
+	var startDate, endDate *time.Time
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	if startDateStr != "" {
+		parsedTime, err := time.Parse(time.RFC3339, startDateStr)
+		if err == nil {
+			startDate = &parsedTime
+		}
+	}
+
+	if endDateStr != "" {
+		parsedTime, err := time.Parse(time.RFC3339, endDateStr)
+		if err == nil {
+			endDate = &parsedTime
+		}
+	}
+
+	notifications, total, err := models.GetNotificationsByUser(db, userIDStr, page, pageSize, status, startDate, endDate)
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to fetch notifications: %w", err)
+	}
+
+	totalPages := int(total) / int(pageSize)
+	if int(total)%int(pageSize) > 0 {
 		totalPages++
 	}
 
@@ -73,14 +118,14 @@ func (s *OneSignalNotificationService) GetUserNotifications(userID string, page,
 		PageSize:      pageSize,
 		TotalItems:    total,
 		TotalPages:    totalPages,
-	}, nil
+	}, http.StatusOK, nil
 }
 
-func (s *OneSignalNotificationService) UpdateNotificationStatus(onesignalID string, status models.OneSignalNotificationStatus) error {
+func UpdateNotificationStatus(db *gorm.DB, onesignalID string, status models.OneSignalNotificationStatus) error {
 	var notification models.OneSignalNotification
-	err := s.db.Where("onesignal_notification_id = ? AND deleted_at IS NULL", onesignalID).First(&notification).Error
-	if err != nil {
-		return err
+	result := db.Model(&notification).Where("onesignal_notification_id = ? AND deleted_at IS NULL", onesignalID).First(&notification)
+	if result.Error != nil {
+		return fmt.Errorf("notification not found: %w", result.Error)
 	}
 
 	notification.Status = status
@@ -90,15 +135,25 @@ func (s *OneSignalNotificationService) UpdateNotificationStatus(onesignalID stri
 		notification.DeliveredAt = &now
 	}
 
-	return notification.Update(s.db)
-}
-
-func (s *OneSignalNotificationService) MarkNotificationAsRead(notificationID string) error {
-	var notification models.OneSignalNotification
-	err := s.db.Where("id = ? AND deleted_at IS NULL", notificationID).First(&notification).Error
+	err := notification.Update(db)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update notification status: %w", err)
 	}
 
-	return notification.MarkAsRead(s.db)
+	return nil
+}
+
+func MarkNotificationAsRead(db *gorm.DB, notificationID, userID string) (string, int, error) {
+	var notification models.OneSignalNotification
+	result := db.Model(&notification).Where("id = ? AND user_id = ? AND deleted_at IS NULL", notificationID, userID).First(&notification)
+	if result.Error != nil {
+		return "", http.StatusNotFound, fmt.Errorf("notification not found: %w", result.Error)
+	}
+
+	err := notification.MarkAsRead(db)
+	if err != nil {
+		return "", http.StatusInternalServerError, fmt.Errorf("failed to mark notification as read: %w", err)
+	}
+
+	return notification.ID, http.StatusOK, nil
 }
