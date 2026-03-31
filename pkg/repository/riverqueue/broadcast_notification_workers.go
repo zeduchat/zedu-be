@@ -65,11 +65,13 @@ func (w *BroadcastNotificationWorker) Work(ctx context.Context, job *river.Job[m
 			break
 		}
 
-		// Build subscription IDs for this batch
+		// Build subscription IDs and user IDs for this batch
 		subscriptionIDs := make([]string, 0, len(users))
+		userIDs := make([]string, 0, len(users))
 		for _, user := range users {
 			if user.OneSignalSubscriptionID != "" {
 				subscriptionIDs = append(subscriptionIDs, user.OneSignalSubscriptionID)
+				userIDs = append(userIDs, user.ID)
 			}
 		}
 
@@ -80,7 +82,7 @@ func (w *BroadcastNotificationWorker) Work(ctx context.Context, job *river.Job[m
 				AvatarUrl: args.AvatarUrl,
 			}
 
-			if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, w.logger, w.db, subscriptionIDs); err != nil {
+			if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, w.logger, w.db, subscriptionIDs, userIDs); err != nil {
 				w.logger.Error("Failed to send broadcast notification batch: %s", err.Error())
 				totalFailed += len(subscriptionIDs)
 			} else {

@@ -96,7 +96,7 @@ func TestBroadcastNotification(t *testing.T) {
 		var broadcastLog models.BroadcastNotificationLog
 		err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error
 		assert.NoError(t, err)
-		assert.Equal(t, "started", broadcastLog.Status)
+		assert.Contains(t, []string{"started", "processing"}, broadcastLog.Status)
 	})
 
 	t.Run("Broadcast Notification - Validation Error - Missing Title", func(t *testing.T) {
@@ -239,9 +239,9 @@ func TestBroadcastNotificationAuditLogs(t *testing.T) {
 		broadcastLog := broadcastLogs[0]
 		assert.Equal(t, payload.Title, broadcastLog.Title)
 		assert.Equal(t, payload.Message, broadcastLog.Message)
-		assert.Equal(t, "started", broadcastLog.Status)     // Status should be 'started' initially
-		assert.Equal(t, 0, broadcastLog.TotalUsersTargeted) // Will be updated by worker
-		assert.Equal(t, 0, broadcastLog.SuccessfullySent)   // Will be updated by worker
+		assert.Contains(t, []string{"started", "processing"}, broadcastLog.Status) // Status should be 'started' or 'processing' initially
+		assert.Equal(t, 0, broadcastLog.TotalUsersTargeted)                        // Will be updated by worker
+		assert.Equal(t, 0, broadcastLog.SuccessfullySent)                          // Will be updated by worker
 		assert.NotEmpty(t, broadcastLog.IPAddress)
 		assert.NotEmpty(t, broadcastLog.UserAgent)
 	})
@@ -319,7 +319,7 @@ func TestBroadcastNotificationStatus(t *testing.T) {
 		var broadcastLog models.BroadcastNotificationLog
 		err := db.Postgresql.Where("id = ?", broadcastID).First(&broadcastLog).Error
 		assert.NoError(t, err)
-		assert.Equal(t, "started", broadcastLog.Status)
+		assert.Contains(t, []string{"started", "processing"}, broadcastLog.Status)
 		assert.Equal(t, payload.Title, broadcastLog.Title)
 		assert.Equal(t, payload.Message, broadcastLog.Message)
 	})

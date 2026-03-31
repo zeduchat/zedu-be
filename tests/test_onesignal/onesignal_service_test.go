@@ -96,7 +96,7 @@ func TestOptionalSendNotification(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.OptionalSendNotification(logger, "test-sub-id", req)
+	err := onesignal.OptionalSendNotification(logger, "test-sub-id", req, nil, "")
 
 	assert.NoError(t, err)
 }
@@ -114,7 +114,7 @@ func TestOptionalSendBatchNotifications(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, req)
+	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, req, nil, nil)
 
 	assert.NoError(t, err)
 }
@@ -132,7 +132,7 @@ func TestSendNotificationNoClient(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.SendNotification(logger, "test-sub-id", req)
+	err := onesignal.SendNotification(logger, "test-sub-id", req, nil, "")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "OneSignal client not initialized")
@@ -154,7 +154,7 @@ func TestSendBatchNotificationsEmpty(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.SendBatchNotifications(logger, []string{}, req)
+	err := onesignal.SendBatchNotifications(logger, []string{}, req, nil, nil)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no subscription IDs provided")

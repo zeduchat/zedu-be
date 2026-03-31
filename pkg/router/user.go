@@ -43,6 +43,8 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.DELETE("/users/deactivate/:user_id", middleware.CheckIsDeactivated(db.Postgresql), user.DeactiveUser)
 		userUrl.GET("/users/:user_id/organisations/:org_id/roles", user.GetUserRoleInOrganisation)
 		userUrl.PUT("/users/onesignal-subscription-id", user.UpdateOneSignalSubscriptionID)
+		userUrl.GET("/users/onesignal-notifications", user.GetUserOneSignalNotifications)
+		userUrl.PUT("/users/onesignal-notifications/:notification_id/read", user.MarkOneSignalNotificationAsRead)
 		userUrl.GET("/users/me", auth.FetchUser)
 	}
 	{
