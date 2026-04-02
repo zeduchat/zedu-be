@@ -512,6 +512,8 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		"organisation":              org,
 		"access_token":              token.AccessToken,
 		"current_organisation_slug": slug.Make(org.Name),
+		"role":                      orgRole.Name,
+		"permissions":               orgRole.Permissions.PermissionList.ToSlice(),
 	}
 
 	return theData, http.StatusOK, nil
