@@ -30,19 +30,29 @@ func GetFreeVsPaidUserStats(db *gorm.DB, duration string) (FreeVsPaidStatsRespon
 	var dateFormat string
 	var step time.Duration
 
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch duration {
 	case "last_week":
-		startDate = now.AddDate(0, 0, -7)
+		startDate = today.AddDate(0, 0, -7)
 		dateFormat = "2006-01-02"
 		step = 24 * time.Hour
 	case "last_month":
-		startDate = now.AddDate(0, -1, 0)
+		startDate = today.AddDate(0, -1, 0)
 		dateFormat = "2006-01-02"
 		step = 24 * time.Hour
 	case "last_year":
-		startDate = now.AddDate(-1, 0, 0)
+		startDate = time.Date(now.Year()-1, now.Month(), 1, 0, 0, 0, 0, now.Location())
 		dateFormat = "2006-01"
-		step = 0 // handled differently
+		step = 0
+	case "all_time":
+		var oldestUser models.User
+		if err := db.Order("created_at asc").First(&oldestUser).Error; err == nil {
+			startDate = time.Date(oldestUser.CreatedAt.Year(), oldestUser.CreatedAt.Month(), 1, 0, 0, 0, 0, now.Location())
+		} else {
+			startDate = today.AddDate(-1, 0, 0)
+		}
+		dateFormat = "2006-01"
+		step = 0
 	default:
 		// Default to last month
 		duration = "last_month"
@@ -159,19 +169,20 @@ func GetAICreditUsageStats(db *gorm.DB, duration, unit string) (AICreditStatsRes
 	var dbDateFormat string
 
 	// 1. Determine Date Range
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	switch duration {
 	case "weekly":
-		startDate = now.AddDate(0, 0, -7)
+		startDate = today.AddDate(0, 0, -7)
 		dateFormat = "2006-01-02"
 		dbDateFormat = "YYYY-MM-DD"
 		step = 24 * time.Hour
 	case "monthly":
-		startDate = now.AddDate(0, -1, 0)
+		startDate = today.AddDate(0, -1, 0)
 		dateFormat = "2006-01-02"
 		dbDateFormat = "YYYY-MM-DD"
 		step = 24 * time.Hour
 	case "yearly":
-		startDate = now.AddDate(-1, 0, 0)
+		startDate = time.Date(now.Year()-1, now.Month(), 1, 0, 0, 0, 0, now.Location())
 		dateFormat = "2006-01"
 		dbDateFormat = "YYYY-MM"
 		step = 0
