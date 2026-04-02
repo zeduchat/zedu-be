@@ -85,7 +85,7 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 		FROM buzz_participants bp
 		JOIN users u ON bp.user_id = u.id
 		LEFT JOIN profiles p ON u.id = p.userid
-		WHERE bp.buzz_id = ?
+		WHERE bp.buzz_id = ? AND bp.status != 'left'
 		ORDER BY bp.joined_at ASC
 	`
 
