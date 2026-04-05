@@ -144,6 +144,10 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	}
 
 	logger.Info("published new_message notification to %d users", len(filteredUserIDs))
+	previewThread, err := GetPreviewThreads(channelId, userId)
+	if err != nil {
+		logger.Error("failed to get preview threads: %v", err.Error())
+	}
 
 	// Push fcm notification to channel users
 
@@ -167,8 +171,9 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 			"avatar_url":        feed.AvatarURL,
 			"content":           stripHTMLTags(feed.Content),
 			"event":             "new_message",
-			"notification_type": notifPayload.Notification.NotificationType,
+			"notification_type": "channel",
 			"section":           notifPayload.Notification.SectionType,
+			"preview_thread":    previewThread,
 		},
 	}
 
@@ -215,6 +220,11 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 			logger.Info("published new_message notification to %d users in dm", 1)
 
+			previewThread, err := GetPreviewThreads(channelId, userId)
+			if err != nil {
+				logger.Error("failed to get preview threads: %v", err.Error())
+			}
+
 			pushReq := models.PushRequest{
 				ChannelId:   channelId,
 				OrgId:       orgId,
@@ -233,8 +243,9 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"avatar_url":        feed.AvatarURL,
 					"content":           stripHTMLTags(feed.Content),
 					"event":             "new_message",
-					"notification_type": notifPayload.Notification.NotificationType,
+					"notification_type": "dm",
 					"section":           notifPayload.Notification.SectionType,
+					"preview_thread":    previewThread,
 				},
 			}
 
@@ -290,6 +301,10 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			}
 
 			logger.Info("published new_message notification to %d users in group_dm", len(filteredUserIDs))
+			previewThread, err := GetPreviewThreads(channelId, userId)
+			if err != nil {
+				logger.Error("failed to get preview threads: %v", err.Error())
+			}
 
 			pushReq := models.PushRequest{
 				ChannelId:   channelId,
@@ -309,8 +324,9 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"avatar_url":        feed.AvatarURL,
 					"content":           stripHTMLTags(feed.Content),
 					"event":             "new_message",
-					"notification_type": notifPayload.Notification.NotificationType,
+					"notification_type": "group_dm",
 					"section":           notifPayload.Notification.SectionType,
+					"preview_thread":    previewThread,
 				},
 			}
 
@@ -369,4 +385,29 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 	logger.Info("published thread notification to %d users", len(userIds))
 
 	return nil
+}
+
+func GetPreviewThreads(channelId, userId string) (previewThread []models.Threads, err error) {
+
+	previewThread = []models.Threads{}
+
+	threadCtx := &gin.Context{
+		Request: &http.Request{
+			URL: &url.URL{
+				RawQuery: "page=1&limit=50",
+			},
+		},
+	}
+
+	var thread models.Threads
+	threads, _, _, threadErr := thread.GetAllThreadsByChannelID(threadCtx, storage.DB.Postgresql, userId, channelId)
+	if threadErr == nil && len(threads) > 0 {
+		previewThread = threads
+	}
+
+	if threadErr != nil {
+		return nil, threadErr
+	}
+
+	return previewThread, nil
 }
