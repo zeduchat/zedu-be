@@ -57,15 +57,15 @@ type UserChannels struct {
 }
 
 type UserChannelHistory struct {
-	ID                  string     `gorm:"type:uuid;primary_key" json:"id"`
-	UserID              string     `gorm:"column:user_id;type:uuid;not null;index" json:"user_id"`
-	OrganisationID      string     `gorm:"column:organisation_id;type:uuid;not null;index" json:"organisation_id"`
+	ID                  string         `gorm:"type:uuid;primary_key" json:"id"`
+	UserID              string         `gorm:"column:user_id;type:uuid;not null;index" json:"user_id"`
+	OrganisationID      string         `gorm:"column:organisation_id;type:uuid;not null;index" json:"organisation_id"`
 	ChannelIDs          pq.StringArray `gorm:"column:channel_ids;type:uuid[];not null" json:"channel_ids"`
-	BanishedToChannelID *string    `gorm:"column:banished_to_channel_id;type:uuid" json:"banished_to_channel_id,omitempty"`
-	Action              string     `gorm:"column:action;type:varchar(20);not null;index" json:"action"` // banished, removed, restored
-	CreatedAt           time.Time  `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
-	UpdatedAt           time.Time  `gorm:"column:updated_at;not null;autoUpdateTime" json:"updated_at"`
-	DeletedAt           *time.Time `gorm:"index" json:"deleted_at,omitempty"`
+	BanishedToChannelID *string        `gorm:"column:banished_to_channel_id;type:uuid" json:"banished_to_channel_id,omitempty"`
+	Action              string         `gorm:"column:action;type:varchar(20);not null;index" json:"action"` // banished, removed, restored
+	CreatedAt           time.Time      `gorm:"column:created_at;not null;autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time      `gorm:"column:updated_at;not null;autoUpdateTime" json:"updated_at"`
+	DeletedAt           *time.Time     `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 type UpdateLastRead struct {
