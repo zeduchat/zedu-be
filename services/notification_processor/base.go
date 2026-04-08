@@ -236,7 +236,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				Title:       feed.ChannelName,
 				Payload: map[string]interface{}{
 					"org_id":            orgId,
-					"channel_id":        channelId,
+					"channel_id":        feed.ChannelID,
 					"channel_name":      feed.ChannelName,
 					"sender_name":       feed.UserName,
 					"sender_id":         feed.UserId,
