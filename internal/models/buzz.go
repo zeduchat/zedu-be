@@ -107,6 +107,7 @@ type ParticipantMetadata struct {
 	StatusSticker *string    `json:"status_sticker,omitempty"`
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
 	MediaState    *string    `json:"media_state,omitempty"`
+	Color         string     `json:"color"`
 }
 
 type BuzzCreateResponse struct {
