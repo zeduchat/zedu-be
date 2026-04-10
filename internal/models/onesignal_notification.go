@@ -35,6 +35,10 @@ type OneSignalNotification struct {
 	DeletedAt               gorm.DeletedAt              `gorm:"index" json:"-"`
 }
 
+func (OneSignalNotification) TableName() string {
+	return "onesignal_notifications"
+}
+
 type OneSignalNotificationPaginationResponse struct {
 	Notifications []OneSignalNotification `json:"notifications"`
 	Page          int                     `json:"page"`
