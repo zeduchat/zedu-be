@@ -144,13 +144,8 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	}
 
 	logger.Info("published new_message notification to %d users", len(filteredUserIDs))
-	// previewThread, err := GetPreviewThreads(channelId, userId)
-	// if err != nil {
-	// 	logger.Error("failed to get preview threads: %v", err.Error())
-	// }
 
 	// Push fcm notification to channel users
-
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
 
 	pushReq := models.PushRequest{
@@ -173,7 +168,6 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 			"event":             "new_message",
 			"notification_type": "channel",
 			"section":           notifPayload.Notification.SectionType,
-			// "preview_thread":    previewThread,
 		},
 	}
 
@@ -220,11 +214,6 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 
 			logger.Info("published new_message notification to %d users in dm", 1)
 
-			previewThread, err := GetPreviewThreads(channelId, userId)
-			if err != nil {
-				logger.Error("failed to get preview threads: %v", err.Error())
-			}
-
 			pushReq := models.PushRequest{
 				ChannelId:   channelId,
 				OrgId:       orgId,
@@ -245,7 +234,6 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"event":             "new_message",
 					"notification_type": "dm",
 					"section":           notifPayload.Notification.SectionType,
-					"preview_thread":    previewThread,
 				},
 			}
 
@@ -301,10 +289,6 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			}
 
 			logger.Info("published new_message notification to %d users in group_dm", len(filteredUserIDs))
-			previewThread, err := GetPreviewThreads(channelId, userId)
-			if err != nil {
-				logger.Error("failed to get preview threads: %v", err.Error())
-			}
 
 			pushReq := models.PushRequest{
 				ChannelId:   channelId,
@@ -326,7 +310,6 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"event":             "new_message",
 					"notification_type": "group_dm",
 					"section":           notifPayload.Notification.SectionType,
-					"preview_thread":    previewThread,
 				},
 			}
 

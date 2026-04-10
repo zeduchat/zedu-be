@@ -34,6 +34,7 @@ func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarUR
 
 func SaveBatchNotifications(db *gorm.DB, onesignalID string, userIDs []string, title, message, avatarURL string, payload map[string]interface{}) (int, int, error) {
 	successCount := 0
+	concatErr := ""
 
 	for _, userID := range userIDs {
 		notification := &models.OneSignalNotification{
@@ -49,13 +50,14 @@ func SaveBatchNotifications(db *gorm.DB, onesignalID string, userIDs []string, t
 
 		err := notification.Create(db)
 		if err != nil {
+			concatErr += err.Error() + ", "
 			continue
 		}
 		successCount++
 	}
 
 	if successCount == 0 {
-		return 0, http.StatusInternalServerError, fmt.Errorf("failed to save any notifications")
+		return 0, http.StatusInternalServerError, fmt.Errorf("failed to save any notifications: %s", concatErr)
 	}
 
 	return successCount, http.StatusOK, nil
