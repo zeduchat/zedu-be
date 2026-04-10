@@ -144,10 +144,10 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	}
 
 	logger.Info("published new_message notification to %d users", len(filteredUserIDs))
-	previewThread, err := GetPreviewThreads(channelId, userId)
-	if err != nil {
-		logger.Error("failed to get preview threads: %v", err.Error())
-	}
+	// previewThread, err := GetPreviewThreads(channelId, userId)
+	// if err != nil {
+	// 	logger.Error("failed to get preview threads: %v", err.Error())
+	// }
 
 	// Push fcm notification to channel users
 
@@ -173,7 +173,7 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 			"event":             "new_message",
 			"notification_type": "channel",
 			"section":           notifPayload.Notification.SectionType,
-			"preview_thread":    previewThread,
+			// "preview_thread":    previewThread,
 		},
 	}
 
