@@ -93,6 +93,11 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 		return nil, err
 	}
 
+	// Compute deterministic color for each participant based on userID
+	for i := range participants {
+		participants[i].Color = utility.GenerateUserColor(participants[i].UserID, participants[i].UserName)
+	}
+
 	return participants, nil
 }
 
