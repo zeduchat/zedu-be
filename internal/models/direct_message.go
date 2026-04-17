@@ -563,11 +563,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		dmChansResp = append(dmChansResp, resp)
 	}
 
-	slices.SortFunc(dmChansResp, func(a, b DmChannelsResponse) int {
-		if c := cmp.Compare(b.ThreadCount, a.ThreadCount); c != 0 {
-			return c
+	slices.SortStableFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+		if a.ThreadCount != b.ThreadCount {
+			return cmp.Compare(b.ThreadCount, a.ThreadCount)
 		}
-		return b.CreatedAt.Compare(a.CreatedAt)
+		if a.ThreadCount == 0 {
+			return b.CreatedAt.Compare(a.CreatedAt)
+		}
+		return 0
 	})
 
 	return dmChansResp, paginationResp, nil
