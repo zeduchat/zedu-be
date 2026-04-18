@@ -101,6 +101,8 @@ func main() {
 		seed.SeedCreditPackages(logger, db.Postgresql)
 		seed.SeedTranslatorPrompt(logger, db.Postgresql)
 		seed.SeedDefaultSlashCommands(logger, db.Postgresql)
+		seed.SeedZeduResourcePages(logger, db.Postgresql)
+		seed.SeedZeduGuides(logger, db.Postgresql)
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
