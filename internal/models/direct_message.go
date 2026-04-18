@@ -568,6 +568,15 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 			return cmp.Compare(b.ThreadCount, a.ThreadCount)
 		}
 		if a.ThreadCount == 0 {
+			if len(a.PreviewThread) > 0 && len(b.PreviewThread) > 0 {
+				return b.PreviewThread[0].CreatedAt.Compare(a.PreviewThread[0].CreatedAt)
+			}
+			if len(a.PreviewThread) > 0 {
+				return -1
+			}
+			if len(b.PreviewThread) > 0 {
+				return 1
+			}
 			return b.CreatedAt.Compare(a.CreatedAt)
 		}
 		return 0
