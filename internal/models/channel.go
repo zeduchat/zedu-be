@@ -122,6 +122,7 @@ type GetUserChannelResp []struct {
 	ActiveBuzz     *ActiveBuzzInfo `gorm:"-" json:"active_buzz,omitempty"`
 	PreviewThread  []Threads       `gorm:"-" json:"preview_thread"`
 	PreviewMessage string          `json:"preview_message"`
+	LastReadAt     time.Time       `json:"last_read_at"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -1129,6 +1130,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		chanResp[i].MemberAvatars = avatars
 		chanResp[i].MembersCount = membersLeft
+		chanResp[i].LastReadAt = *lastReadAt
 		if previewThread != nil {
 			chanResp[i].PreviewThread = previewThread
 		} else {
