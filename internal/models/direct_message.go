@@ -60,6 +60,7 @@ type DmChannelsResponse struct {
 	Participants     []Participant `gorm:"-" json:"participants,omitempty"`
 	CreatedAt        time.Time     `json:"created_at"`
 	IsFavourite      bool          `gorm:"-" json:"is_favourite"`
+	IsSuggested      bool          `gorm:"-" json:"is_suggested"`
 }
 
 type DmChannelsRequest struct {
@@ -582,7 +583,50 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		return 0
 	})
 
+	if len(dmChansResp) == 0 {
+		topUsers, err := dm.GetTop10UsersResponse(db)
+		if err == nil {
+			dmChansResp = topUsers
+			paginationResp.TotalItems = int64(len(dmChansResp))
+			paginationResp.TotalPagesCount = 1
+			paginationResp.CurrentPage = 1
+			paginationResp.PageCount = len(dmChansResp)
+		}
+	}
+
 	return dmChansResp, paginationResp, nil
+}
+
+func (dm *DmChannels) GetTop10UsersResponse(db *gorm.DB) ([]DmChannelsResponse, error) {
+	var (
+		users       []User
+		dmChansResp []DmChannelsResponse
+	)
+	err := db.Table("users").
+		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
+		Preload("Profile").
+		Where("user_organisations.organisation_id = ? AND users.id != ?", dm.OrgId, dm.UserId).
+		Order("users.created_at DESC").
+		Limit(10).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, u := range users {
+		participant := NewParticipant(u, false, "user")
+		dmChansResp = append(dmChansResp, DmChannelsResponse{
+			Name:             participant.Username,
+			AvatarUrl:        u.Profile.AvatarURL,
+			DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(u.ID),
+			ParticipantId:    u.ID,
+			ParticipantEmail: u.Email,
+			ChannelType:      "dm",
+			IsSuggested:      true,
+			Participants:     []Participant{participant},
+		})
+	}
+	return dmChansResp, nil
 }
 
 func (r *DmChannels) CheckChannelExists(db *gorm.DB, channelID, userId string) (bool, error) {
