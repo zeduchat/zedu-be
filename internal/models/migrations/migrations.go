@@ -96,6 +96,8 @@ func AuthMigrationModels() []any {
 		models.BuzzNote{},
 		models.Shares{},
 		models.AccountDeletionRequest{},
+		models.ZeduResourcePage{},
+		models.ZeduGuide{},
 	} // an array of db models, example: User{}
 }
 
