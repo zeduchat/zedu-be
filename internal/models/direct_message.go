@@ -561,6 +561,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		if err != nil {
 			return nil, paginationResp, err
 		}
+
+		if len(resp.PreviewThread) == 1 && resp.PreviewThread[0].Type == "system" {
+			continue
+		}
+
 		dmChansResp = append(dmChansResp, resp)
 	}
 
@@ -583,10 +588,23 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		return 0
 	})
 
-	if len(dmChansResp) == 0 {
-		topUsers, err := dm.GetTop10UsersResponse(db)
+	if len(dmChansResp) < 10 {
+		topUsers, err := dm.GetTopNUsersResponse(db, 20)
 		if err == nil {
-			dmChansResp = topUsers
+			existingParticipantIDs := make(map[string]bool)
+			for _, resp := range dmChansResp {
+				existingParticipantIDs[resp.ParticipantId] = true
+			}
+
+			for _, topUser := range topUsers {
+				if len(dmChansResp) >= 10 {
+					break
+				}
+				if !existingParticipantIDs[topUser.ParticipantId] {
+					dmChansResp = append(dmChansResp, topUser)
+				}
+			}
+
 			paginationResp.TotalItems = int64(len(dmChansResp))
 			paginationResp.TotalPagesCount = 1
 			paginationResp.CurrentPage = 1
@@ -597,7 +615,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	return dmChansResp, paginationResp, nil
 }
 
-func (dm *DmChannels) GetTop10UsersResponse(db *gorm.DB) ([]DmChannelsResponse, error) {
+func (dm *DmChannels) GetTopNUsersResponse(db *gorm.DB, limit int) ([]DmChannelsResponse, error) {
 	var (
 		users       []User
 		dmChansResp []DmChannelsResponse
@@ -607,7 +625,7 @@ func (dm *DmChannels) GetTop10UsersResponse(db *gorm.DB) ([]DmChannelsResponse, 
 		Preload("Profile").
 		Where("user_organisations.organisation_id = ? AND users.id != ?", dm.OrgId, dm.UserId).
 		Order("users.created_at DESC").
-		Limit(10).
+		Limit(limit).
 		Find(&users).Error
 	if err != nil {
 		return nil, err
@@ -624,6 +642,9 @@ func (dm *DmChannels) GetTop10UsersResponse(db *gorm.DB) ([]DmChannelsResponse, 
 			ChannelType:      "dm",
 			IsSuggested:      true,
 			Participants:     []Participant{participant},
+			PreviewMessage:   "Chat with this user",
+			LastReadAt:       time.Now(),
+			CreatedAt:        time.Now(),
 		})
 	}
 	return dmChansResp, nil

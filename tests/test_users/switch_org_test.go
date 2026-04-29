@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/gosimple/slug"
 )
 
 func TestSwitchUserOrg_OrgRoleIDPersisted(t *testing.T) {
@@ -163,6 +164,145 @@ func TestSwitchUserOrg_OrgRoleIDPersisted(t *testing.T) {
 
 		if dbUser.CurrentOrg.String() != org1ID {
 			t.Errorf("CurrentOrg mismatch: got %q, want %q", dbUser.CurrentOrg.String(), org1ID)
+		}
+	})
+}
+
+func TestSwitchUserOrgBySlug(t *testing.T) {
+	router, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
+
+	// Register switch-org routes
+	router.PUT("/api/v1/users/switch-org",
+		middleware.Authorize(db),
+		middleware.CheckIsDeactivated(db),
+		userController.SwitchUserOrg,
+	)
+	router.GET("/api/v1/users/switch-org/:slug",
+		middleware.Authorize(db),
+		middleware.CheckIsDeactivated(db),
+		userController.SwitchUserOrgBySlug,
+	)
+
+	currUUID := utility.GenerateUUID()
+	password, _ := utility.HashPassword("password")
+
+	// Create user
+	testUser := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "Switch Org Slug Test User",
+		Email:    fmt.Sprintf("switchorgslug%v@qa.team", currUUID),
+		Password: password,
+		Role:     int(models.RoleIdentity.SuperAdmin),
+	}
+	db.Create(&testUser)
+
+	authCtrl := auth.Controller{
+		Db:        userController.Db,
+		Validator: userController.Validator,
+		Logger:    userController.Logger,
+		ExtReq:    userController.ExtReq,
+	}
+	orgCtrl := organisation.Controller{
+		Db:        userController.Db,
+		Validator: userController.Validator,
+		Logger:    userController.Logger,
+		ExtReq:    userController.ExtReq,
+	}
+
+	loginData := models.LoginRequestModel{
+		Email:    testUser.Email,
+		Password: "password",
+	}
+	token := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
+
+	// Create two organisations
+	org1Name := fmt.Sprintf("Org1 %s", currUUID)
+	org2Name := fmt.Sprintf("Org2 %s", currUUID)
+	org1Data := models.CreateOrgRequestModel{
+		Name:        org1Name,
+		Email:       fmt.Sprintf("org1-%v@qa.team", currUUID),
+		Description: "First org",
+		Type:        "type1",
+		Location:    "test",
+		Country:     "test",
+	}
+	org2Data := models.CreateOrgRequestModel{
+		Name:        org2Name,
+		Email:       fmt.Sprintf("org2-%v@qa.team", currUUID),
+		Description: "Second org",
+		Type:        "type1",
+		Location:    "test",
+		Country:     "test",
+	}
+
+	org1ID, _, _ := tests.CreateOrganisation(t, gin.Default(), userController.Db, orgCtrl, org1Data, token)
+	org2ID, _, _ := tests.CreateOrganisation(t, gin.Default(), userController.Db, orgCtrl, org2Data, token)
+
+	org1Slug := slug.Make(org1Name)
+	org2Slug := slug.Make(org2Name)
+
+	t.Run("Switch to org using slug successfully", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/switch-org/%s", org2Slug), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+
+		var dbUser models.User
+		db.Where("id = ?", testUser.ID).First(&dbUser)
+		if dbUser.CurrentOrg.String() != org2ID {
+			t.Errorf("CurrentOrg mismatch: got %q, want %q", dbUser.CurrentOrg.String(), org2ID)
+		}
+	})
+
+	t.Run("Switch back to org1 using slug successfully", func(t *testing.T) {
+		// Re-login to get fresh token since previous switch revoked it
+		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/switch-org/%s", org1Slug), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", freshToken))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+
+		var dbUser models.User
+		db.Where("id = ?", testUser.ID).First(&dbUser)
+		if dbUser.CurrentOrg.String() != org1ID {
+			t.Errorf("CurrentOrg mismatch: got %q, want %q", dbUser.CurrentOrg.String(), org1ID)
+		}
+	})
+
+	t.Run("Switch to non-existent org slug returns 404", func(t *testing.T) {
+		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/switch-org/non-existent-slug", nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", freshToken))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+	})
+
+	t.Run("Switch to org using fuzzy slug successfully", func(t *testing.T) {
+		// Use a partial slug
+		partialSlug := org2Slug[:len(org2Slug)-3]
+		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/users/switch-org/%s", partialSlug), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", freshToken))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+
+		var dbUser models.User
+		db.Where("id = ?", testUser.ID).First(&dbUser)
+		if dbUser.CurrentOrg.String() != org2ID {
+			t.Errorf("CurrentOrg mismatch: got %q, want %q", dbUser.CurrentOrg.String(), org2ID)
 		}
 	})
 }
