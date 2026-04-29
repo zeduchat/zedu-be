@@ -462,6 +462,39 @@ func (base *Controller) SwitchUserOrg(c *gin.Context) {
 
 }
 
+func (base *Controller) SwitchUserOrgBySlug(c *gin.Context) {
+	orgSlug := c.Param("slug")
+
+	userClaims := common.GetAllUserClaims(c)
+	userId, ok := userClaims["user_id"].(string)
+	if !ok {
+		base.Logger.Error("failed to get user id from claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user id from claims", "failed to get user id from claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	accessTokenID, ok := userClaims["access_uuid"].(string)
+	if !ok {
+		base.Logger.Error("failed to get access token id from claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get access token id from claims", "failed to get access token id from claims", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	respData, code, err := service.SwitchUserOrgBySlug(base.Db.Postgresql, c, orgSlug, userId, accessTokenID)
+	if err != nil {
+		base.Logger.Error("error switching user organisation by slug", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("user org switched successfully by slug")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User organisation switched successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) GetUserRoleInOrganisation(c *gin.Context) {
 	var (
 		user_id = c.Param("user_id")

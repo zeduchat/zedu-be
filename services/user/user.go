@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/gosimple/slug"
+	"strings"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/avatar"
@@ -517,6 +518,41 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	}
 
 	return theData, http.StatusOK, nil
+}
+
+func SwitchUserOrgBySlug(db *gorm.DB, c *gin.Context, orgSlug, userId, accessTokenID string) (gin.H, int, error) {
+	var org models.Organisation
+	userOrgs, err := org.GetUserOrganisations(db, userId)
+	if err != nil {
+		return gin.H{}, http.StatusInternalServerError, err
+	}
+
+	var targetOrg *models.Organisation
+	for _, o := range userOrgs {
+		if slug.Make(o.Name) == orgSlug {
+			targetOrg = &o
+			break
+		}
+	}
+
+	if targetOrg == nil {
+		for _, o := range userOrgs {
+			oSlug := slug.Make(o.Name)
+			if strings.Contains(oSlug, orgSlug) || strings.Contains(orgSlug, oSlug) {
+				targetOrg = &o
+				break
+			}
+		}
+	}
+
+	if targetOrg == nil {
+		return gin.H{}, http.StatusNotFound, errors.New("organisation with matching slug not found for user")
+	}
+
+	req := models.SwitchUserOrgReqeust{
+		CurrentOrg: targetOrg.ID,
+	}
+	return SwitchUserOrg(db, c, req, userId, accessTokenID)
 }
 
 func GetAUserForMentions(userIDStr, requestingUserID, orgID string, db *gorm.DB) (models.UserMentionResponse, int, error) {
