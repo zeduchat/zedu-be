@@ -186,14 +186,16 @@ func TestInvitationLinkGeneratorReusesPendingRow(t *testing.T) {
 	assert.True(t, got.ExpiresAt.After(time.Now().Add(40*time.Hour)), "expiry should be refreshed forward")
 }
 
-// TestInvitationLinkGeneratorMemberError verifies the "already a member" branch
-// still returns a clear, specific error string in errs (Fix 3 keeps this guard
-// — and the controller now surfaces errs properly when the entire batch fails).
-func TestInvitationLinkGeneratorMemberError(t *testing.T) {
+// TestInvitationLinkGeneratorAllowsMember verifies that re-inviting an email
+// that already belongs to a member of the org no longer produces an error —
+// the invite should proceed and a record should be returned. The accept flow
+// (covered by TestVerifyInvitation_AlreadyMemberSucceeds) is responsible for
+// resolving the membership cleanly when the recipient clicks the link.
+func TestInvitationLinkGeneratorAllowsMember(t *testing.T) {
 	db, fx := newResendUnitFixture(t)
 
-	// Look up the inviter (who is already a member of fx.OrgID) and re-use
-	// their email as the invitee.
+	// The inviter is already a member of their own org; previously this
+	// would short-circuit with an "already a member" error.
 	var inviter models.User
 	assert.NoError(t, db.Postgresql.Where("id = ?", fx.UserID).First(&inviter).Error)
 
@@ -205,10 +207,10 @@ func TestInvitationLinkGeneratorMemberError(t *testing.T) {
 
 	out, errs, err := svcInvitation.InvitationLinkGenerator(db, req, fx.UserID, "http://example.test")
 	assert.NoError(t, err)
-	assert.Empty(t, out, "no invitations should be produced for an existing member")
-	assert.Len(t, errs, 1)
-	assert.True(t, strings.Contains(errs[0], "already a member"),
-		"expected 'already a member' message, got %q", errs[0])
+	assert.Empty(t, errs, "re-inviting a member must not produce per-email errors")
+	assert.Len(t, out, 1, "an invitation record should still be produced for an existing member")
+	assert.Equal(t, inviter.Email, out[0].Email)
+	assert.NotEmpty(t, out[0].Token)
 }
 
 // TestResendLinkGeneratorNoInvitation verifies Fix 4: when there is no

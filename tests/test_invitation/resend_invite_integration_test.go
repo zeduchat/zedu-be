@@ -144,35 +144,28 @@ func TestInviteEndpoint_ResendsWhenAlreadyInvited(t *testing.T) {
 	assert.True(t, after.CreatedAt.After(first.CreatedAt), "re-invite must bump created_at")
 }
 
-// TestInviteEndpoint_AlreadyMemberClearError verifies the controller now
-// surfaces the actual reason in the error payload (Fix 3) instead of always
-// blaming "pending invitations".
-func TestInviteEndpoint_AlreadyMemberClearError(t *testing.T) {
+// TestInviteEndpoint_AlreadyMemberSucceeds verifies that re-inviting an
+// existing member through the public endpoint now succeeds (instead of
+// returning 400 with a misleading message). The acceptance flow handles the
+// "already a member" case downstream.
+func TestInviteEndpoint_AlreadyMemberSucceeds(t *testing.T) {
 	env := newInviteEnv(t)
 
-	// The inviter is already a member of their own org; inviting their email
-	// triggers the "already a member" branch.
+	// The inviter is already a member of their own org.
 	body := models.InvitationCreateReq{
 		Emails:         []string{env.UserEmail},
 		OrganisationID: env.OrgID,
 		RoleID:         "00000000-0000-0000-0000-000000000000",
 	}
 	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite", body, true)
-	tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+	tst.AssertStatusCode(t, rr.Code, http.StatusCreated)
 
-	resp := tst.ParseResponse(rr)
-	msg, _ := resp["message"].(string)
-	assert.False(t, strings.Contains(msg, "pending invitation"),
-		"controller must not blame 'pending invitation' for member case; got %q", msg)
-
-	// The per-email error string lives in the response's "error" field.
-	errs, _ := resp["error"].([]any)
-	assert.NotEmpty(t, errs, "expected the underlying per-email error to be surfaced")
-	if len(errs) > 0 {
-		first, _ := errs[0].(string)
-		assert.True(t, strings.Contains(first, "already a member"),
-			"expected 'already a member' in errs[0]; got %q", first)
-	}
+	// And an invitation row should be persisted so the email link works.
+	var invite models.Invitation
+	assert.NoError(t, env.DB.Postgresql.
+		Where("email = ? AND organisation_id = ?", env.UserEmail, env.OrgID).
+		First(&invite).Error)
+	assert.NotEmpty(t, invite.Token)
 }
 
 // TestResendEndpoint_NoInvitation verifies Fix 4 via HTTP: resending for an
@@ -225,4 +218,52 @@ func TestResendEndpoint_AlreadyAccepted(t *testing.T) {
 	raw, _ := json.Marshal(tst.ParseResponse(rr))
 	assert.True(t, strings.Contains(string(raw), "already accepted"),
 		"expected 'already accepted' in response, got: %s", string(raw))
+}
+
+// TestVerifyEndpoint_AcceptingAsExistingMemberSucceeds verifies that when the
+// recipient of an invite is already a member of the org, hitting /verify
+// resolves cleanly: 200, status flips to "accepted", and the user's
+// membership row is preserved untouched.
+func TestVerifyEndpoint_AcceptingAsExistingMemberSucceeds(t *testing.T) {
+	env := newInviteEnv(t)
+
+	// Inviter is already a member of env.OrgID. Seed a fresh invitation
+	// directly so we have a known token to verify with.
+	tok, _ := utility.GenerateInvitationToken()
+	invite := models.Invitation{
+		ID:             utility.GenerateUUID(),
+		Email:          env.UserEmail,
+		Token:          tok,
+		Status:         "invited",
+		Role:           "00000000-0000-0000-0000-000000000000",
+		OrganisationID: env.OrgID,
+		InvitedBy:      tst.GetUserIDFromToken(t, env.Token, env.DB),
+		IsTelexUser:    true,
+		ExpiresAt:      time.Now().Add(48 * time.Hour).UTC(),
+	}
+	assert.NoError(t, env.DB.Postgresql.Create(&invite).Error)
+
+	// Snapshot the existing membership row so we can compare afterward.
+	var beforeMember models.OrgUserManagement
+	assert.NoError(t, env.DB.Postgresql.
+		Where("user_id = ? AND organisation_id = ?", invite.InvitedBy, env.OrgID).
+		First(&beforeMember).Error)
+
+	body := models.VerifyInvitationLinkRequest{Token: tok}
+	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite/verify", body, false)
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	// Invitation should now be marked accepted.
+	var afterInvite models.Invitation
+	assert.NoError(t, env.DB.Postgresql.Where("id = ?", invite.ID).First(&afterInvite).Error)
+	assert.Equal(t, "accepted", afterInvite.Status)
+
+	// Membership row must be preserved (no duplicate row, role unchanged).
+	var memberRows []models.OrgUserManagement
+	assert.NoError(t, env.DB.Postgresql.
+		Where("user_id = ? AND organisation_id = ?", invite.InvitedBy, env.OrgID).
+		Find(&memberRows).Error)
+	assert.Len(t, memberRows, 1, "must not duplicate membership when accepting as existing member")
+	assert.Equal(t, beforeMember.RoleID, memberRows[0].RoleID,
+		"existing member's role must be preserved across re-acceptance")
 }
