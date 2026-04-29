@@ -82,7 +82,7 @@ func TestGetDmChannelsBalancing(t *testing.T) {
 		db.Postgresql.Model(&models.OrgUserManagement{}).Create(&models.OrgUserManagement{
 			UserID:         u.ID,
 			OrganisationID: org.ID,
-			RoleID:         "1", // Mock role
+			RoleID:         utility.GenerateUUID(),
 			Status:         "active",
 		})
 
@@ -103,10 +103,10 @@ func TestGetDmChannelsBalancing(t *testing.T) {
 		Logger:    logger,
 	}
 
-	r.GET("/api/v1/dms", middleware.Authorize(db.Postgresql), dmController.GetDmChannels)
+	r.GET("/api/v1/organisations/:org_id/dms", middleware.Authorize(db.Postgresql), dmController.GetDmChannels)
 
 	t.Run("DM Channels Balanced to 10", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, "/api/v1/dms?page=1&limit=10", nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/dms?page=1&limit=10", org.ID), nil)
 		req.Header.Set("Authorization", "Bearer "+token1)
 		resp := httptest.NewRecorder()
 		r.ServeHTTP(resp, req)
