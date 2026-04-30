@@ -122,8 +122,12 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 	}
 
 	if len(inviteMap) == 0 {
-		base.Logger.Error("No invitations created. User(s) list is either empty or all invites have pending invitations")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
+		msg := "No invitations created. None of the provided emails are eligible to be invited"
+		if len(errs) > 0 {
+			msg = "No invitations created"
+		}
+		base.Logger.Error(msg)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", msg, errs, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
@@ -217,8 +221,12 @@ func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 	}
 
 	if len(inviteMap) == 0 {
-		base.Logger.Error("No invitations created. User(s) list is either empty or all invites have pending invitations")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "No invitations created. User(s) list is either empty or all invitees have pending invitations", errs, nil)
+		msg := "No invitations created. None of the provided emails are eligible to be invited"
+		if len(errs) > 0 {
+			msg = "No invitations created"
+		}
+		base.Logger.Error(msg)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", msg, errs, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

@@ -50,25 +50,23 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 		var existingInvite models.Invitation
 		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", email)
 
-		// Check if the user's email has a pending invitation for that organisation with a pending status
-		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", email, inviteReq.OrganisationID, time.Now().UTC())
-		if invitationExists {
-			// errs = append(errs, fmt.Sprintf("%s already has a pending invitation.", email))
-			invitations = append(invitations, existingInvite)
-			continue
-		}
-
-		if isTelexUser {
-			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", user.ID, inviteReq.OrganisationID)
-			if alreadyMember {
-				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", email).Error())
-				continue
-			}
-		}
+		// Send regardless of membership; VerifyInvitation resolves the
+		// "already a member" case without erroring.
 
 		token, err := utility.GenerateInvitationToken()
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("could not generate token for %s: %v", email, err))
+			continue
+		}
+
+		// If a pending invitation already exists for this org/email, rotate the
+		// token and refresh the expiry so the resend produces a working link.
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited'", email, inviteReq.OrganisationID)
+		if invitationExists {
+			existingInvite.Token = token
+			existingInvite.ExpiresAt = time.Now().Add(48 * time.Hour).UTC()
+			existingInvite.CreatedAt = time.Now().UTC()
+			invitations = append(invitations, existingInvite)
 			continue
 		}
 
@@ -99,24 +97,21 @@ func InviteFewLinkGenerator(base *storage.Database, req models.InvitationCreateF
 
 		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", invite.Email)
 
-		// Check if the user's email has a pending invitation for that organisation with a pending status
-		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited' AND expires_at > ?", invite.Email, org_id, time.Now().UTC())
-		if invitationExists {
-			invitations = append(invitations, existingInvite)
-			continue
-		}
-
-		if isTelexUser {
-			alreadyMember := postgresql.CheckExists(base.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", user.ID, org_id)
-			if alreadyMember {
-				errs = append(errs, fmt.Errorf("%s is already a member of the organisation", invite.Email).Error())
-				continue
-			}
-		}
+		// Send regardless of membership; VerifyInvitation resolves the
+		// "already a member" case without erroring.
 
 		token, err := utility.GenerateInvitationToken()
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("could not generate token for %s: %v", invite.Email, err))
+			continue
+		}
+
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited'", invite.Email, org_id)
+		if invitationExists {
+			existingInvite.Token = token
+			existingInvite.ExpiresAt = time.Now().Add(48 * time.Hour).UTC()
+			existingInvite.CreatedAt = time.Now().UTC()
+			invitations = append(invitations, existingInvite)
 			continue
 		}
 
@@ -194,22 +189,27 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 	orgmgt.UserID = userID
 	orgmgt.OrganisationID = invitation.OrganisationID
 
-	err = addUserToOrganisation(orgmgt, db.Postgresql)
-	if err != nil {
-		logger.Error("error adding user to the invited organisation", err)
-		return responseData, http.StatusInternalServerError, err
-	}
-
-	defaultChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
-	if err != nil {
-		logger.Error("error getting general channel", err)
-	}
-
-	if defaultChannel.ID != "" {
-		err = addUserToChannel(&defaultChannel, orgmgt, logger, db)
+	// If the user is already in the org, skip the add and the channel join —
+	// they keep their existing role and channels and just sign in cleanly.
+	alreadyMember := postgresql.CheckExists(db.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", userID, invitation.OrganisationID)
+	if !alreadyMember {
+		err = addUserToOrganisation(orgmgt, db.Postgresql)
 		if err != nil {
-			logger.Error("error adding user to the general channel", err)
+			logger.Error("error adding user to the invited organisation", err)
 			return responseData, http.StatusInternalServerError, err
+		}
+
+		defaultChannel, err := getGeneralChannel(db.Postgresql, orgmgt.OrganisationID)
+		if err != nil {
+			logger.Error("error getting general channel", err)
+		}
+
+		if defaultChannel.ID != "" {
+			err = addUserToChannel(&defaultChannel, orgmgt, logger, db)
+			if err != nil {
+				logger.Error("error adding user to the general channel", err)
+				return responseData, http.StatusInternalServerError, err
+			}
 		}
 	}
 
