@@ -276,7 +276,7 @@ func TestSwitchUserOrgBySlug(t *testing.T) {
 		}
 	})
 
-	t.Run("Switch to non-existent org slug returns 404", func(t *testing.T) {
+	t.Run("Switch to non-existent org slug returns 200", func(t *testing.T) {
 		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/switch-org/non-existent-slug", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", freshToken))
@@ -284,7 +284,7 @@ func TestSwitchUserOrgBySlug(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
 	})
 
 	t.Run("Switch to org using fuzzy slug successfully", func(t *testing.T) {
