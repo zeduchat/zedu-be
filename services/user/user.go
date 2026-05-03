@@ -442,7 +442,7 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	orgMgt, err = orgMgt.GetByIDs(db, userId, req.CurrentOrg)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, http.StatusOK, nil
+			return nil, http.StatusNotFound, errors.New("organisation not found")
 		}
 		return gin.H{}, http.StatusBadRequest, err
 	}
@@ -463,7 +463,7 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 	org, err = org.GetOrgByID(db, req.CurrentOrg)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			return nil, http.StatusOK, nil
+			return nil, http.StatusNotFound, errors.New("organisation not found")
 		}
 		return gin.H{}, http.StatusBadRequest, err
 	}
@@ -542,18 +542,9 @@ func SwitchUserOrgBySlug(db *gorm.DB, c *gin.Context, orgSlug, userId, accessTok
 		}
 	}
 
-	if targetOrg == nil {
-		for _, o := range userOrgs {
-			oSlug := slug.Make(o.Name)
-			if strings.Contains(oSlug, orgSlug) || strings.Contains(orgSlug, oSlug) {
-				targetOrg = &o
-				break
-			}
-		}
-	}
 
 	if targetOrg == nil {
-		return nil, http.StatusOK, nil
+		return nil, http.StatusNotFound, errors.New("organisation not found")
 	}
 
 	req := models.SwitchUserOrgReqeust{
