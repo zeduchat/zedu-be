@@ -276,7 +276,7 @@ func TestSwitchUserOrgBySlug(t *testing.T) {
 		}
 	})
 
-	t.Run("Switch to non-existent org slug returns 200", func(t *testing.T) {
+	t.Run("Switch to non-existent org slug returns 404", func(t *testing.T) {
 		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
 		req, _ := http.NewRequest(http.MethodGet, "/api/v1/users/switch-org/non-existent-slug", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", freshToken))
@@ -284,10 +284,10 @@ func TestSwitchUserOrgBySlug(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
 	})
 
-	t.Run("Switch to org using fuzzy slug successfully", func(t *testing.T) {
+	t.Run("Switch to org using fuzzy slug returns 404", func(t *testing.T) {
 		// Use a partial slug
 		partialSlug := org2Slug[:len(org2Slug)-3]
 		freshToken := tests.GetLoginToken(t, gin.Default(), authCtrl, loginData)
@@ -297,12 +297,6 @@ func TestSwitchUserOrgBySlug(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
-
-		var dbUser models.User
-		db.Where("id = ?", testUser.ID).First(&dbUser)
-		if dbUser.CurrentOrg.String() != org2ID {
-			t.Errorf("CurrentOrg mismatch: got %q, want %q", dbUser.CurrentOrg.String(), org2ID)
-		}
+		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
 	})
 }
