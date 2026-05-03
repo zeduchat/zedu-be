@@ -394,22 +394,29 @@ func AddUserToOrganisation(db *gorm.DB, orgID string, userId string) error {
 func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req models.ResendInvitationRequest) (models.Invitation, error) {
 
 	var (
-		email = req.Email
-		i     models.Invitation
+		email  = req.Email
+		invite models.Invitation
 	)
 
-	invite, pending, _ := i.CheckPendingInvitations(base.Postgresql, email, req.OrganisationID)
+	err := base.Postgresql.Where("email = ? AND organisation_id = ?", email, req.OrganisationID).
+		Order("created_at DESC").
+		First(&invite).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return invite, fmt.Errorf("no invitation found for %s in this organisation", email)
+		}
+		return invite, fmt.Errorf("failed to look up invitation for %s: %w", email, err)
+	}
 
-	if !pending {
+	if invite.Status == "accepted" {
 		return invite, fmt.Errorf("user with email %s has already accepted invitation", email)
 	}
 
 	invite.Token, _ = utility.GenerateInvitationToken()
-	invite.ExpiresAt = time.Now().Add(48 * time.Hour)
-	invite.CreatedAt = time.Now()
+	invite.ExpiresAt = time.Now().Add(48 * time.Hour).UTC()
+	invite.CreatedAt = time.Now().UTC()
 
-	err := invite.UpdateResendInvitation(base.Postgresql, email)
-	if err != nil {
+	if err := invite.UpdateResendInvitation(base.Postgresql, email); err != nil {
 		return models.Invitation{}, fmt.Errorf("failed to update invitation for %s", email)
 	}
 

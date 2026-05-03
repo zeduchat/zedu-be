@@ -92,7 +92,7 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 	response, err := invitation.ResendLinkGenerator(base.Db, base.Logger, req)
 	if err != nil {
 		base.Logger.Error("Failed to generate invitation resend link", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate invitation resend link", "", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to generate invitation resend link", err.Error(), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}

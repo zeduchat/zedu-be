@@ -86,11 +86,19 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 
 		exists := postgresql.CheckExists(db, &existingInvitation, "email = ? AND organisation_id = ? AND status = ?", invitation.Email, invitation.OrganisationID, "invited")
 		if exists {
+			expiresAt := invitation.ExpiresAt
+			if expiresAt.IsZero() {
+				expiresAt = time.Now().Add(24 * time.Hour).UTC()
+			}
 			update := map[string]any{
-				"expires_at": time.Now().Add(24 * time.Hour).UTC(),
+				"token":      invitation.Token,
+				"role":       invitation.Role,
+				"invited_by": invitation.InvitedBy,
+				"expires_at": expiresAt,
+				"created_at": time.Now().UTC(),
 			}
 
-			res, err := postgresql.UpdateFields(db, &existingInvitation, &update, "email = ? AND organisation_id = ?", invitation.Email, invitation.OrganisationID)
+			res, err := postgresql.UpdateFields(db, &existingInvitation, update, "email = ? AND organisation_id = ?", invitation.Email, invitation.OrganisationID)
 			if err != nil {
 				continue
 			}
@@ -98,7 +106,9 @@ func (i *Invitation) CreateInvitations(db *gorm.DB, invitations []Invitation) er
 				return errors.New("failed to update existing invitation")
 			}
 		} else {
-			invitation.ExpiresAt = time.Now().Add(24 * time.Hour).UTC() // Set expiration to 24 hours from now
+			if invitation.ExpiresAt.IsZero() {
+				invitation.ExpiresAt = time.Now().Add(24 * time.Hour).UTC()
+			}
 			toCreate = append(toCreate, invitation)
 		}
 	}

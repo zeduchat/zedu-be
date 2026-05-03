@@ -435,11 +435,15 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		accessToken     models.AccessToken
 		accessTokenData models.AccessToken
 		orgRole         models.OrgRole
+		err             error
 		// getOrgRole      models.OrgRole
 	)
 
-	orgMgt, err := orgMgt.GetByIDs(db, userId, req.CurrentOrg)
+	orgMgt, err = orgMgt.GetByIDs(db, userId, req.CurrentOrg)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, http.StatusOK, nil
+		}
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
@@ -458,6 +462,9 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 
 	org, err = org.GetOrgByID(db, req.CurrentOrg)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, http.StatusOK, nil
+		}
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
@@ -546,7 +553,7 @@ func SwitchUserOrgBySlug(db *gorm.DB, c *gin.Context, orgSlug, userId, accessTok
 	}
 
 	if targetOrg == nil {
-		return gin.H{}, http.StatusNotFound, errors.New("organisation with matching slug not found for user")
+		return nil, http.StatusOK, nil
 	}
 
 	req := models.SwitchUserOrgReqeust{
