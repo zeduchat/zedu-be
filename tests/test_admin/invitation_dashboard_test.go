@@ -13,6 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/admin"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	adminSvc "github.com/hngprojects/telex_be/services/admin"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -403,8 +404,18 @@ func TestGetInvitationDashboard_InvitesConversionPresent(t *testing.T) {
 func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 	_, authCtl, _, db := SetupAdminTestRouter()
 
+	tx := db.Postgresql.Begin()
+	defer tx.Rollback()
+
 	// Clear existing invitations to ensure isolated test
-	db.Postgresql.Exec("DELETE FROM invitations")
+	tx.Exec("DELETE FROM invitations")
+
+	authCtlTx := auth.Controller{
+		Db:        &storage.Database{Postgresql: tx},
+		Validator: authCtl.Validator,
+		Logger:    authCtl.Logger,
+		ExtReq:    authCtl.ExtReq,
+	}
 
 	currUUID := utility.GenerateUUID()
 	user1 := models.CreateUserRequestModel{
@@ -416,9 +427,9 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 		UserName:    "conversion-test-" + currUUID,
 	}
 
-	tst.SignupUser(t, gin.Default(), *authCtl, user1, false)
+	tst.SignupUser(t, gin.Default(), authCtlTx, user1, false)
 
-	token := tst.GetLoginToken(t, gin.Default(), *authCtl, models.LoginRequestModel{Email: user1.Email, Password: user1.Password})
+	token := tst.GetLoginToken(t, gin.Default(), authCtlTx, models.LoginRequestModel{Email: user1.Email, Password: user1.Password})
 	uid := tst.GetUserIDFromToken(t, token, db)
 
 	// Create test organization
@@ -431,7 +442,7 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 		Country: "NG",
 		OwnerID: uid,
 	}
-	db.Postgresql.Create(&org)
+	tx.Create(&org)
 
 	roleID := utility.GenerateUUID()
 	now := time.Now()
@@ -457,7 +468,7 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 			ExpiresAt:      last30Days.AddDate(0, 0, 5).Add(24 * time.Hour),
 			Role:           roleID,
 		}
-		db.Postgresql.Create(&invitation)
+		tx.Create(&invitation)
 		createdInvitations = append(createdInvitations, invitation)
 	}
 
@@ -478,7 +489,7 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 			ExpiresAt:      last60Days.AddDate(0, 0, 5).Add(24 * time.Hour),
 			Role:           roleID,
 		}
-		db.Postgresql.Create(&invitation)
+		tx.Create(&invitation)
 		createdInvitations = append(createdInvitations, invitation)
 	}
 
@@ -492,7 +503,7 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 		TopLimit:     5,
 	}
 
-	response, _, code, err := adminSvc.GetInvitationDashboard(db.Postgresql, c, filter)
+	response, _, code, err := adminSvc.GetInvitationDashboard(tx, c, filter)
 	if err != nil {
 		t.Fatalf("GetInvitationDashboard service returned error: %v", err)
 	}
@@ -521,7 +532,7 @@ func TestGetInvitationDashboardService_ConversionCalculation(t *testing.T) {
 
 	// Cleanup
 	for _, inv := range createdInvitations {
-		db.Postgresql.Delete(&inv)
+		tx.Delete(&inv)
 	}
-	db.Postgresql.Delete(&org)
+	tx.Delete(&org)
 }

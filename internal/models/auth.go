@@ -51,7 +51,8 @@ type ResetPasswordRequestModel struct {
 }
 
 type GoogleRequestModel struct {
-	Token string `json:"grant_code" validate:"required"`
+	Token           string `json:"grant_code" validate:"required"`
+	ApplicationType string `json:"application_type" validate:"omitempty,oneof=desktop"`
 }
 
 type VerifyEmailRequestModel struct {

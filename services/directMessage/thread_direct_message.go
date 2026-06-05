@@ -357,6 +357,22 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 			if err != nil {
 				return &thread, http.StatusInternalServerError, err
 			}
+
+			triggerNotif := models.Notification[models.TriggerNotification]
+			triggerNotif.SectionType = models.DmChannelsSection
+			triggerNotif.ModificationDetails = &models.ModificationDetails{
+				OrgId:     dmchannel.OrgId,
+				ChannelId: req.ChannelsID,
+			}
+			triggerNotif.Content = models.TriggerNotificationPayload{
+				TriggerAction: "create",
+			}
+			triggerNotif.NotificationId = utility.GenerateUUID()
+
+			parts := []string{req.UserId, *dmchannel.ParticipantId}
+			for _, pId := range parts {
+				centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", dmchannel.OrgId, pId), triggerNotif)
+			}
 		}
 	}
 

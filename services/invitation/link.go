@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
@@ -184,6 +185,11 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 		return responseData, http.StatusBadRequest, err
 	}
 
+	userData, err := user.GetUserByEmail(db.Postgresql, invitation.Email)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
+	}
+
 	orgmgt.RoleID = invitation.Role
 	orgmgt.Status = "active"
 	orgmgt.UserID = userID
@@ -211,11 +217,27 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 				return responseData, http.StatusInternalServerError, err
 			}
 		}
-	}
 
-	userData, err := user.GetUserByEmail(db.Postgresql, invitation.Email)
-	if err != nil {
-		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
+		triggerNotif := models.Notification[models.TriggerNotification]
+		triggerNotif.SectionType = models.OrganisationUsersSection
+		triggerNotif.ModificationDetails = &models.ModificationDetails{
+			OrgId:  invitation.OrganisationID,
+			UserId: userID,
+		}
+		triggerNotif.Content = models.TriggerNotificationPayload{
+			TriggerAction: "user_joined_org",
+			Data: map[string]any{
+				"username":         userData.Profile.UserName,
+				"firstname":        userData.Profile.FirstName,
+				"lastname":         userData.Profile.LastName,
+				"avatarurl":        userData.Profile.AvatarURL,
+				"defaultavatarurl": avatar.GenerateDefaultAvatarURL(userData.ID),
+				"email":            userData.Email,
+			},
+		}
+		triggerNotif.NotificationId = utility.GenerateUUID()
+
+		centrifuge.PublishChannel(logger, invitation.OrganisationID, triggerNotif)
 	}
 
 	tokenData, err := middleware.CreateToken(userData, c)

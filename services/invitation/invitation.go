@@ -8,7 +8,9 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
@@ -114,6 +116,32 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		logger.Error("transaction commit failed", err)
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %s", err)
 	}
+
+	userData, err := user.GetUserByID(db.Postgresql, userID)
+	if err != nil {
+		logger.Error("error fetching user data for trigger", err)
+	}
+
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.OrganisationUsersSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:  invite.OrganisationID,
+		UserId: userID,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: "user_joined_org",
+		Data: map[string]any{
+			"username":         userData.Profile.UserName,
+			"firstname":        userData.Profile.FirstName,
+			"lastname":         userData.Profile.LastName,
+			"avatarurl":        userData.Profile.AvatarURL,
+			"defaultavatarurl": avatar.GenerateDefaultAvatarURL(userData.ID),
+			"email":            userData.Email,
+		},
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	centrifuge.PublishChannel(logger, invite.OrganisationID, triggerNotif)
 
 	return "User verified successfully", http.StatusOK, nil
 }

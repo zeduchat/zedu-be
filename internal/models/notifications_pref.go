@@ -57,11 +57,13 @@ var (
 	DirectCallInitiated         NotificationType = "direct_call_initiated"
 	DirectCallResponseEvent     NotificationType = "direct_call_response"
 	DirectCallCanceled          NotificationType = "direct_call_canceled"
+	TriggerNotification         NotificationType = "trigger_notification"
 	ThreadSection               SectionType      = "thread_message"
 	ReplySection                SectionType      = "reply_message"
 	ChannelsSection             SectionType      = "channels_section"
 	DmChannelsSection           SectionType      = "dm_channels_section"
 	AgentChannelsSection        SectionType      = "agent_channels_section"
+	OrganisationUsersSection    SectionType      = "org_users_section"
 	Channel                     ChannelType      = "channel"
 	DMChannel                   ChannelType      = "dm_channel"
 	GroupDMChannel              ChannelType      = "group_dm_channel"
@@ -108,6 +110,12 @@ type ToolCallNotification struct {
 	Status    string                 `json:"status"`
 	Result    interface{}            `json:"result"`
 	Error     *string                `json:"error"`
+}
+
+type TriggerNotificationPayload struct {
+	TriggerAction   string `json:"trigger_action"`
+	TargetComponent string `json:"target_component,omitempty"`
+	Data            any    `json:"data,omitempty"`
 }
 
 var Notification = map[NotificationType]Content{
@@ -244,6 +252,10 @@ var Notification = map[NotificationType]Content{
 	},
 	DirectCallCanceled: Content{
 		NotificationType: DirectCallCanceled,
+	},
+	TriggerNotification: Content{
+		NotificationType: TriggerNotification,
+		Content:          ModificationDetails{},
 	},
 }
 

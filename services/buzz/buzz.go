@@ -93,9 +93,20 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 		return nil, err
 	}
 
-	// Compute deterministic color for each participant based on userID
+	var hostID string
+	var b models.Buzz
+	if err := db.Model(&models.Buzz{}).Select("host_id").Where("id = ?", buzzID).First(&b).Error; err == nil {
+		hostID = b.HostID
+	}
+
+	// Compute deterministic color and call_role for each participant based on userID
 	for i := range participants {
 		participants[i].Color = utility.GenerateUserColor(participants[i].UserID, participants[i].UserName)
+		if hostID != "" && participants[i].UserID == hostID {
+			participants[i].CallRole = "caller"
+		} else {
+			participants[i].CallRole = "receiver"
+		}
 	}
 
 	return participants, nil

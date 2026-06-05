@@ -51,7 +51,6 @@ elastic-start-local/
 config.json
 
 # IDE
-.vscode/
 
 firebase_service.json
 telexbe
@@ -60,3 +59,10 @@ telexbe_staging
 *.code-workspace
 
 scripts/generate-bruno-slash-commands.sh
+public/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+
+# IDE
+.vscode/

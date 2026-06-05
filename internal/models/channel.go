@@ -1456,6 +1456,21 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, c.UserID, err.Error()))
 			return
 		}
+
+		triggerNotif := Notification[TriggerNotification]
+		triggerNotif.SectionType = ChannelsSection
+		triggerNotif.ModificationDetails = &ModificationDetails{
+			OrgId:     c.OrgId,
+			ChannelId: c.ChannelsID,
+			UserId:    c.UserID,
+		}
+		triggerNotif.Content = TriggerNotificationPayload{
+			TriggerAction:   "refresh",
+			TargetComponent: "sidebar",
+		}
+		triggerNotif.NotificationId = utility.GenerateUUID()
+
+		centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, c.UserID), triggerNotif)
 	}
 
 	if updateType == NewThread {

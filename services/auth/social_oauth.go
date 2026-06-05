@@ -42,6 +42,12 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 	)
 
 	clientID := config.Config.Google.CLIENT_ID
+	clientSecret := config.Config.Google.CLIENT_SECRET
+
+	if req.ApplicationType == "desktop" {
+		clientID = config.Config.Google.DESKTOP_CLIENT_ID
+		clientSecret = config.Config.Google.DESKTOP_CLIENT_SECRET
+	}
 
 	// Detect if token is a JWT (ID token) or authorization code
 	if isGoogleIDToken(req.Token) {
@@ -55,7 +61,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		// Authorization code exchange flow (traditional OAuth 2.0)
 		googleOAuthConfig := &oauth2.Config{
 			ClientID:     clientID,
-			ClientSecret: config.Config.Google.CLIENT_SECRET,
+			ClientSecret: clientSecret,
 			RedirectURL:  config.Config.Google.REDIRECT_URI,
 			Scopes:       []string{"openid", "email", "profile"},
 			Endpoint:     google.Endpoint,

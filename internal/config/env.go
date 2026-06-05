@@ -135,9 +135,11 @@ type BaseConfig struct {
 	SUPER_ADMIN_PASSWORD string `mapstructure:"SUPER_ADMIN_PASSWORD"`
 	SUPER_ADMIN_ROLE     string `mapstructure:"SUPER_ADMIN_ROLE"`
 
-	GOOGLE_CLIENT_ID     string `mapstructure:"GOOGLE_CLIENT_ID"`
-	GOOGLE_CLIENT_SECRET string `mapstructure:"GOOGLE_CLIENT_SECRET"`
-	GOOGLE_REDIRECT_URI  string `mapstructure:"GOOGLE_REDIRECT_URI"`
+	GOOGLE_CLIENT_ID             string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GOOGLE_CLIENT_SECRET         string `mapstructure:"GOOGLE_CLIENT_SECRET"`
+	GOOGLE_REDIRECT_URI          string `mapstructure:"GOOGLE_REDIRECT_URI"`
+	GOOGLE_DESKTOP_CLIENT_ID     string `mapstructure:"GOOGLE_DESKTOP_CLIENT_ID"`
+	GOOGLE_DESKTOP_CLIENT_SECRET string `mapstructure:"GOOGLE_DESKTOP_CLIENT_SECRET"`
 	APPLE_CLIENT_ID      string `mapstructure:"APPLE_CLIENT_ID"`
 	APPLE_TEAM_ID        string `mapstructure:"APPLE_TEAM_ID"`
 	APPLE_KEY_ID         string `mapstructure:"APPLE_KEY_ID"`
@@ -296,9 +298,11 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			SUPER_ADMIN_ROLE:     config.SUPER_ADMIN_ROLE,
 		},
 		Google: Google{
-			CLIENT_ID:     config.GOOGLE_CLIENT_ID,
-			CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET,
-			REDIRECT_URI:  config.GOOGLE_REDIRECT_URI,
+			CLIENT_ID:             config.GOOGLE_CLIENT_ID,
+			CLIENT_SECRET:         config.GOOGLE_CLIENT_SECRET,
+			REDIRECT_URI:          config.GOOGLE_REDIRECT_URI,
+			DESKTOP_CLIENT_ID:     config.GOOGLE_DESKTOP_CLIENT_ID,
+			DESKTOP_CLIENT_SECRET: config.GOOGLE_DESKTOP_CLIENT_SECRET,
 		},
 		Apple: Apple{
 			CLIENT_ID:   config.APPLE_CLIENT_ID,

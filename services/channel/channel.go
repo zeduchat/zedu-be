@@ -12,6 +12,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/thread"
@@ -175,7 +176,19 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 		logger.Error("failed to save system message for channel %s", channel.Name)
 	}
 
-	logger.Info("Added system message for user joining the channel")
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.ChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     channel.OrganisationID,
+		ChannelId: channel.ID,
+		UserId:    req.UserID,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: "create",
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", channel.OrganisationID, req.UserID), triggerNotif)
 
 	return channel, http.StatusOK, nil
 }
@@ -359,7 +372,20 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 		logger.Error("failed to save system message for channel %s", channel.Name)
 	}
 
-	logger.Info("Added system message for user joining the channel")
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.ChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     channel.OrganisationID,
+		ChannelId: channel.ID,
+		UserId:    req.UserID,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: "create",
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", channel.OrganisationID, req.UserID), triggerNotif)
+
 	return channel, nil
 }
 
@@ -422,7 +448,20 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		logger.Error("failed to save system message for channel %s", ch.Name)
 	}
 
-	logger.Info("Added system message for user joining the channel")
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.ChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     ch.OrganisationID,
+		ChannelId: ch.ID,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: "create",
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	for _, uID := range validUserIds {
+		centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", ch.OrganisationID, uID), triggerNotif)
+	}
 
 	return nil
 }

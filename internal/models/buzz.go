@@ -108,6 +108,7 @@ type ParticipantMetadata struct {
 	StickerSetAt  *time.Time `json:"sticker_set_at,omitempty"`
 	MediaState    *string    `json:"media_state,omitempty"`
 	Color         string     `json:"color"`
+	CallRole      string     `json:"call_role"`
 }
 
 type BuzzCreateResponse struct {
@@ -233,12 +234,12 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 
 type BuzzEventPayload struct {
 	Event              string               `json:"event"`
-	BuzzID             string               `json:"buzz_id"`
+	BuzzID             string               `json:"buzz_id"`	
 	ChannelID          string               `json:"channel_id"`
 	HostID             string               `json:"host_id"`
-	ParticipantIDs     []string             `json:"participant_ids",omitempty`
+	ParticipantIDs     []string             `json:"participant_ids,omitempty"`
 	ParticipantDetails []ParticipantDetails `json:"participant_details,omitempty"`
-	CreatedAt          time.Time            `json:"created_at",omitempty`
+	CreatedAt          time.Time            `json:"created_at,omitempty"`
 	Status             string               `json:"status"`
 	UserJoined         ParticipantDetails   `json:"user_joined,omitempty"`
 	UserLeft           ParticipantDetails   `json:"user_left,omitempty"`

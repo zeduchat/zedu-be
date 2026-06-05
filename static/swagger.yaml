@@ -325,6 +325,10 @@ paths:
               properties:
                 grant_code:
                   type: string
+                application_type:
+                  type: string
+                  description: "Optional type of the application making the request"
+                  enum: [desktop]
               required:
                 - grant_code
 
@@ -36265,6 +36269,10 @@ components:
           format: date-time
           nullable: true
           description: Timestamp when the status sticker was set (null if no sticker)
+        call_role:
+          type: string
+          enum: [caller, receiver]
+          description: Role of the participant in the call (caller or receiver)
       example:
         user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         username: "johndoe"
@@ -36275,6 +36283,7 @@ components:
         status: "active"
         status_sticker: null
         sticker_set_at: null
+        call_role: "caller"
 
     BuzzAgoraTokenRequest:
       type: object
