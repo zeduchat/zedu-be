@@ -1002,6 +1002,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/BadRequestErrorSchema"
         "422":
+          description: Validation error
           content:
             application/json:
               schema:
@@ -5924,51 +5925,7 @@ paths:
                   - type: object
                     properties:
                       data:
-                        type: object
-                        properties:
-                          buzz_id:
-                            type: string
-                            format: uuid
-                          buzz_code:
-                            type: string
-                          channel_id:
-                            type: string
-                            format: uuid
-                          caller_id:
-                            type: string
-                            format: uuid
-                          caller_name:
-                            type: string
-                          status:
-                            type: string
-                            example: active
-                          participants:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                user_id:
-                                  type: string
-                                  format: uuid
-                                username:
-                                  type: string
-                                status:
-                                  type: string
-                                  enum: [accepted, pending, declined, timeout]
-                          created_at:
-                            type: string
-                            format: date-time
-                          agora_token:
-                            type: object
-                            properties:
-                              token:
-                                type: string
-                              app_id:
-                                type: string
-                              channel_name:
-                                type: string
-                              uid:
-                                type: string
+                        $ref: "#/components/schemas/DirectCallResponse"
               example:
                 status: "success"
                 status_code: 201
@@ -8034,17 +7991,17 @@ paths:
                   type: string
                   example: Checked Out
                 pause_notification:
-                  type: bool
+                  type: boolean
                   example: false
                 status_timeout:
                   type: string
                   example: 20 minutes
                 clear_status:
-                  type: bool
+                  type: boolean
                   description: set to true to clear current status feilds
                   example: true
                 online:
-                  type: bool
+                  type: boolean
                   description: set user online status (true for online, false for away)
                   example: true
 
@@ -10418,11 +10375,9 @@ paths:
         "200":
           description: Invitation dashboard retrieved successfully
           content:
-            message:
-              type: string
-              example: "Failed to fetch invitation dashboard"
-            data:
-              $ref: "#/components/schemas/InvitationDashboardResponse"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationDashboardResponse"
 
   /backoffice/admins:
     get:
@@ -14075,7 +14030,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ValidationErrorSchema"
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
 
   /organisations/{org_id}/dms/{channel_id}/favourite:
     post:
@@ -16973,45 +16928,45 @@ paths:
                     type: string
                     example: integrations retrieved successfully.
                     description: A message describing the result.
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                        description: The unique identifier of the agent.
-                        example: 0192202e-b6f3-7d23-8025-3f60675cc031
-                      is_active:
-                        type: boolean
-                        description: Status of the agent.
-                        example: true
-                      name:
-                        type: string
-                        description: The name of the agent.
-                        example: Banana Agent
-                      tone:
-                        type: string
-                        description: The communication tone of the agent.
-                        example: Friendly
-                      avatar:
-                        type: string
-                        description: URL of the agent's avatar image.
-                        example: https://www.example.com/avatar.png
-                      title:
-                        type: string
-                        description: The title or role of the agent.
-                        example: AI Support Assistant
-                      description:
-                        type: string
-                        description: A brief description of the agent.
-                        example: Helps users with fruit-related queries.
-                      visibility:
-                        type: string
-                        description: The visibility level of the agent.
-                        enum: [private, public, me]
-                        example: public
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: The unique identifier of the agent.
+                          example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                        is_active:
+                          type: boolean
+                          description: Status of the agent.
+                          example: true
+                        name:
+                          type: string
+                          description: The name of the agent.
+                          example: Banana Agent
+                        tone:
+                          type: string
+                          description: The communication tone of the agent.
+                          example: Friendly
+                        avatar:
+                          type: string
+                          description: URL of the agent's avatar image.
+                          example: https://www.example.com/avatar.png
+                        title:
+                          type: string
+                          description: The title or role of the agent.
+                          example: AI Support Assistant
+                        description:
+                          type: string
+                          description: A brief description of the agent.
+                          example: Helps users with fruit-related queries.
+                        visibility:
+                          type: string
+                          description: The visibility level of the agent.
+                          enum: [private, public, me]
+                          example: public
         400:
           description: Invalid organisation_id or request.
         404:
@@ -17060,43 +17015,43 @@ paths:
                     type: string
                     example: agents retrieved successfully.
                     description: A message describing the result.
-                data:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                      description: The unique identifier of the agent.
-                      example: 0192202e-b6f3-7d23-8025-3f60675cc031
-                    is_active:
-                      type: boolean
-                      description: Status of the agent.
-                      example: true
-                    name:
-                      type: string
-                      description: The name of the agent.
-                      example: Banana Agent
-                    tone:
-                      type: string
-                      description: The communication tone of the agent.
-                      example: Friendly
-                    avatar:
-                      type: string
-                      description: URL of the agent's avatar image.
-                      example: https://www.example.com/avatar.png
-                    title:
-                      type: string
-                      description: The title or role of the agent.
-                      example: AI Support Assistant
-                    description:
-                      type: string
-                      description: A brief description of the agent.
-                      example: Helps users with fruit-related queries.
-                    visibility:
-                      type: string
-                      description: The visibility level of the agent.
-                      enum: [private, public, me]
-                      example: public
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        description: The unique identifier of the agent.
+                        example: 0192202e-b6f3-7d23-8025-3f60675cc031
+                      is_active:
+                        type: boolean
+                        description: Status of the agent.
+                        example: true
+                      name:
+                        type: string
+                        description: The name of the agent.
+                        example: Banana Agent
+                      tone:
+                        type: string
+                        description: The communication tone of the agent.
+                        example: Friendly
+                      avatar:
+                        type: string
+                        description: URL of the agent's avatar image.
+                        example: https://www.example.com/avatar.png
+                      title:
+                        type: string
+                        description: The title or role of the agent.
+                        example: AI Support Assistant
+                      description:
+                        type: string
+                        description: A brief description of the agent.
+                        example: Helps users with fruit-related queries.
+                      visibility:
+                        type: string
+                        description: The visibility level of the agent.
+                        enum: [private, public, me]
+                        example: public
         400:
           description: Invalid organisation_id or request.
         404:
@@ -17576,7 +17531,9 @@ paths:
                     example: agent published successfully.
                     description: A message describing the result.
                   data:
-
+                    type: object
+                    nullable: true
+                    example: null
         400:
           description: Invalid request body or parameters.
         401:
@@ -21715,7 +21672,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnauthorizedSchema"
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
         "500":
           description: Internal server error
           content:
@@ -21820,7 +21777,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnauthorizedSchema"
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /files/favorites:
     get:
@@ -21862,7 +21819,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UnauthorizedSchema"
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
 
   /files/{id}/share:
     post:
@@ -28489,7 +28446,8 @@ paths:
                 skill_ids:
                   type: array
                   items:
-                    type: uuid
+                    type: string
+                    format: uuid
                   example:
                     [
                       "123e4567-e89b-12d3-a456-426614174001",
@@ -28736,6 +28694,8 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - thread_id
               properties:
                 thread_id:
                   type: string
@@ -28778,8 +28738,6 @@ paths:
                         type: string
                         format: uuid
                         example: "550e8400-e29b-41d4-a716-446655440000"
-                      required:
-                        - thread_id
       security:
         - bearerAuth: []
       responses:
@@ -29012,7 +28970,7 @@ paths:
       summary: Create a new prompt
       description: Creates a new prompt template for use in translation workflows.
       requestBody:
-        required: trueans
+        required: true
         content:
           application/json:
             schema:
@@ -29201,7 +29159,8 @@ paths:
                         type: string
                         example: Skill Matching
                       version:
-                        type: int32
+                        type: integer
+                        format: int32
       responses:
         "201":
           description: Translation generated successfully
@@ -29578,7 +29537,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
-              $ref: "#/components/schemas/CreateBuzzRequest"
   /buzz/create:
     post:
       tags:
@@ -30994,6 +30952,10 @@ components:
           type: string
         join_status:
           type: string
+        color:
+          type: string
+        call_role:
+          type: string
 
     DirectCallResponse:
       type: object
@@ -31685,14 +31647,6 @@ components:
         created_at: "2025-11-28T12:00:00Z"
         started_at: "2025-11-28T12:00:00Z"
         ended_at: "2025-11-28T13:00:00Z"
-        participants:
-          - user_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-            username: "hostuser"
-            full_name: "Host User"
-            avatar_url: "https://example.com/avatars/host.jpg"
-            default_avatar_url: "https://example.com/avatars/host.jpg"
-            joined_at: "2025-11-28T12:00:00Z"
-            status: "active"
         agora_token:
           token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
           app_id: "your-agora-app-id"
@@ -31771,6 +31725,8 @@ components:
             default_avatar_url: "https://example.com/avatars/host.jpg"
             joined_at: "2025-11-28T12:00:00Z"
             status: "active"
+            color: "#1e3a8a"
+            call_role: "caller"
           - user_id: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
             username: "joininguser"
             full_name: "Joining User"
@@ -31778,6 +31734,8 @@ components:
             default_avatar_url: "https://example.com/avatars/joiner.jpg"
             joined_at: "2025-11-28T12:05:00Z"
             status: "active"
+            color: "#1e3a8a"
+            call_role: "caller"
         agora_token:
           token: "007eJxTYBBbsMMnKq/gRJrAf+7..."
           app_id: "your-agora-app-id"
@@ -31927,6 +31885,8 @@ components:
             status: "active"
             status_sticker: null
             sticker_set_at: null
+            color: "#1e3a8a"
+            call_role: "caller"
           - user_id: "019acc68-b34g-721d-b5f0-e92hddcc9g05"
             username: "kemi"
             full_name: "Kemi Okonkwo"
@@ -31936,6 +31896,9 @@ components:
             status: "active"
             status_sticker: "raise_hand"
             sticker_set_at: "2025-11-28T10:05:30Z"
+            color: "#1e3a8a"
+            call_role: "caller"
+          
 
     BuzzFile:
       type: object
@@ -32081,25 +32044,16 @@ components:
           format: date-time
           nullable: true
           description: When buzz is scheduled to end default is 60 minutes
-        example:
-          is_active: true
-          buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
-          host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
-          status: "active"
-          participant_count: 11
-          participant_preview: ["tolu", "kemi"]
-          remaining_participants: 9
-          is_user_in_buzz: true
-          ended_at: "2025-11-28T11:00:00Z"
-        example_no_active:
-          is_active: false
-          buzz_id: null
-          host_id: null
-          status: null
-          participant_count: 0
-          participant_preview: []
-          remaining_participants: 0
-          ended_at: null
+      example:
+        is_active: true
+        buzz_id: "019acc68-ad4f-721e-9c4b-d2064d445225"
+        host_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
+        status: "active"
+        participant_count: 11
+        participant_preview: ["tolu", "kemi"]
+        remaining_participants: 9
+        is_user_in_buzz: true
+        ended_at: "2025-11-28T11:00:00Z"
 
     ErrorResponse:
       type: object
@@ -32191,7 +32145,7 @@ components:
         agents:
           type: array
           items:
-            $ref: "#/components/schemas/AgentAppResponse"
+            $ref: "#/components/schemas/IntegrationAppResponse"
         pagination:
           type: object
           properties:
@@ -32803,7 +32757,7 @@ components:
           format: uri
           description: URL or base64-encoded image string
         avatar_file:
-          type: file
+          type: string
           format: binary
           description: Binary image file (e.g., PNG, JPG)
         display_name:
@@ -35949,6 +35903,41 @@ components:
         - appearance
         - notification_method_email
 
+    UserNotificationPreferencesResponseSchema:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                user_id:
+                  type: string
+                  format: uuid
+                notify_about:
+                  type: object
+                  properties:
+                    option:
+                      type: string
+                      enum: ["all_new_messages", "direct_messages_mentions", "nothing"]
+                notification_schedule:
+                  type: boolean
+                from_hour:
+                  type: string
+                to_hour:
+                  type: string
+                notification_method_email:
+                  type: boolean
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+
     MediaPreferencesUpdateSchema:
       type: object
       description: Request body for updating media preferences. All fields are optional for partial updates.
@@ -36052,184 +36041,6 @@ components:
           description: Optional device ID for resetting device-specific preferences. If omitted, resets user-level preferences.
           example: "550e8400-e29b-41d4-a716-446655440000"
 
-  responses:
-    UnauthorizedError:
-      description: Authentication information is missing or invalid
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              status:
-                type: string
-                example: error
-              message:
-                type: string
-                example: Unauthorized
-
-    NotFoundError:
-      description: The specified resource was not found
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              status:
-                type: string
-                example: error
-              message:
-                type: string
-                example: Not Found
-
-  parameters:
-    PageLimitParam:
-      name: page
-      in: query
-      description: Page number for pagination
-      required: false
-      schema:
-        type: integer
-        default: 1
-    LimitParam:
-      name: limit
-      in: query
-      description: Number of items per page
-      required: false
-      schema:
-        type: integer
-        default: 10
-
-    UpdateCameraRequest:
-      type: object
-      required:
-        - user_id
-        - status
-      properties:
-        user_id:
-          type: string
-          format: uuid
-          description: The ID of the user updating the camera
-        status:
-          type: boolean
-          description: True for camera ON, False for camera OFF
-
-    UpdateCameraResponse:
-      type: object
-      properties:
-        buzz_id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        is_camera_on:
-          type: boolean
-        updated_at:
-          type: string
-          format: date-time
-
-    BuzzLeaveResponseSchema:
-      type: object
-      description: Response returned when a user leaves a buzz. Users can rejoin a buzz after leaving as long as it remains active.
-      required:
-        - buzz_id
-        - participant_id
-        - left_at
-        - buzz_ended
-      properties:
-        buzz_id:
-          type: string
-          format: uuid
-          description: The unique identifier of the buzz
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        participant_id:
-          type: string
-          format: uuid
-          description: The ID of the user who left the buzz
-          example: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
-        new_host_id:
-          type: string
-          format: uuid
-          nullable: true
-          description: The new host ID if the previous host left (null if host didn't change)
-          example: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"
-        left_at:
-          type: string
-          format: date-time
-          description: Timestamp when the user left the buzz (UTC)
-          example: "2024-11-27T10:30:45Z"
-        buzz_ended:
-          type: boolean
-          description: Whether the buzz ended due to no participants remaining
-          example: false
-
-    ErrorResponse:
-      type: object
-      required:
-        - status
-        - message
-        - code
-      properties:
-        status:
-          type: string
-          enum: [error]
-          example: "error"
-        message:
-          type: string
-          description: Error message describing what went wrong
-          example: "user is not in the buzz"
-        code:
-          type: integer
-          description: HTTP status code
-          example: 400
-
-    CreateBuzzNoteRequest:
-      type: object
-      required:
-        - note
-      properties:
-        note:
-          type: string
-          description: The content of the note
-
-    UpdateBuzzNoteRequest:
-      type: object
-      required:
-        - note
-      properties:
-        note:
-          type: string
-          description: The updated content of the note
-
-    BuzzNoteResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        buzz_id:
-          type: string
-          format: uuid
-        user_id:
-          type: string
-          format: uuid
-        note:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    BuzzNotesListResponse:
-      type: object
-      properties:
-        notes:
-          type: array
-          items:
-            $ref: "#/components/schemas/BuzzNoteResponse"
-
     ParticipantMetadata:
       type: object
       properties:
@@ -36273,6 +36084,16 @@ components:
           type: string
           enum: [caller, receiver]
           description: Role of the participant in the call (caller or receiver)
+        join_status:
+          type: string
+          description: Status of the participant joining
+        media_state:
+          type: string
+          nullable: true
+          description: JSON string containing the participant's media state
+        color:
+          type: string
+          description: Deterministic hex color string for the user
       example:
         user_id: "019acc68-a23f-721d-b4e8-d81fcbbc7e93"
         username: "johndoe"
@@ -36284,6 +36105,9 @@ components:
         status_sticker: null
         sticker_set_at: null
         call_role: "caller"
+        join_status: "active"
+        media_state: "{\"video\":true,\"audio\":false}"
+        color: "#1e3a8a"
 
     BuzzAgoraTokenRequest:
       type: object
@@ -36422,18 +36246,7 @@ components:
           type: string
           format: date-time
 
-    SuccessResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          example: "success"
-        message:
-          type: string
-          example: "Request successful"
-        status_code:
-          type: integer
-          example: 200
+
 
     PlatformCreditMetrics:
       type: object
@@ -36610,7 +36423,7 @@ components:
                         type: string
                         description: Date invitation was sent (YYYY-MM-DD)
             pagination:
-              $ref: "#/components/schemas/PaginationMeta"
+              $ref: "#/components/schemas/Pagination"
 
     OrgUserRoleInfo:
       type: object
@@ -36627,6 +36440,71 @@ components:
           items:
             type: string
           example: ["read", "write"]
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/BadRequestErrorSchema"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UnauthorizedErrorSchema"
+    UnprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Unauthorized
+
+    NotFoundError:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: error
+              message:
+                type: string
+                example: Not Found
+
+  parameters:
+    PageLimitParam:
+      name: page
+      in: query
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        default: 10
 
   securitySchemes:
     bearerAuth:

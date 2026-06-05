@@ -388,12 +388,20 @@ func buildCallParticipants(db *gorm.DB, logger *utility.Logger, participantIDs [
 			joinStatus = models.CallStatusAccepted
 		}
 		username, avatarURL := resolveUserProfile(db, logger, uid)
+		
+		callRole := "receiver"
+		if uid == callerID {
+			callRole = "caller"
+		}
+
 		result = append(result, models.DirectCallParticipant{
 			UserID:           uid,
 			Username:         username,
 			AvatarURL:        avatarURL,
 			DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(uid),
 			JoinStatus:       joinStatus,
+			Color:            utility.GenerateUserColor(uid, username),
+			CallRole:         callRole,
 		})
 	}
 	return result
@@ -405,15 +413,30 @@ func fetchCallParticipants(db *gorm.DB, logger *utility.Logger, buzzID string) [
 		logger.Error("fetchCallParticipants: failed to fetch: %v", err)
 		return nil
 	}
+
+	var hostID string
+	var b models.Buzz
+	if err := db.Model(&models.Buzz{}).Select("host_id").Where("id = ?", buzzID).First(&b).Error; err == nil {
+		hostID = b.HostID
+	}
+
 	result := make([]models.DirectCallParticipant, 0, len(participants))
 	for _, p := range participants {
 		username, avatarURL := resolveUserProfile(db, logger, p.UserID)
+		
+		callRole := "receiver"
+		if hostID != "" && p.UserID == hostID {
+			callRole = "caller"
+		}
+
 		result = append(result, models.DirectCallParticipant{
 			UserID:           p.UserID,
 			Username:         username,
 			AvatarURL:        avatarURL,
 			DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(p.UserID),
 			JoinStatus:       p.Status,
+			Color:            utility.GenerateUserColor(p.UserID, username),
+			CallRole:         callRole,
 		})
 	}
 	return result
