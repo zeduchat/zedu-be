@@ -609,6 +609,12 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 			joinedUser.UserID = userID
 			joinedUser.Username = joinedUsername
 			joinedUser.AvatarURL = &profile.AvatarURL
+			joinedUser.Color = utility.GenerateUserColor(userID, joinedUsername)
+			if buzz.HostID != "" && userID == buzz.HostID {
+				joinedUser.CallRole = "caller"
+			} else {
+				joinedUser.CallRole = "receiver"
+			}
 		}
 	}
 
@@ -626,6 +632,8 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 			AvatarURL:  p.AvatarURL,
 			JoinStatus: p.JoinStatus,
 			MediaState: p.MediaState,
+			Color:      p.Color,
+			CallRole:   p.CallRole,
 		})
 	}
 
@@ -684,6 +692,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		}
 		return nil, status, err
 	}
+
+	isHost := userID == buzz.HostID
 
 	logger.Info("validation passed for user %s to leave buzz %s", userID, buzzID)
 
@@ -767,6 +777,12 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 	userLeft.UserID = userID
 	userLeft.Username = username
 	userLeft.AvatarURL = &profile.AvatarURL
+	userLeft.Color = utility.GenerateUserColor(userID, username)
+	if isHost {
+		userLeft.CallRole = "caller"
+	} else {
+		userLeft.CallRole = "receiver"
+	}
 
 	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzzID)
 	if err != nil {
@@ -785,6 +801,8 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 			AvatarURL:  p.AvatarURL,
 			JoinStatus: p.JoinStatus,
 			MediaState: p.MediaState,
+			Color:      p.Color,
+			CallRole:   p.CallRole,
 		})
 	}
 
@@ -1612,6 +1630,8 @@ func MuteParticipants(db *storage.Database, logger *utility.Logger, buzzID, user
 			Username:   p.UserName,
 			AvatarURL:  p.AvatarURL,
 			MediaState: p.MediaState,
+			Color:      p.Color,
+			CallRole:   p.CallRole,
 		})
 	}
 

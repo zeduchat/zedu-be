@@ -254,6 +254,8 @@ type ParticipantDetails struct {
 	Email      string  `json:"email,omitempty"`
 	JoinStatus string  `json:"join_status,omitempty"`
 	MediaState *string `json:"media_state,omitempty"`
+	Color      string  `json:"color"`
+	CallRole   string  `json:"call_role"`
 }
 
 type BuzzLeaveEventPayload struct {
@@ -628,6 +630,8 @@ type DirectCallParticipant struct {
 	AvatarURL        string `json:"avatar_url"`
 	DefaultAvatarURL string `json:"default_avatar_url"`
 	JoinStatus       string `json:"join_status"`
+	Color            string `json:"color"`
+	CallRole         string `json:"call_role"`
 }
 
 type InitiateDirectCallRequest struct {
