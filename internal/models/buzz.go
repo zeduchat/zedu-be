@@ -622,6 +622,7 @@ const (
 	CallStatusAccepted = "accepted"
 	CallStatusDeclined = "declined"
 	CallStatusTimeout  = "timeout"
+	CallStatusCanceled = "canceled"
 )
 
 type DirectCallParticipant struct {

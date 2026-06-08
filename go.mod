@@ -44,6 +44,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.25.0
 	github.com/riverqueue/river/rivertype v0.25.0
 	github.com/russross/blackfriday/v2 v2.1.0
+	github.com/sideshow/apns2 v0.25.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
