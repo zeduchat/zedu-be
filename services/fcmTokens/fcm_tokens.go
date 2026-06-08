@@ -141,3 +141,43 @@ func GetWebPushTokenByUserIds(userIds []string, db *gorm.DB) (*[]models.SubsPayl
 
 	return &webptokens, nil
 }
+
+func CreateVoIPToken(req models.VoIPTokenRequest, userId string, db *gorm.DB) (int, error) {
+	var ft models.FcmTokens
+
+	ft.VoIPToken = req.VoIPToken
+	ft.UserId = userId
+	ft.IsLive = true
+	ft.ID = utility.GenerateUUID()
+
+	err := ft.CreateVoIPToken(db)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func GetVoIPTokenByUserIds(userIds []string, db *gorm.DB) (*[]string, error) {
+	var ft models.FcmTokens
+	voiptokens := []string{}
+
+	resp, err := ft.GetFcmTokenByUserIds(db, userIds)
+	if err != nil {
+		return &voiptokens, err
+	}
+
+	for _, token := range *resp {
+		if token.VoIPToken != "" {
+			voiptokens = append(voiptokens, token.VoIPToken)
+		}
+	}
+
+	return &voiptokens, nil
+}
+
+func ClearVoIPToken(deviceToken string, db *gorm.DB) error {
+	var ft models.FcmTokens
+	ft.VoIPToken = deviceToken
+	return ft.ClearVoIPToken(db)
+}

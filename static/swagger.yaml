@@ -18791,6 +18791,58 @@ paths:
               schema:
                 $ref: "#/components/schemas/ServerErrorSchema"
 
+  /users/voip-push-token:
+    put:
+      tags:
+        - user
+      summary: Update VoIP push token
+      description: Update VoIP push token for authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoIPTokenRequestSchema"
+      responses:
+        "200":
+          description: VoIP token updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoIPTokenResponseSchema"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnprocessedEntityErrorSchema"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /optin:
     post:
       tags:
@@ -35750,6 +35802,47 @@ components:
           required:
             - user_id
             - subscription_id
+      required:
+        - status
+        - message
+        - data
+
+    VoIPTokenRequestSchema:
+      type: object
+      properties:
+        voip_token:
+          type: string
+          description: The APNs VoIP token (hex string)
+          example: "voip-token-new-123456"
+      required:
+        - voip_token
+
+    VoIPTokenResponseSchema:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "success"
+          description: Response status
+        message:
+          type: string
+          example: "VoIP token updated successfully"
+          description: Response message
+        data:
+          type: object
+          properties:
+            user_id:
+              type: string
+              format: uuid
+              example: "019142c8-5408-7a48-8173-f31e6c8e00cd"
+              description: The user ID
+            voip_token:
+              type: string
+              example: "voip-token-new-123456"
+              description: The registered VoIP token
+          required:
+            - user_id
+            - voip_token
       required:
         - status
         - message

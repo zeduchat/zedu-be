@@ -14,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/permissions"
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/apns"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
@@ -172,6 +173,115 @@ func InitiateDirectCall(db *storage.Database, logger *utility.Logger, channelID,
 	return resp, http.StatusCreated, nil
 }
 
+func CancelDirectCall(db *storage.Database, logger *utility.Logger, buzzID, userID string) (models.DirectCallResponse, int, error) {
+	var resp models.DirectCallResponse
+
+	var buzz models.Buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return resp, http.StatusNotFound, errors.New("call not found")
+		}
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch call")
+	}
+
+	if buzz.Status != models.BuzzStatusActive {
+		return resp, http.StatusConflict, errors.New("call has already ended")
+	}
+
+	now := time.Now().UTC()
+	if err := db.Postgresql.Model(&buzz).Updates(map[string]interface{}{
+		"status":         models.BuzzStatusEnded,
+		"is_live_status": false,
+		"buzz_end_time":  &now,
+		"updated_at":     now,
+	}).Error; err != nil {
+		logger.Error("CancelDirectCall: failed to update buzz status: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to cancel call")
+	}
+
+	if err := db.Postgresql.Model(&models.BuzzParticipant{}).
+		Where("buzz_id = ?", buzz.ID).
+		Update("status", models.BuzzParticipantStatusLeft).Error; err != nil {
+		logger.Error("CancelDirectCall: failed to update participant status: %v", err)
+	}
+
+	if err := models.ExpireInvitationsForBuzz(db.Postgresql, buzzID); err != nil {
+		logger.Error("CancelDirectCall: failed to expire invitations: %v", err)
+	}
+
+	participantIDs, _ := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, buzz.HostID)
+
+	others := make([]string, 0, len(participantIDs)-1)
+	for _, uid := range participantIDs {
+		if uid != buzz.HostID {
+			others = append(others, uid)
+		}
+	}
+
+	if len(others) > 0 {
+		req := models.PushRequest{
+			Title:   "Missed Call",
+			Message: fmt.Sprintf("Missed call from %s", callerName),
+			UserIds: others,
+		}
+
+		pushMsg := models.CallPushPayload{
+			BuzzID:           buzz.ID,
+			ChannelID:        buzz.ChannelID,
+			CallerName:       callerName,
+			CallerID:         buzz.HostID,
+			AvatarURL:        avatarURL,
+			DefaultAvatarURL: avatar.GenerateDefaultAvatarURL(buzz.HostID),
+			Event:            string(models.DirectCallCanceled),
+		}
+
+		sendDirectCallOneSignal(db, logger, others, req, pushMsg)
+		go sendDirectCallVoIP(db, logger, others, req, pushMsg)
+	}
+
+	respNotification := models.Notification[models.DirectCallCanceled]
+	respNotification.SectionType = models.ChannelsSection
+	respNotification.NotificationId = utility.GenerateUUID()
+	respNotification.ModificationDetails = &models.ModificationDetails{
+		ChannelId: buzz.ChannelID,
+	}
+	respNotification.Content = models.DirectCallCentrifugoPayload{
+		Event:      string(models.DirectCallCanceled),
+		BuzzID:     buzzID,
+		ChannelID:  buzz.ChannelID,
+		CallerID:   buzz.HostID,
+		CallerName: callerName,
+		CreatedAt:  buzz.CreatedAt,
+	}
+
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	if orgID != "" {
+		broadcastChannels := make([]string, 0, len(participantIDs))
+		for _, uid := range participantIDs {
+			broadcastChannels = append(broadcastChannels, fmt.Sprintf("%s/%s", orgID, uid))
+		}
+		if err := centrifuge.BatchBroadcastToChannel(logger, broadcastChannels, respNotification); err != nil {
+			logger.Error("CancelDirectCall: failed to broadcast centrifugo cancel event: %v", err)
+		}
+	}
+
+	resp = models.DirectCallResponse{
+		BuzzID:     buzzID,
+		BuzzCode:   utility.ExtractBuzzCode(buzzID),
+		ChannelID:  buzz.ChannelID,
+		CallerID:   buzz.HostID,
+		CallerName: callerName,
+		Status:     models.BuzzStatusEnded,
+		JoinStatus: "canceled",
+		CreatedAt:  buzz.CreatedAt,
+	}
+
+	return resp, http.StatusOK, nil
+}
+
 func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID, action string) (models.DirectCallResponse, int, error) {
 	var resp models.DirectCallResponse
 
@@ -185,6 +295,10 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 
 	if buzz.Status != models.BuzzStatusActive {
 		return resp, http.StatusConflict, errors.New("call has already ended")
+	}
+
+	if action == "cancel" {
+		return CancelDirectCall(db, logger, buzzID, userID)
 	}
 
 	var participant models.BuzzParticipant
@@ -471,6 +585,7 @@ func notifyCallParticipants(db *storage.Database, logger *utility.Logger, partic
 	}
 
 	sendDirectCallOneSignal(db, logger, others, req, pushMsg)
+	go sendDirectCallVoIP(db, logger, others, req, pushMsg)
 }
 
 func notifyCallCanceled(db *storage.Database, logger *utility.Logger, participantIDs []string, callerID, callerName, channelID, buzzID string) {
@@ -586,4 +701,47 @@ func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userI
 	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData, db.Postgresql, userIDs); err != nil {
 		logger.Error("sendDirectCallOneSignal: failed to send notification: %v", err)
 	}
+}
+
+func sendDirectCallVoIP(db *storage.Database, logger *utility.Logger, userIDs []string, req models.PushRequest, payload models.CallPushPayload) {
+	var tokens []models.FcmTokens
+	if err := db.Postgresql.Where("user_id IN ? AND voip_token IS NOT NULL AND voip_token != ''", userIDs).
+		Find(&tokens).Error; err != nil {
+		logger.Error("sendDirectCallVoIP: failed to fetch VoIP tokens: %v", err)
+		return
+	}
+
+	voipTokens := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		if t.VoIPToken != "" {
+			voipTokens = append(voipTokens, t.VoIPToken)
+		}
+	}
+
+	if len(voipTokens) == 0 {
+		return
+	}
+
+	callData := map[string]interface{}{
+		"buzz_id":            payload.BuzzID,
+		"channel_id":         payload.ChannelID,
+		"caller_name":        payload.CallerName,
+		"caller_id":          payload.CallerID,
+		"avatar_url":         payload.AvatarURL,
+		"default_avatar_url": payload.DefaultAvatarURL,
+		"event":              payload.Event,
+	}
+
+	if err := apns.SendDirectCallVoIPNotification(logger, voipTokens, req, callData, db.Postgresql, userIDs); err != nil {
+		logger.Error("sendDirectCallVoIP: failed to send notification: %v", err)
+	}
+}
+
+func sendDirectCallCancelVoIP(db *storage.Database, logger *utility.Logger, userIDs []string, payload models.CallPushPayload, buzzID string) {
+	req := models.PushRequest{
+		Title:   "Call Canceled",
+		Message: fmt.Sprintf("%s has canceled the call", payload.CallerName),
+		UserIds: userIDs,
+	}
+	sendDirectCallVoIP(db, logger, userIDs, req, payload)
 }
