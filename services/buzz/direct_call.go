@@ -502,7 +502,7 @@ func buildCallParticipants(db *gorm.DB, logger *utility.Logger, participantIDs [
 			joinStatus = models.CallStatusAccepted
 		}
 		username, avatarURL := resolveUserProfile(db, logger, uid)
-		
+
 		callRole := "receiver"
 		if uid == callerID {
 			callRole = "caller"
@@ -537,7 +537,7 @@ func fetchCallParticipants(db *gorm.DB, logger *utility.Logger, buzzID string) [
 	result := make([]models.DirectCallParticipant, 0, len(participants))
 	for _, p := range participants {
 		username, avatarURL := resolveUserProfile(db, logger, p.UserID)
-		
+
 		callRole := "receiver"
 		if hostID != "" && p.UserID == hostID {
 			callRole = "caller"
@@ -732,6 +732,8 @@ func sendDirectCallVoIP(db *storage.Database, logger *utility.Logger, userIDs []
 		"avatar_url":         payload.AvatarURL,
 		"default_avatar_url": payload.DefaultAvatarURL,
 		"event":              payload.Event,
+		"buzz_code":          utility.ExtractBuzzCode(payload.BuzzID),
+		"host_id":            payload.CallerID,
 	}
 
 	if err := apns.SendDirectCallVoIPNotification(logger, voipTokens, req, callData, db.Postgresql, userIDs); err != nil {
