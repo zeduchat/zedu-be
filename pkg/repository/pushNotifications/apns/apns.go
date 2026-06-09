@@ -72,7 +72,7 @@ func ConnectAPNs(logger *utility.Logger, cfg config.Apple) {
 		TeamID:  cfg.TEAM_ID,
 	}
 
-	apnsClient := apns2.NewTokenClient(apnsToken).Production()
+	apnsClient := apns2.NewTokenClient(apnsToken).Development()
 	topic := cfg.CLIENT_ID + ".voip"
 
 	APNsClient = &Client{
@@ -135,15 +135,11 @@ func (c *Client) send(ctx context.Context, logger *utility.Logger, deviceToken s
 		Priority:    apns2.PriorityHigh,
 	}
 
-	logger.Info("apns: sending direct call voip notification to %s: %v", deviceToken, notification)
-
 	resp, err := c.client.PushWithContext(ctx, notification)
 	if err != nil {
 		logger.Error("apns: push failed: %v", err)
 		return nil, fmt.Errorf("apns: push failed: %w", err)
 	}
-
-	logger.Info("apns: direct call voip notification sent to %s: %v", deviceToken, resp)
 
 	result := &SendResult{
 		Success:    resp.Sent(),
@@ -156,7 +152,7 @@ func (c *Client) send(ctx context.Context, logger *utility.Logger, deviceToken s
 	}
 
 	if !result.Success {
-		logger.Debug("apns voip push rejected",
+		logger.Error("apns voip push rejected",
 			"status", resp.StatusCode,
 			"reason", resp.Reason,
 			"apns_id", resp.ApnsID,
