@@ -722,6 +722,8 @@ func sendDirectCallVoIP(db *storage.Database, logger *utility.Logger, userIDs []
 		return
 	}
 
+	logger.Info("sendDirectCallVoIP: sending notification to %d users", len(userIDs))
+
 	callData := map[string]interface{}{
 		"buzz_id":            payload.BuzzID,
 		"channel_id":         payload.ChannelID,
@@ -735,13 +737,6 @@ func sendDirectCallVoIP(db *storage.Database, logger *utility.Logger, userIDs []
 	if err := apns.SendDirectCallVoIPNotification(logger, voipTokens, req, callData, db.Postgresql, userIDs); err != nil {
 		logger.Error("sendDirectCallVoIP: failed to send notification: %v", err)
 	}
-}
 
-func sendDirectCallCancelVoIP(db *storage.Database, logger *utility.Logger, userIDs []string, payload models.CallPushPayload, buzzID string) {
-	req := models.PushRequest{
-		Title:   "Call Canceled",
-		Message: fmt.Sprintf("%s has canceled the call", payload.CallerName),
-		UserIds: userIDs,
-	}
-	sendDirectCallVoIP(db, logger, userIDs, req, payload)
+	logger.Info("sendDirectCallVoIP: successfully sent notification to %d users", len(userIDs))
 }
