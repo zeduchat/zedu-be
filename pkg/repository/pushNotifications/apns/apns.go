@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/sideshow/apns2"
@@ -82,7 +81,7 @@ func ConnectAPNs(logger *utility.Logger, cfg config.Apple) {
 	}
 }
 
-func (c *Client) SendDirectCallInvite(ctx context.Context, deviceToken string, payload DirectCallInvitePayload) (*SendResult, error) {
+func (c *Client) SendDirectCallInvite(ctx context.Context, logger *utility.Logger, deviceToken string, payload DirectCallInvitePayload) (*SendResult, error) {
 	body := map[string]any{
 		"aps": map[string]any{
 			"content-available": 1,
@@ -99,10 +98,10 @@ func (c *Client) SendDirectCallInvite(ctx context.Context, deviceToken string, p
 		"participants":       payload.Participants,
 	}
 
-	return c.send(ctx, deviceToken, body)
+	return c.send(ctx, logger, deviceToken, body)
 }
 
-func (c *Client) SendDirectCallCancel(ctx context.Context, deviceToken string, payload DirectCallCancelPayload) (*SendResult, error) {
+func (c *Client) SendDirectCallCancel(ctx context.Context, logger *utility.Logger, deviceToken string, payload DirectCallCancelPayload) (*SendResult, error) {
 	body := map[string]any{
 		"aps": map[string]any{
 			"content-available": 1,
@@ -114,16 +113,17 @@ func (c *Client) SendDirectCallCancel(ctx context.Context, deviceToken string, p
 		"join_status": payload.JoinStatus,
 	}
 
-	return c.send(ctx, deviceToken, body)
+	return c.send(ctx, logger, deviceToken, body)
 }
 
-func (c *Client) send(ctx context.Context, deviceToken string, body map[string]any) (*SendResult, error) {
+func (c *Client) send(ctx context.Context, logger *utility.Logger, deviceToken string, body map[string]any) (*SendResult, error) {
 	if deviceToken == "" {
 		return nil, fmt.Errorf("apns: empty device token")
 	}
 
 	raw, err := json.Marshal(body)
 	if err != nil {
+		logger.Error("apns: marshal payload: %v", err)
 		return nil, fmt.Errorf("apns: marshal payload: %w", err)
 	}
 
@@ -135,10 +135,15 @@ func (c *Client) send(ctx context.Context, deviceToken string, body map[string]a
 		Priority:    apns2.PriorityHigh,
 	}
 
+	logger.Info("apns: sending direct call voip notification to %s: %v", deviceToken, notification)
+
 	resp, err := c.client.PushWithContext(ctx, notification)
 	if err != nil {
+		logger.Error("apns: push failed: %v", err)
 		return nil, fmt.Errorf("apns: push failed: %w", err)
 	}
+
+	logger.Info("apns: direct call voip notification sent to %s: %v", deviceToken, resp)
 
 	result := &SendResult{
 		Success:    resp.Sent(),
@@ -151,12 +156,14 @@ func (c *Client) send(ctx context.Context, deviceToken string, body map[string]a
 	}
 
 	if !result.Success {
-		slog.Warn("apns voip push rejected",
+		logger.Debug("apns voip push rejected",
 			"status", resp.StatusCode,
 			"reason", resp.Reason,
 			"apns_id", resp.ApnsID,
 		)
 	}
+
+	logger.Info("apns: direct call voip notification successfully sent to %s: %v", deviceToken, resp)
 
 	return result, nil
 }
@@ -179,13 +186,13 @@ func SendDirectCallVoIPNotification(logger *utility.Logger, deviceTokens []strin
 				payloadBytes, _ := json.Marshal(callData)
 				json.Unmarshal(payloadBytes, &invitePayload)
 
-				result, err = APNsClient.SendDirectCallInvite(ctx, deviceToken, invitePayload)
+				result, err = APNsClient.SendDirectCallInvite(ctx, logger, deviceToken, invitePayload)
 			} else if event == "direct_call_canceled" {
 				var cancelPayload DirectCallCancelPayload
 				payloadBytes, _ := json.Marshal(callData)
 				json.Unmarshal(payloadBytes, &cancelPayload)
 
-				result, err = APNsClient.SendDirectCallCancel(ctx, deviceToken, cancelPayload)
+				result, err = APNsClient.SendDirectCallCancel(ctx, logger, deviceToken, cancelPayload)
 			} else {
 				return
 			}
