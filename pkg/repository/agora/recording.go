@@ -74,6 +74,23 @@ type extensionServiceConfig struct {
 	ExtensionServices []extensionService `json:"extensionServices"`
 }
 
+type transcodingConfig struct {
+	Width            int `json:"width"`
+	Height           int `json:"height"`
+	Fps              int `json:"fps"`
+	Bitrate          int `json:"bitrate"`
+	MixedVideoLayout int `json:"mixedVideoLayout"`
+}
+
+type recordingConfig struct {
+	MaxIdleTime       int               `json:"maxIdleTime"`
+	StreamTypes       int               `json:"streamTypes"`
+	ChannelType       int               `json:"channelType"`
+	VideoStreamType   int               `json:"videoStreamType"`
+	SubscribeUidGroup int               `json:"subscribeUidGroup"`
+	TranscodingConfig transcodingConfig `json:"transcodingConfig"`
+}
+
 type recordingFileConfig struct {
 	AvFileType []string `json:"avFileType"`
 }
@@ -85,6 +102,7 @@ type startRecordingRequest struct {
 }
 
 type startClientRequest struct {
+	RecordingConfig        *recordingConfig        `json:"recordingConfig,omitempty"`
 	ExtensionServiceConfig extensionServiceConfig `json:"extensionServiceConfig"`
 	RecordingFileConfig    recordingFileConfig    `json:"recordingFileConfig"`
 	StorageConfig          storageConfig          `json:"storageConfig"`
@@ -221,6 +239,20 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: startClientRequest{
+			RecordingConfig: &recordingConfig{
+				MaxIdleTime:       maxIdleSecs,
+				StreamTypes:       2,
+				ChannelType:       0,
+				VideoStreamType:   0,
+				SubscribeUidGroup: 0,
+				TranscodingConfig: transcodingConfig{
+					Width:            1280,
+					Height:           720,
+					Fps:              30,
+					Bitrate:          2000,
+					MixedVideoLayout: 1,
+				},
+			},
 			ExtensionServiceConfig: extensionServiceConfig{
 				ErrorHandlePolicy: "error_abort",
 				ExtensionServices: []extensionService{
