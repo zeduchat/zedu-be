@@ -36,13 +36,13 @@ func getSiteURL() string {
 }
 
 func isRecordingBot(db *gorm.DB, userID string, buzzID string) bool {
-	if len(userID) > 36 {
+	if len(userID) > 37 && userID[36] == '-' {
 		extractedBuzzID := userID[:36]
+		recordingUID := userID[37:]
 		if extractedBuzzID == buzzID {
 			var rec models.BuzzRecording
-			if err := db.Where("buzz_id = ?", buzzID).First(&rec).Error; err == nil {
-				botUserID := fmt.Sprintf("%s-%s", rec.BuzzID, rec.RecordingUID)
-				return userID == botUserID
+			if err := db.Where("buzz_id = ? AND recording_uid = ?", buzzID, recordingUID).First(&rec).Error; err == nil {
+				return true
 			}
 		}
 	}

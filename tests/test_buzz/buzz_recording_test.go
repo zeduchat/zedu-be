@@ -374,13 +374,18 @@ func TestBuzzRecording(t *testing.T) {
 	})
 
 	t.Run("BotTokenVerificationFlow_PassesAllChecks", func(t *testing.T) {
+		testBuzzID, _ := tst.CreateBuzz(t, router, *buzzCtrl, db, models.CreateBuzzRequest{ChannelID: channelID}, hostToken)
+		if testBuzzID == "" {
+			t.Fatal("failed to create a fresh buzz for bot verification test")
+		}
+
 		recUID := "123498765"
 		recID := utility.GenerateUUID()
 		orgID := hostUser.CurrentOrg.String()
 
 		rec := models.BuzzRecording{
 			ID:           recID,
-			BuzzID:       buzzID,
+			BuzzID:       testBuzzID,
 			OrgID:        orgID,
 			ResourceID:   "bot-test-res",
 			Sid:          "bot-test-sid",
@@ -393,12 +398,12 @@ func TestBuzzRecording(t *testing.T) {
 		}
 		defer db.Postgresql.Delete(&rec)
 
-		botToken, err := buzzSvc.GenerateBotJWTToken(orgID, buzzID, recUID, 300)
+		botToken, err := buzzSvc.GenerateBotJWTToken(orgID, testBuzzID, recUID, 300)
 		if err != nil {
 			t.Fatalf("failed to generate bot JWT token: %v", err)
 		}
 
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", buzzID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", testBuzzID), nil)
 		req.Header.Set("Authorization", "Bearer "+botToken)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -407,7 +412,7 @@ func TestBuzzRecording(t *testing.T) {
 			t.Errorf("expected bot token to bypass authentication checks in status endpoint, but got status code %d", rr.Code)
 		}
 
-		reqJoin, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", buzzID), nil)
+		reqJoin, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", testBuzzID), nil)
 		reqJoin.Header.Set("Authorization", "Bearer "+botToken)
 		rrJoin := httptest.NewRecorder()
 		router.ServeHTTP(rrJoin, reqJoin)
@@ -430,14 +435,16 @@ func TestBuzzRecording(t *testing.T) {
 			}
 		}
 
-		botUserID := fmt.Sprintf("%s-%s", buzzID, recUID)
+		botUserID := fmt.Sprintf("%s-%s", testBuzzID, recUID)
 		var pCount int64
-		db.Postgresql.Model(&models.BuzzParticipant{}).Where("buzz_id = ? AND user_id = ?", buzzID, botUserID).Count(&pCount)
+		if utility.IsValidUUID(botUserID) {
+			db.Postgresql.Model(&models.BuzzParticipant{}).Where("buzz_id = ? AND user_id = ?", testBuzzID, botUserID).Count(&pCount)
+		}
 		if pCount > 0 {
 			t.Errorf("database pollution: bot user ID %s was added to buzz_participants table", botUserID)
 		}
 
-		reqMeta, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/metadata", buzzID), nil)
+		reqMeta, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/metadata", testBuzzID), nil)
 		reqMeta.Header.Set("Authorization", "Bearer "+botToken)
 		rrMeta := httptest.NewRecorder()
 		router.ServeHTTP(rrMeta, reqMeta)
@@ -458,7 +465,7 @@ func TestBuzzRecording(t *testing.T) {
 			}
 		}
 
-		tokenReqBody := fmt.Sprintf(`{"buzz_id":%q,"uid":%q}`, buzzID, utility.GenerateUUID())
+		tokenReqBody := fmt.Sprintf(`{"buzz_id":%q,"uid":%q}`, testBuzzID, utility.GenerateUUID())
 		reqTok, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/token", strings.NewReader(tokenReqBody))
 		reqTok.Header.Set("Authorization", "Bearer "+botToken)
 		reqTok.Header.Set("Content-Type", "application/json")

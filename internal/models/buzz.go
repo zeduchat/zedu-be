@@ -209,6 +209,10 @@ func (hp *BuzzParticipant) BeforeCreate(tx *gorm.DB) error {
 }
 
 func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
+	if !utility.IsValidUUID(channelID) || !utility.IsValidUUID(userID) {
+		return false
+	}
+
 	// Check regular channels with explicit error handling
 	var userChannel UserChannels
 	err := db.Where("channels_id = ? AND user_id = ?", channelID, userID).First(&userChannel).Error
