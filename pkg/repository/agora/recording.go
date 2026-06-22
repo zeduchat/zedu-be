@@ -64,8 +64,9 @@ type extensionServiceParam struct {
 }
 
 type extensionService struct {
-	ServiceName  string                `json:"serviceName"`
-	ServiceParam extensionServiceParam `json:"serviceParam"`
+	ServiceName       string                `json:"serviceName"`
+	ErrorHandlePolicy string                `json:"errorHandlePolicy"`
+	ServiceParam      extensionServiceParam `json:"serviceParam"`
 }
 
 type extensionServiceConfig struct {
@@ -221,10 +222,11 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 		Uid:   uid,
 		ClientRequest: startClientRequest{
 			ExtensionServiceConfig: extensionServiceConfig{
-				ErrorHandlePolicy: "error-stop",
+				ErrorHandlePolicy: "error_abort",
 				ExtensionServices: []extensionService{
 					{
-						ServiceName: "web_recorder_service",
+						ServiceName:       "web_recorder_service",
+						ErrorHandlePolicy: "error_abort",
 						ServiceParam: extensionServiceParam{
 							URL:              webpageURL,
 							AudioProfile:     0,
