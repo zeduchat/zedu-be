@@ -435,11 +435,22 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		return resp, http.StatusInternalServerError, errors.New(errorAgoraNotInitialized)
 	}
 
-	// Validate all join permissions using centralized permission check
-	buzz, err := permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
+	isBot := isRecordingBot(db.Postgresql, userID, buzzID)
+
+	var buzz models.Buzz
+	var err error
+	if isBot {
+		err = db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error
+	} else {
+		var b *models.Buzz
+		b, err = permissions.CanJoinBuzz(db.Postgresql, buzzID, userID)
+		if b != nil {
+			buzz = *b
+		}
+	}
 	if err != nil {
 		statusCode, errMsg := mapPermissionError(err, "join")
-		logger.Error("join buzz failed - permission denied for user %s in buzz %s: %v", userID, buzzID, err)
+		logger.Error("join buzz failed - permission denied/error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, statusCode, errors.New(errMsg)
 	}
 	logger.Info("permission validated for user %s to join buzz %s", userID, buzzID)
@@ -457,7 +468,21 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	}
 
 	logger.Info("generating Agora RTC token for user %s in buzz %s", userID, buzzID)
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
+	var token string
+	var recUid string
+	if isBot {
+		var rec models.BuzzRecording
+		if err := db.Postgresql.Where("buzz_id = ?", buzzID).First(&rec).Error; err == nil {
+			recUid = rec.RecordingUID
+			token, err = service.GenerateRTCToken(buzzID, recUid, recUid, remainingTime)
+		} else {
+			err = fmt.Errorf("failed to fetch bot recording: %w", err)
+		}
+	} else {
+		recUid = userID
+		token, err = service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
+	}
+
 	if err != nil {
 		logger.Error("join buzz failed - Agora token generation error for user %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -467,34 +492,37 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		Token:       token,
 		AppId:       service.GetAppId(),
 		ChannelName: buzzID,
-		UID:         userID,
+		UID:         recUid,
 	}
-
-	// Add user to buzz in transaction
-	logger.Info("starting database transaction to add user %s to buzz %s", userID, buzzID)
-	if err := addUserToBuzzTransaction(db, logger, buzz, userID, timestamp); err != nil {
-		logger.Error("join buzz failed - database transaction error for user %s in buzz %s: %v", userID, buzzID, err)
-		return resp, http.StatusInternalServerError, errors.New("failed to join buzz")
-	}
-
-	// Fetch updated buzz with new participant using fresh variable to avoid pointer issues
-	var updatedBuzz models.Buzz
-	if err := db.Postgresql.Where("id = ?", buzzID).First(&updatedBuzz).Error; err != nil {
-		logger.Error("failed to fetch updated buzz: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
-	}
-	buzz = &updatedBuzz
 
 	hostRestored := false
-	if buzz.OriginalHostID != "" && userID == buzz.OriginalHostID && buzz.HostID != userID {
-		if err := db.Postgresql.Model(buzz).Update("host_id", userID).Error; err != nil {
-			logger.Error("failed to restore original host for buzz %s: %v", buzzID, err)
-		} else {
-			buzz.HostID = userID
-			hostRestored = true
-			logger.Info("original host %s restored for buzz %s", userID, buzzID)
+	if !isBot {
+		// Add user to buzz in transaction
+		logger.Info("starting database transaction to add user %s to buzz %s", userID, buzzID)
+		if err := addUserToBuzzTransaction(db, logger, &buzz, userID, timestamp); err != nil {
+			logger.Error("join buzz failed - database transaction error for user %s in buzz %s: %v", userID, buzzID, err)
+			return resp, http.StatusInternalServerError, errors.New("failed to join buzz")
+		}
+
+		// Fetch updated buzz with new participant using fresh variable to avoid pointer issues
+		var updatedBuzz models.Buzz
+		if err := db.Postgresql.Where("id = ?", buzzID).First(&updatedBuzz).Error; err != nil {
+			logger.Error("failed to fetch updated buzz: %v", err)
+			return resp, http.StatusInternalServerError, errors.New("failed to fetch updated buzz")
+		}
+		buzz = updatedBuzz
+
+		if buzz.OriginalHostID != "" && userID == buzz.OriginalHostID && buzz.HostID != userID {
+			if err := db.Postgresql.Model(&buzz).Update("host_id", userID).Error; err != nil {
+				logger.Error("failed to restore original host for buzz %s: %v", buzzID, err)
+			} else {
+				buzz.HostID = userID
+				hostRestored = true
+				logger.Info("original host %s restored for buzz %s", userID, buzzID)
+			}
 		}
 	}
+
 	// Fetch participant metadata
 	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
 	if err != nil {
@@ -506,7 +534,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 
 	lastUserJoined := findLastJoinedUser(participantMetadata)
 
-	metadataResp := buildBuzzMetadataResponse(db.Postgresql, buzz, participantMetadata, lastUserJoined, logger)
+	metadataResp := buildBuzzMetadataResponse(db.Postgresql, &buzz, participantMetadata, lastUserJoined, logger)
 	resp = models.JoinBuzzResponse{
 		BuzzID:          metadataResp.BuzzID,
 		BuzzCode:        metadataResp.BuzzCode,
@@ -524,8 +552,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		IsRecording:     isRecording,
 		RecordingStatus: recordingStatus,
 	}
-
-	publishJoinBuzzEvent(logger, *buzz, timestamp, db.Postgresql, userID)
+	publishJoinBuzzEvent(logger, buzz, timestamp, db.Postgresql, userID)
 
 	logger.Info("user %s successfully joined buzz %s", userID, buzzID)
 	return resp, http.StatusOK, nil
@@ -1115,8 +1142,10 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch buzz")
 	}
 
+	isBot := isRecordingBot(db.Postgresql, userID, buzzID)
+
 	// Verify user is a member of the channel where the buzz is active
-	if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) && buzz.BuzzType != models.BuzzTypeOrganization {
+	if !isBot && !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) && buzz.BuzzType != models.BuzzTypeOrganization {
 		logger.Error("user %s is not a member of channel %s", userID, buzz.ChannelID)
 		return resp, http.StatusForbidden, errors.New("user is not a member of the channel")
 	}
@@ -1150,7 +1179,21 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		return resp, http.StatusBadRequest, errors.New("Buzz has expired, please create a new one")
 	}
 
-	token, err := service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
+	var token string
+	var recUid string
+	if isBot {
+		var rec models.BuzzRecording
+		if err := db.Postgresql.Where("buzz_id = ?", buzzID).First(&rec).Error; err == nil {
+			recUid = rec.RecordingUID
+			token, err = service.GenerateRTCToken(buzzID, recUid, recUid, remainingTime)
+		} else {
+			err = fmt.Errorf("failed to fetch bot recording: %w", err)
+		}
+	} else {
+		recUid = userID
+		token, err = service.GenerateRTCToken(buzzID, userID, userID, remainingTime)
+	}
+
 	if err != nil {
 		logger.Error("buzz creation failed - Agora token generation error for host %s in buzz %s: %v", userID, buzzID, err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -1160,7 +1203,7 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 		Token:       token,
 		AppId:       service.GetAppId(),
 		ChannelName: buzzID,
-		UID:         userID,
+		UID:         recUid,
 	}
 
 	resp.AgoraToken = &agoraToken
