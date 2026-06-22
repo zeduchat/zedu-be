@@ -14,6 +14,12 @@ func CheckIsDeactivated(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var user models.User
 		owner_id, _ := GetIdFromToken(c)
+
+		if isRecordingBotUser(db, owner_id) {
+			c.Next()
+			return
+		}
+
 		user, err := user.GetUserByID(db, owner_id)
 		if err != nil {
 			r := utility.BuildErrorResponse(http.StatusNotFound, "error", "User not Found", "Unauthorized", nil)

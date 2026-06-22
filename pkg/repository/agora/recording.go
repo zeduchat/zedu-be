@@ -55,23 +55,26 @@ type storageConfig struct {
 	ExtensionParams ExtensionParams `json:"extensionParams"`
 }
 
-type transcodingConfig struct {
-	Width            int    `json:"width"`
-	Height           int    `json:"height"`
-	Fps              int    `json:"fps"`
-	Bitrate          int    `json:"bitrate"`
-	MixedVideoLayout int    `json:"mixedVideoLayout"`
-	BackgroundColor  string `json:"backgroundColor"`
+type extensionServiceParam struct {
+	URL              string `json:"url"`
+	AudioProfile     int    `json:"audioProfile"`
+	VideoWidth       int    `json:"videoWidth"`
+	VideoHeight      int    `json:"videoHeight"`
+	MaxRecordingHour int    `json:"maxRecordingHour"`
 }
 
-type recordingConfig struct {
-	MaxIdleTime        int               `json:"maxIdleTime"`
-	StreamTypes        int               `json:"streamTypes"`
-	ChannelType        int               `json:"channelType"`
-	VideoStreamType    int               `json:"videoStreamType"`
-	TranscodingConfig  transcodingConfig `json:"transcodingConfig"`
-	SubscribeAudioUIDs []string          `json:"subscribeAudioUIDs"`
-	SubscribeVideoUIDs []string          `json:"subscribeVideoUIDs"`
+type extensionService struct {
+	ServiceName  string                `json:"serviceName"`
+	ServiceParam extensionServiceParam `json:"serviceParam"`
+}
+
+type extensionServiceConfig struct {
+	ErrorHandlePolicy string             `json:"errorHandlePolicy"`
+	ExtensionServices []extensionService `json:"extensionServices"`
+}
+
+type recordingFileConfig struct {
+	AvFileType []string `json:"avFileType"`
 }
 
 type startRecordingRequest struct {
@@ -81,9 +84,9 @@ type startRecordingRequest struct {
 }
 
 type startClientRequest struct {
-	Token           string          `json:"token,omitempty"`
-	RecordingConfig recordingConfig `json:"recordingConfig"`
-	StorageConfig   storageConfig   `json:"storageConfig"`
+	ExtensionServiceConfig extensionServiceConfig `json:"extensionServiceConfig"`
+	RecordingFileConfig    recordingFileConfig    `json:"recordingFileConfig"`
+	StorageConfig          storageConfig          `json:"storageConfig"`
 }
 
 type startResponse struct {
@@ -92,9 +95,9 @@ type startResponse struct {
 }
 
 type stopServerResponse struct {
-	FileList        string `json:"fileList"`
-	FileListMode    string `json:"fileListMode"`
-	UploadingStatus string `json:"uploadingStatus"`
+	FileList        json.RawMessage `json:"fileList"`
+	FileListMode    string          `json:"fileListMode"`
+	UploadingStatus string          `json:"uploadingStatus"`
 }
 
 type stopResponse struct {
@@ -106,10 +109,10 @@ type stopResponse struct {
 }
 
 type queryServerResponse struct {
-	Status          int    `json:"status"`
-	FileList        string `json:"fileList"`
-	FileListMode    string `json:"fileListMode"`
-	UploadingStatus string `json:"uploadingStatus"`
+	Status          int             `json:"status"`
+	FileList        json.RawMessage `json:"fileList"`
+	FileListMode    string          `json:"fileListMode"`
+	UploadingStatus string          `json:"uploadingStatus"`
 }
 
 type queryResponse struct {
@@ -166,7 +169,7 @@ func (rc *recordingClient) doRequest(method, url string, body interface{}) ([]by
 	return respData, nil
 }
 
-func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error) {
+func AcquireRecording(logger *utility.Logger, buzzID string, uid string) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return "", err
@@ -177,7 +180,7 @@ func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: acquireClientRequest{
-			Scene:               0,
+			Scene:               1,
 			ResourceExpiredHour: 3,
 		},
 	}
@@ -199,7 +202,7 @@ func AcquireRecording(logger *utility.Logger, buzzID, uid string) (string, error
 	return resp.ResourceId, nil
 }
 
-func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token string, maxIdleSecs int) (string, error) {
+func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid string, maxIdleSecs int) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		logger.Error("[Agora] Failed to create recording client: %v", err)
@@ -207,8 +210,8 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 	}
 
 	cfg := config.GetConfig()
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/mode/%s/start",
-		agoraRecordingBaseURL, rc.appID, resourceID, recordingModeComposite)
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/mode/web/start",
+		agoraRecordingBaseURL, rc.appID, resourceID)
 
 	minioEndpoint := strings.TrimPrefix(cfg.Minio.MinioEndpoint, "https://")
 	minioEndpoint = strings.TrimPrefix(minioEndpoint, "http://")
@@ -217,20 +220,23 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: startClientRequest{
-			Token: token,
-			RecordingConfig: recordingConfig{
-				MaxIdleTime:     maxIdleSecs,
-				StreamTypes:     2,
-				ChannelType:     1,
-				VideoStreamType: 0,
-				TranscodingConfig: transcodingConfig{
-					Width:            640,
-					Height:           360,
-					Fps:              15,
-					Bitrate:          1500,
-					MixedVideoLayout: 1,
-					BackgroundColor:  "#000000",
+			ExtensionServiceConfig: extensionServiceConfig{
+				ErrorHandlePolicy: "error-stop",
+				ExtensionServices: []extensionService{
+					{
+						ServiceName: "web_recorder_service",
+						ServiceParam: extensionServiceParam{
+							URL:              webpageURL,
+							AudioProfile:     0,
+							VideoWidth:       1280,
+							VideoHeight:      720,
+							MaxRecordingHour: 3,
+						},
+					},
 				},
+			},
+			RecordingFileConfig: recordingFileConfig{
+				AvFileType: []string{"hls", "mp4"},
 			},
 			StorageConfig: storageConfig{
 				Vendor:         recordingStorageVendorS3,
@@ -263,35 +269,32 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, uid, token strin
 	return resp.Sid, nil
 }
 
-func StopRecording(resourceID, sid, buzzID, uid, token string) (string, error) {
+func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/%s/stop",
-		agoraRecordingBaseURL, rc.appID, resourceID, sid, recordingModeComposite)
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/web/stop",
+		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
 	reqBody := map[string]interface{}{
 		"cname": buzzID,
 		"uid":   uid,
-		"clientRequest": map[string]interface{}{
-			"token":      token,
-			"async_stop": false,
-		},
+		"clientRequest": map[string]interface{}{},
 	}
 
 	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var resp stopResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
-		return "", fmt.Errorf("failed to parse stop response: %w", err)
+		return nil, fmt.Errorf("failed to parse stop response: %w", err)
 	}
 
-	return resp.ServerResponse.FileList, nil
+	return parseFileList(resp.ServerResponse.FileList), nil
 }
 
 func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string) (string, []string, error) {
@@ -300,8 +303,8 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		return "", nil, err
 	}
 
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/%s/query",
-		agoraRecordingBaseURL, rc.appID, resourceID, sid, recordingModeComposite)
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/web/query",
+		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
 	respData, err := rc.doRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -314,11 +317,7 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		return "", nil, fmt.Errorf("failed to parse query response: %w", err)
 	}
 
-	var files []string
-	if resp.ServerResponse.FileList != "" {
-		files = []string{resp.ServerResponse.FileList}
-	}
-
+	files := parseFileList(resp.ServerResponse.FileList)
 	statusStr := agoraStatusToString(resp.ServerResponse.Status)
 	return statusStr, files, nil
 }
@@ -345,3 +344,46 @@ func agoraStatusToString(status int) string {
 		return "unknown"
 	}
 }
+
+type fileDetail struct {
+	FileName  string `json:"fileName"`
+	TrackType string `json:"trackType"`
+}
+
+func parseFileList(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	// Try parsing as array of objects
+	var details []fileDetail
+	if err := json.Unmarshal(raw, &details); err == nil {
+		var filenames []string
+		for _, d := range details {
+			if d.FileName != "" {
+				filenames = append(filenames, d.FileName)
+			}
+		}
+		if len(filenames) > 0 {
+			return filenames
+		}
+	}
+
+	// Try parsing as single string
+	var singleStr string
+	if err := json.Unmarshal(raw, &singleStr); err == nil {
+		if singleStr != "" {
+			return []string{singleStr}
+		}
+	}
+
+	// Try parsing as array of strings
+	var strArr []string
+	if err := json.Unmarshal(raw, &strArr); err == nil {
+		return strArr
+	}
+
+	return nil
+}
+
+
