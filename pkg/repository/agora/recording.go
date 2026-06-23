@@ -260,8 +260,8 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 						ServiceName:       "web_recorder_service",
 						ErrorHandlePolicy: "error_abort",
 						ServiceParam: extensionServiceParam{
-							// URL:              webpageURL,
-							URL: "https://www.youtube.com/watch?v=KJkcH0J_TO4",
+							URL:              webpageURL,
+							// URL: "https://www.youtube.com/watch?v=KJkcH0J_TO4",
 							AudioProfile:     0,
 							VideoWidth:       1280,
 							VideoHeight:      720,
@@ -293,7 +293,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 		return "", fmt.Errorf("start recording failed: %w", err)
 	}
 
-	logger.Info("[Agora] Started recording for buzz %s", buzzID)
+	logger.Info("[Agora] Started recording for buzz %s with webpageurl: %s", buzzID, webpageURL)
 
 	var resp startResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
