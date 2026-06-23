@@ -113,10 +113,27 @@ type startResponse struct {
 	ResourceId string `json:"resourceId"`
 }
 
+type extensionServicePayloadFile struct {
+	Filename       string `json:"filename"`
+	SliceStartTime int64  `json:"sliceStartTime"`
+}
+
+type extensionServicePayload struct {
+	FileList        []extensionServicePayloadFile `json:"fileList"`
+	UploadingStatus string                        `json:"uploadingStatus"`
+	State           string                        `json:"state"`
+}
+
+type extensionServiceState struct {
+	ServiceName string                  `json:"serviceName"`
+	Payload     extensionServicePayload `json:"payload"`
+}
+
 type stopServerResponse struct {
-	FileList        json.RawMessage `json:"fileList"`
-	FileListMode    string          `json:"fileListMode"`
-	UploadingStatus string          `json:"uploadingStatus"`
+	FileList              json.RawMessage         `json:"fileList"`
+	FileListMode          string                  `json:"fileListMode"`
+	UploadingStatus       string                  `json:"uploadingStatus"`
+	ExtensionServiceState []extensionServiceState `json:"extensionServiceState"`
 }
 
 type stopResponse struct {
@@ -128,10 +145,11 @@ type stopResponse struct {
 }
 
 type queryServerResponse struct {
-	Status          int             `json:"status"`
-	FileList        json.RawMessage `json:"fileList"`
-	FileListMode    string          `json:"fileListMode"`
-	UploadingStatus string          `json:"uploadingStatus"`
+	Status                int                     `json:"status"`
+	FileList              json.RawMessage         `json:"fileList"`
+	FileListMode          string                  `json:"fileListMode"`
+	UploadingStatus       string                  `json:"uploadingStatus"`
+	ExtensionServiceState []extensionServiceState `json:"extensionServiceState"`
 }
 
 type queryResponse struct {
@@ -260,8 +278,8 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 						ServiceName:       "web_recorder_service",
 						ErrorHandlePolicy: "error_abort",
 						ServiceParam: extensionServiceParam{
-							URL:              webpageURL,
-							// URL: "https://www.youtube.com/watch?v=KJkcH0J_TO4",
+							// URL:              webpageURL,
+							URL: "https://www.youtube.com/watch?v=KJkcH0J_TO4",
 							AudioProfile:     0,
 							VideoWidth:       1280,
 							VideoHeight:      720,
@@ -329,7 +347,12 @@ func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse stop response: %w", err)
 	}
 
-	return parseFileList(resp.ServerResponse.FileList), nil
+	files := parseFileList(resp.ServerResponse.FileList)
+	if len(files) == 0 {
+		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
+	}
+
+	return files, nil
 }
 
 func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string) (string, []string, error) {
@@ -353,6 +376,9 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 	}
 
 	files := parseFileList(resp.ServerResponse.FileList)
+	if len(files) == 0 {
+		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
+	}
 	statusStr := agoraStatusToString(resp.ServerResponse.Status)
 	return statusStr, files, nil
 }
@@ -419,6 +445,20 @@ func parseFileList(raw json.RawMessage) []string {
 	}
 
 	return nil
+}
+
+func parseFileListFromStates(states []extensionServiceState) []string {
+	var filenames []string
+	for _, state := range states {
+		if state.ServiceName == "web_recorder_service" {
+			for _, file := range state.Payload.FileList {
+				if file.Filename != "" {
+					filenames = append(filenames, file.Filename)
+				}
+			}
+		}
+	}
+	return filenames
 }
 
 
