@@ -278,8 +278,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 						ServiceName:       "web_recorder_service",
 						ErrorHandlePolicy: "error_abort",
 						ServiceParam: extensionServiceParam{
-							// URL:              webpageURL,
-							URL: "https://www.youtube.com/watch?v=KJkcH0J_TO4",
+							URL:              webpageURL,
 							AudioProfile:     0,
 							VideoWidth:       1280,
 							VideoHeight:      720,

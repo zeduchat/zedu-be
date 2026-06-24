@@ -302,8 +302,10 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 }
 
 func buildRecordingFileURL(filename string) string {
+	buzzID := strings.Split(filename, "_")[1]
 	cfg := config.GetConfig()
-	return fmt.Sprintf("https://%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
+
+	return fmt.Sprintf("https://%s/%s/call-recordings/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, buzzID, filename)
 }
 
 func publishRecordingEvent(logger *utility.Logger, buzz *models.Buzz, rec *models.BuzzRecording, eventName string) {
