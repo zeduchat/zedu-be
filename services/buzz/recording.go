@@ -1,12 +1,15 @@
 package buzz
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -18,14 +21,56 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-const recordingUID = "1000"
+func generateRecordingUID() string {
+	return fmt.Sprintf("%d", 100000+rand.Intn(900000000))
+}
 
-func generateRecorderToken(buzzID string) (string, error) {
+func getSiteURL() string {
+	conf := config.GetConfig()
+
+	if conf.App.FRONTEND_URL != "" {
+		return conf.App.FRONTEND_URL
+	}
+
+	return "http://localhost:3000"
+}
+
+func isRecordingBot(db *gorm.DB, userID string, buzzID string) bool {
+	if len(userID) > 37 && userID[36] == '-' {
+		extractedBuzzID := userID[:36]
+		recordingUID := userID[37:]
+		if extractedBuzzID == buzzID {
+			var rec models.BuzzRecording
+			if err := db.Where("buzz_id = ? AND recording_uid = ?", buzzID, recordingUID).First(&rec).Error; err == nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func GenerateBotJWTToken(orgID string, buzzID string, recordingUID string, durationSecs uint32) (string, error) {
+	cfg := config.GetConfig()
+	botUserID := fmt.Sprintf("%s-%s", buzzID, recordingUID)
+	userClaims := jwt.MapClaims{}
+	userClaims["user_id"] = botUserID
+	userClaims["access_uuid"] = utility.GenerateUUID()
+	userClaims["role_id"] = ""
+	userClaims["org_id"] = orgID
+	userClaims["exp"] = time.Now().Add(time.Duration(durationSecs) * time.Second).Unix()
+	userClaims["authorised"] = true
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, userClaims)
+	return token.SignedString([]byte(cfg.Server.Secret))
+}
+
+func generateRecorderToken(buzzID string, recordingUID string, durationSecs uint32) (string, error) {
 	svc := agora.Client.Service
 	if svc == nil {
 		return "", errors.New("agora service not initialized")
 	}
-	return svc.GenerateRTCToken(buzzID, recordingUID, recordingUID, agora.DefaultTokenExpirationSeconds)
+
+	return svc.GenerateRTCToken(buzzID, recordingUID, recordingUID, durationSecs)
 }
 
 func getActiveBuzzRecording(db *gorm.DB, buzzID string) (*models.BuzzRecording, error) {
@@ -63,22 +108,32 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		return nil, http.StatusConflict, errors.New("recording already in progress")
 	}
 
+	remainingTime := buzz.GetRemainingTime(agora.DefaultTokenExpirationSeconds)
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		remainingTime = agora.DefaultTokenExpirationSeconds
+	} else if remainingTime == 0 {
+		return nil, http.StatusBadRequest, errors.New("buzz has expired")
+	}
+
 	orgID := getBuzzOrgID(buzz)
+	recordingUID := generateRecordingUID()
+
+	botToken, err := GenerateBotJWTToken(orgID, buzzID, recordingUID, remainingTime)
+	if err != nil {
+		logger.Error("failed to generate bot JWT token: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to generate bot token")
+	}
+
 	resourceID, err := agora.AcquireRecording(logger, buzzID, recordingUID)
 	if err != nil {
 		logger.Error("[Agora] failed to acquire recording resource for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
 	}
 
-	recorderToken, err := generateRecorderToken(buzzID)
-	if err != nil {
-		logger.Error("failed to generate recorder token for buzz %s: %v", buzzID, err)
-		return nil, http.StatusInternalServerError, errors.New("failed to generate recorder token")
-	}
+	webpageURL := buildWebpageURL(db.Postgresql, orgID, buzz, botToken)
 
-	durationSecs := 300
-
-	sid, err := agora.StartRecording(logger, resourceID, buzzID, recordingUID, recorderToken, durationSecs)
+	maxIdleSecs := 300
+	sid, err := agora.StartRecording(logger, resourceID, buzzID, webpageURL, recordingUID, maxIdleSecs)
 	if err != nil {
 		logger.Error("[Agora] failed to start recording for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to start recording")
@@ -90,7 +145,8 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		OrgID:         orgID,
 		ResourceID:    resourceID,
 		Sid:           sid,
-		RecorderToken: recorderToken,
+		RecorderToken: botToken,
+		RecordingUID:  recordingUID,
 		Status:        models.RecordingStatusStarting,
 		StartedAt:     time.Now().UTC(),
 	}
@@ -125,7 +181,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return rec, http.StatusOK, nil
 	}
 
-	m3u8Key, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID, rec.RecorderToken)
+	files, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
 	if stopErr != nil {
 		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, stopErr)
 	}
@@ -135,24 +191,17 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 	rec.EndedAt = &now
 	rec.DurationSec = int(now.Sub(rec.StartedAt).Seconds())
 
+	mp4File := resolveMP4File(files)
+	if mp4File != "" {
+		rec.FileURL = buildRecordingFileURL(mp4File)
+	}
+
 	if err := db.Postgresql.Save(rec).Error; err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to update recording status")
 	}
 
-	if m3u8Key != "" {
-		go func(key string) {
-			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
-			if mergeErr != nil {
-				logger.Error("failed to merge recording segments for buzz %s: %v", buzzID, mergeErr)
-				return
-			}
-			rec.FileURL = buildRecordingFileURL(mp4Key)
-			if err := db.Postgresql.Save(rec).Error; err != nil {
-				logger.Error("failed to persist mp4 url for buzz %s: %v", buzzID, err)
-				return
-			}
-			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
-		}(m3u8Key)
+	if mp4File != "" {
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, 0)
 	}
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
@@ -169,11 +218,14 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 		return nil, http.StatusInternalServerError, errors.New("failed to fetch buzz")
 	}
 
-	isParticipant := false
-	for _, pid := range buzz.ParticipantIDs {
-		if pid == userID {
-			isParticipant = true
-			break
+	isBot := isRecordingBot(db.Postgresql, userID, buzzID)
+	isParticipant := isBot
+	if !isBot {
+		for _, pid := range buzz.ParticipantIDs {
+			if pid == userID {
+				isParticipant = true
+				break
+			}
 		}
 	}
 	if !isParticipant {
@@ -195,12 +247,17 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 	}
 
 	rec.Status = statusStr
-	if len(files) > 0 && rec.FileURL == "" {
-		rec.FileURL = buildRecordingFileURL(files[0])
+	mp4File := resolveMP4File(files)
+	if mp4File != "" && rec.FileURL == "" {
+		rec.FileURL = buildRecordingFileURL(mp4File)
 	}
 
 	if err := db.Postgresql.Save(rec).Error; err != nil {
 		logger.Error("failed to update recording status: %v", err)
+	}
+
+	if mp4File != "" {
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, &buzz, 0)
 	}
 
 	return rec, http.StatusOK, nil
@@ -245,8 +302,10 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 }
 
 func buildRecordingFileURL(filename string) string {
+	buzzID := strings.Split(filename, "_")[1]
 	cfg := config.GetConfig()
-	return fmt.Sprintf("https://%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
+
+	return fmt.Sprintf("https://%s/%s/call-recordings/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, buzzID, filename)
 }
 
 func publishRecordingEvent(logger *utility.Logger, buzz *models.Buzz, rec *models.BuzzRecording, eventName string) {
@@ -291,7 +350,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
-	m3u8Key, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, recordingUID, rec.RecorderToken)
+	files, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
 	if stopErr != nil {
 		logger.Error("failed to stop agora recording on buzz end for buzz %s: %v", buzzID, stopErr)
 	}
@@ -303,29 +362,58 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 	rec.EndedAt = &now
 	rec.DurationSec = int(now.Sub(rec.StartedAt).Seconds())
 
+	mp4File := resolveMP4File(files)
+	if mp4File != "" {
+		rec.FileURL = buildRecordingFileURL(mp4File)
+	}
+
 	if err := db.Postgresql.Save(rec).Error; err != nil {
 		logger.Error("failed to update recording status on buzz end: %v", err)
 		return
 	}
 
-	if m3u8Key != "" {
-		go func(key string) {
-			mp4Key, fileSize, mergeErr := agora.MergeAndUploadRecording(context.Background(), logger, key)
-			if mergeErr != nil {
-				logger.Error("failed to merge recording segments on buzz end for buzz %s: %v", buzzID, mergeErr)
-				return
-			}
-			rec.FileURL = buildRecordingFileURL(mp4Key)
-			if err := db.Postgresql.Save(rec).Error; err != nil {
-				logger.Error("failed to persist mp4 url on buzz end for buzz %s: %v", buzzID, err)
-				return
-			}
-			saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, fileSize)
-		}(m3u8Key)
+	if mp4File != "" {
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, 0)
 	}
 
 	logger.Info("[Agora] Saved recording as org file for buzz %s", buzzID)
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
 	logger.Info("[Agora] Published recording_stopped event for buzz %s", buzzID)
+}
+
+func resolveMP4File(files []string) string {
+
+	for _, f := range files {
+		if strings.HasSuffix(f, ".mp4") {
+			return f
+		}
+	}
+
+	if len(files) > 0 {
+		return files[0]
+	}
+
+	return ""
+}
+
+func buildWebpageURL(db *gorm.DB, orgID string, buzz *models.Buzz, botToken string) string {
+	var orgSlug string
+
+	if orgID != "" {
+		var org models.Organisation
+		if err := db.Where("id = ?", orgID).First(&org).Error; err == nil {
+			orgSlug = slug.Make(org.Name)
+		}
+	}
+
+	if orgSlug == "" {
+		orgSlug = "org"
+	}
+
+	siteURL := getSiteURL()
+	buzzCode := utility.ExtractBuzzCode(buzz.ID)
+
+	return fmt.Sprintf("%s/%s/buzz-record/%s?token=%s&orgId=%s&mode=recorder",
+		siteURL, orgSlug, buzzCode, botToken, orgID)
 }

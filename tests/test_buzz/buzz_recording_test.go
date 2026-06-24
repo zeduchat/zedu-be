@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	buzzSvc "github.com/hngprojects/telex_be/services/buzz"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -367,6 +369,120 @@ func TestBuzzRecording(t *testing.T) {
 		for expected, got := range cases {
 			if got != expected {
 				t.Errorf("constant mismatch: expected %q, got %q", expected, got)
+			}
+		}
+	})
+
+	t.Run("BotTokenVerificationFlow_PassesAllChecks", func(t *testing.T) {
+		testBuzzID, _ := tst.CreateBuzz(t, router, *buzzCtrl, db, models.CreateBuzzRequest{ChannelID: channelID}, hostToken)
+		if testBuzzID == "" {
+			t.Fatal("failed to create a fresh buzz for bot verification test")
+		}
+
+		recUID := "123498765"
+		recID := utility.GenerateUUID()
+		orgID := hostUser.CurrentOrg.String()
+
+		rec := models.BuzzRecording{
+			ID:           recID,
+			BuzzID:       testBuzzID,
+			OrgID:        orgID,
+			ResourceID:   "bot-test-res",
+			Sid:          "bot-test-sid",
+			RecordingUID: recUID,
+			Status:       models.RecordingStatusRecording,
+			StartedAt:    time.Now().UTC(),
+		}
+		if err := db.Postgresql.Create(&rec).Error; err != nil {
+			t.Fatalf("failed to create test recording for flow: %v", err)
+		}
+		defer db.Postgresql.Delete(&rec)
+
+		botToken, err := buzzSvc.GenerateBotJWTToken(orgID, testBuzzID, recUID, 300)
+		if err != nil {
+			t.Fatalf("failed to generate bot JWT token: %v", err)
+		}
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/recording/status", testBuzzID), nil)
+		req.Header.Set("Authorization", "Bearer "+botToken)
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		if rr.Code == http.StatusUnauthorized || rr.Code == http.StatusForbidden {
+			t.Errorf("expected bot token to bypass authentication checks in status endpoint, but got status code %d", rr.Code)
+		}
+
+		reqJoin, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/join", testBuzzID), nil)
+		reqJoin.Header.Set("Authorization", "Bearer "+botToken)
+		rrJoin := httptest.NewRecorder()
+		router.ServeHTTP(rrJoin, reqJoin)
+
+		if rrJoin.Code != http.StatusOK {
+			t.Errorf("expected bot join to succeed (200), got %d: %s", rrJoin.Code, rrJoin.Body.String())
+		} else {
+			respData := tst.ParseResponse(rrJoin)
+			if data, ok := respData["data"].(map[string]interface{}); ok {
+				if tokenResp, ok := data["agora_token"].(map[string]interface{}); ok {
+					gotUID := tokenResp["uid"].(string)
+					if gotUID != recUID {
+						t.Errorf("expected join response UID to match numeric recording UID %s, got %s", recUID, gotUID)
+					}
+				} else {
+					t.Error("expected agora_token in join response")
+				}
+			} else {
+				t.Error("expected data wrapper in join response")
+			}
+		}
+
+		botUserID := fmt.Sprintf("%s-%s", testBuzzID, recUID)
+		var pCount int64
+		if utility.IsValidUUID(botUserID) {
+			db.Postgresql.Model(&models.BuzzParticipant{}).Where("buzz_id = ? AND user_id = ?", testBuzzID, botUserID).Count(&pCount)
+		}
+		if pCount > 0 {
+			t.Errorf("database pollution: bot user ID %s was added to buzz_participants table", botUserID)
+		}
+
+		reqMeta, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/buzz/%s/metadata", testBuzzID), nil)
+		reqMeta.Header.Set("Authorization", "Bearer "+botToken)
+		rrMeta := httptest.NewRecorder()
+		router.ServeHTTP(rrMeta, reqMeta)
+
+		if rrMeta.Code != http.StatusOK {
+			t.Errorf("expected bot metadata retrieve to succeed (200), got %d: %s", rrMeta.Code, rrMeta.Body.String())
+		} else {
+			respData := tst.ParseResponse(rrMeta)
+			if data, ok := respData["data"].(map[string]interface{}); ok {
+				if tokenResp, ok := data["agora_token"].(map[string]interface{}); ok {
+					gotUID := tokenResp["uid"].(string)
+					if gotUID != recUID {
+						t.Errorf("expected metadata response UID to match numeric recording UID %s, got %s", recUID, gotUID)
+					}
+				} else {
+					t.Error("expected agora_token in metadata response")
+				}
+			}
+		}
+
+		tokenReqBody := fmt.Sprintf(`{"buzz_id":%q,"uid":%q}`, testBuzzID, utility.GenerateUUID())
+		reqTok, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/token", strings.NewReader(tokenReqBody))
+		reqTok.Header.Set("Authorization", "Bearer "+botToken)
+		reqTok.Header.Set("Content-Type", "application/json")
+		rrTok := httptest.NewRecorder()
+		router.ServeHTTP(rrTok, reqTok)
+
+		if rrTok.Code != http.StatusOK {
+			t.Errorf("expected bot get token to succeed (200), got %d: %s", rrTok.Code, rrTok.Body.String())
+		} else {
+			respData := tst.ParseResponse(rrTok)
+			if data, ok := respData["data"].(map[string]interface{}); ok {
+				gotUID := data["uid"].(string)
+				if gotUID != recUID {
+					t.Errorf("expected token response UID to match numeric recording UID %s, got %s", recUID, gotUID)
+				}
+			} else {
+				t.Error("expected data wrapper in token response")
 			}
 		}
 	})

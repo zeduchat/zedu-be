@@ -92,8 +92,9 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 		return resp, http.StatusNotFound, errors.New("buzz not found or not active")
 	}
 
-	// Validate user is a participant
-	if !isUserParticipant(buzz.ParticipantIDs, userID) {
+	isBot, recUid := checkAndResolveBotUID(db, buzzID, userID, uid)
+
+	if !isBot && !isUserParticipant(buzz.ParticipantIDs, userID) {
 		return resp, http.StatusForbidden, errors.New("user is not a participant in this buzz")
 	}
 
@@ -101,7 +102,7 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 	expireTimeInSeconds := uint32(DefaultTokenExpirationSeconds)
 
 	// Generate token using buzz ID as channel name and provided UID
-	token, err := service.GenerateRTCToken(buzzID, userID, uid, expireTimeInSeconds)
+	token, err := service.GenerateRTCToken(buzzID, userID, recUid, expireTimeInSeconds)
 	if err != nil {
 		logger.Error("Failed to generate Agora token: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to generate access token")
@@ -111,10 +112,10 @@ func GetAgoraToken(db *storage.Database, logger *utility.Logger, buzzID, userID 
 		Token:       token,
 		AppId:       service.appId,
 		ChannelName: buzzID,
-		UID:         uid,
+		UID:         recUid,
 	}
 
-	logger.Info("Generated Agora token for user %s (UID: %s) in buzz %s", userID, uid, buzzID)
+	logger.Info("Generated Agora token for user %s (UID: %s) in buzz %s", userID, recUid, buzzID)
 	return resp, http.StatusOK, nil
 }
 
@@ -126,4 +127,21 @@ func isUserParticipant(participants []string, userID string) bool {
 		}
 	}
 	return false
+}
+
+func checkAndResolveBotUID(db *storage.Database, buzzID, userID, defaultUID string) (bool, string) {
+
+	if len(userID) > 36 && userID[:36] == buzzID {
+		var rec models.BuzzRecording
+
+		if err := db.Postgresql.Where("buzz_id = ?", buzzID).First(&rec).Error; err == nil {
+			botUserID := fmt.Sprintf("%s-%s", rec.BuzzID, rec.RecordingUID)
+			
+			if userID == botUserID {
+				return true, rec.RecordingUID
+			}
+		}
+	}
+
+	return false, defaultUID
 }

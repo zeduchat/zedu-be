@@ -55,6 +55,12 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		if isRecordingBotUser(db, userID) {
+			c.Set("userClaims", claims)
+			c.Next()
+			return
+		}
+
 		org_id, ok := claims["org_id"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Token is invalid!", "Unauthorized", nil))
@@ -335,4 +341,19 @@ func UnauthenticatedUserTracker(logger *utility.Logger) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func isRecordingBotUser(db *gorm.DB, userID string) bool {
+
+	if len(userID) > 36 && userID[36] == '-' {
+		bID := userID[:36]
+		rUID := userID[37:]
+		var rec models.BuzzRecording
+
+		if err := db.Where("buzz_id = ? AND recording_uid = ?", bID, rUID).First(&rec).Error; err == nil {
+			return true
+		}
+	}
+
+	return false
 }

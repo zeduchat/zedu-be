@@ -61,8 +61,5 @@ telexbe_staging
 scripts/generate-bruno-slash-commands.sh
 public/
 branch_structure.json
-temp_auto_push.bat
-temp_interactive_push.bat
 
 # IDE
-.vscode/
