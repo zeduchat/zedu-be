@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -201,7 +202,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 	}
 
 	if mp4File != "" {
-		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, 0)
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz)
 	}
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
@@ -257,18 +258,44 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 	}
 
 	if mp4File != "" {
-		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, &buzz, 0)
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, &buzz)
 	}
 
 	return rec, http.StatusOK, nil
 }
 
-func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz, fileSize int64) error {
+func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.BuzzRecording, buzz *models.Buzz) error {
 	if rec.FileURL == "" || rec.FileID != nil {
 		return nil
 	}
 
 	logger.Info("[Agora-Recording] Saving recording file for buzz %s ...", rec.BuzzID)
+
+	var fileSize int64
+	parts := strings.Split(rec.FileURL, "/")
+
+	if len(parts) > 0 {
+		mp4File := parts[len(parts)-1]
+		if mp4File != "" {
+			cfg := config.GetConfig()
+			key := mp4File
+			if !strings.HasPrefix(key, "call-recordings_") {
+				key = fmt.Sprintf("call-recordings_%s_%s", rec.BuzzID, mp4File)
+			}
+			size, err := minio.GetObjectSize(cfg.Minio.BucketName, key)
+			if err == nil {
+				fileSize = size
+			} else {
+				logger.Error("[Minio] GetObjectSize failed for %s: %v, attempting HTTP HEAD request fallback", key, err)
+				headSize, headErr := minio.GetURLContentLength(rec.FileURL)
+				if headErr == nil {
+					fileSize = headSize
+				} else {
+					logger.Error("[Minio] HTTP HEAD fallback request also failed: %v", headErr)
+				}
+			}
+		}
+	}
 
 	buzzCode := utility.ExtractBuzzCode(buzz.ID)
 	file := &models.File{
@@ -373,7 +400,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 	}
 
 	if mp4File != "" {
-		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz, 0)
+		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, buzz)
 	}
 
 	logger.Info("[Agora] Saved recording as org file for buzz %s", buzzID)
