@@ -303,7 +303,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 	deleteErr := services.DeleteFileDetailsByID(base.Logger, base.Db, file, fileId, thread_id, permanent)
 	if deleteErr != nil {
 		base.Logger.Error("file not deleted", deleteErr)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "File not deleted", deleteErr.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", deleteErr.Error(), "File not deleted", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -411,7 +411,7 @@ func (base *Controller) CreateFolder(c *gin.Context) {
 		UserID:         userID,
 	})
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create folder", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to create folder", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -441,7 +441,7 @@ func (base *Controller) GetFolders(c *gin.Context) {
 		QueryParams: queryParams,
 	})
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch folders", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch folders", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -464,7 +464,7 @@ func (base *Controller) DeleteFolder(c *gin.Context) {
 
 	err := services.DeleteFolder(base.Db.Postgresql, folderID, permanent)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete folder", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to delete folder", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -596,7 +596,7 @@ func (base *Controller) MoveFile(c *gin.Context) {
 
 	file, err := services.MoveFile(base.Db.Postgresql, fileID, req.FolderID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to move file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to move file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -671,7 +671,7 @@ func (base *Controller) GetFiles(c *gin.Context) {
 		Limit:       pagination.Limit,
 	})
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch files", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch files", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -800,7 +800,7 @@ func (base *Controller) GetRecentFiles(c *gin.Context) {
 
 	files, err := services.GetRecentFiles(base.Db.Postgresql, userID, orgID, limit)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch recent files", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch recent files", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -842,7 +842,7 @@ func (base *Controller) PinFile(c *gin.Context) {
 
 	resp, err := services.PinFile(base.Db.Postgresql, base.Logger, base.Db.Redis, &pinnedFile)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to pin file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to pin file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -881,7 +881,7 @@ func (base *Controller) UnpinFile(c *gin.Context) {
 			c.JSON(http.StatusNotFound, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to unpin file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to unpin file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -903,7 +903,7 @@ func (base *Controller) GetPinnedFiles(c *gin.Context) {
 
 	files, err := services.GetPinnedFiles(base.Db.Postgresql, base.Logger, base.Db.Redis, userID, orgID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch pinned files", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch pinned files", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -970,7 +970,7 @@ func (base *Controller) ShareFile(c *gin.Context) {
 
 	response, err := services.ShareFileWithUsers(base.Db, base.Logger, base.ExtReq, req, userID, orgID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to share file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to share file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1017,7 +1017,7 @@ func (base *Controller) UpdateFileShare(c *gin.Context) {
 			c.JSON(http.StatusNotFound, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update file share", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to update file share", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1056,7 +1056,7 @@ func (base *Controller) RevokeFileShare(c *gin.Context) {
 			c.JSON(http.StatusForbidden, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to revoke file share", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to revoke file share", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1095,7 +1095,7 @@ func (base *Controller) GetFileShares(c *gin.Context) {
 
 	shares, err := services.GetFileSharesForFile(base.Db.Postgresql, fileID, activeOnly)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch file shares", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch file shares", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1141,7 +1141,7 @@ func (base *Controller) AccessSharedFile(c *gin.Context) {
 			c.JSON(http.StatusGone, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to access shared file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to access shared file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1168,7 +1168,7 @@ func (base *Controller) AccessSharedFile(c *gin.Context) {
 
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileShare.FileID)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch file", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to fetch file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1229,7 +1229,7 @@ func (base *Controller) UpdateFileAccessSettings(c *gin.Context) {
 			c.JSON(http.StatusForbidden, rd)
 			return
 		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to update file access settings", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to update file access settings", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -1303,7 +1303,7 @@ func (base *Controller) SendFileToDM(c *gin.Context) {
 		"",
 	)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to send file to DM", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to send file to DM", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
