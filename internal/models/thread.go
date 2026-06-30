@@ -1046,8 +1046,13 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
+	var dmChannels []struct {
+		ChannelId   string `gorm:"column:channel_id"`
+		ChannelType string `gorm:"column:channel_type"`
+	}
+
 	err = db.Model(&DmChannels{}).
-		Select("dm_channels.channel_id").
+		Select("dm_channels.channel_id, dm_channels.channel_type").
 		Where("dm_channels.org_id = ?", organisationID).
 		Where(`
 			(dm_channels.channel_type = 'group_dm' AND EXISTS (
@@ -1059,10 +1064,17 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			OR 
 			(dm_channels.user_id = ? AND (dm_channels.channel_type = 'dm' OR dm_channels.channel_type = ''))
 		`, userId, userId).
-		Find(&dmChannelIds).Error
+		Scan(&dmChannels).Error
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("error fetching dm channel IDs: %v", err)
+	}
+
+	dmChannelIds = make([]string, len(dmChannels))
+	dmChannelTypeMap := make(map[string]string)
+	for i, dmChan := range dmChannels {
+		dmChannelIds[i] = dmChan.ChannelId
+		dmChannelTypeMap[dmChan.ChannelId] = dmChan.ChannelType
 	}
 
 	channelIDs = append(channelIDs, dmChannelIds...)
@@ -1266,6 +1278,15 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			previeMessage = BuildPreviewMessage(messages[0].Content, messages[0].Media)
 		}
 
+		channelType := thread.ChannelType
+		if dbType, isDm := dmChannelTypeMap[thread.ChannelsID]; isDm {
+			if dbType == "group_dm" {
+				channelType = "GroupDm"
+			} else {
+				channelType = "DM"
+			}
+		}
+
 		threadDoc := ThreadDocument{
 			ID:                       thread.ID,
 			ChannelsID:               thread.ChannelsID,
@@ -1282,7 +1303,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			Type:                     thread.Type,
 			Content:                  thread.Content,
 			ChannelName:              channelName,
-			ChannelType:              thread.ChannelType,
+			ChannelType:              channelType,
 			CurrentStatus:            thread.CurrentStatus,
 			FullName:                 thread.FullName,
 			Email:                    thread.Email,
@@ -1308,7 +1329,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			PrevieMessage:          previeMessage,
 			SenderAvatarURL:        thread.AvatarURL,
 			SenderDefaultAvatarURL: avatar.GenerateDefaultAvatarURL(thread.UserId),
-			ChannelType:            thread.ChannelType,
+			ChannelType:            channelType,
 		})
 	}
 
