@@ -51,7 +51,7 @@ type storageConfig struct {
 	Bucket          string          `json:"bucket"`
 	AccessKey       string          `json:"accessKey"`
 	SecretKey       string          `json:"secretKey"`
-	FileNamePrefix  []string        `json:"fileNamePrefix"`
+	FileNamePrefix  []string        `json:"fileNamePrefix,omitempty"`
 	ExtensionParams ExtensionParams `json:"extensionParams"`
 }
 
@@ -83,12 +83,14 @@ type transcodingConfig struct {
 }
 
 type recordingConfig struct {
-	MaxIdleTime       int               `json:"maxIdleTime"`
-	StreamTypes       int               `json:"streamTypes"`
-	ChannelType       int               `json:"channelType"`
-	VideoStreamType   int               `json:"videoStreamType"`
-	SubscribeUidGroup int               `json:"subscribeUidGroup"`
-	TranscodingConfig transcodingConfig `json:"transcodingConfig"`
+	ChannelType        int               `json:"channelType"`
+	StreamTypes        int               `json:"streamTypes"`
+	AudioProfile       int               `json:"audioProfile"`
+	VideoStreamType    int               `json:"videoStreamType"`
+	MaxIdleTime        int               `json:"maxIdleTime"`
+	SubscribeAudioUids []string          `json:"subscribeAudioUids"`
+	SubscribeVideoUids []string          `json:"subscribeVideoUids"`
+	TranscodingConfig  transcodingConfig `json:"transcodingConfig"`
 }
 
 type recordingFileConfig struct {
@@ -102,8 +104,9 @@ type startRecordingRequest struct {
 }
 
 type startClientRequest struct {
+	Token                  string                  `json:"token,omitempty"`
 	RecordingConfig        *recordingConfig        `json:"recordingConfig,omitempty"`
-	ExtensionServiceConfig extensionServiceConfig `json:"extensionServiceConfig"`
+	ExtensionServiceConfig *extensionServiceConfig `json:"extensionServiceConfig,omitempty"`
 	RecordingFileConfig    recordingFileConfig    `json:"recordingFileConfig"`
 	StorageConfig          storageConfig          `json:"storageConfig"`
 }
@@ -217,7 +220,7 @@ func AcquireRecording(logger *utility.Logger, buzzID string, uid string) (string
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: acquireClientRequest{
-			Scene:               1,
+			Scene:               0,
 			ResourceExpiredHour: 3,
 		},
 	}
@@ -239,7 +242,7 @@ func AcquireRecording(logger *utility.Logger, buzzID string, uid string) (string
 	return resp.ResourceId, nil
 }
 
-func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid string, maxIdleSecs int) (string, error) {
+func StartRecording(logger *utility.Logger, resourceID, buzzID, rtcToken, uid string, maxIdleSecs int) (string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		logger.Error("[Agora] Failed to create recording client: %v", err)
@@ -247,7 +250,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 	}
 
 	cfg := config.GetConfig()
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/mode/web/start",
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/mode/mix/start",
 		agoraRecordingBaseURL, rc.appID, resourceID)
 
 	minioEndpoint := strings.TrimPrefix(cfg.Minio.MinioEndpoint, "https://")
@@ -257,36 +260,24 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 		Cname: buzzID,
 		Uid:   uid,
 		ClientRequest: startClientRequest{
+			Token: rtcToken,
 			RecordingConfig: &recordingConfig{
-				MaxIdleTime:       maxIdleSecs,
-				StreamTypes:       2,
-				ChannelType:       0,
-				VideoStreamType:   0,
-				SubscribeUidGroup: 0,
+				ChannelType:        0,
+				StreamTypes:        2,
+				AudioProfile:       1,
+				VideoStreamType:    0,
+				MaxIdleTime:        maxIdleSecs,
+				SubscribeAudioUids: []string{"#allstream#"},
+				SubscribeVideoUids: []string{"#allstream#"},
 				TranscodingConfig: transcodingConfig{
-					Width:            1280,
-					Height:           720,
+					Width:            1920,
+					Height:           1080,
 					Fps:              30,
-					Bitrate:          2000,
+					Bitrate:          4000,
 					MixedVideoLayout: 1,
 				},
 			},
-			ExtensionServiceConfig: extensionServiceConfig{
-				ErrorHandlePolicy: "error_abort",
-				ExtensionServices: []extensionService{
-					{
-						ServiceName:       "web_recorder_service",
-						ErrorHandlePolicy: "error_abort",
-						ServiceParam: extensionServiceParam{
-							URL:              webpageURL,
-							AudioProfile:     0,
-							VideoWidth:       1280,
-							VideoHeight:      720,
-							MaxRecordingHour: 3,
-						},
-					},
-				},
-			},
+			ExtensionServiceConfig: nil,
 			RecordingFileConfig: recordingFileConfig{
 				AvFileType: []string{"hls", "mp4"},
 			},
@@ -310,7 +301,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 		return "", fmt.Errorf("start recording failed: %w", err)
 	}
 
-	logger.Info("[Agora] Started recording for buzz %s with webpageurl: %s", buzzID, webpageURL)
+	logger.Info("[Agora] Started recording for buzz %s", buzzID)
 
 	var resp startResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
@@ -321,13 +312,13 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, webpageURL, uid 
 	return resp.Sid, nil
 }
 
-func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
+func StopRecording(logger *utility.Logger, resourceID, sid, buzzID, uid string) ([]string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/web/stop",
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/mix/stop",
 		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
 	reqBody := map[string]interface{}{
@@ -341,6 +332,8 @@ func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 		return nil, err
 	}
 
+	logger.Info("[Agora-Stop-Response] raw JSON: %s", string(respData))
+
 	var resp stopResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return nil, fmt.Errorf("failed to parse stop response: %w", err)
@@ -351,6 +344,8 @@ func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
 	}
 
+	logger.Info("[Agora-Stop-Response] parsed files: %v", files)
+
 	return files, nil
 }
 
@@ -360,7 +355,7 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		return "", nil, err
 	}
 
-	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/web/query",
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/mix/query",
 		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
 	respData, err := rc.doRequest(http.MethodGet, url, nil)
@@ -368,6 +363,8 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		logger.Error("[Agora] Failed to query recording for buzz %s: %v", buzzID, err)
 		return "", nil, fmt.Errorf("query recording failed: %w", err)
 	}
+
+	logger.Info("[Agora-Query-Response] raw JSON: %s", string(respData))
 
 	var resp queryResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
@@ -379,6 +376,7 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
 	}
 	statusStr := agoraStatusToString(resp.ServerResponse.Status)
+	logger.Info("[Agora-Query-Response] status: %s, parsed files: %v", statusStr, files)
 	return statusStr, files, nil
 }
 
