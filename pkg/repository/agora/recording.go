@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/hngprojects/telex_be/internal/config"
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -75,11 +76,12 @@ type extensionServiceConfig struct {
 }
 
 type transcodingConfig struct {
-	Width            int `json:"width"`
-	Height           int `json:"height"`
-	Fps              int `json:"fps"`
-	Bitrate          int `json:"bitrate"`
-	MixedVideoLayout int `json:"mixedVideoLayout"`
+	Width            int                       `json:"width"`
+	Height           int                       `json:"height"`
+	Fps              int                       `json:"fps"`
+	Bitrate          int                       `json:"bitrate"`
+	MixedVideoLayout int                       `json:"mixedVideoLayout"`
+	LayoutConfig     []models.LayoutConfigItem `json:"layoutConfig,omitempty"`
 }
 
 type recordingConfig struct {
@@ -456,6 +458,50 @@ func parseFileListFromStates(states []extensionServiceState) []string {
 		}
 	}
 	return filenames
+}
+
+type updateLayoutClientRequest struct {
+	MixedVideoLayout int                       `json:"mixedVideoLayout"`
+	LayoutConfig     []models.LayoutConfigItem `json:"layoutConfig,omitempty"`
+}
+
+type updateLayoutRequest struct {
+	Cname         string                    `json:"cname"`
+	Uid           string                    `json:"uid"`
+	ClientRequest updateLayoutClientRequest `json:"clientRequest"`
+}
+
+func UpdateLayout(logger *utility.Logger, resourceID, sid, buzzID, uid string, layoutConfig []models.LayoutConfigItem) error {
+	rc, err := newRecordingClient()
+	if err != nil {
+		return err
+	}
+
+	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/mix/updateLayout",
+		agoraRecordingBaseURL, rc.appID, resourceID, sid)
+
+	mixedVideoLayout := 3
+	if len(layoutConfig) == 0 {
+		mixedVideoLayout = 1
+	}
+
+	reqBody := updateLayoutRequest{
+		Cname: buzzID,
+		Uid:   uid,
+		ClientRequest: updateLayoutClientRequest{
+			MixedVideoLayout: mixedVideoLayout,
+			LayoutConfig:     layoutConfig,
+		},
+	}
+
+	respData, err := rc.doRequest(http.MethodPost, url, reqBody)
+	if err != nil {
+		logger.Error("[Agora] Failed to update layout for buzz %s: %v", buzzID, err)
+		return fmt.Errorf("update layout failed: %w", err)
+	}
+
+	logger.Info("[Agora] Layout updated for buzz %s. Response: %s", buzzID, string(respData))
+	return nil
 }
 
 

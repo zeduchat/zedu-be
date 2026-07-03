@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	buzzsvc "github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
@@ -134,5 +135,59 @@ func (base *Controller) GetRecordingStatus(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "recording status retrieved successfully", rec)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) UpdateLayout(c *gin.Context) {
+	buzzCode, ok := c.Params.Get("id")
+	if !ok || !utility.IsValidBuzzCodeOrUUID(buzzCode) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid buzz code", errors.New("invalid buzz code"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	buzzID, err := utility.ResolveBuzzCode(base.Db.Postgresql, buzzCode)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "buzz not found", err, nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	userIDInterface, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id", errors.New("invalid user id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var req models.UpdateRecordingLayoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := buzzsvc.UpdateRecordingLayout(base.Db, base.Logger, buzzID, userID, req.LayoutConfig)
+	if err != nil {
+		base.Logger.Error("failed to update layout: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "layout updated successfully", nil)
 	c.JSON(http.StatusOK, rd)
 }

@@ -280,6 +280,20 @@ type BuzzNote struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 }
 
+type LayoutConfigItem struct {
+	Uid        string  `json:"uid"`
+	XAxis      float64 `json:"x_axis"`
+	YAxis      float64 `json:"y_axis"`
+	Width      float64 `json:"width"`
+	Height     float64 `json:"height"`
+	Alpha      float64 `json:"alpha"`
+	RenderMode int     `json:"render_mode"`
+}
+
+type UpdateRecordingLayoutRequest struct {
+	LayoutConfig []LayoutConfigItem `json:"layoutConfig" validate:"omitempty"`
+}
+
 type CreateBuzzNoteRequest struct {
 	Note string `json:"note" validate:"required"`
 }
