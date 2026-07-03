@@ -30642,6 +30642,78 @@ paths:
         "500":
           description: Internal server error
 
+  /buzz/{id}/recording/update-layout:
+    post:
+      tags:
+        - buzz
+      summary: Update buzz recording layout
+      description: Updates the layout configuration for an active cloud recording of the specified buzz session. If layoutConfig is null or empty, the layout is reset/removed.
+      operationId: updateRecordingLayout
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: "The buzz identifier - UUID or buzzCode."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                layoutConfig:
+                  type: array
+                  nullable: true
+                  items:
+                    type: object
+                    properties:
+                      uid:
+                        type: string
+                        example: "1234"
+                      x_axis:
+                        type: number
+                        format: float
+                        example: 0.0
+                      y_axis:
+                        type: number
+                        format: float
+                        example: 0.0
+                      width:
+                        type: number
+                        format: float
+                        example: 1.0
+                      height:
+                        type: number
+                        format: float
+                        example: 1.0
+                      alpha:
+                        type: number
+                        format: float
+                        example: 1.0
+                      render_mode:
+                        type: integer
+                        example: 1
+      responses:
+        "200":
+          description: Recording layout updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "404":
+          description: Buzz or active recording not found
+        "500":
+          description: Internal server error
+
   /buzz/{id}/mute-participants:
     post:
       tags:
