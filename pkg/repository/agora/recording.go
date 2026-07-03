@@ -312,7 +312,7 @@ func StartRecording(logger *utility.Logger, resourceID, buzzID, rtcToken, uid st
 	return resp.Sid, nil
 }
 
-func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
+func StopRecording(logger *utility.Logger, resourceID, sid, buzzID, uid string) ([]string, error) {
 	rc, err := newRecordingClient()
 	if err != nil {
 		return nil, err
@@ -332,6 +332,8 @@ func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 		return nil, err
 	}
 
+	logger.Info("[Agora-Stop-Response] raw JSON: %s", string(respData))
+
 	var resp stopResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return nil, fmt.Errorf("failed to parse stop response: %w", err)
@@ -341,6 +343,8 @@ func StopRecording(resourceID, sid, buzzID, uid string) ([]string, error) {
 	if len(files) == 0 {
 		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
 	}
+
+	logger.Info("[Agora-Stop-Response] parsed files: %v", files)
 
 	return files, nil
 }
@@ -360,6 +364,8 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		return "", nil, fmt.Errorf("query recording failed: %w", err)
 	}
 
+	logger.Info("[Agora-Query-Response] raw JSON: %s", string(respData))
+
 	var resp queryResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return "", nil, fmt.Errorf("failed to parse query response: %w", err)
@@ -370,6 +376,7 @@ func QueryRecordingStatus(logger *utility.Logger, resourceID, sid, buzzID string
 		files = parseFileListFromStates(resp.ServerResponse.ExtensionServiceState)
 	}
 	statusStr := agoraStatusToString(resp.ServerResponse.Status)
+	logger.Info("[Agora-Query-Response] status: %s, parsed files: %v", statusStr, files)
 	return statusStr, files, nil
 }
 

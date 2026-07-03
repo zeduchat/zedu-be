@@ -108,7 +108,7 @@ type File struct {
 	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`
 	FileType       string         `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
 	MimeType       string         `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink       string         `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	FileLink       string         `gorm:"column:file_link; type:text; not null" json:"file_link"`
 	Size           int64          `gorm:"column:size" json:"size"`
 	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
 	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
@@ -130,7 +130,7 @@ type FileMediaResponse struct {
 	FileName  string    `gorm:"column:file_name; not null" json:"file_name"`
 	FileType  string    `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
 	MimeType  string    `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink  string    `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	FileLink  string    `gorm:"column:file_link; type:text; not null" json:"file_link"`
 	UserID    string    `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
@@ -367,7 +367,7 @@ type FileWithSharing struct {
 	FileName       string         `gorm:"column:file_name; not null" json:"file_name"`
 	FileType       string         `gorm:"column:file_type; type:varchar(50); not null"  json:"file_type"`
 	MimeType       string         `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
-	FileLink       string         `gorm:"column:file_link; type:varchar(200); not null" json:"file_link"`
+	FileLink       string         `gorm:"column:file_link; type:text; not null" json:"file_link"`
 	Size           int64          `gorm:"column:size" json:"size"`
 	OrganisationID string         `gorm:"column:organisation_id; type:uuid; not null" json:"organisation_id"`
 	UserID         string         `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
