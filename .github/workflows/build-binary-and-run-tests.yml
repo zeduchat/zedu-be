@@ -31,7 +31,14 @@ jobs:
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
           createdb -U actionsdeployer ${DB_NAME}
           pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging | psql -U actionsdeployer ${DB_NAME}
-      
+
+      - name: Verify APP_ENV secret is set
+        run: |
+             if [ -z "${{ secrets.APP_ENV }}" ]; then
+               echo "::error::secrets.APP_ENV is empty or unset"
+               exit 1
+             fi
+       
       - name: Setup app.env
         run: | 
           SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
