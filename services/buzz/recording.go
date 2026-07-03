@@ -180,7 +180,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 		return rec, http.StatusOK, nil
 	}
 
-	files, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
+	files, stopErr := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
 	if stopErr != nil {
 		logger.Error("failed to stop agora recording for buzz %s: %v", buzzID, stopErr)
 	}
@@ -327,9 +327,11 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 }
 
 func buildRecordingFileURL(filename string) string {
-	buzzID := strings.Split(filename, "_")[1]
 	cfg := config.GetConfig()
-
+	if strings.Contains(filename, "/") {
+		return fmt.Sprintf("https://%s/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, filename)
+	}
+	buzzID := strings.Split(filename, "_")[1]
 	return fmt.Sprintf("https://%s/%s/call-recordings/%s/%s", cfg.Minio.MinioEndpoint, cfg.Minio.BucketName, buzzID, filename)
 }
 
@@ -375,7 +377,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 		return
 	}
 
-	files, stopErr := agora.StopRecording(rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
+	files, stopErr := agora.StopRecording(logger, rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID)
 	if stopErr != nil {
 		logger.Error("failed to stop agora recording on buzz end for buzz %s: %v", buzzID, stopErr)
 	}
@@ -391,6 +393,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 	if mp4File != "" {
 		rec.FileURL = buildRecordingFileURL(mp4File)
 	}
+	logger.Info("[Agora] File URL for buzz %s: %s", buzzID, rec.FileURL)	
 
 	if err := db.Postgresql.Save(rec).Error; err != nil {
 		logger.Error("failed to update recording status on buzz end: %v", err)
