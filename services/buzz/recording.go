@@ -119,10 +119,10 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 	orgID := getBuzzOrgID(buzz)
 	recordingUID := generateRecordingUID()
 
-	botToken, err := GenerateBotJWTToken(orgID, buzzID, recordingUID, remainingTime)
+	rtcToken, err := generateRecorderToken(buzzID, recordingUID, remainingTime)
 	if err != nil {
-		logger.Error("failed to generate bot JWT token: %v", err)
-		return nil, http.StatusInternalServerError, errors.New("failed to generate bot token")
+		logger.Error("failed to generate recorder RTC token: %v", err)
+		return nil, http.StatusInternalServerError, errors.New("failed to generate recorder token")
 	}
 
 	resourceID, err := agora.AcquireRecording(logger, buzzID, recordingUID)
@@ -131,10 +131,8 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		return nil, http.StatusInternalServerError, errors.New("failed to acquire recording resource")
 	}
 
-	webpageURL := buildWebpageURL(db.Postgresql, orgID, buzz, botToken)
-
 	maxIdleSecs := 300
-	sid, err := agora.StartRecording(logger, resourceID, buzzID, webpageURL, recordingUID, maxIdleSecs)
+	sid, err := agora.StartRecording(logger, resourceID, buzzID, rtcToken, recordingUID, maxIdleSecs)
 	if err != nil {
 		logger.Error("[Agora] failed to start recording for buzz %s: %v", buzzID, err)
 		return nil, http.StatusInternalServerError, errors.New("failed to start recording")
@@ -146,7 +144,7 @@ func StartBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, ho
 		OrgID:         orgID,
 		ResourceID:    resourceID,
 		Sid:           sid,
-		RecorderToken: botToken,
+		RecorderToken: rtcToken,
 		RecordingUID:  recordingUID,
 		Status:        models.RecordingStatusStarting,
 		StartedAt:     time.Now().UTC(),
