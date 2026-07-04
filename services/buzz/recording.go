@@ -277,8 +277,8 @@ func saveRecordingAsOrgFile(db *gorm.DB, logger *utility.Logger, rec *models.Buz
 		if mp4File != "" {
 			cfg := config.GetConfig()
 			key := mp4File
-			if !strings.HasPrefix(key, "call-recordings_") {
-				key = fmt.Sprintf("call-recordings_%s_%s", rec.BuzzID, mp4File)
+			if !strings.HasPrefix(key, "call-recordings/") {
+				key = fmt.Sprintf("call-recordings/%s/%s", rec.BuzzID, mp4File)
 			}
 			size, err := minio.GetObjectSize(cfg.Minio.BucketName, key)
 			if err == nil {
@@ -444,4 +444,43 @@ func buildWebpageURL(db *gorm.DB, orgID string, buzz *models.Buzz, botToken stri
 
 	return fmt.Sprintf("%s/%s/buzz-record/%s?token=%s&orgId=%s&mode=recorder",
 		siteURL, orgSlug, buzzCode, botToken, orgID)
+}
+
+func UpdateRecordingLayout(db *storage.Database, logger *utility.Logger, buzzID, userID string, layoutConfig []models.LayoutConfigItem) (int, error) {
+	var buzz models.Buzz
+	if err := db.Postgresql.Where("id = ?", buzzID).First(&buzz).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("buzz not found")
+		}
+		return http.StatusInternalServerError, errors.New("failed to fetch buzz info")
+	}
+
+	isBot := isRecordingBot(db.Postgresql, userID, buzzID)
+	isParticipant := isBot
+	if !isBot {
+		for _, pid := range buzz.ParticipantIDs {
+			if pid == userID {
+				isParticipant = true
+				break
+			}
+		}
+	}
+	if !isParticipant {
+		return http.StatusForbidden, errors.New("user is not a participant in this buzz")
+	}
+
+	rec, err := getActiveBuzzRecording(db.Postgresql, buzzID)
+	if err != nil {
+		return http.StatusInternalServerError, errors.New("failed to check recording status")
+	}
+	if rec == nil {
+		return http.StatusNotFound, errors.New("no active recording found for this buzz")
+	}
+
+	err = agora.UpdateLayout(logger, rec.ResourceID, rec.Sid, buzzID, rec.RecordingUID, layoutConfig)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }

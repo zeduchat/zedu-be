@@ -486,4 +486,48 @@ func TestBuzzRecording(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("UpdateRecordingLayout", func(t *testing.T) {
+		// Invalid payload format (layoutConfig is a string, not an array)
+		reqBody := `{"layoutConfig":"not-an-array"}`
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/update-layout", buzzID), strings.NewReader(reqBody))
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+
+		// Valid payload with empty array (should pass validation, but return 404 because no active recording exists)
+		reqBodyEmpty := `{"layoutConfig":[]}`
+		reqEmpty, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/update-layout", buzzID), strings.NewReader(reqBodyEmpty))
+		reqEmpty.Header.Set("Authorization", "Bearer "+hostToken)
+		reqEmpty.Header.Set("Content-Type", "application/json")
+		rrEmpty := httptest.NewRecorder()
+		router.ServeHTTP(rrEmpty, reqEmpty)
+		tst.AssertStatusCode(t, rrEmpty.Code, http.StatusNotFound)
+		dataEmpty := tst.ParseResponse(rrEmpty)
+		if msg, ok := dataEmpty["message"].(string); ok {
+			if msg != "no active recording found for this huddle" && msg != "no active recording found for this buzz" {
+				t.Errorf("unexpected message for empty layout: %s", msg)
+			}
+		}
+
+		// Valid payload with null (should pass validation, but return 404 because no active recording exists)
+		reqBodyNull := `{"layoutConfig":null}`
+		reqNull, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/update-layout", buzzID), strings.NewReader(reqBodyNull))
+		reqNull.Header.Set("Authorization", "Bearer "+hostToken)
+		reqNull.Header.Set("Content-Type", "application/json")
+		rrNull := httptest.NewRecorder()
+		router.ServeHTTP(rrNull, reqNull)
+		tst.AssertStatusCode(t, rrNull.Code, http.StatusNotFound)
+
+		// Valid layoutConfig array of objects (should pass validation, but return 404 because no active recording exists)
+		reqBodyValid := `{"layoutConfig":[{"uid":"123","x_axis":0.0,"y_axis":0.0,"width":1.0,"height":1.0,"alpha":1.0,"render_mode":1}]}`
+		reqValid, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/buzz/%s/recording/update-layout", buzzID), strings.NewReader(reqBodyValid))
+		reqValid.Header.Set("Authorization", "Bearer "+hostToken)
+		reqValid.Header.Set("Content-Type", "application/json")
+		rrValid := httptest.NewRecorder()
+		router.ServeHTTP(rrValid, reqValid)
+		tst.AssertStatusCode(t, rrValid.Code, http.StatusNotFound)
+	})
 }
