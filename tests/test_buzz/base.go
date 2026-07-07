@@ -23,6 +23,8 @@ func SetupBuzzTestRouter(logger *utility.Logger, validator *validator.Validate) 
 
 	db := storage.Connection()
 
+	utility.RegisterCustomValidations(validator)
+
 	ctrl := &buzz.Controller{
 		Db:        db,
 		Validator: validator,

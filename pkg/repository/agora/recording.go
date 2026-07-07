@@ -480,7 +480,7 @@ func UpdateLayout(logger *utility.Logger, resourceID, sid, buzzID, uid string, l
 	url := fmt.Sprintf("%s/%s/cloud_recording/resourceid/%s/sid/%s/mode/mix/updateLayout",
 		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
-	mixedVideoLayout := 3
+	mixedVideoLayout := 1
 	if len(layoutConfig) == 0 {
 		mixedVideoLayout = 1
 	}

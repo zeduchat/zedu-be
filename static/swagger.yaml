@@ -36286,11 +36286,10 @@ components:
           description: The UUID of the buzz to generate a token for
         uid:
           type: string
-          format: uuid
-          description: Unique Agora user account (UUID) for participant tracking
+          description: Unique Agora user account (UUID or screen-UUID format) for participant tracking
       example:
         buzz_id: "0198dd2d-7650-7ab7-b141-97e6ac2a7b43"
-        uid: "019acc68-af5e-721e-b21f-e94f8f3d8b44"
+        uid: "screen-019acc68-af5e-721e-b21f-e94f8f3d8b44"
 
     BuzzAgoraTokenResponse:
       type: object

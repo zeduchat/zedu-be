@@ -180,6 +180,17 @@ func RegisterCustomValidations(v *validator.Validate) {
 		return err == nil
 	})
 
+	_ = v.RegisterValidation("buzz_uid", func(fl validator.FieldLevel) bool {
+		value := fl.Field().String()
+		if IsValidUUID(value) {
+			return true
+		}
+		if strings.HasPrefix(value, "screen-") {
+			return IsValidUUID(strings.TrimPrefix(value, "screen-"))
+		}
+		return false
+	})
+
 	_ = v.RegisterValidation("no_whitespace", func(fl validator.FieldLevel) bool {
 		value := fl.Field().String()
 		return !strings.ContainsAny(value, " \t\n\r")
