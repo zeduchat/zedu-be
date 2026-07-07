@@ -530,4 +530,38 @@ func TestBuzzRecording(t *testing.T) {
 		router.ServeHTTP(rrValid, reqValid)
 		tst.AssertStatusCode(t, rrValid.Code, http.StatusNotFound)
 	})
+
+	t.Run("GetAgoraToken_Validation", func(t *testing.T) {
+		testBuzzID, _ := tst.CreateBuzz(t, router, *buzzCtrl, db, models.CreateBuzzRequest{ChannelID: channelID}, hostToken)
+		if testBuzzID == "" {
+			t.Fatal("failed to create fresh buzz for token validation test")
+		}
+
+		// Valid UUID
+		reqBodyUUID := fmt.Sprintf(`{"buzz_id":%q,"uid":%q}`, testBuzzID, utility.GenerateUUID())
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/token", strings.NewReader(reqBodyUUID))
+		req.Header.Set("Authorization", "Bearer "+hostToken)
+		req.Header.Set("Content-Type", "application/json")
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+		// screen-<UUID> format
+		reqBodyScreen := fmt.Sprintf(`{"buzz_id":%q,"uid":"screen-%s"}`, testBuzzID, utility.GenerateUUID())
+		req2, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/token", strings.NewReader(reqBodyScreen))
+		req2.Header.Set("Authorization", "Bearer "+hostToken)
+		req2.Header.Set("Content-Type", "application/json")
+		rr2 := httptest.NewRecorder()
+		router.ServeHTTP(rr2, req2)
+		tst.AssertStatusCode(t, rr2.Code, http.StatusOK)
+
+		// Invalid format
+		reqBodyInvalid := fmt.Sprintf(`{"buzz_id":%q,"uid":"invalid-format-1234"}`, testBuzzID)
+		req3, _ := http.NewRequest(http.MethodPost, "/api/v1/buzz/token", strings.NewReader(reqBodyInvalid))
+		req3.Header.Set("Authorization", "Bearer "+hostToken)
+		req3.Header.Set("Content-Type", "application/json")
+		rr3 := httptest.NewRecorder()
+		router.ServeHTTP(rr3, req3)
+		tst.AssertStatusCode(t, rr3.Code, http.StatusUnprocessableEntity)
+	})
 }
