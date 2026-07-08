@@ -481,8 +481,10 @@ func UpdateLayout(logger *utility.Logger, resourceID, sid, buzzID, uid string, l
 		agoraRecordingBaseURL, rc.appID, resourceID, sid)
 
 	mixedVideoLayout := 1
-	if len(layoutConfig) == 0 {
-		mixedVideoLayout = 1
+	if len(layoutConfig) > 0 {
+		mixedVideoLayout = 3
+	} else {
+		layoutConfig = nil
 	}
 
 	reqBody := updateLayoutRequest{
