@@ -95,6 +95,7 @@ func AuthMigrationModels() []any {
 		models.BuzzParticipant{},
 		models.BuzzNote{},
 		models.Shares{},
+		models.FileShare{},
 		models.AccountDeletionRequest{},
 		models.ZeduResourcePage{},
 		models.ZeduGuide{},
