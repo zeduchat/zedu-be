@@ -439,11 +439,25 @@ func DeleteFileDetailsByID(logger *utility.Logger, db *storage.Database, file *m
 
 		// if this is the last record pointing to the file, delete from MinIO
 		if count == 1 {
-			hashedFileName := utility.ExtractHashedFileName(file.FileLink)
-
-			minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
-			if minioErr != nil {
-				return minioErr
+			if strings.Contains(file.FileLink, "call-recordings/") {
+				idx := strings.Index(file.FileLink, "call-recordings/")
+				if idx != -1 {
+					pathWithPrefix := file.FileLink[idx:]
+					lastSlashIdx := strings.LastIndex(pathWithPrefix, "/")
+					if lastSlashIdx != -1 {
+						folderPrefix := pathWithPrefix[:lastSlashIdx+1]
+						minioErr := models.DeleteRecordingFolder(logger, folderPrefix)
+						if minioErr != nil {
+							return minioErr
+						}
+					}
+				}
+			} else {
+				hashedFileName := utility.ExtractHashedFileName(file.FileLink)
+				minioErr := models.DeleteUploadedFiles(logger, hashedFileName)
+				if minioErr != nil {
+					return minioErr
+				}
 			}
 		}
 

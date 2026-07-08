@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	dm "github.com/hngprojects/telex_be/services/directMessage"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
@@ -1584,6 +1586,66 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 
 	logger.Info("successfully fetched %d org buzz items for user %s in org %s", len(buzzItems), userID, orgID)
 	return resp, http.StatusOK, nil
+}
+
+func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string, orgID string, pagination postgresql.Pagination) ([]models.OrgAllBuzzItem, postgresql.PaginationResponse, int, error) {
+	logger.Info("fetching all org and channel/DM buzzes for user %s in org %s", userID, orgID)
+
+	total, err := models.GetAllOrgBuzzesCount(db.Postgresql, orgID)
+	if err != nil {
+		logger.Error("failed to fetch count of all buzzes: %v", err)
+		return nil, postgresql.PaginationResponse{}, http.StatusInternalServerError, errors.New("failed to fetch count of buzzes")
+	}
+
+	offset := (pagination.Page - 1) * pagination.Limit
+	buzzes, err := models.GetAllOrgBuzzesPaginated(db.Postgresql, orgID, pagination.Limit, offset)
+	if err != nil {
+		logger.Error("failed to fetch all buzzes: %v", err)
+
+		return nil, postgresql.PaginationResponse{}, http.StatusInternalServerError, errors.New("failed to fetch buzzes")
+	}
+
+	buzzItems := make([]models.OrgAllBuzzItem, 0, len(buzzes))
+	for _, buzz := range buzzes {
+		participantCount, _ := models.GetActiveParticipantCount(db.Postgresql, buzz.ID)
+
+		buzzType := models.BuzzListTypeChannel
+		if buzz.BuzzType == models.BuzzTypeOrganization {
+			buzzType = models.BuzzListTypeOrg
+		}
+
+		var orgIDStr string
+		if buzz.OrgID != nil {
+			orgIDStr = *buzz.OrgID
+		}
+
+		buzzItems = append(buzzItems, models.OrgAllBuzzItem{
+			BuzzID:           buzz.ID,
+			BuzzCode:         utility.ExtractBuzzCode(buzz.ID),
+			ChannelID:        buzz.ChannelID,
+			ChannelType:      buzz.ChannelType,
+			HostID:           buzz.HostID,
+			OrgID:            &orgIDStr,
+			Status:           buzz.Status,
+			ParticipantCount: int(participantCount),
+			BuzzType:         buzzType,
+			CreatedAt:        buzz.CreatedAt,
+			StartedAt:        buzz.BuzzStartTime,
+			EndedAt:          buzz.BuzzEndTime,
+		})
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(pagination.Limit)))
+	paginationResponse := postgresql.PaginationResponse{
+		CurrentPage:     pagination.Page,
+		PageCount:       len(buzzItems),
+		TotalPagesCount: totalPages,
+		TotalItems:      total,
+	}
+
+	logger.Info("successfully fetched %d buzz items", len(buzzItems))
+
+	return buzzItems, paginationResponse, http.StatusOK, nil
 }
 
 func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz *models.Buzz, hostID string, eventType string) error {

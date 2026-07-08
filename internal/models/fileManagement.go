@@ -223,6 +223,36 @@ func DeleteUploadedFiles(logger *utility.Logger, fileName string) error {
 	return nil
 }
 
+func DeleteRecordingFolder(logger *utility.Logger, folderPrefix string) error {
+	minioClient := storage.DB.Minio
+	bucketName := config.Config.Minio.BucketName
+	ctx := context.Background()
+
+	// List all objects (including subdirectory structure) under prefix
+	objectsCh := minioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Prefix:    folderPrefix,
+		Recursive: true,
+	})
+
+	// Batch delete all objects using the channel directly
+	errorCh := minioClient.RemoveObjects(ctx, bucketName, objectsCh, minio.RemoveObjectsOptions{})
+	
+	var lastErr error
+	for e := range errorCh {
+		if e.Err != nil {
+			utility.LogAndPrint(logger, fmt.Sprintf("failed to delete object %s: %v", e.ObjectName, e.Err))
+			
+			lastErr = e.Err
+		}
+	}
+	
+	if lastErr == nil {
+		utility.LogAndPrint(logger, fmt.Sprintf("successfully deleted recording folder and all contents: %s", folderPrefix))
+	}
+
+	return lastErr
+}
+
 // UpdateFilesMetadata updates channel_id and message_id for files attached to messages
 // This is called after thread/message creation to associate files with the correct context
 func UpdateFilesMetadata(db *gorm.DB, logger *utility.Logger, fileIDs []string, channelID, messageID string) error {
