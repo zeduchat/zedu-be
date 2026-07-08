@@ -606,6 +606,11 @@ type BuzzStickerPayload struct {
 	Timestamp    time.Time  `json:"timestamp"`
 }
 
+const (
+	BuzzListTypeOrg     = "orgbuzz"
+	BuzzListTypeChannel = "channel"
+)
+
 type OrgBuzzListResponse struct {
 	Buzzes []OrgBuzzItem `json:"buzzes"`
 	Total  int           `json:"total"`
@@ -622,6 +627,25 @@ type OrgBuzzItem struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartedAt        time.Time  `json:"started_at"`
 	EndedAt          *time.Time `json:"ended_at,omitempty"`
+}
+
+type OrgAllBuzzItem struct {
+	BuzzID           string     `json:"buzz_id"`
+	BuzzCode         string     `json:"buzz_code"`
+	ChannelID        string     `json:"channel_id"`
+	ChannelType      string     `json:"channel_type"`
+	HostID           string     `json:"host_id"`
+	OrgID            *string    `json:"org_id,omitempty"`
+	Status           string     `json:"status"`
+	ParticipantCount int        `json:"participant_count"`
+	BuzzType         string     `json:"buzz_type"` // "orgbuzz" or "channel"
+	CreatedAt        time.Time  `json:"created_at"`
+	StartedAt        time.Time  `json:"started_at"`
+	EndedAt          *time.Time `json:"ended_at,omitempty"`
+}
+
+type OrgAllBuzzListResponse struct {
+	Buzzes []OrgAllBuzzItem `json:"buzzes"`
 }
 
 type BuzzTimeWarningPayload struct {
@@ -753,4 +777,37 @@ func (b *Buzz) AppendParticipant(db *gorm.DB, userID string) error {
 		"UPDATE buzzs SET participants = array_append(participants, ?) WHERE id = ? AND NOT (? = ANY(participants))",
 		userID, b.ID, userID,
 	).Error
+}
+
+func GetAllOrgBuzzesCount(db *gorm.DB, orgID string) (int64, error) {
+	var total int64
+	err := db.Table("buzzs b").
+		Joins("LEFT JOIN channels c ON b.channel_id = c.id").
+		Joins("LEFT JOIN dm_channels dc ON b.channel_id = dc.channel_id").
+		Where("b.org_id = ? OR c.organisation_id = ? OR dc.org_id = ?", orgID, orgID, orgID).
+		Distinct("b.id").
+		Count(&total).Error
+	return total, err
+}
+
+func GetAllOrgBuzzesPaginated(db *gorm.DB, orgID string, limit, offset int) ([]Buzz, error) {
+	var buzzes []Buzz
+	err := db.Table("buzzs b").
+		Select("distinct b.*").
+		Joins("LEFT JOIN channels c ON b.channel_id = c.id").
+		Joins("LEFT JOIN dm_channels dc ON b.channel_id = dc.channel_id").
+		Where("b.org_id = ? OR c.organisation_id = ? OR dc.org_id = ?", orgID, orgID, orgID).
+		Order("b.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&buzzes).Error
+	return buzzes, err
+}
+
+func GetActiveParticipantCount(db *gorm.DB, buzzID string) (int64, error) {
+	var count int64
+	err := db.Model(&BuzzParticipant{}).
+		Where("buzz_id = ? AND status != ?", buzzID, BuzzParticipantStatusLeft).
+		Count(&count).Error
+	return count, err
 }
