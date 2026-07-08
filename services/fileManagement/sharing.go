@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -296,6 +297,11 @@ func CheckFileEditPermission(db *gorm.DB, fileID, userID, orgID string) (bool, e
 			return false, ErrFileNotFound
 		}
 		return false, fmt.Errorf("failed to fetch file: %w", err)
+	}
+
+	// For buzz recordings, only the owner (the host of the buzz) is allowed to delete/edit
+	if strings.Contains(file.FileLink, "call-recordings/") {
+		return file.UserID == userID, nil
 	}
 
 	// Owner can always edit

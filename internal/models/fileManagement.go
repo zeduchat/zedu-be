@@ -180,7 +180,7 @@ func (file *File) GetFileByID(db *gorm.DB, fileID string) (*File, error) {
 func (file *File) GetFileCountByLink(db *gorm.DB, fileLink string) (int64, error) {
 	var count int64
 
-	err := db.Model(&file).Where("file_link = ?", fileLink).Count(&count).Error
+	err := db.Unscoped().Model(&file).Where("file_link = ?", fileLink).Count(&count).Error
 	if err != nil {
 		return 0, err
 	}
