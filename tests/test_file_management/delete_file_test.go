@@ -132,6 +132,30 @@ func TestDeleteFilePermissions(t *testing.T) {
 		tests.AssertStatusCode(t, rr.Code, http.StatusForbidden)
 	})
 
+	t.Run("recording_file_deletion_restricted_to_host", func(t *testing.T) {
+		recordingFile := models.File{
+			ID:             utility.GenerateUUID(),
+			FileName:       "buzz-recording-test.mp4",
+			FileType:       "video",
+			MimeType:       "video/mp4",
+			FileLink:       "https://localhost:9000/telex/call-recordings/test-buzz/buzz-recording-test.mp4",
+			OrganisationID: ownerOrgID,
+			UserID:         owner.ID,
+			AccessType:     "private",
+		}
+		if err := db.Postgresql.Create(&recordingFile).Error; err != nil {
+			t.Fatalf("failed to create recording file in DB: %v", err)
+		}
+
+		// Try to delete it using the memberToken (non-host)
+		rrNonHost := performDeleteRequest(r, memberToken, recordingFile.ID, "")
+		tests.AssertStatusCode(t, rrNonHost.Code, http.StatusForbidden)
+
+		// Try to delete it using the ownerToken (host)
+		rrHost := performDeleteRequest(r, ownerToken, recordingFile.ID, "")
+		tests.AssertStatusCode(t, rrHost.Code, http.StatusOK)
+	})
+
 	t.Run("nonexistent_file_returns_not_found", func(t *testing.T) {
 		randomID := utility.GenerateUUID()
 		rr := performDeleteRequest(r, ownerToken, randomID, "")

@@ -3,7 +3,7 @@ package models
 // BuzzAgoraTokenRequest is the request to get an Agora RTC token for a buzz
 type BuzzAgoraTokenRequest struct {
 	BuzzID string `json:"buzz_id" validate:"required,uuid"`
-	UID    string `json:"uid" validate:"required,uuid"`
+	UID    string `json:"uid" validate:"required,buzz_uid"`
 }
 
 // BuzzAgoraTokenResponse contains the Agora RTC token and connection details for a buzz

@@ -596,3 +596,116 @@ func TestOrgBuzzMetadata(t *testing.T) {
 		}
 	})
 }
+
+func TestGetAllBuzzList(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+	validatorRef := validator.New()
+	db := storage.Connection()
+
+	auth := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	hostEmail := utility.GenerateUUID() + "@qa.team"
+	hostSignUp := models.CreateUserRequestModel{
+		Email:       hostEmail,
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "HostUser",
+		LastName:    "One",
+		Password:    "password",
+		UserName:    fmt.Sprintf("hostuser_%v", utility.GenerateUUID())}
+
+	hostLogin := models.LoginRequestModel{Email: hostSignUp.Email, Password: hostSignUp.Password}
+
+	tst.SignupUser(t, gin.Default(), auth, hostSignUp, false)
+	hostToken := tst.GetLoginToken(t, gin.Default(), auth, hostLogin)
+	if hostToken == "" {
+		t.Fatalf("failed to obtain host login token")
+	}
+
+	router, _ := SetupBuzzEndTestRouter(logger, validatorRef)
+	var hostUser models.User
+	if err := db.Postgresql.Where("email = ?", hostSignUp.Email).First(&hostUser).Error; err != nil {
+		t.Fatalf("failed to fetch host user: %v", err)
+	}
+
+	t.Run("GetAllOrgBuzzListSuccessfully", func(t *testing.T) {
+		channelID := utility.GenerateUUID()
+		channel := models.Channels{
+			ID:             channelID,
+			Name:           "test_" + utility.GenerateUUID(),
+			OrganisationID: hostUser.CurrentOrg.String(),
+			OwnerId:        hostUser.ID,
+			CreatedAt:      time.Now(),
+		}
+		if err := db.Postgresql.Create(&channel).Error; err != nil {
+			t.Fatalf("Failed to create test channel: %v", err)
+		}
+
+		userChannel := models.UserChannels{
+			ChannelsID: channelID,
+			UserID:     hostUser.ID,
+			Username:   hostSignUp.UserName,
+			CreatedAt:  time.Now(),
+		}
+		if err := db.Postgresql.Create(&userChannel).Error; err != nil {
+			t.Logf("Warning: Failed to add user to channel: %v", err)
+		}
+
+		// Create an Org Buzz
+		createBuzzData := models.CreateBuzzRequest{}
+		jsonData, _ := json.Marshal(createBuzzData)
+		createURL := "/api/v1/buzz/org/create"
+		createReq, err := http.NewRequest(http.MethodPost, createURL, bytes.NewBuffer(jsonData))
+		if err != nil {
+			t.Fatal(err)
+		}
+		createReq.Header.Set("Content-Type", "application/json")
+		createReq.Header.Set("Authorization", "Bearer "+hostToken)
+
+		createRR := httptest.NewRecorder()
+		router.ServeHTTP(createRR, createReq)
+
+		if createRR.Code != http.StatusCreated {
+			t.Fatalf("failed to create org buzz: %d", createRR.Code)
+		}
+
+		// Call the list-all endpoint
+		listURL := "/api/v1/buzz/org/all?page=1&limit=10"
+		listReq, err := http.NewRequest(http.MethodGet, listURL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		listReq.Header.Set("Authorization", "Bearer "+hostToken)
+
+		listRR := httptest.NewRecorder()
+		router.ServeHTTP(listRR, listReq)
+
+		tst.AssertStatusCode(t, listRR.Code, http.StatusOK)
+
+		data := tst.ParseResponse(listRR)
+		dataM := data["data"].(map[string]any)
+
+		buzzes := dataM["buzzes"].([]any)
+		if len(buzzes) == 0 {
+			t.Error("expected at least one buzz in the list")
+		}
+
+		pagination := dataM["pagination"].(map[string]any)
+		if pagination["current_page"].(float64) != 1 {
+			t.Errorf("expected current_page to be 1, got %v", pagination["current_page"])
+		}
+
+		firstBuzz := buzzes[0].(map[string]any)
+		if firstBuzz["buzz_type"].(string) != models.BuzzListTypeOrg {
+			t.Errorf("expected buzz_type %s, got %s", models.BuzzListTypeOrg, firstBuzz["buzz_type"].(string))
+		}
+	})
+}

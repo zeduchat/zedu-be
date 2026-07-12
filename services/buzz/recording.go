@@ -1,6 +1,7 @@
 package buzz
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/gosimple/slug"
+	minioSDK "github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
@@ -205,6 +207,7 @@ func StopBuzzRecording(db *storage.Database, logger *utility.Logger, buzzID, hos
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
 	logger.Info("recording stopped for buzz %s, duration: %ds", buzzID, rec.DurationSec)
+	CleanRecordingTempFiles(logger, buzzID)
 	return rec, http.StatusOK, nil
 }
 
@@ -257,6 +260,10 @@ func CheckRecordingStatus(db *storage.Database, logger *utility.Logger, buzzID, 
 
 	if mp4File != "" {
 		_ = saveRecordingAsOrgFile(db.Postgresql, logger, rec, &buzz)
+	}
+
+	if rec.Status == models.RecordingStatusStopped {
+		CleanRecordingTempFiles(logger, buzzID)
 	}
 
 	return rec, http.StatusOK, nil
@@ -408,6 +415,7 @@ func StopActiveRecordingForBuzz(db *storage.Database, logger *utility.Logger, bu
 
 	publishRecordingEvent(logger, buzz, rec, "recording_stopped")
 	logger.Info("[Agora] Published recording_stopped event for buzz %s", buzzID)
+	CleanRecordingTempFiles(logger, buzzID)
 }
 
 func resolveMP4File(files []string) string {
@@ -483,4 +491,66 @@ func UpdateRecordingLayout(db *storage.Database, logger *utility.Logger, buzzID,
 	}
 
 	return http.StatusOK, nil
+}
+
+func CleanRecordingTempFiles(logger *utility.Logger, buzzID string) {
+	go func() {
+		minioClient := storage.DB.Minio
+		bucketName := config.GetConfig().Minio.BucketName
+		ctx := context.Background()
+		folderPrefix := fmt.Sprintf("call-recordings/%s/", buzzID)
+
+		// Since Agora takes a few seconds to merge and upload the final MP4,
+		// we retry listing up to 5 times with a 10-second delay between attempts.
+		for attempt := 1; attempt <= 5; attempt++ {
+			objectCh := minioClient.ListObjects(ctx, bucketName, minioSDK.ListObjectsOptions{
+				Prefix:    folderPrefix,
+				Recursive: true,
+			})
+
+			var mp4Exists bool
+			var tempObjects []minioSDK.ObjectInfo
+
+			for object := range objectCh {
+				if object.Err != nil {
+					logger.Error("[Agora-Cleanup] List error (attempt %d): %v", attempt, object.Err)
+					break
+				}
+				if strings.HasSuffix(object.Key, ".mp4") && object.Size > 0 {
+					mp4Exists = true
+				} else if !strings.HasSuffix(object.Key, ".mp4") {
+					tempObjects = append(tempObjects, object)
+				}
+			}
+
+			if mp4Exists && len(tempObjects) > 0 {
+				// MP4 is ready; feed the temp objects to a channel for batch deletion
+				tempObjectsCh := make(chan minioSDK.ObjectInfo, len(tempObjects))
+				for _, obj := range tempObjects {
+					tempObjectsCh <- obj
+				}
+				close(tempObjectsCh)
+
+				errorCh := minioClient.RemoveObjects(ctx, bucketName, tempObjectsCh, minioSDK.RemoveObjectsOptions{})
+				for e := range errorCh {
+					if e.Err != nil {
+						logger.Error("[Agora-Cleanup] Failed to delete temp file %s: %v", e.ObjectName, e.Err)
+					}
+				}
+
+				logger.Info("[Agora-Cleanup] Temp files cleanup completed for buzz %s", buzzID)
+				return
+			}
+
+			if mp4Exists && len(tempObjects) == 0 {
+				// Already cleaned up
+				return
+			}
+
+			// Wait 10 seconds before next check
+			time.Sleep(10 * time.Second)
+		}
+
+		logger.Error("[Agora-Cleanup] Cleanup timed out for buzz %s: MP4 was not found or already processed", buzzID)
+	}()
 }

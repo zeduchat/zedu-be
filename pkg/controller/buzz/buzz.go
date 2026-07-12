@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/buzz"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -458,6 +459,41 @@ func (base *Controller) GetOrgBuzzList(c *gin.Context) {
 
 	base.Logger.Info("org buzz list retrieved successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "organization buzz list retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetAllBuzzList(c *gin.Context) {
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	orgID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organization context required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	pagination := postgresql.GetPagination(c)
+
+	buzzes, paginationResponse, code, err := buzz.GetAllOrgBuzzList(base.Db, base.Logger, userID.(string), orgID.(string), pagination)
+	if err != nil {
+		base.Logger.Error("failed to fetch all org/channel buzz list: %v", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("all org/channel buzz list retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "organization buzzes retrieved successfully", map[string]interface{}{
+		"buzzes":     buzzes,
+		"pagination": paginationResponse,
+	})
 	c.JSON(http.StatusOK, rd)
 }
 
