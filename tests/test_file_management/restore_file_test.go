@@ -203,3 +203,92 @@ func TestRestoreFile(t *testing.T) {
 		tests.AssertStatusCode(t, rr.Code, http.StatusUnauthorized)
 	})
 }
+
+func TestGetSoftDeletedFileDetails(t *testing.T) {
+	r, _, authController, _ := SetupFileManagementTestRouter()
+
+	currUUID := uuid.New().String()
+	userSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("testgetdeleted%v@qa.team", currUUID),
+		FirstName:   "Test",
+		LastName:    "GetDeletedUser",
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+		Password:    "password123",
+		UserName:    fmt.Sprintf("test_getdeleteduser%v", currUUID),
+	}
+
+	loginData := models.LoginRequestModel{
+		Email:    userSignUpData.Email,
+		Password: userSignUpData.Password,
+	}
+
+	tests.SignupUser(t, r, *authController, userSignUpData, false)
+	token := tests.GetLoginToken(t, r, *authController, loginData)
+
+	if token == "" {
+		t.Fatal("Failed to get authentication token")
+	}
+
+	// helper to upload file
+	uploadFile := func() string {
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		content := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01}
+		filename := "test_get_deleted.jpg"
+		part, err := writer.CreateFormFile("files", filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		part.Write(content)
+		writer.Close()
+
+		req, _ := http.NewRequest(http.MethodPost, "/api/v1/files/upload-files", body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Upload failed with status %d", rr.Code)
+		}
+
+		resp := tests.ParseResponse(rr)
+		files := resp["data"].([]interface{})
+		f := files[0].(map[string]interface{})
+		return f["id"].(string)
+	}
+
+	fileID := uploadFile()
+
+	// delete the file first
+	req, _ := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	// verify that the file details can still be retrieved (should not return 404)
+	reqGet, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
+	reqGet.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+	rrGet := httptest.NewRecorder()
+	r.ServeHTTP(rrGet, reqGet)
+
+	tests.AssertStatusCode(t, rrGet.Code, http.StatusOK)
+
+	respGet := tests.ParseResponse(rrGet)
+	data, ok := respGet["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected response data to be map[string]interface{}, got %T", respGet["data"])
+	}
+
+	if data["id"] != fileID {
+		t.Errorf("Expected retrieved file ID to be %s, got %v", fileID, data["id"])
+	}
+
+	// verify that deleted_at is not null
+	deletedAt, ok := data["deleted_at"]
+	if !ok || deletedAt == nil {
+		t.Error("Expected deleted_at to be present in response data")
+	}
+}
+
