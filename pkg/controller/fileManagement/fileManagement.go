@@ -198,7 +198,7 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 		return
 	}
 
-	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
+	file, err := services.GetFileDetailsByIDUnscoped(base.Db.Postgresql, fileId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
 		c.JSON(http.StatusNotFound, rd)
