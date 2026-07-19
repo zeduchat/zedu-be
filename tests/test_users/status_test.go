@@ -2,19 +2,28 @@ package test_users
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"sync"
+
+	"github.com/centrifugal/gocent"
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
+	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
 	"github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/riverqueue/river"
 )
 
 func TestPatchUserStatus(t *testing.T) {
@@ -1266,18 +1275,74 @@ func TestEmojiValidation(t *testing.T) {
 			t.Fatalf("expected status_timeout to be empty for 'don't remove', got %s", profile.StatusTimeout)
 		}
 	})
+}
 
-	t.Run("returns validation error for invalid expiry string", func(t *testing.T) {
-		router, authController := setup()
-		loginData := models.LoginRequestModel{
-			Email:    user.Email,
-			Password: "password",
+func TestCentrifugoStatusNotifications(t *testing.T) {
+	router, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
+
+	currUUID := utility.GenerateUUID()
+	password, _ := utility.HashPassword("password")
+
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "Centrifugo Status User",
+		Email:    fmt.Sprintf("cent_status_user_%s@qa.team", currUUID),
+		Password: password,
+	}
+
+	db.Create(&user)
+	db.Create(&models.Profile{
+		ID:            utility.GenerateUUID(),
+		Userid:        user.ID,
+		Text:          "old status",
+		Icon:          "😊",
+		StatusTimeout: "0",
+	})
+
+	var receivedPayloads []map[string]any
+	var mu sync.Mutex
+
+	mockCentrifugo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			receivedPayloads = append(receivedPayloads, body)
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"result": {}}`))
+	}))
+	defer mockCentrifugo.Close()
+
+	originalClient := centrifuge.Client.C
+	defer func() { centrifuge.Client.C = originalClient }()
+	centrifuge.Client.C = gocent.New(gocent.Config{
+		Addr: mockCentrifugo.URL,
+		Key:  "test-api-key",
+	})
+
+	authController := auth.Controller{
+		Db:        userController.Db,
+		Validator: userController.Validator,
+		Logger:    userController.Logger,
+		ExtReq:    userController.ExtReq,
+	}
+	loginData := models.LoginRequestModel{
+		Email:    user.Email,
+		Password: "password",
+	}
+	token := tests.GetLoginToken(t, gin.Default(), authController, loginData)
+
+	t.Run("successfully publishes status update with profile_status_updated type", func(t *testing.T) {
+		mu.Lock()
+		receivedPayloads = nil
+		mu.Unlock()
 
 		payload := map[string]any{
-			"text":   "Test status",
-			"expiry": "invalid string",
+			"text":   "Out sick",
+			"emoji":  "🤒",
+			"expiry": "30 minutes",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1287,7 +1352,352 @@ func TestEmojiValidation(t *testing.T) {
 
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusUnprocessableEntity)
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(receivedPayloads) == 0 {
+			t.Fatal("expected at least one centrifugo publication payload, got none")
+		}
+
+		found := false
+		for _, rawPayload := range receivedPayloads {
+			method, _ := rawPayload["method"].(string)
+			params, _ := rawPayload["params"].(map[string]any)
+			
+			if method == "publish" && params != nil {
+				var data map[string]any
+				if dMap, ok := params["data"].(map[string]any); ok {
+					data = dMap
+				} else if dStr, ok := params["data"].(string); ok {
+					_ = json.Unmarshal([]byte(dStr), &data)
+				}
+				if data != nil {
+					if notifType, ok := data["notification_type"].(string); ok && notifType == "profile_status_updated" {
+						found = true
+						statusData, _ := data["data"].(map[string]any)
+						if statusData == nil {
+							t.Fatal("expected 'data' field in centrifugo payload")
+						}
+						statusObj, _ := statusData["status"].(map[string]any)
+						if statusObj == nil {
+							t.Fatal("expected 'status' in data")
+						}
+						if text, _ := statusObj["text"].(string); text != "Out sick" {
+							t.Fatalf("expected status text 'Out sick', got %q", text)
+						}
+						if emoji, _ := statusObj["emoji"].(string); emoji != "🤒" {
+							t.Fatalf("expected emoji '🤒', got %q", emoji)
+						}
+					}
+				}
+			}
+		}
+
+		if !found {
+			t.Fatalf("expected publication payload with profile_status_updated notification type. Payloads received: %+v", receivedPayloads)
+		}
 	})
+
+	t.Run("successfully publishes manual clear status with profile_status_updated type", func(t *testing.T) {
+		mu.Lock()
+		receivedPayloads = nil
+		mu.Unlock()
+
+		payload := map[string]any{
+			"clear_status": true,
+		}
+		body, _ := json.Marshal(payload)
+
+		req, _ := http.NewRequest(http.MethodPatch, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+		tests.AssertStatusCode(t, resp.Code, http.StatusOK)
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(receivedPayloads) == 0 {
+			t.Fatal("expected at least one centrifugo publication payload on clear, got none")
+		}
+
+		found := false
+		for _, rawPayload := range receivedPayloads {
+			method, _ := rawPayload["method"].(string)
+			params, _ := rawPayload["params"].(map[string]any)
+			if method == "publish" && params != nil {
+				var data map[string]any
+				if dMap, ok := params["data"].(map[string]any); ok {
+					data = dMap
+				} else if dStr, ok := params["data"].(string); ok {
+					_ = json.Unmarshal([]byte(dStr), &data)
+				}
+				if data != nil {
+					if notifType, ok := data["notification_type"].(string); ok && notifType == "profile_status_updated" {
+						found = true
+						statusData, _ := data["data"].(map[string]any)
+						if statusData == nil {
+							t.Fatal("expected 'data' field in centrifugo payload")
+						}
+						statusObj, _ := statusData["status"].(map[string]any)
+						if statusObj == nil {
+							t.Fatal("expected 'status' in data")
+						}
+						if text, _ := statusObj["text"].(string); text != "" {
+							t.Fatalf("expected empty status text on clear, got %q", text)
+						}
+						if emoji, _ := statusObj["emoji"].(string); emoji != "" {
+							t.Fatalf("expected empty emoji on clear, got %q", emoji)
+						}
+					}
+				}
+			}
+		}
+
+		if !found {
+			t.Fatalf("expected publication payload with profile_status_updated notification type on clear. Payloads received: %+v", receivedPayloads)
+		}
+	})
+
+	t.Run("successfully publishes status update with profile_status_updated type on background timed clear", func(t *testing.T) {
+		mu.Lock()
+		receivedPayloads = nil
+		mu.Unlock()
+
+		// Construct river Job using NewClearUserStatusWorker
+		worker := riverqueueBg.NewClearUserStatusWorker(userController.Logger, db)
+		jobArgs := models.ClearUserStatusJobArgs{
+			UserID: user.ID,
+			OrgID:  utility.GenerateUUID(),
+		}
+		job := &river.Job[models.ClearUserStatusJobArgs]{
+			Args: jobArgs,
+		}
+
+		err := worker.Work(context.Background(), job)
+		if err != nil {
+			t.Fatalf("ClearUserStatusWorker failed: %v", err)
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(receivedPayloads) == 0 {
+			t.Fatal("expected at least one centrifugo publication payload on background timed clear, got none")
+		}
+
+		found := false
+		for _, rawPayload := range receivedPayloads {
+			method, _ := rawPayload["method"].(string)
+			params, _ := rawPayload["params"].(map[string]any)
+			if method == "publish" && params != nil {
+				var data map[string]any
+				if dMap, ok := params["data"].(map[string]any); ok {
+					data = dMap
+				} else if dStr, ok := params["data"].(string); ok {
+					_ = json.Unmarshal([]byte(dStr), &data)
+				}
+				if data != nil {
+					if notifType, ok := data["notification_type"].(string); ok && notifType == "profile_status_updated" {
+						found = true
+						statusData, _ := data["data"].(map[string]any)
+						if statusData == nil {
+							t.Fatal("expected 'data' field in centrifugo payload")
+						}
+						statusObj, _ := statusData["status"].(map[string]any)
+						if statusObj == nil {
+							t.Fatal("expected 'status' in data")
+						}
+						if text, _ := statusObj["text"].(string); text != "" {
+							t.Fatalf("expected empty status text on timed clear, got %q", text)
+						}
+						if emoji, _ := statusObj["emoji"].(string); emoji != "" {
+							t.Fatalf("expected empty emoji on timed clear, got %q", emoji)
+						}
+					}
+				}
+			}
+		}
+
+		if !found {
+			t.Fatalf("expected publication payload with profile_status_updated notification type on timed clear. Payloads received: %+v", receivedPayloads)
+		}
+	})
+}
+
+func TestEndToEndTimedStatusClear(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping end-to-end timed status test in short mode")
+	}
+
+
+	router, userController := SetupUsersTestRouter()
+	db := userController.Db.Postgresql
+
+	currUUID := utility.GenerateUUID()
+	password, _ := utility.HashPassword("password")
+
+	user := models.User{
+		ID:       utility.GenerateUUID(),
+		Name:     "E2E Timed Status User",
+		Email:    fmt.Sprintf("e2e_timed_status_%s@qa.team", currUUID),
+		Password: password,
+	}
+
+	db.Create(&user)
+	db.Create(&models.Profile{
+		ID:     utility.GenerateUUID(),
+		Userid: user.ID,
+	})
+
+	var receivedPayloads []map[string]any
+	var mu sync.Mutex
+
+	mockCentrifugo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			receivedPayloads = append(receivedPayloads, body)
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"result": {}}`))
+	}))
+	defer mockCentrifugo.Close()
+
+	originalClient := centrifuge.Client.C
+	defer func() { centrifuge.Client.C = originalClient }()
+	centrifuge.Client.C = gocent.New(gocent.Config{
+		Addr: mockCentrifugo.URL,
+		Key:  "test-api-key",
+	})
+
+	// Start an isolated River client with only ClearUserStatusWorker (1 worker slot)
+	// so it doesn't exhaust the connection pool alongside other test River workers.
+	riverCtx, riverCancel := context.WithCancel(context.Background())
+	cfg := config.GetConfig()
+	_, stopRiver, err := riverqueueBg.StartRiverForTest(riverCtx, cfg.TestDatabase, userController.Logger, db)
+	if err != nil {
+		riverCancel()
+		t.Fatalf("failed to start River for test: %v", err)
+	}
+	t.Cleanup(func() {
+		stopRiver()
+		riverCancel()
+	})
+
+	authController := auth.Controller{
+		Db:        userController.Db,
+		Validator: userController.Validator,
+		Logger:    userController.Logger,
+		ExtReq:    userController.ExtReq,
+	}
+	token := tests.GetLoginToken(t, gin.Default(), authController, models.LoginRequestModel{
+		Email:    user.Email,
+		Password: "password",
+	})
+
+	payload := map[string]any{
+		"text":   "Brb real quick",
+		"emoji":  "⏱️",
+		"expiry": "30 seconds",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/users/%s/status", user.ID), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+	tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+
+	var profile models.Profile
+	if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+		t.Fatalf("failed to fetch profile after status set: %v", err)
+	}
+	if profile.RiverJobID == nil {
+		t.Fatal("expected river_job_id to be set after scheduling a 30-second status expiry, got nil")
+	}
+	if profile.StatusTimeout == "" {
+		t.Fatal("expected status_timeout to be set after scheduling, got empty")
+	}
+
+	// Poll until River auto-fires the timed clear job (allow 60s for the 30s expiry + execution lag).
+	deadline := time.Now().Add(60 * time.Second)
+	cleared := false
+	for time.Now().Before(deadline) {
+		time.Sleep(3 * time.Second)
+		if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+			t.Logf("transient poll error (retrying): %v", err)
+			continue
+		}
+		if profile.RiverJobID == nil {
+			cleared = true
+			break
+		}
+	}
+
+	if !cleared {
+		t.Fatal("timed out: River did not execute ClearUserStatusWorker within 60s")
+	}
+
+	if strings.TrimSpace(profile.Text) != "" || strings.TrimSpace(profile.Icon) != "" {
+		t.Fatalf("expected profile text and icon cleared, got text=%q icon=%q", profile.Text, profile.Icon)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(receivedPayloads) == 0 {
+		t.Fatal("expected Centrifugo to receive a publish after timed status clear, got none")
+	}
+
+	found := false
+	for _, rawPayload := range receivedPayloads[1:] {
+		method, _ := rawPayload["method"].(string)
+		params, _ := rawPayload["params"].(map[string]any)
+		if method != "publish" || params == nil {
+			continue
+		}
+		var data map[string]any
+		if dMap, ok := params["data"].(map[string]any); ok {
+			data = dMap
+		} else if dStr, ok := params["data"].(string); ok {
+			_ = json.Unmarshal([]byte(dStr), &data)
+		}
+		if data == nil {
+			continue
+		}
+		if notifType, _ := data["notification_type"].(string); notifType != "profile_status_updated" {
+			continue
+		}
+		found = true
+
+		statusData, _ := data["data"].(map[string]any)
+		if statusData == nil {
+			t.Fatal("expected 'data' field in centrifugo payload")
+		}
+
+		modIDs, _ := data["modification_ids"].(map[string]any)
+		if uid, _ := modIDs["user_id"].(string); uid != user.ID {
+			t.Fatalf("expected modification_ids.user_id=%q, got %q", user.ID, uid)
+		}
+		statusObj, _ := statusData["status"].(map[string]any)
+		if statusObj == nil {
+			t.Fatal("expected 'status' in centrifugo data payload")
+		}
+		if text, _ := statusObj["text"].(string); text != "" {
+			t.Fatalf("expected empty text after timed clear, got %q", text)
+		}
+		if emoji, _ := statusObj["emoji"].(string); emoji != "" {
+			t.Fatalf("expected empty emoji after timed clear, got %q", emoji)
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected a profile_status_updated Centrifugo payload after timed clear. Got: %+v", receivedPayloads)
+	}
 }

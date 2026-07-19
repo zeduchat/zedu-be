@@ -117,6 +117,24 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 	now := time.Now().UTC()
 	var successfulInvites []string
 	var failedInvites []string
+	failedDueToOrgMember := false
+
+	var orgID string
+	if buzz.BuzzType == models.BuzzTypeOrganization {
+		if buzz.OrgID != nil {
+			orgID = *buzz.OrgID
+		}
+	} else {
+		var channel models.Channels
+		if err := db.Postgresql.Where("id = ?", buzz.ChannelID).First(&channel).Error; err == nil {
+			orgID = channel.OrganisationID
+		} else {
+			var dmChannel models.DmChannels
+			if err := db.Postgresql.Where("channel_id = ?", buzz.ChannelID).First(&dmChannel).Error; err == nil {
+				orgID = dmChannel.OrgId
+			}
+		}
+	}
 
 	for _, inviteeID := range req.InviteeIDs {
 		isInBuzz := false
@@ -133,10 +151,21 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		}
 
 		if buzz.BuzzType != models.BuzzTypeOrganization {
-			if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, inviteeID) {
-				logger.Info("user %s is not a channel member, skipping", inviteeID)
-				failedInvites = append(failedInvites, inviteeID)
-				continue
+			if orgID != "" {
+				var orgModel models.Organisation
+				isOrgMember, err := orgModel.CheckUserIsMemberOfOrg(inviteeID, orgID, db.Postgresql)
+				if err != nil || !isOrgMember {
+					logger.Info("user %s is not a member of organisation %s, skipping", inviteeID, orgID)
+					failedInvites = append(failedInvites, inviteeID)
+					failedDueToOrgMember = true
+					continue
+				}
+			} else {
+				if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, inviteeID) {
+					logger.Info("user %s is not a channel member, skipping", inviteeID)
+					failedInvites = append(failedInvites, inviteeID)
+					continue
+				}
 			}
 		}
 
@@ -187,6 +216,9 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 
 	if len(successfulInvites) == 0 {
 		resp.Message = "no invitations were sent"
+		if failedDueToOrgMember {
+			return resp, http.StatusBadRequest, errors.New("user is not part of this organisation")
+		}
 		return resp, http.StatusBadRequest, errors.New("failed to send any invitations")
 	}
 
@@ -220,7 +252,7 @@ func RespondToInvitation(db *storage.Database, logger *utility.Logger, req model
 		return resp, http.StatusBadRequest, errors.New("invitation has already been responded to")
 	}
 
-	_, err := permissions.IsBuzzActive(db.Postgresql, invitation.BuzzID)
+	buzz, err := permissions.IsBuzzActive(db.Postgresql, invitation.BuzzID)
 	if err != nil {
 		if err == permissions.ErrBuzzEnded {
 			now := time.Now().UTC()
@@ -247,6 +279,46 @@ func RespondToInvitation(db *storage.Database, logger *utility.Logger, req model
 		if err := db.Postgresql.Save(&invitation).Error; err != nil {
 			logger.Error("failed to update invitation status: %v", err)
 			return resp, http.StatusInternalServerError, errors.New("failed to update invitation")
+		}
+
+		if buzz.BuzzType != models.BuzzTypeOrganization {
+			if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, userID) {
+				var channel models.Channels
+				if err := db.Postgresql.Where("id = ?", buzz.ChannelID).First(&channel).Error; err == nil {
+					var inviteeUser models.User
+					var username string
+					if err := db.Postgresql.Where("id = ?", userID).Preload("Profile").First(&inviteeUser).Error; err == nil {
+						username = inviteeUser.Profile.UserName
+						if username == "" {
+							username = inviteeUser.Email
+						}
+					}
+					userChannel := models.UserChannels{
+						ChannelsID: buzz.ChannelID,
+						UserID:     userID,
+						Username:   username,
+						CreatedAt:  time.Now().UTC(),
+					}
+					if err := db.Postgresql.Create(&userChannel).Error; err != nil {
+						logger.Error("failed to add user %s to channel %s: %v", userID, buzz.ChannelID, err)
+					}
+				} else {
+					var dmChannel models.DmChannels
+					if err := db.Postgresql.Where("channel_id = ? AND channel_type = ?", buzz.ChannelID, "group_dm").First(&dmChannel).Error; err == nil {
+						participant := models.ChannelParticipant{
+							ID:        utility.GenerateUUID(),
+							ChannelId: buzz.ChannelID,
+							UserId:    userID,
+							OrgId:     dmChannel.OrgId,
+							CreatedAt: time.Now().UTC(),
+							UpdatedAt: time.Now().UTC(),
+						}
+						if err := db.Postgresql.Create(&participant).Error; err != nil {
+							logger.Error("failed to add user %s to group DM channel %s: %v", userID, buzz.ChannelID, err)
+						}
+					}
+				}
+			}
 		}
 
 		joinResp, statusCode, err := JoinBuzz(db, logger, invitation.BuzzID, userID)

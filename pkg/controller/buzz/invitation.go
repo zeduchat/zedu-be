@@ -77,7 +77,7 @@ func (base *Controller) InviteUsersToBuzz(c *gin.Context) {
 	resp, code, err := buzz.InviteUsersToBuzz(base.Db, base.Logger, req, userID.(string))
 	if err != nil {
 		base.Logger.Error("failed to invite users to buzz: %v", err)
-		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, resp)
+		rd := utility.BuildErrorResponse(code, "error", "failed to send any invitations", err.Error(), resp)
 		c.JSON(code, rd)
 		return
 	}

@@ -3,12 +3,14 @@ package riverqueueBg
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivermigrate"
+	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -65,3 +67,49 @@ func SetupRiver(ctx context.Context, configDatabase config.Database, logger *uti
 func dsn(host, user, password, dbname, port, sslmode, timezone string) string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v sslmode=%v TimeZone=%v", host, user, password, dbname, port, sslmode, timezone)
 }
+
+// StartRiverForTest starts a minimal River client registering only ClearUserStatusWorker
+func StartRiverForTest(ctx context.Context, configDatabase config.Database, logger *utility.Logger, gormDB *gorm.DB) (*river.Client[pgx.Tx], func(), error) {
+	dsnString := dsn(configDatabase.DB_HOST, configDatabase.USERNAME, configDatabase.PASSWORD, configDatabase.DB_NAME, configDatabase.DB_PORT, configDatabase.SSLMODE, configDatabase.TIMEZONE)
+
+	poolCfg, err := pgxpool.ParseConfig(dsnString)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse pgx config: %w", err)
+	}
+	poolCfg.MaxConns = 3
+	dbPool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create test pgx pool: %w", err)
+	}
+
+	driver := riverpgxv5.New(dbPool)
+
+	workers := river.NewWorkers()
+	river.AddWorker(workers, NewClearUserStatusWorker(logger, gormDB))
+
+	client, err := river.NewClient(driver, &river.Config{
+		Queues: map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: 1},
+		},
+		Workers: workers,
+	})
+	if err != nil {
+		dbPool.Close()
+		return nil, nil, fmt.Errorf("failed to create test River client: %w", err)
+	}
+
+	if err := client.Start(ctx); err != nil {
+		dbPool.Close()
+		return nil, nil, fmt.Errorf("failed to start test River client: %w", err)
+	}
+
+	stop := func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = client.Stop(stopCtx)
+		dbPool.Close()
+	}
+
+	return client, stop, nil
+}
+

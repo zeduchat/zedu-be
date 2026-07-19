@@ -60,14 +60,15 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *uti
 		return nil, nil, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	orgId, err := middleware.GetUserClaims(c, db, "org_id")
+	_, err = middleware.GetUserClaims(c, db, "org_id")
 	if err != nil {
 		return nil, nil, http.StatusNotFound, err
 	}
 
-	orgID, ok = orgId.(string)
-	if !ok {
-		return nil, nil, http.StatusBadRequest, errors.New("org_id is not of type string")
+	var org models.Organisation
+	isMember, _ := org.CheckUserIsMemberOfOrg(userID, orgID, db)
+	if !isMember {
+		return nil, nil, http.StatusForbidden, errors.New("user is not a member of this organisation")
 	}
 
 	_, code, err := user.GetUser(userID, db)
