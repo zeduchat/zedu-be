@@ -374,7 +374,7 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 	}
 
 	// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
-	if req.StatusExpiry == "" && !req.ClearStatus {
+	if req.StatusTimeout == "" {
 		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
 			logger.Error("failed to reload profile to check river_job_id", "error", err)
 			return status, code, nil
@@ -395,24 +395,21 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 		}
 	}
 
-	if req.StatusExpiry == "" {
-		logger.Info("Skipping clear status job scheduling for user %s: StatusExpiry is empty", req.UserId)
-	} else if req.ClearStatus {
-		logger.Info("Skipping clear status job scheduling for user %s: ClearStatus flag is true", req.UserId)
-	} else {
+	if req.StatusTimeout != "" {
+
 		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
 			logger.Error("failed to reload profile for job scheduling", "error", err)
 			return status, code, nil
 		}
 
 		var expiryTimestamp int64
-		expiryTimestamp, err = profileModel.ParseStatusExpiry(req.StatusExpiry)
+		expiryTimestamp, err = profileModel.ParseStatusExpiry(req.StatusTimeout)
 		if err != nil {
 			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
 		}
 
 		if expiryTimestamp <= 0 {
-			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusExpiry: '%s' - likely 'don't remove')", req.UserId, expiryTimestamp, req.StatusExpiry)
+			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusTimeout: '%s' - likely 'don't remove')", req.UserId, expiryTimestamp, req.StatusTimeout)
 		}
 
 		if expiryTimestamp > 0 {
@@ -450,6 +447,8 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 				logger.Error("failed to clear river_job_id: %v", err)
 			}
 		}
+	} else {
+		logger.Info("Skipping clear status job scheduling for user %s: StatusExpiry is empty", req.UserId)
 	}
 
 	return status, code, nil
