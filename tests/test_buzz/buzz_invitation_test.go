@@ -140,6 +140,15 @@ func TestBuzzInvitations(t *testing.T) {
 		t.Fatalf("failed to fetch user2: %v", err)
 	}
 
+	// Add user2 to organisation manually
+	var org models.Organisation
+	if err := db.Postgresql.Where("id = ?", orgID).First(&org).Error; err != nil {
+		t.Fatalf("failed to fetch organisation: %v", err)
+	}
+	if err := user2.AddUserToOrganisation(db.Postgresql, &user2, []any{&org}); err != nil {
+		t.Fatalf("failed to add user2 to organisation: %v", err)
+	}
+
 	// Add user2 to channel manually
 	user2Channel := models.UserChannels{
 		ChannelsID: channelID,
@@ -149,6 +158,23 @@ func TestBuzzInvitations(t *testing.T) {
 	}
 	if err := db.Postgresql.Create(&user2Channel).Error; err != nil {
 		t.Fatal(err)
+	}
+
+	// U3 = not in org
+	currUUID3 := utility.GenerateUUID()
+	user3Signup := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("notorg%s@qa.team", currUUID3),
+		Password:    "password",
+		UserName:    "notorg_user" + currUUID3,
+		FirstName:   "NotOrg",
+		LastName:    "User",
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+	}
+	r = gin.Default()
+	tst.SignupUser(t, r, authCtrl, user3Signup, false)
+	var user3 models.User
+	if err := db.Postgresql.Where("email = ?", user3Signup.Email).First(&user3).Error; err != nil {
+		t.Fatalf("failed to fetch user3: %v", err)
 	}
 
 	// --- TEST ROUTER FOR INVITATIONS ---
@@ -189,6 +215,27 @@ func TestBuzzInvitations(t *testing.T) {
 		router.ServeHTTP(rr, req)
 
 		tst.AssertStatusCode(t, rr.Code, http.StatusCreated)
+	})
+
+	t.Run("InviteUsersToBuzz - Failure (Not Org Member)", func(t *testing.T) {
+		body := models.InviteUsersToBuzzRequest{
+			BuzzID:     buzzID,
+			InviteeIDs: []string{user3.ID},
+		}
+		var buf bytes.Buffer
+		json.NewEncoder(&buf).Encode(body)
+
+		req, _ := http.NewRequest("POST", "/api/v1/buzz/invite", &buf)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		router.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+
+		data := tst.ParseResponse(rr)
+		tst.AssertResponseMessage(t, data["error"].(string), "user is not part of this organisation")
 	})
 
 	var invitationID string

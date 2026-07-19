@@ -210,6 +210,8 @@ func RegisterCustomValidations(v *validator.Validate) {
 		lowerValue := strings.ToLower(strings.TrimSpace(value))
 
 		validOptions := []string{
+			"30 seconds",
+			"30 second",
 			"30 minutes",
 			"30 minute",
 			"1 hour",

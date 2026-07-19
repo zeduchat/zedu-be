@@ -295,51 +295,62 @@ func getGeneralChannel(db *gorm.DB, orgID string) (models.Channels, error) {
 func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
 	var user models.User
 
-	if invitation.IsTelexUser {
-		exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
-		if !exists {
-			return user, errors.New("invalid credentials. User does not exist")
-		}
-
-	} else {
-
-		arr := strings.Split(invitation.Email, "@")
-		email := utility.SplitEmailString(arr[0])
-		name := strings.TrimSpace(strings.ToLower(email))
-		orgId, _ := uuid.FromString(invitation.OrganisationID)
-
-		user = models.User{
-			ID:          utility.GenerateUUID(),
-			Name:        name,
-			Email:       invitation.Email,
-			IsOnboarded: true,
-			IsActive:    true,
-			CurrentOrg:  orgId,
-			Profile: models.Profile{
-				ID:       utility.GenerateUUID(),
-				UserName: name,
-			},
-		}
-
-		err := user.CreateUser(db)
-		if err != nil {
-			return user, err
-		}
-
-		resetReq := models.SendWelcomeMail{
-			Email: user.Email,
-		}
-
-		err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
-		if err != nil {
-			return user, err
-		}
-
+	exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+	if exists {
+		var err error
 		user, err = user.GetUserByEmail(db, invitation.Email)
 		if err != nil {
 			return user, errors.New("unable to fetch user")
 		}
 
+		if user.CurrentOrg.String() == "00000000-0000-0000-0000-000000000000" {
+			orgId, _ := uuid.FromString(invitation.OrganisationID)
+			user.CurrentOrg = orgId
+			_ = db.Model(&user).Update("current_org", orgId).Error
+		}
+
+		return user, nil
+	}
+
+	if invitation.IsTelexUser {
+		return user, errors.New("invalid credentials. User does not exist")
+	}
+
+	arr := strings.Split(invitation.Email, "@")
+	email := utility.SplitEmailString(arr[0])
+	name := strings.TrimSpace(strings.ToLower(email))
+	orgId, _ := uuid.FromString(invitation.OrganisationID)
+
+	user = models.User{
+		ID:          utility.GenerateUUID(),
+		Name:        name,
+		Email:       invitation.Email,
+		IsOnboarded: true,
+		IsActive:    true,
+		CurrentOrg:  orgId,
+		Profile: models.Profile{
+			ID:       utility.GenerateUUID(),
+			UserName: name,
+		},
+	}
+
+	err := user.CreateUser(db)
+	if err != nil {
+		return user, err
+	}
+
+	resetReq := models.SendWelcomeMail{
+		Email: user.Email,
+	}
+
+	err = actions.AddNotificationToQueue(storage.DB.Redis, names.SendWelcomeMail, resetReq)
+	if err != nil {
+		return user, err
+	}
+
+	user, err = user.GetUserByEmail(db, invitation.Email)
+	if err != nil {
+		return user, errors.New("unable to fetch user")
 	}
 
 	return user, nil

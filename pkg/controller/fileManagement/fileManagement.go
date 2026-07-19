@@ -274,7 +274,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	if file.OrganisationID != orgID {
 		base.Logger.Error("file does not belong to your organization")
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "File does not belong to your organization", nil)
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "File does not belong to your organization", "Forbidden", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
 	}
@@ -295,7 +295,7 @@ func (base *Controller) DeleteFileDetailsByID(c *gin.Context) {
 
 	if !hasEditPermission {
 		base.Logger.Info("User denied delete permission", "file_id", fileId, "user_id", userID)
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have permission to delete this file", nil)
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You do not have permission to delete this file", "Forbidden", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
 	}

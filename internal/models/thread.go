@@ -1038,8 +1038,9 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	}
 
 	err := db.Model(&UserChannels{}).
-		Select("channels_id").
-		Where("user_id = ?", userId).
+		Select("user_channels.channels_id").
+		Joins("JOIN channels ON channels.id = user_channels.channels_id").
+		Where("user_channels.user_id = ? AND channels.organisation_id = ?", userId, organisationID).
 		Find(&channelIDs).Error
 
 	if err != nil {
