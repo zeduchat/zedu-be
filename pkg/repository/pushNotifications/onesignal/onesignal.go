@@ -119,7 +119,7 @@ func SendBatchNotifications(logger *utility.Logger, subscriptionIDs []string, re
 
 	// Save notification to database if db and userIDs provided
 	if db != nil && len(userIDs) > 0 && notificationID != "" {
-		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, payloadData)
+		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, payloadData, req.OrgId)
 		if err != nil {
 			logger.Error("Failed to save notification to database: %v", err)
 			// Don't fail the notification flow if DB save fails
@@ -208,7 +208,7 @@ func SendDirectCallNotification(logger *utility.Logger, subscriptionIDs []string
 
 	// Save notification to database if db and userIDs provided
 	if db != nil && len(userIDs) > 0 && notificationID != "" {
-		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, callData)
+		_, _, err := onesignalService.SaveBatchNotifications(db, notificationID, userIDs, req.Title, req.Message, req.AvatarUrl, callData, req.OrgId)
 		if err != nil {
 			logger.Error("Failed to save notification to database: %v", err)
 			// Don't fail the notification flow if DB save fails

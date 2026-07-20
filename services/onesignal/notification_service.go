@@ -12,10 +12,14 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 )
 
-func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarURL string, payload map[string]interface{}) (*models.OneSignalNotification, int, error) {
+func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarURL string, payload map[string]interface{}, orgID string) (*models.OneSignalNotification, int, error) {
+	orgIDPtr := getOrgIDPointer(orgID)
+
+
 	notification := &models.OneSignalNotification{
 		OneSignalNotificationID: onesignalID,
 		UserID:                  userID,
+		OrgID:                   orgIDPtr,
 		Title:                   title,
 		Message:                 message,
 		Payload:                 payload,
@@ -32,14 +36,18 @@ func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarUR
 	return notification, http.StatusCreated, nil
 }
 
-func SaveBatchNotifications(db *gorm.DB, onesignalID string, userIDs []string, title, message, avatarURL string, payload map[string]interface{}) (int, int, error) {
+func SaveBatchNotifications(db *gorm.DB, onesignalID string, userIDs []string, title, message, avatarURL string, payload map[string]interface{}, orgID string) (int, int, error) {
 	successCount := 0
 	concatErr := ""
+
+	orgIDPtr := getOrgIDPointer(orgID)
+
 
 	for _, userID := range userIDs {
 		notification := &models.OneSignalNotification{
 			OneSignalNotificationID: onesignalID,
 			UserID:                  userID,
+			OrgID:                   orgIDPtr,
 			Title:                   title,
 			Message:                 message,
 			Payload:                 payload,
@@ -159,3 +167,11 @@ func MarkNotificationAsRead(db *gorm.DB, notificationID, userID string) (string,
 
 	return notification.ID, http.StatusOK, nil
 }
+
+func getOrgIDPointer(orgID string) *string {
+	if orgID == "" {
+		return nil
+	}
+	return &orgID
+}
+
