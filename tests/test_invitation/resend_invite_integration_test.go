@@ -267,3 +267,73 @@ func TestVerifyEndpoint_AcceptingAsExistingMemberSucceeds(t *testing.T) {
 	assert.Equal(t, beforeMember.RoleID, memberRows[0].RoleID,
 		"existing member's role must be preserved across re-acceptance")
 }
+
+// TestVerifyEndpoint_AcceptingAfterManualRegistration verifies that accepting
+// an invite when the user registered *after* the invitation was sent correctly
+// maps to the existing user and does not create a duplicate user row.
+func TestVerifyEndpoint_AcceptingAfterManualRegistration(t *testing.T) {
+	env := newInviteEnv(t)
+
+	// Create an invitation for a non-existent user.
+	// So IsTelexUser is false.
+	email := fmt.Sprintf("lateuser%v@qa.team", utility.GenerateUUID())
+	tok, _ := utility.GenerateInvitationToken()
+	invite := models.Invitation{
+		ID:             utility.GenerateUUID(),
+		Email:          email,
+		Token:          tok,
+		Status:         "invited",
+		Role:           "00000000-0000-0000-0000-000000000000",
+		OrganisationID: env.OrgID,
+		InvitedBy:      tst.GetUserIDFromToken(t, env.Token, env.DB),
+		IsTelexUser:    false,
+		ExpiresAt:      time.Now().Add(48 * time.Hour).UTC(),
+	}
+	assert.NoError(t, env.DB.Postgresql.Create(&invite).Error)
+
+	// Now the user registers manually before accepting the invitation
+	uid := utility.GenerateUUID()
+	signUp := models.CreateUserRequestModel{
+		Email:       email,
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "late",
+		LastName:    "user",
+		Password:    "password",
+		UserName:    fmt.Sprintf("late_%v", uid),
+	}
+	authCtrl := auth.Controller{
+		Db:        env.DB,
+		Validator: validator.New(),
+		Logger:    env.InviteCtl.Logger,
+		ExtReq:    request.ExternalRequest{Logger: env.InviteCtl.Logger, Test: true},
+	}
+	r := gin.Default()
+	tst.SignupUser(t, r, authCtrl, signUp, false)
+
+	// Verify the user exists in DB exactly once
+	var registeredUser models.User
+	assert.NoError(t, env.DB.Postgresql.Where("email = ?", email).First(&registeredUser).Error)
+
+	// Accept the invitation via /verify
+	body := models.VerifyInvitationLinkRequest{Token: tok}
+	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite/verify", body, false)
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+
+	// Assert the invitation is accepted
+	var afterInvite models.Invitation
+	assert.NoError(t, env.DB.Postgresql.Where("id = ?", invite.ID).First(&afterInvite).Error)
+	assert.Equal(t, "accepted", afterInvite.Status)
+
+	// Verify that NO duplicate user record is created in the database
+	var users []models.User
+	assert.NoError(t, env.DB.Postgresql.Where("email = ?", email).Find(&users).Error)
+	assert.Len(t, users, 1, "should not create a duplicate user record")
+
+	// Verify the user was added to the organization
+	var memberRows []models.OrgUserManagement
+	assert.NoError(t, env.DB.Postgresql.
+		Where("user_id = ? AND organisation_id = ?", registeredUser.ID, env.OrgID).
+		Find(&memberRows).Error)
+	assert.Len(t, memberRows, 1, "user must be added to the organization exactly once")
+}
+

@@ -17,6 +17,13 @@ type ClearUserStatusWorker struct {
 	river.WorkerDefaults[models.ClearUserStatusJobArgs]
 }
 
+func NewClearUserStatusWorker(logger *utility.Logger, db *gorm.DB) *ClearUserStatusWorker {
+	return &ClearUserStatusWorker{
+		logger: logger,
+		db:     db,
+	}
+}
+
 func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.ClearUserStatusJobArgs]) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -46,7 +53,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		return err
 	}
 
-	notification := models.Notification[models.StatusUpdate]
+	notification := models.Notification[models.ProfileStatusUpdated]
 	notification.SectionType = models.ChannelsSection
 	notification.NotificationId = utility.GenerateUUID()
 	notification.ModificationDetails = &models.ModificationDetails{

@@ -113,10 +113,11 @@ type UpdateProfileStatus struct {
 // Pointer fields let us detect whether a field was supplied so we can
 // avoid overwriting existing values.
 type PartialStatusUpdate struct {
-	Text   *string `json:"text"`
-	Emoji  *string `json:"emoji"`
-	Expiry *string `json:"expiry"`
-	UserID string  `json:"-"`
+	Text        *string `json:"text"`
+	Emoji       *string `json:"emoji"`
+	Expiry      *string `json:"expiry"`
+	ClearStatus *bool   `json:"clear_status"`
+	UserID      string  `json:"-"`
 }
 
 // SetStatusRequest holds fields for setting a new status via POST.
@@ -317,10 +318,10 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		Online:     j.Online,
 	}
 
-	// Publish notification if not clearing
-	if !req.ClearStatus && logger != nil {
-		logger.Info("status updated", "user_id", req.UserId)
-		notification := Notification[StatusUpdate]
+	// Publish notification
+	if logger != nil {
+		logger.Info("status updated/cleared", "user_id", req.UserId)
+		notification := Notification[ProfileStatusUpdated]
 		notification.SectionType = ChannelsSection
 		notification.NotificationId = utility.GenerateUUID()
 		notification.ModificationDetails = &ModificationDetails{
@@ -366,6 +367,9 @@ func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
 	nowInTz := now.In(loc)
 
 	switch normalized {
+	case "30 seconds", "30 second":
+		return nowInTz.Add(30 * time.Second).Unix(), nil
+
 	case "30 minutes", "30 minute":
 		return nowInTz.Add(30 * time.Minute).Unix(), nil
 

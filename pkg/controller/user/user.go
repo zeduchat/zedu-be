@@ -217,7 +217,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 		return
 	}
 
-	if req.Text == nil && req.Emoji == nil && req.Expiry == nil {
+	if req.Text == nil && req.Emoji == nil && req.Expiry == nil && req.ClearStatus == nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "no fields provided to update", "no fields provided to update", nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -245,6 +245,9 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 	}
 	if req.Expiry != nil {
 		updateReq.StatusExpiry = *req.Expiry
+	}
+	if req.ClearStatus != nil {
+		updateReq.ClearStatus = *req.ClearStatus
 	}
 
 	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)

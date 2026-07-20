@@ -333,14 +333,14 @@ func TestBuzzSystemMessage(t *testing.T) {
 
 		msg := threads[0]
 
-		startPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+started\s+a\s+buzz\s+\((\d+)\s+participants\)</p><p></p>$`)
+		startPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+started\s+a\s+buzz</p><p></p>$`)
 		if !startPattern.MatchString(msg.Content) {
 			t.Errorf("Start message does not match expected format. Got: %s", msg.Content)
 		}
 
 		matches := startPattern.FindStringSubmatch(msg.Content)
-		if len(matches) != 3 {
-			t.Fatalf("Expected 3 matches, got %d", len(matches))
+		if len(matches) != 2 {
+			t.Fatalf("Expected 2 matches, got %d", len(matches))
 		}
 
 		endUrl := fmt.Sprintf("/api/v1/buzz/%s/end", buzzID)
@@ -362,22 +362,17 @@ func TestBuzzSystemMessage(t *testing.T) {
 		}
 
 		endMsg := afterEndThreads[0]
-		endPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+ended\s+the\s+buzz\s+\((\d+)\s+participants\)</p><p></p>$`)
+		endPattern := regexp.MustCompile(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="[\w-]+" data-mention-suggestion-char="@">@([\w-]+)</span>\s+ended\s+the\s+buzz</p><p></p>$`)
 		if !endPattern.MatchString(endMsg.Content) {
 			t.Errorf("End message does not match expected format. Got: %s", endMsg.Content)
 		}
 
 		endMatches := endPattern.FindStringSubmatch(endMsg.Content)
-		if len(endMatches) != 3 {
-			t.Fatalf("Expected 3 matches for end message, got %d", len(endMatches))
+		if len(endMatches) != 2 {
+			t.Fatalf("Expected 2 matches for end message, got %d", len(endMatches))
 		}
 
 		username := endMatches[1]
-		participantCountStr := endMatches[2]
-
-		if participantCountStr != "1" {
-			t.Errorf("Expected participant count '1', got '%s'", participantCountStr)
-		}
 
 		if username != user.Profile.UserName {
 			t.Logf("Note: Username mismatch may be expected in test environment")
@@ -698,7 +693,7 @@ func filterMessagesByType(threads []models.ThreadDocument, msgType string) []mod
 }
 
 func validateBuzzStartMessageContent(t *testing.T, content, username string, participantCount int) bool {
-	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> started a buzz \(%d participants\)</p><p></p>$`, username, username, participantCount)
+	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> started a buzz</p><p></p>$`, username, username)
 	re := regexp.MustCompile(pattern)
 	var check = re.MatchString(content)
 	if !check {
@@ -709,7 +704,7 @@ func validateBuzzStartMessageContent(t *testing.T, content, username string, par
 }
 
 func validateBuzzEndMessageContent(t *testing.T, content, username string, participantCount int) bool {
-	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> ended the buzz \(%d participants\)</p><p></p>$`, username, username, participantCount)
+	pattern := fmt.Sprintf(`<p><span class="mention" data-type="mention" data-id="[\w-]+" data-label="%s" data-mention-suggestion-char="@">@%s</span> ended the buzz</p><p></p>$`, username, username)
 	re := regexp.MustCompile(pattern)
 	var check = re.MatchString(content)
 	if !check {

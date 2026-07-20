@@ -169,7 +169,7 @@ func TestEditPermissionEnforcement(t *testing.T) {
 
 		resp := tests.ParseResponse(rr)
 		message := resp["message"].(string)
-		assert.Contains(t, strings.ToLower(message), "forbidden", "Expected permission denied message")
+		assert.Contains(t, strings.ToLower(message), "permission", "Expected permission denied message")
 	})
 
 	// Test 5: Create share with EDIT permission

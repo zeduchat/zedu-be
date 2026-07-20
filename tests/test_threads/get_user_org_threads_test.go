@@ -95,6 +95,17 @@ func TestGetUserOrgThreads(t *testing.T) {
 
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, createOrgData, token)
 
+	// Create a second organisation to test boundary isolation
+	createOrgData2 := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("TestTeam2%s", currUUID),
+		Description: "Some Random description 2",
+		Email:       fmt.Sprintf("testuser2%v@qa.team", currUUID),
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}
+	orgId2, _, _ := tst.CreateOrganisation(t, gin.Default(), db, orgCtrl, createOrgData2, token)
+
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
 		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
@@ -113,6 +124,15 @@ func TestGetUserOrgThreads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to add user %s to channel: %v", otherUserID, err)
 	}
+
+	// Create a channel in the second organisation and add the user to it
+	createChannelsData2 := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("TestChannels2%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("Mr2%sChannels", utility.GenerateUUID()),
+		OrganisationID: orgId2,
+		Description:    "Some Random description 2",
+	}
+	channelId2, _ := tst.CreateChannels(t, gin.Default(), channelCtrl, db, createChannelsData2, token)
 
 	now := time.Now().UTC()
 
@@ -226,7 +246,33 @@ func TestGetUserOrgThreads(t *testing.T) {
 	}
 	mentionThread.Messages[0].ThreadID = uuid.FromStringOrNil(mentionThread.ID)
 
-	for _, td := range []models.ThreadDocument{thread1, thread2, thread3, mentionThread} {
+	threadOtherOrg := models.ThreadDocument{
+		ID:             utility.GenerateUUID(),
+		ChannelsID:     channelId2,
+		OrganisationID: orgId2,
+		UserId:         userID,
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Thread from other org",
+		Username:       userSignUpData.UserName,
+		ChannelName:    createChannelsData2.Name,
+		CreatedAt:      now.Add(-3 * time.Hour),
+		UpdatedAt:      now.Add(-3 * time.Hour),
+		Messages: []models.MessageDocument{
+			{
+				ID:         utility.GenerateUUID(),
+				Content:    "Thread from other org",
+				UserID:     userID,
+				Username:   userSignUpData.UserName,
+				ThreadID:   uuid.Nil,
+				CreatedAt:  now.Add(-3 * time.Hour),
+				ChannelsID: channelId2,
+			},
+		},
+	}
+	threadOtherOrg.Messages[0].ThreadID = uuid.FromStringOrNil(threadOtherOrg.ID)
+
+	for _, td := range []models.ThreadDocument{thread1, thread2, thread3, mentionThread, threadOtherOrg} {
 		if err := td.CreateThread(db, logger); err != nil {
 			t.Fatalf("Failed to create test thread: %v", err)
 		}
@@ -277,6 +323,17 @@ func TestGetUserOrgThreads(t *testing.T) {
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
+			},
+		},
+		{
+			Name:         "User not part of organisation",
+			ExpectedCode: http.StatusForbidden,
+			Message:      "user is not a member of this organisation",
+			Method:       http.MethodGet,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/threads/organisations/%s", orgId2)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + otherUserToken,
 			},
 		},
 	}
@@ -352,6 +409,9 @@ func TestGetUserOrgThreads(t *testing.T) {
 					if content == "Thread with mention" {
 						foundMention = true
 						t.Logf("✓ Mention thread found in response")
+					}
+					if content == "Thread from other org" {
+						t.Errorf("Leaked thread from other org: found thread with content 'Thread from other org'")
 					}
 				}
 
