@@ -30,6 +30,18 @@ func getMigrationsPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	dir := wd
+	for {
+		path := filepath.Join(dir, "db", "migrations")
+		if _, err := os.Stat(path); err == nil {
+			return filepath.Abs(path)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
 	migrationsPath := filepath.Join(wd, "..", "db", "migrations")
 	return filepath.Abs(migrationsPath)
 }

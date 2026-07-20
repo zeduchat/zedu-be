@@ -13,9 +13,10 @@ import (
 
 var (
 	cronJobs = map[string]CronJobObject{
-		"send-notifications":  {CronJob: SendNotifications, Interval: time.Second * 5},
-		"check-buzz-warnings": {CronJob: CheckBuzzTimeWarnings, Interval: time.Minute * 5},
-		"end-expired-buzzes":  {CronJob: EndExpiredBuzzes, Interval: time.Minute * 5},
+		"send-notifications":     {CronJob: SendNotifications, Interval: time.Second * 5},
+		"check-buzz-warnings":    {CronJob: CheckBuzzTimeWarnings, Interval: time.Minute * 5},
+		"end-expired-buzzes":     {CronJob: EndExpiredBuzzes, Interval: time.Minute * 5},
+		"clean-expired-onesignal": {CronJob: CleanExpiredOneSignalNotifications, Interval: time.Hour * 24 * 7},
 	}
 	stopSignals = map[string]chan bool{}
 )

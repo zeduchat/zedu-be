@@ -56,7 +56,7 @@ func (base *Controller) UpdateOneSignalSubscriptionID(c *gin.Context) {
 		return
 	}
 
-	// Update OneSignal subscription ID
+	// Update OneSignal subscription ID (global) for backward compatibility
 	fetchedUser.OneSignalSubscriptionID = req.SubscriptionID
 	err = fetchedUser.Update(base.Db.Postgresql)
 	if err != nil {
