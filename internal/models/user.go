@@ -80,6 +80,7 @@ type SwitchUserRoleRequest struct {
 type OneSignalSubscriptionIDRequest struct {
 	SubscriptionID string `json:"subscription_id" binding:"required"`
 	Platform       string `json:"platform"`
+	OrgID          string `json:"org_id"`
 }
 
 type UserMentionResponse struct {

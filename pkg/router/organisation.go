@@ -27,6 +27,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id", organisationCtrl.GetOrganisation)
 		organisationUrl.DELETE("/:org_id", organisationCtrl.DeleteOrganisation)
 		organisationUrl.PUT("/:org_id", organisationCtrl.UpdateOrganisation)
+		organisationUrl.GET("/:org_id/users/onesignal", organisationCtrl.GetOneSignalNotifications)
 
 		// Organisation roles routes
 		organisationUrl.POST("/:org_id/roles", organisationCtrl.CreateOrgRole)

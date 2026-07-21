@@ -4026,6 +4026,133 @@ paths:
                           type: integer
                           example: 1
 
+  /organisations/{org_id}/users/onesignal:
+    get:
+      tags:
+        - organisation
+      summary: Retrieve the OneSignal notifications for the authenticated user
+      description: |
+        Retrieves the non-expired OneSignal notifications of the logged-in user for the specified organisation.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: org_id
+          required: true
+          schema:
+            type: string
+          description: ID of the organisation
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Number of items per page
+      responses:
+        "200":
+          description: OneSignal notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: onesignal notifications retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              example: 0190be6e-473e-7b48-888f-810f4c449dc9
+                            user_id:
+                              type: string
+                              example: 0190be6e-473e-7b48-888f-810f4c449dc9
+                            org_id:
+                              type: string
+                              example: 0190be6e-473e-7b48-888f-810f4c449dc9
+                            onesignal_notification_id:
+                              type: string
+                              example: 12345678-abcd-1234-abcd-1234567890ab
+                            title:
+                              type: string
+                              example: New message in channel
+                            message:
+                              type: string
+                              example: Hello world!
+                            avatar_url:
+                              type: string
+                              example: https://example.com/avatar.png
+                            payload:
+                              type: object
+                            status:
+                              type: string
+                              example: pending
+                            sent_at:
+                              type: string
+                              format: date-time
+                              example: 2026-07-20T20:19:12Z
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: 2026-07-20T20:19:12Z
+                      pagination:
+                        type: object
+                        properties:
+                          current_page:
+                            type: integer
+                            example: 1
+                          page_count:
+                            type: integer
+                            example: 20
+                          total_pages_count:
+                            type: integer
+                            example: 1
+                          total_items:
+                            type: integer
+                            example: 1
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerErrorSchema"
+
   /channels/{channelId}/files:
     get:
       tags:
