@@ -25,7 +25,7 @@ type OneSignalNotification struct {
 	OrgID                   *string                     `gorm:"column:org_id;type:uuid;index" json:"org_id,omitempty"`
 	Title                   string                      `gorm:"column:title;not null;size:500" json:"title"`
 	Message                 string                      `gorm:"column:message;not null;type:text" json:"message"`
-	Payload                 map[string]interface{}      `gorm:"column:payload;type:jsonb" json:"payload,omitempty"`
+	Payload                 map[string]interface{}      `gorm:"column:payload;type:jsonb;serializer:json" json:"payload,omitempty"`
 	AvatarURL               string                      `gorm:"column:avatar_url;size:500" json:"avatar_url,omitempty"`
 	Status                  OneSignalNotificationStatus `gorm:"column:status;not null;default:'pending';index" json:"status"`
 	SentAt                  time.Time                   `gorm:"column:sent_at;not null;default:now();index" json:"sent_at"`
@@ -158,7 +158,7 @@ func GetNotificationsByUserAndOrg(db *gorm.DB, userID, orgID string, page, pageS
 	var total int64
 
 	query := db.Model(&OneSignalNotification{}).
-		Where("user_id = ? AND org_id = ? AND created_at > ? AND deleted_at IS NULL", userID, orgID, time.Now().AddDate(0, -2, 0))
+		Where("user_id = ? AND org_id = ? AND created_at > ?", userID, orgID, time.Now().AddDate(0, -2, 0))
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -186,6 +186,5 @@ func GetNotificationsByUserAndOrg(db *gorm.DB, userID, orgID string, page, pageS
 }
 
 func DeleteExpiredNotifications(db *gorm.DB) error {
-	return db.Where("created_at <= ?", time.Now().AddDate(0, -2, 0)).Delete(&OneSignalNotification{}).Error
+	return db.Unscoped().Where("created_at <= ?", time.Now().AddDate(0, -2, 0)).Delete(&OneSignalNotification{}).Error
 }
-
