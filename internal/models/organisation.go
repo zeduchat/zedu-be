@@ -90,6 +90,7 @@ type OrgMetricsResponse struct {
 	OrgUserInfo string   `json:"org_user_info"`
 	OrgName     string   `json:"organisation_name"`
 	UsersPhotos []string `json:"users_photos"`
+	IsNewUser   bool     `json:"is_new_user"`
 }
 
 type AddUserToOrgRequestModel struct {

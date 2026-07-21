@@ -94,7 +94,20 @@ func (base *Controller) OrganisationVerifyInvite(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := invitation.VerifyInvitation(req, base.Db, c, base.Logger)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		if err.Error() == "user claims not found" {
+			rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user claims", nil)
+			c.JSON(http.StatusUnauthorized, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to get user claims", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	userId := userID.(string)
+
+	respData, code, err := invitation.VerifyInvitation(req, userId, base.Db, c, base.Logger)
 	if err != nil {
 		base.Logger.Info("Failed to verify invitation", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

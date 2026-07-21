@@ -579,13 +579,23 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 	return http.StatusOK, nil
 }
 
-func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsResponse, error) {
+func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) (models.OrgMetricsResponse, error) {
 	var (
 		o         models.Organisation
 		ogm       models.OrgMetricsResponse
 		userNames []string
 		userInfo  string
+		isNewUser bool
 	)
+
+	if invitationToken != "" {
+		var invite models.Invitation
+		if err := db.Where("token = ?", invitationToken).First(&invite).Error; err == nil {
+			var user models.User
+			exists := postgresql.CheckExists(db, &user, "email = ?", invite.Email)
+			isNewUser = !exists
+		}
+	}
 
 	userPhotos := make([]string, 0, 5)
 
@@ -599,6 +609,7 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 			OrgUserInfo: "No members yet",
 			OrgName:     o.Name,
 			UsersPhotos: []string{},
+			IsNewUser:   isNewUser,
 		}, nil
 	}
 
@@ -632,6 +643,7 @@ func LoadOrganisationMetrics(orgId string, db *gorm.DB) (models.OrgMetricsRespon
 		OrgUserInfo: userInfo,
 		OrgName:     o.Name,
 		UsersPhotos: userPhotos,
+		IsNewUser:   isNewUser,
 	}
 
 	return response, nil

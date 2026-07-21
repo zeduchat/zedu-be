@@ -3889,6 +3889,12 @@ paths:
           schema:
             type: string
           description: Organisation ID
+        - in: query
+          name: invitation_token
+          required: false
+          schema:
+            type: string
+          description: Invitation token to check if invited user is new to Telex
       responses:
         "200":
           description: Organisation info retrieved successfully
@@ -3919,6 +3925,9 @@ paths:
                         type: array
                         items:
                           type: string
+                      is_new_user:
+                        type: boolean
+                        example: true
 
   /organisations/{org_id}/users:
     get:
