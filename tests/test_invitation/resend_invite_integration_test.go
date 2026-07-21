@@ -87,7 +87,7 @@ func (e *inviteEnv) router() *gin.Engine {
 	g := r.Group("/api/v1/invite")
 	g.POST("", middleware.Authorize(e.DB.Postgresql), e.InviteCtl.OrganisationInviteMany)
 	g.POST("/resend", middleware.Authorize(e.DB.Postgresql), e.InviteCtl.ResendInvitation)
-	g.POST("/verify", e.InviteCtl.OrganisationVerifyInvite)
+	g.POST("/verify", middleware.Authorize(e.DB.Postgresql), e.InviteCtl.OrganisationVerifyInvite)
 	return r
 }
 
@@ -250,7 +250,7 @@ func TestVerifyEndpoint_AcceptingAsExistingMemberSucceeds(t *testing.T) {
 		First(&beforeMember).Error)
 
 	body := models.VerifyInvitationLinkRequest{Token: tok}
-	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite/verify", body, false)
+	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite/verify", body, true)
 	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 	// Invitation should now be marked accepted.
@@ -314,9 +314,19 @@ func TestVerifyEndpoint_AcceptingAfterManualRegistration(t *testing.T) {
 	var registeredUser models.User
 	assert.NoError(t, env.DB.Postgresql.Where("email = ?", email).First(&registeredUser).Error)
 
+	loginReq := models.LoginRequestModel{Email: signUp.Email, Password: signUp.Password}
+	lateToken := tst.GetLoginToken(t, r, authCtrl, loginReq)
+
 	// Accept the invitation via /verify
 	body := models.VerifyInvitationLinkRequest{Token: tok}
-	rr := env.doJSON(t, http.MethodPost, "/api/v1/invite/verify", body, false)
+	var b bytes.Buffer
+	assert.NoError(t, json.NewEncoder(&b).Encode(body))
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/invite/verify", &b)
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+lateToken)
+	rr := httptest.NewRecorder()
+	env.router().ServeHTTP(rr, req)
 	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
 	// Assert the invitation is accepted

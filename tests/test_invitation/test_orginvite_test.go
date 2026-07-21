@@ -163,7 +163,7 @@ func TestOrganisationInvitation(t *testing.T) {
 		invitationURL := r.Group("/api/v1/invite")
 		{
 			invitationURL.POST("", middleware.Authorize(db.Postgresql), invitation.OrganisationInviteMany)
-			invitationURL.POST("/verify", invitation.OrganisationVerifyInvite)
+			invitationURL.POST("/verify", middleware.Authorize(db.Postgresql), invitation.OrganisationVerifyInvite)
 			invitationURL.POST("/resend", middleware.Authorize(db.Postgresql), invitation.ResendInvitation)
 			invitationURL.DELETE("/:invite_id", middleware.Authorize(db.Postgresql), invitation.CancelInvitation)
 
