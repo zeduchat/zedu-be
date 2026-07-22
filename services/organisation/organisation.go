@@ -72,7 +72,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	org := models.Organisation{
 		ID:            orgId,
-		Name:          strings.ToLower(req.Name),
+		Name:          req.Name,
 		Description:   strings.ToLower(req.Description),
 		Location:      strings.ToLower(req.Location),
 		Email:         strings.ToLower(req.Email),

@@ -279,9 +279,7 @@ func (m *Message) UpdateMessage(db *gorm.DB, req map[string]any) (*Message, erro
 }
 
 func (m *Message) UpdateMessageInPostgres(db *gorm.DB, updates map[string]interface{}) error {
-	if err := db.Model(&Message{}).Where("id = ?", m.ID).Updates(updates).Error; err != nil {
-		return fmt.Errorf("failed to update message in postgres: %w", err)
-	}
+	// Messages are no longer stored in PostgreSQL, only in ElasticDB
 	return nil
 }
 
