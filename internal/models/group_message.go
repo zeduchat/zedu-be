@@ -129,9 +129,9 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 		user                         User
 		existDM                      DmChannels
 		chanPart                     ChannelParticipant
-		thread                       Threads
 		remainingChannelParticipants []ChannelParticipant
 	)
+
 
 	_, err := user.GetUserByID(db, dm.UserId)
 	if err != nil {
@@ -185,7 +185,6 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	}
 
 	if len(allParticipants) == 0 {
-
 		err = postgresql.HardDeleteSpecificRecord(
 			db,
 			&DmChannels{},
@@ -196,13 +195,16 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel: %v", err)
 		}
 
-		thread.ID = dm.ChannelId
-
-		if _, err := thread.ClearThreadsByChannelID(db); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to delete group DM channel threads: %v", err)
-		}
-
+		channelID := dm.ChannelId
+		go func(cID string) {
+			defer func() {
+				_ = recover()
+			}()
+			tModel := Threads{ID: cID}
+			_, _ = tModel.ClearThreadsByChannelID(db)
+		}(channelID)
 	}
+
 
 	return http.StatusOK, nil
 }

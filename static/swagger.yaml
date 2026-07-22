@@ -3597,7 +3597,91 @@ paths:
                               type: string
                               format: date-time
 
+  /dms/{channel_id}/visibility:
+    patch:
+      tags:
+        - direct_message
+      summary: Update DM channel visibility status for authenticated user
+      description: Allows a user to toggle visibility status (show/hide) for a specific DM channel.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          description: Unique identifier of the DM channel
+          schema:
+            type: string
+            format: uuid
+            example: "0191943c-d263-71f2-99d5-82ae6afe2da4"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - visibility_status
+              properties:
+                visibility_status:
+                  type: boolean
+                  description: Set to `false` to hide the DM channel or `true` to show it.
+                  example: false
+      responses:
+        "200":
+          description: DM channel visibility status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: DM channel visibility status updated successfully
+
+  /organisations/{org_id}/dms/visible:
+    get:
+      tags:
+        - direct_message
+      summary: Retrieve visible DM channels for authenticated user
+      description: Fetches DM channels in an organisation where visibility_status is true for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          description: Organisation ID
+          schema:
+            type: string
+            format: uuid
+            example: "0191be6e-473e-7b48-888f-810f4c449dc9"
+      responses:
+        "200":
+          description: Visible DM channels retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Visible DM channels retrieved successfully
+
   /organisations/{organisation_id}/user-not-channels:
+
     get:
       tags:
         - organisation
@@ -3928,6 +4012,10 @@ paths:
                       is_new_user:
                         type: boolean
                         example: true
+                      user_email:
+                        type: string
+                        example: "user@example.com"
+
 
   /organisations/{org_id}/users:
     get:

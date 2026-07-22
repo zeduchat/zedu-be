@@ -11,8 +11,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	onesignal "github.com/hngprojects/telex_be/services/onesignal"
 	"github.com/hngprojects/telex_be/utility"
 )
+
 
 func (base *Controller) GetOneSignalNotifications(c *gin.Context) {
 	orgID := c.Param("org_id")
@@ -56,7 +58,7 @@ func (base *Controller) GetOneSignalNotifications(c *gin.Context) {
 	page, limit := pagination.Page, pagination.Limit
 
 	// Fetch active onesignal notifications
-	notifs, paginationResponse, err := models.GetNotificationsByUserAndOrg(base.Db.Postgresql, userID, orgID, page, limit)
+	notifs, paginationResponse, err := onesignal.GetNotificationsByUserAndOrg(base.Db.Postgresql, userID, orgID, page, limit)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch onesignal notifications", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)

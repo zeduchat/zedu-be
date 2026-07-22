@@ -41,7 +41,15 @@ type DmChannels struct {
 	LastReadAt       time.Time      `gorm:"column:last_read_at" json:"last_read_at"`
 	InteractedAt     time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"-"`
 	GroupDescription string         `gorm:"column:group_description" json:"group_description"`
+	VisibilityStatus *bool          `gorm:"column:visibility_status;default:true" json:"visibility_status"`
 }
+
+type UpdateDmVisibilityRequest struct {
+	ChannelId        string `json:"-"`
+	UserId           string `json:"-"`
+	VisibilityStatus *bool  `json:"visibility_status" validate:"required"`
+}
+
 
 type DmChannelsResponse struct {
 	ID               string        `json:"channel_id"`
@@ -281,15 +289,25 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	return dmchanresp, nil
 }
 
-func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
+func (dm *DmChannels) DeleteDmChannel(db *gorm.DB, loggers ...*utility.Logger) error {
+	var logger *utility.Logger
+	if len(loggers) > 0 {
+		logger = loggers[0]
+	}
+
+	if logger != nil {
+		logger.Info("Starting DM channel deletion flow for channel ID: %s, user ID: %s", dm.ID, dm.UserId)
+	}
 
 	var (
-		user         User
-		savedMessage SavedMessage
+		user User
 	)
 
 	_, err := user.GetUserByID(db, dm.UserId)
 	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to fetch user %s during DM channel deletion: %v", dm.UserId, err)
+		}
 		return err
 	}
 
@@ -301,15 +319,59 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB) error {
 		dm.UserId,
 	)
 	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to delete DM channel record %s from DB: %v", dm.ID, err)
+		}
 		return err
 	}
 
-	if err := savedMessage.DeleteSavedMessagesByChannelID(db, dm.ID, dm.UserId); err != nil {
-		return err
+	// Check if any other user still has an active entry for this DM channel
+	otherDmExists := postgresql.CheckExists(db, &DmChannels{}, "channel_id = ? AND deleted_at IS NULL", dm.ID)
+	otherPartExists := postgresql.CheckExists(db, &ChannelParticipant{}, "channel_id = ? AND deleted_at IS NULL", dm.ID)
+
+	if otherDmExists || otherPartExists {
+		if logger != nil {
+			logger.Info("Other active participants still exist for channel ID %s. Preserving Elastic threads and messages.", dm.ID)
+			logger.Info("Completed DM channel deletion flow for channel ID: %s, user ID: %s", dm.ID, dm.UserId)
+		}
+		return nil
+	}
+
+	// Background process to delete channel threads and messages from Elastic (since no remaining participants exist)
+	channelID := dm.ID
+	go func(cID string) {
+		defer func() {
+			if r := recover(); r != nil {
+				if logger != nil {
+					logger.Error("Recovered panic in background Elastic thread/message deletion for channel %s: %v", cID, r)
+				}
+			}
+		}()
+
+		if logger != nil {
+			logger.Info("Starting background process: deleting channel threads and messages from Elastic for channel ID: %s", cID)
+		}
+
+		threadModel := Threads{ID: cID}
+		if _, err := threadModel.ClearThreadsByChannelID(db); err != nil {
+			if logger != nil {
+				logger.Error("Failed background Elastic thread/message deletion for channel ID %s: %v", cID, err)
+			}
+		} else {
+			if logger != nil {
+				logger.Info("Completed background process: deleted channel threads and messages from Elastic for channel ID: %s", cID)
+			}
+		}
+	}(channelID)
+
+	if logger != nil {
+		logger.Info("Completed DM channel deletion flow for channel ID: %s, user ID: %s", dm.ID, dm.UserId)
 	}
 
 	return nil
 }
+
+
 
 func (dm *DmChannels) UpsertGroupDescription(db *gorm.DB, req GroupDescriptionRequest) error {
 	var dmChannel DmChannels
@@ -614,6 +676,124 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	return dmChansResp, paginationResp, nil
 }
+
+func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {
+	var (
+		orderBy string
+		order   string
+		args    []any
+	)
+
+	dmchans := []DmChannels{}
+	dmChansResp := []DmChannelsResponse{}
+	recentDm := c.Query("recent_dm") == "true"
+	search := c.Query("search")
+	limit := 10
+
+	pagination := postgresql.GetPagination(c)
+
+	queryString := `
+        dm_channels.org_id = ? AND dm_channels.chat_type = ? AND dm_channels.deleted_at IS NULL
+        AND (dm_channels.visibility_status IS NULL OR dm_channels.visibility_status = TRUE)
+        AND (
+            -- For DMs: user_id matches the logged-in user
+        	((dm_channels.channel_type IS NULL OR dm_channels.channel_type = 'dm') AND dm_channels.user_id = ?)
+            OR
+            -- For Group DMs: user is in channel_participants
+            (dm_channels.channel_type = 'group_dm' AND EXISTS (
+                SELECT 1 FROM channel_participants 
+                WHERE channel_participants.channel_id = dm_channels.channel_id 
+                AND channel_participants.user_id = ? 
+                AND channel_participants.deleted_at IS NULL
+            ))
+        )
+    `
+
+	args = []any{dm.OrgId, "user", dm.UserId, dm.UserId}
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		queryString += `
+            AND EXISTS (
+                SELECT 1 FROM users u
+                LEFT JOIN profiles p ON p.userid = u.id
+                WHERE (
+                    (u.id = dm_channels.participant_id)
+                    OR
+                    EXISTS (
+                        SELECT 1 FROM channel_participants cp 
+                        WHERE cp.channel_id = dm_channels.channel_id 
+                        AND cp.user_id = u.id
+                    )
+                )
+                AND u.id != ?
+                AND (
+                    u.email ILIKE ? OR 
+                    p.user_name ILIKE ? OR 
+                    p.first_name ILIKE ? OR 
+                    p.last_name ILIKE ?
+                )
+            )
+        `
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
+	if recentDm {
+		queryString += `
+			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
+		`
+		orderBy = "interacted_at"
+		order = "desc"
+		pagination.Limit = limit
+	} else {
+		orderBy = "created_at"
+		order = "desc"
+	}
+
+	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
+		db,
+		orderBy,
+		order,
+		pagination,
+		&dmchans,
+		queryString,
+		args...,
+	)
+
+	if err != nil {
+		return nil, paginationResp, err
+	}
+
+	for _, dmchan := range dmchans {
+		resp, err := dmchan.GetDmChannelResponse(db, c)
+		if err != nil {
+			continue
+		}
+		dmChansResp = append(dmChansResp, resp)
+	}
+
+
+	return dmChansResp, paginationResp, nil
+}
+
+func (dm *DmChannels) UpdateDmVisibility(db *gorm.DB, req UpdateDmVisibilityRequest) error {
+	var count int64
+	db.Model(&DmChannels{}).Where("channel_id = ? AND user_id = ?", req.ChannelId, req.UserId).Count(&count)
+	if count == 0 {
+		return errors.New("DM channel not found for user")
+	}
+
+	result := db.Model(&DmChannels{}).
+		Where("channel_id = ? AND user_id = ?", req.ChannelId, req.UserId).
+		Update("visibility_status", *req.VisibilityStatus)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
 
 func (dm *DmChannels) GetTopNUsersResponse(db *gorm.DB, limit int) ([]DmChannelsResponse, error) {
 	var (
@@ -1172,10 +1352,13 @@ func (c *DmChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.Log
 }
 
 func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {
-
 	result := db.Model(&DmChannels{}).
 		Where("channel_id = ?", r.ChannelId).
-		Update("interacted_at", time.Now())
+		Updates(map[string]any{
+			"interacted_at":     time.Now(),
+			"visibility_status": true,
+		})
+
 
 	if result.Error != nil {
 		return result.Error

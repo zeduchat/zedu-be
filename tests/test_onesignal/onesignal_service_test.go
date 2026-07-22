@@ -2,14 +2,19 @@ package test_onesignal
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	onesignalService "github.com/hngprojects/telex_be/services/onesignal"
 	tst "github.com/hngprojects/telex_be/tests"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func TestConnectOneSignal(t *testing.T) {
@@ -96,8 +101,7 @@ func TestOptionalSendNotification(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.OptionalSendNotification(logger, "test-sub-id", req, nil, "")
-
+	err := onesignal.OptionalSendNotification(logger, "test-sub-id", req, db.Postgresql, "")
 	assert.NoError(t, err)
 }
 
@@ -114,8 +118,7 @@ func TestOptionalSendBatchNotifications(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, req, nil, nil)
-
+	err := onesignal.OptionalSendBatchNotifications(logger, []string{"sub-1", "sub-2"}, req, db.Postgresql, []string{})
 	assert.NoError(t, err)
 }
 
@@ -132,8 +135,7 @@ func TestSendNotificationNoClient(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.SendNotification(logger, "test-sub-id", req, nil, "")
-
+	err := onesignal.SendNotification(logger, "test-sub-id", req, db.Postgresql, "")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "OneSignal client not initialized")
 }
@@ -154,8 +156,48 @@ func TestSendBatchNotificationsEmpty(t *testing.T) {
 		Message: "Test Body",
 	}
 
-	err := onesignal.SendBatchNotifications(logger, []string{}, req, nil, nil)
-
+	err := onesignal.SendBatchNotifications(logger, []string{}, req, db.Postgresql, []string{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no subscription IDs provided")
+}
+
+func TestGetNotificationsByUserAndOrgService(t *testing.T) {
+	db := storage.Connection()
+	tst.Setup()
+
+	t.Cleanup(func() {
+		tst.Cleanup(db)
+	})
+
+	testUser := CreateTestUser(t, db)
+	senderUser := CreateTestUser(t, db)
+	orgID := utility.GenerateUUID()
+
+	if err := db.Postgresql.AutoMigrate(&models.OneSignalNotification{}); err != nil {
+		t.Fatalf("Failed to auto migrate OneSignalNotification: %v", err)
+	}
+	db.Postgresql.Exec("DELETE FROM onesignal_notifications")
+
+	notif := models.OneSignalNotification{
+		ID:                      utility.GenerateUUID(),
+		UserID:                  testUser.ID,
+		OrgID:                   &orgID,
+		OneSignalNotificationID: "notif-service-123",
+		Title:                   "Service Test Notification",
+		Message:                 "Test Message for Service",
+		Payload:                 map[string]interface{}{"sender_id": senderUser.ID, "key": "val"},
+		Status:                  models.OneSignalNotificationStatusPending,
+		SentAt:                  time.Now(),
+	}
+	require.NoError(t, db.Postgresql.Create(&notif).Error)
+
+	notifs, pag, err := onesignalService.GetNotificationsByUserAndOrg(db.Postgresql, testUser.ID, orgID, 1, 10)
+	require.NoError(t, err)
+	assert.Len(t, notifs, 1)
+	assert.Equal(t, int64(1), pag.TotalItems)
+
+	// Verify default_avatar_url is added to payload
+	expectedAvatarURL := avatar.GenerateDefaultAvatarURL(senderUser.ID)
+	require.NotNil(t, notifs[0].Payload)
+	assert.Equal(t, expectedAvatarURL, notifs[0].Payload["default_avatar_url"])
 }

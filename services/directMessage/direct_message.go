@@ -276,13 +276,19 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 	return resp, http.StatusOK, nil
 }
 
-func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
-	var dmchans models.DmChannels
+func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB, loggers ...*utility.Logger) (int, error) {
+	var (
+		dmchans models.DmChannels
+		logger  *utility.Logger
+	)
+	if len(loggers) > 0 {
+		logger = loggers[0]
+	}
 
 	dmchans.ID = req.ChannelId
 	dmchans.UserId = req.UserId
 
-	err := dmchans.DeleteDmChannel(db)
+	err := dmchans.DeleteDmChannel(db, logger)
 
 	if err != nil {
 		return http.StatusInternalServerError, err
@@ -290,6 +296,7 @@ func DeleteDmChannel(req models.DmChannelsRequest, db *gorm.DB) (int, error) {
 
 	return http.StatusOK, nil
 }
+
 
 func GetDmChannelMedia(req models.DmChannelMediaRequest, db *storage.Database, c *gin.Context) ([]models.File, postgresql.PaginationResponse, int, error) {
 	var dmchan models.DmChannels
@@ -458,3 +465,24 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 	return response, http.StatusOK, nil
 }
+
+func GetVisibleDmChannels(req models.DmChannels, db *storage.Database, c *gin.Context) ([]models.DmChannelsResponse, postgresql.PaginationResponse, int, error) {
+	dmChansResp, paginationResp, err := req.GetVisibleDmChannels(db.Postgresql, c)
+	if err != nil {
+		return nil, paginationResp, http.StatusInternalServerError, err
+	}
+	return dmChansResp, paginationResp, http.StatusOK, nil
+}
+
+func UpdateDmVisibility(req models.UpdateDmVisibilityRequest, db *storage.Database) (int, error) {
+	var dm models.DmChannels
+	err := dm.UpdateDmVisibility(db.Postgresql, req)
+	if err != nil {
+		if err.Error() == "DM channel not found for user" {
+			return http.StatusNotFound, err
+		}
+		return http.StatusInternalServerError, err
+	}
+	return http.StatusOK, nil
+}
+
