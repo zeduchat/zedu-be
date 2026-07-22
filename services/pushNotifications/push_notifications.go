@@ -2,6 +2,7 @@ package push_notifications
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"gorm.io/gorm"
@@ -106,8 +107,8 @@ func PushFCMToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB)
 		return err
 	}
 
-	title := fmt.Sprintf("#%s ", req.ChannelName)
-	body := fmt.Sprintf("(%s): %s", req.Username, req.Message)
+	title := ResolvePushTitle(req, db)
+	body := ResolvePushBody(req.Username, req.Message)
 
 	err = firebase.SendNotificationByFCMTokens(logger, *fcmTokens, title, body)
 
@@ -291,8 +292,8 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 		return nil
 	}
 
-	req.Title = fmt.Sprintf("#%s ", req.ChannelName)
-	req.Message = fmt.Sprintf("(%s): %s", req.Username, req.Message)
+	req.Title = ResolvePushTitle(req, db)
+	req.Message = ResolvePushBody(req.Username, req.Message)
 
 	err := onesignal.OptionalSendBatchNotifications(logger, subscriptionIDs, req, db, userIDs)
 	if err != nil {
@@ -349,4 +350,53 @@ func PushOneSignalToUsersForBroadcast(req models.PushRequest, logger *utility.Lo
 
 	logger.Info("Successfully sent broadcast notification to %d users", len(subscriptionIDs))
 	return nil
+}
+
+func ResolvePushTitle(req models.PushRequest, db *gorm.DB) string {
+	channelName := strings.TrimSpace(req.ChannelName)
+
+	if channelName == "" && req.ChannelId != "" {
+		var ch models.Channels
+		if err := db.Where("id = ?", req.ChannelId).Select("name").First(&ch).Error; err == nil && ch.Name != "" {
+			channelName = strings.TrimSpace(ch.Name)
+		}
+	}
+
+	isDM := false
+	if payloadMap, ok := req.Payload.(map[string]interface{}); ok {
+		if notifType, exists := payloadMap["notification_type"].(string); exists && (notifType == "dm" || notifType == "group_dm") {
+			isDM = true
+		}
+		if section, exists := payloadMap["section"].(string); exists && (section == "dm" || section == "reply_dm") {
+			isDM = true
+		}
+	}
+
+	if channelName != "" {
+		if isDM || strings.HasPrefix(channelName, "@") {
+			return channelName
+		}
+		if strings.HasPrefix(channelName, "#") {
+			return channelName
+		}
+		return fmt.Sprintf("#%s", channelName)
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title != "" && title != "#" && title != "# " {
+		return title
+	}
+	if req.Username != "" {
+		return req.Username
+	}
+	return "New Message"
+}
+
+func ResolvePushBody(username, message string) string {
+	msg := strings.TrimSpace(message)
+	uname := strings.TrimSpace(username)
+	if uname != "" && !strings.HasPrefix(msg, fmt.Sprintf("(%s):", uname)) && !strings.HasPrefix(msg, fmt.Sprintf("(%s)", uname)) {
+		return fmt.Sprintf("(%s): %s", uname, msg)
+	}
+	return msg
 }
