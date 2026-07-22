@@ -15,6 +15,7 @@ import (
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -728,48 +729,61 @@ func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Prof
 func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, error) {
 	const maxProfiles = 30
 
-	var (
-		completeProfiles   []OrgUsersProfile
-		incompleteProfiles []OrgUsersProfile
-	)
+	type userProfileRow struct {
+		UserID    string `gorm:"column:user_id"`
+		Name      string `gorm:"column:name"`
+		AvatarUrl string `gorm:"column:avatar_url"`
+	}
+
+	var rows []userProfileRow
+
+	selectQuery := `
+		users.id AS user_id,
+		COALESCE(
+			NULLIF(TRIM(profiles.user_name), ''),
+			NULLIF(TRIM(users.name), ''),
+			SUBSTRING(users.email FROM 1 FOR POSITION('@' IN users.email) - 1)
+		) AS name,
+		profiles.avatar_url AS avatar_url
+	`
 
 	err := db.Table("org_user_managements AS oum").
-		Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
+		Select(selectQuery).
 		Joins("JOIN users ON users.id = oum.user_id").
 		Joins("JOIN profiles ON profiles.userid = users.id").
-		Where("oum.organisation_id = ? AND oum.user_id != ? AND TRIM(profiles.user_name) != '' AND TRIM(profiles.avatar_url) != ''",
-			ids.OrganisationID, ids.UserID).
+		Where("oum.organisation_id = ? AND oum.user_id != ?", ids.OrganisationID, ids.UserID).
+		Where(`
+			TRIM(profiles.user_name) != '' OR 
+			TRIM(users.name) != '' OR 
+			(POSITION('@' IN users.email) > 1)
+		`).
+		Order("CASE WHEN TRIM(profiles.avatar_url) != '' THEN 0 ELSE 1 END, oum.created_at DESC").
 		Limit(maxProfiles).
-		Find(&completeProfiles).Error
+		Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 
-	remaining := maxProfiles - len(completeProfiles)
-	if remaining > 0 {
-		err = db.Table("org_user_managements AS oum").
-			Select("profiles.user_name AS name, profiles.avatar_url AS avatar_url").
-			Joins("JOIN users ON users.id = oum.user_id").
-			Joins("JOIN profiles ON profiles.userid = users.id").
-			Where("oum.organisation_id = ? AND oum.user_id != ? AND (TRIM(profiles.user_name) = '' OR TRIM(profiles.avatar_url) = '')",
-				ids.OrganisationID, ids.UserID).
-			Limit(remaining).
-			Find(&incompleteProfiles).Error
-		if err != nil {
-			return nil, err
+	profiles := make([]OrgUsersProfile, 0, len(rows))
+	for _, r := range rows {
+		name := strings.TrimSpace(r.Name)
+		if name == "" {
+			continue
 		}
+
+		avatarURL := strings.TrimSpace(r.AvatarUrl)
+		if avatarURL == "" {
+			avatarURL = avatar.GenerateDefaultAvatarURL(r.UserID)
+		}
+
+		profiles = append(profiles, OrgUsersProfile{
+			Name:      name,
+			AvatarUrl: avatarURL,
+			IsOnline:  true,
+		})
 	}
 
-	allProfiles := append(completeProfiles, incompleteProfiles...)
-	if len(allProfiles) > maxProfiles {
-		allProfiles = allProfiles[:maxProfiles]
-	}
-
-	for i := range allProfiles {
-		allProfiles[i].IsOnline = true
-	}
-
-	return allProfiles, nil
+	return profiles, nil
 }
 
 func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, orgID string) ([]OrgChannelsWithMemberAvatars, error) {
@@ -788,18 +802,29 @@ func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, o
 	var result []OrgChannelsWithMemberAvatars
 
 	for _, ch := range channels {
-		var avatars []string
+		type memberAvatarRow struct {
+			UserID    string `gorm:"column:user_id"`
+			AvatarUrl string `gorm:"column:avatar_url"`
+		}
+		var rows []memberAvatarRow
+
 		if err := db.Postgresql.Table("user_channels").
-			Select("profiles.avatar_url").
+			Select("user_channels.user_id, profiles.avatar_url").
 			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
-			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", ch.ID).
+			Where("user_channels.channels_id = ?", ch.ID).
+			Order("CASE WHEN TRIM(profiles.avatar_url) != '' THEN 0 ELSE 1 END, user_channels.created_at ASC").
 			Limit(3).
-			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
+			Find(&rows).Error; err != nil {
 			return nil, err
 		}
 
-		for len(avatars) < 3 {
-			avatars = append(avatars, "")
+		avatars := make([]string, 0, len(rows))
+		for _, r := range rows {
+			av := strings.TrimSpace(r.AvatarUrl)
+			if av == "" {
+				av = avatar.GenerateDefaultAvatarURL(r.UserID)
+			}
+			avatars = append(avatars, av)
 		}
 
 		var totalMembers int64
@@ -809,7 +834,7 @@ func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, o
 			return nil, err
 		}
 
-		membersLeft := int(totalMembers) - 3
+		membersLeft := int(totalMembers) - len(avatars)
 		if membersLeft < 0 {
 			membersLeft = 0
 		}
