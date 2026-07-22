@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
+	_ "strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,8 +19,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
-	"github.com/hngprojects/telex_be/services/actions"
-	"github.com/hngprojects/telex_be/services/actions/names"
+	_ "github.com/hngprojects/telex_be/services/actions"
+	_ "github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -153,7 +153,7 @@ func AdminInvitationVerify(db *gorm.DB, req models.VerifyInvitationLinkRequest, 
 
 }
 
-func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Database, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
+func VerifyInvitation(req models.VerifyInvitationLinkRequest, authenticatedUserID string, db *storage.Database, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
 		user         = models.User{}
@@ -170,10 +170,21 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 		return responseData, code, err
 	}
 
-	user, err = getOrCreateUser(invitation, db.Postgresql)
-	if err != nil {
-		logger.Error("error in getting or creating user", err)
-		return responseData, http.StatusInternalServerError, err
+	if authenticatedUserID != "" {
+		user, err = user.GetUserByID(db.Postgresql, authenticatedUserID)
+		if err != nil {
+			logger.Error("error fetching authenticated user", err)
+			return responseData, http.StatusNotFound, errors.New("user not found")
+		}
+		orgId, _ := uuid.FromString(invitation.OrganisationID)
+		user.CurrentOrg = orgId
+		_ = db.Postgresql.Model(&user).Update("current_org", orgId).Error
+	} else {
+		user, err = getOrCreateUser(invitation, db.Postgresql)
+		if err != nil {
+			logger.Error("error in getting user", err)
+			return responseData, http.StatusBadRequest, err
+		}
 	}
 
 	userID = user.ID
@@ -185,7 +196,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, db *storage.Databa
 		return responseData, http.StatusBadRequest, err
 	}
 
-	userData, err := user.GetUserByEmail(db.Postgresql, invitation.Email)
+	userData, err := user.GetUserByID(db.Postgresql, userID)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
@@ -303,15 +314,15 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 			return user, errors.New("unable to fetch user")
 		}
 
-		if user.CurrentOrg.String() == "00000000-0000-0000-0000-000000000000" {
-			orgId, _ := uuid.FromString(invitation.OrganisationID)
-			user.CurrentOrg = orgId
-			_ = db.Model(&user).Update("current_org", orgId).Error
-		}
+		orgId, _ := uuid.FromString(invitation.OrganisationID)
+		user.CurrentOrg = orgId
+		_ = db.Model(&user).Update("current_org", orgId).Error
 
 		return user, nil
 	}
 
+	/*
+	// User creation flow commented out as per requirement
 	if invitation.IsTelexUser {
 		return user, errors.New("invalid credentials. User does not exist")
 	}
@@ -354,6 +365,9 @@ func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, er
 	}
 
 	return user, nil
+	*/
+
+	return user, errors.New("user does not exist")
 }
 
 func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {

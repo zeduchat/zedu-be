@@ -378,6 +378,10 @@ func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 
 func (base *Controller) GetLoadingMetrics(c *gin.Context) {
 	orgId := c.Param("org_id")
+	invitationToken := c.Query("invitation_token")
+	if invitationToken == "" {
+		invitationToken = c.Query("token")
+	}
 
 	if _, err := uuid.Parse(orgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve loading metrics", nil)
@@ -385,7 +389,7 @@ func (base *Controller) GetLoadingMetrics(c *gin.Context) {
 		return
 	}
 
-	loadingMetrics, err := organisation.LoadOrganisationMetrics(orgId, base.Db.Postgresql)
+	loadingMetrics, err := organisation.LoadOrganisationMetrics(orgId, invitationToken, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to retrieve loading metrics", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)

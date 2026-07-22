@@ -8,9 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
+
 
 func SaveNotification(db *gorm.DB, onesignalID, userID, title, message, avatarURL string, payload map[string]interface{}, orgID string) (*models.OneSignalNotification, int, error) {
 	orgIDPtr := getOrgIDPointer(orgID)
@@ -174,4 +177,48 @@ func getOrgIDPointer(orgID string) *string {
 	}
 	return &orgID
 }
+
+func GetNotificationsByUserAndOrg(db *gorm.DB, userID, orgID string, page, limit int) ([]models.OneSignalNotification, postgresql.PaginationResponse, error) {
+	notifs, paginationResponse, err := models.GetNotificationsByUserAndOrg(db, userID, orgID, page, limit)
+	if err != nil {
+		return nil, paginationResponse, err
+	}
+
+	avatarCache := make(map[string]string)
+
+	for i := range notifs {
+		senderID := ""
+		if notifs[i].Payload != nil {
+			if sID, ok := notifs[i].Payload["sender_id"].(string); ok && sID != "" {
+				senderID = sID
+			} else if uID, ok := notifs[i].Payload["user_id"].(string); ok && uID != "" {
+				senderID = uID
+			} else if userMap, ok := notifs[i].Payload["user"].(map[string]interface{}); ok {
+				if sID, ok := userMap["id"].(string); ok && sID != "" {
+					senderID = sID
+				}
+			}
+		}
+
+		if senderID == "" {
+			senderID = notifs[i].UserID
+		}
+
+		if senderID != "" {
+			if notifs[i].Payload == nil {
+				notifs[i].Payload = make(map[string]interface{})
+			}
+			avatarURL, exists := avatarCache[senderID]
+			if !exists {
+				avatarURL = avatar.GenerateDefaultAvatarURL(senderID)
+				avatarCache[senderID] = avatarURL
+			}
+			notifs[i].Payload["default_avatar_url"] = avatarURL
+		}
+	}
+
+	return notifs, paginationResponse, nil
+}
+
+
 

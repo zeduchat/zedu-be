@@ -123,6 +123,7 @@ func TestOrgOneSignalNotifications(t *testing.T) {
 			OneSignalNotificationID: "notif-123",
 			Title:                   "Test Notification",
 			Message:                 "Test Message",
+			Payload:                 map[string]interface{}{"key": "value", "event": "test_event"},
 			Status:                  models.OneSignalNotificationStatusPending,
 			SentAt:                  time.Now(),
 		}
@@ -144,6 +145,9 @@ func TestOrgOneSignalNotifications(t *testing.T) {
 		assert.Equal(t, "notif-123", notifData["onesignal_notification_id"].(string))
 		assert.Equal(t, "Test Notification", notifData["title"].(string))
 		assert.Equal(t, "Test Message", notifData["message"].(string))
+		payloadData := notifData["payload"].(map[string]interface{})
+		assert.Equal(t, "value", payloadData["key"])
+		assert.Equal(t, "test_event", payloadData["event"])
 	})
 
 	t.Run("GET filters out expired notifications", func(t *testing.T) {
@@ -180,7 +184,7 @@ func TestOrgOneSignalNotifications(t *testing.T) {
 		assert.Len(t, notifications, 0)
 	})
 
-	t.Run("Weekly cron job cleans up expired notifications", func(t *testing.T) {
+	t.Run("Weekly cron job cleans up expired notifications via hard delete", func(t *testing.T) {
 		db.Postgresql.Exec("DELETE FROM onesignal_notifications")
 
 		expiredNotif := models.OneSignalNotification{
@@ -217,7 +221,8 @@ func TestOrgOneSignalNotifications(t *testing.T) {
 		cronjobs.CleanExpiredOneSignalNotifications(extReq, *db)
 
 		var count int64
-		db.Postgresql.Model(&models.OneSignalNotification{}).Where("onesignal_notification_id = ?", "expired-notif").Count(&count)
+		// Verify hard delete (unscoped count is 0)
+		db.Postgresql.Unscoped().Model(&models.OneSignalNotification{}).Where("onesignal_notification_id = ?", "expired-notif").Count(&count)
 		assert.Equal(t, int64(0), count)
 
 		db.Postgresql.Model(&models.OneSignalNotification{}).Where("onesignal_notification_id = ?", "active-notif").Count(&count)

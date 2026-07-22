@@ -193,7 +193,7 @@ func (base *Controller) DeleteDmChannel(c *gin.Context) {
 
 	req.UserId = userClaims["user_id"].(string)
 
-	code, err := dm.DeleteDmChannel(req, base.Db.Postgresql)
+	code, err := dm.DeleteDmChannel(req, base.Db.Postgresql, base.Logger)
 	if err != nil {
 		base.Logger.Error("error deleting dm channel", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
@@ -398,3 +398,91 @@ func (base *Controller) GetFavouriteDms(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(code, "Favourite DMs retrieved successfully", favouriteDms)
 	c.JSON(code, rd)
 }
+
+func (base *Controller) GetVisibleDmChannels(c *gin.Context) {
+	var req models.DmChannels
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	req.UserId = userID
+	req.OrgId = c.Param("org_id")
+
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organization id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organization id format", errors.New("failed to parse organization id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	visibleDms, pag, code, err := dm.GetVisibleDmChannels(req, base.Db, c)
+	if err != nil {
+		base.Logger.Error("failed to get visible DM channels", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("Visible DM channels retrieved successfully")
+	rd := utility.BuildSuccessResponse(code, "Visible DM channels retrieved successfully", visibleDms, pag)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) UpdateDmVisibility(c *gin.Context) {
+	var req models.UpdateDmVisibilityRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+
+	channelID := c.Param("channel_id")
+	if _, err := uuid.Parse(channelID); err != nil {
+		base.Logger.Error("invalid channel id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		base.Logger.Error("error parsing request body", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		base.Logger.Error("validation failed", err)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	req.ChannelId = channelID
+	req.UserId = userID
+
+	code, err := dm.UpdateDmVisibility(req, base.Db)
+	if err != nil {
+		base.Logger.Error("failed to update DM visibility status", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("DM channel visibility status updated successfully")
+	rd := utility.BuildSuccessResponse(code, "DM channel visibility status updated successfully", nil)
+	c.JSON(code, rd)
+}
+
