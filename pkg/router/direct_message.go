@@ -50,6 +50,7 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.POST("/:org_id/dms", dmCtrl.CreateDmChannel)
 		organisationUrls.DELETE("/:org_id/dms/:channel_id", dmCtrl.DeleteDmChannel)
 		organisationUrls.GET("/:org_id/dms", dmCtrl.GetDmChannels)
+		organisationUrls.GET("/:org_id/dms/visible", dmCtrl.GetVisibleDmChannels)
 		organisationUrls.GET("/:org_id/dms/participants/:channel_id", dmCtrl.GetDmParticipants)
 		organisationUrls.GET("/:org_id/dms/:channel_id/media", dmCtrl.GetDmChannelMedia)
 		organisationUrls.GET("/:org_id/recent-dm", dmFilter.DmFilter)
@@ -59,6 +60,12 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 		organisationUrls.POST("/:org_id/dms/:channel_id/favourite", dmCtrl.ToggleFavourite)
 		organisationUrls.GET("/:org_id/dms/favourites", dmCtrl.GetFavouriteDms)
 	}
+
+	dmUrls := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		dmUrls.PATCH("/:channel_id/visibility", dmCtrl.UpdateDmVisibility)
+	}
+
 
 	return r
 }

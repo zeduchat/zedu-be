@@ -586,11 +586,13 @@ func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) 
 		userNames []string
 		userInfo  string
 		isNewUser bool
+		userEmail string
 	)
 
 	if invitationToken != "" {
 		var invite models.Invitation
 		if err := db.Where("token = ?", invitationToken).First(&invite).Error; err == nil {
+			userEmail = invite.Email
 			var user models.User
 			exists := postgresql.CheckExists(db, &user, "email = ?", invite.Email)
 			isNewUser = !exists
@@ -610,6 +612,7 @@ func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) 
 			OrgName:     o.Name,
 			UsersPhotos: []string{},
 			IsNewUser:   isNewUser,
+			UserEmail:   userEmail,
 		}, nil
 	}
 
@@ -644,10 +647,12 @@ func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) 
 		OrgName:     o.Name,
 		UsersPhotos: userPhotos,
 		IsNewUser:   isNewUser,
+		UserEmail:   userEmail,
 	}
 
 	return response, nil
 }
+
 
 func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStartedResponse, error) {
 	var (

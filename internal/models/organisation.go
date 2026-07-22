@@ -91,7 +91,9 @@ type OrgMetricsResponse struct {
 	OrgName     string   `json:"organisation_name"`
 	UsersPhotos []string `json:"users_photos"`
 	IsNewUser   bool     `json:"is_new_user"`
+	UserEmail   string   `json:"user_email,omitempty"`
 }
+
 
 type AddUserToOrgRequestModel struct {
 	UserId string `json:"user_id" validate:"required"`
