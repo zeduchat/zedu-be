@@ -1058,7 +1058,8 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
-			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Joins("JOIN channels ON channels.id = user_channels.channels_id").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = channels.organisation_id)").
 			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", chanResp[i].ID).
 			Limit(8).
 			Pluck("profiles.avatar_url", &avatars).Error; err != nil {

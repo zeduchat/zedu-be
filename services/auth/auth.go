@@ -102,8 +102,9 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		name = strings.Split(email, "@")[0]
 	}
 
+	userID := utility.GenerateUUID()
 	user := models.User{
-		ID:             utility.GenerateUUID(),
+		ID:             userID,
 		Name:           name,
 		Email:          email,
 		Password:       password,
@@ -116,6 +117,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			FullName:  firstName + " " + lastName,
 			UserName:  name,
 			Phone:     phoneNumber,
+			AvatarURL: avatar.GenerateDefaultAvatarURL(userID),
 		},
 	}
 

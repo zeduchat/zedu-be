@@ -250,7 +250,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 		updateReq.ClearStatus = *req.ClearStatus
 	}
 
-	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to update user status", err, nil)
 		c.JSON(code, rd)
@@ -332,7 +332,7 @@ func (base *Controller) SetUserStatus(c *gin.Context) {
 	base.Logger.Info("Setting user status - UserID: %s, OrgID: %s, Text: %s, Expiry: %q, Icon: %q",
 		userID, orgID, req.Text, updateReq.StatusExpiry, updateReq.Icon)
 
-	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db.Postgresql, base.Logger)
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Error("failed to set user status", "error", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to set user status", err, nil)

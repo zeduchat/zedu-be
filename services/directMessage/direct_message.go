@@ -90,7 +90,7 @@ func CreateDmChannel(req models.DmChannelsRequest, extReq request.ExternalReques
 			}
 		} else {
 			var user models.User
-			userDetails, userErr := user.GetUserByID(base.Postgresql, req.ParticipantId)
+			userDetails, userErr := user.GetUserByID(base.Postgresql, req.ParticipantId, req.OrgId)
 			if userErr == nil {
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
@@ -229,7 +229,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 				p.online
 			`).
 			Joins("JOIN users u ON u.id = cp.user_id").
-			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", dmchannel.OrgId).
 			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchannel.ChannelId).
 			Scan(&participantsWithProfile).Error
 
@@ -239,7 +239,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 
 		for _, part := range participantsWithProfile {
 			var partUser models.User
-			partUserDetails, err := partUser.GetUserByID(db.Postgresql, part.UserId)
+			partUserDetails, err := partUser.GetUserByID(db.Postgresql, part.UserId, dmchannel.OrgId)
 			if err != nil {
 				continue
 			}
@@ -248,7 +248,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 	case "dm":
 		resp.Type = "dm"
 
-		userDetails, _ := user.GetUserByID(db.Postgresql, *dmchannel.ParticipantId)
+		userDetails, _ := user.GetUserByID(db.Postgresql, *dmchannel.ParticipantId, dmchannel.OrgId)
 
 		groupsInCommon, _ := models.GetGroupsInCommon(
 			db.Postgresql,
@@ -387,7 +387,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 		switch dm.ChannelType {
 		case "dm", "":
 			if dm.ParticipantId != nil {
-				userDetails, err := user.GetUserByID(db.Postgresql, *dm.ParticipantId)
+				userDetails, err := user.GetUserByID(db.Postgresql, *dm.ParticipantId, req.OrgId)
 				if err == nil {
 					p := models.NewParticipant(userDetails, false, "user")
 
@@ -421,7 +421,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 					COALESCE(p.online, false) as online
 				`).
 				Joins("JOIN users u ON u.id = cp.user_id").
-				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+				Joins("LEFT JOIN profiles p ON p.userid = cp.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", req.OrgId).
 				Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dm.ChannelId).
 				Scan(&participantsWithProfile).Error
 
@@ -434,7 +434,7 @@ func GetFavouriteDms(db *storage.Database, req models.DmChannelsRequest) ([]mode
 
 				for _, part := range participantsWithProfile {
 					var partUser models.User
-					partUserDetails, userErr := partUser.GetUserByID(db.Postgresql, part.UserId)
+					partUserDetails, userErr := partUser.GetUserByID(db.Postgresql, part.UserId, req.OrgId)
 					if userErr != nil {
 						continue
 					}

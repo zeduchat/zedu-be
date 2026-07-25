@@ -127,6 +127,9 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
+	var profModel models.Profile
+	_, _ = profModel.GetOrCreateProfileForOrg(db, userId, orgId)
+
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
 		Name:           "general",
@@ -446,7 +449,7 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 			p.online
 		FROM org_user_managements o
 		JOIN users u ON u.id = o.user_id
-		LEFT JOIN profiles p ON p.userid = u.id
+		LEFT JOIN profiles p ON p.userid = u.id AND (p.organisation_id IS NULL OR p.organisation_id = o.organisation_id)
 		LEFT JOIN org_roles org ON org.id = o.role_id::uuid
 		WHERE o.organisation_id = ?
 		  AND (
@@ -660,7 +663,7 @@ func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStarted
 		org     models.Organisation
 	)
 
-	err := profile.GetProfileByUserId(db.Postgresql, ids.UserID)
+	err := profile.GetProfileByUserId(db.Postgresql, ids.UserID, ids.OrganisationID)
 	if err != nil {
 		return models.OrgGetStartedResponse{}, err
 	}

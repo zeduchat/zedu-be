@@ -117,12 +117,25 @@ func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) err
 	return nil
 }
 
-func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
+func (u *User) GetUserByID(db *gorm.DB, userID string, orgID ...string) (User, error) {
 	var user User
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Profile"), &user, "id = ?", userID)
+	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user not found: %w", err)
+	}
+
+	targetOrg := ""
+	if len(orgID) > 0 && orgID[0] != "" {
+		targetOrg = orgID[0]
+	} else if user.CurrentOrg.String() != "" && user.CurrentOrg.String() != "00000000-0000-0000-0000-000000000000" {
+		targetOrg = user.CurrentOrg.String()
+	}
+
+	var profModel Profile
+	prof, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
+	if err == nil {
+		user.Profile = prof
 	}
 
 	return user, nil

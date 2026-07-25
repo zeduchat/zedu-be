@@ -39,13 +39,18 @@ func SearchChannelMembers(db *storage.Database, logger *utility.Logger, req mode
 		limit = 50
 	}
 
+	orgID := ""
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+
 	query := db.Postgresql.Table("user_channels uc").
 		Select(`p.userid as user_id,
 				p.user_name as user_name,
 				CONCAT(p.first_name, ' ', p.last_name) as full_name,
 				u.email,
 				p.avatar_url as avatar_url`).
-		Joins("JOIN profiles p ON p.userid = uc.user_id").
+		Joins("JOIN profiles p ON p.userid = uc.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", orgID).
 		Joins("JOIN users u ON u.id = uc.user_id").
 		Where("uc.channels_id = ?", req.ChannelID)
 
@@ -108,17 +113,6 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		return resp, statusCode, errors.New(errMsg)
 	}
 
-	var inviterProfile models.Profile
-	if err := db.Postgresql.Where("userid = ?", inviterID).First(&inviterProfile).Error; err != nil {
-		logger.Error("failed to fetch inviter profile: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch inviter profile")
-	}
-
-	now := time.Now().UTC()
-	var successfulInvites []string
-	var failedInvites []string
-	failedDueToOrgMember := false
-
 	var orgID string
 	if buzz.BuzzType == models.BuzzTypeOrganization {
 		if buzz.OrgID != nil {
@@ -135,6 +129,18 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 			}
 		}
 	}
+
+	var profModel models.Profile
+	inviterProfile, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, inviterID, orgID, logger)
+	if err != nil {
+		logger.Error("failed to fetch inviter profile: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch inviter profile")
+	}
+
+	now := time.Now().UTC()
+	var successfulInvites []string
+	var failedInvites []string
+	failedDueToOrgMember := false
 
 	for _, inviteeID := range req.InviteeIDs {
 		isInBuzz := false
@@ -185,6 +191,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 			ID:        utility.GenerateUUID(),
 			BuzzID:    req.BuzzID,
 			ChannelID: buzz.ChannelID,
+			OrgID:     orgID,
 			InviterID: inviterID,
 			InviteeID: inviteeID,
 			Status:    models.BuzzInvitationPending,
@@ -359,19 +366,35 @@ func GetPendingInvitations(db *storage.Database, logger *utility.Logger, userID 
 	var responses []models.BuzzInvitationResponse
 
 	var invitations []models.BuzzInvitation
-	if err := db.Postgresql.Preload("Inviter").Where("invitee_id = ?", userID).Find(&invitations).Error; err != nil {
+	if err := db.Postgresql.Where("invitee_id = ?", userID).Find(&invitations).Error; err != nil {
 		logger.Error("failed to fetch pending invitations: %v", err)
 		return responses, http.StatusInternalServerError, errors.New("failed to fetch invitations")
 	}
 
-	// Transform to response format
+	var profModel models.Profile
+
 	for _, inv := range invitations {
+		orgID := inv.OrgID
+		if orgID == "" {
+			var channel models.Channels
+			if err := db.Postgresql.Where("id = ?", inv.ChannelID).First(&channel).Error; err == nil {
+				orgID = channel.OrganisationID
+			} else {
+				var dmChannel models.DmChannels
+				if err := db.Postgresql.Where("channel_id = ?", inv.ChannelID).First(&dmChannel).Error; err == nil {
+					orgID = dmChannel.OrgId
+				}
+			}
+		}
+
+		inviterProf, _ := profModel.GetOrCreateProfileForOrg(db.Postgresql, inv.InviterID, orgID, logger)
+
 		responses = append(responses, models.BuzzInvitationResponse{
 			InvitationID: inv.ID,
 			BuzzID:       inv.BuzzID,
 			ChannelID:    inv.ChannelID,
 			InviterID:    inv.InviterID,
-			InviterName:  inv.Inviter.UserName,
+			InviterName:  inviterProf.UserName,
 			Status:       inv.Status,
 			InvitedAt:    inv.InvitedAt,
 		})

@@ -73,7 +73,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("channel does not exist")
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	profile, err = profile.GetProfileByUserIdAndOrgId(db.Postgresql, req.UserId, channels.OrganisationID)
 
 	if err != nil && !agent_message {
 		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
@@ -86,6 +86,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	messageDoc := models.MessageDocument{
 		ID:               utility.GenerateUUID(),
+		ProfileID:        profile.ID,
 		Content:          req.Content,
 		ChannelsID:       req.ChannelsId,
 		UserID:           req.UserId,

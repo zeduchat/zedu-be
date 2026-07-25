@@ -377,7 +377,7 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
         `).
 		Joins("JOIN org_user_managements ON org_user_managements.user_id = users.id").
 		Joins("LEFT JOIN org_roles ON org_user_managements.role_id = org_roles.id").
-		Joins("LEFT JOIN profiles ON profiles.userid = users.id").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND profiles.organisation_id = org_user_managements.organisation_id").
 		Where("org_user_managements.organisation_id = ?", orgID).
 		Where(`
             users.name ILIKE ? OR 

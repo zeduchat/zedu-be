@@ -35,8 +35,15 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 	w.logger.Info("Processing ClearUserStatusJob for UserID: %s", job.Args.UserID)
 
 	var profile models.Profile
-	if err := w.db.Where("userid = ?", job.Args.UserID).First(&profile).Error; err != nil {
-		w.logger.Error("Failed to fetch profile for user %s: %v", job.Args.UserID, err)
+	var err error
+	if job.Args.OrgID != "" {
+		profile, err = profile.GetOrCreateProfileForOrg(w.db, job.Args.UserID, job.Args.OrgID, w.logger)
+	} else {
+		err = w.db.Where("userid = ?", job.Args.UserID).First(&profile).Error
+	}
+	if err != nil {
+		w.logger.Error("Failed to fetch profile for user %s (org: %s): %v", job.Args.UserID, job.Args.OrgID, err)
+		return err
 	}
 
 	updates := map[string]any{
@@ -46,9 +53,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		"river_job_id":   nil,
 	}
 
-	if err := w.db.Model(&models.Profile{}).
-		Where("userid = ?", job.Args.UserID).
-		Updates(updates).Error; err != nil {
+	if err := w.db.Model(&profile).Updates(updates).Error; err != nil {
 		w.logger.Error("Failed to clear status for user %s: %v", job.Args.UserID, err)
 		return err
 	}

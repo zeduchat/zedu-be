@@ -32,7 +32,9 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
 
+	targetUserID := userId
 	memberID := c.Param("user_id")
 	if memberID != "" {
 		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
@@ -41,11 +43,10 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 			c.JSON(code, rd)
 			return
 		}
+		targetUserID = memberID
 	}
 
-	memberID = userId
-
-	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, memberID)
+	userProfile, code, err := profile.GetUserProfile(base.Db.Postgresql, targetUserID, orgId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to Fetch user profile", err, nil)
 		c.JSON(code, rd)
@@ -85,7 +86,7 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 	req.UserId = userId
 	req.OrgId = userClaims["org_id"].(string)
 
-	status, code, err := profile.UpdateProfileStatusWithJobScheduling(req, base.Db.Postgresql, base.Logger)
+	status, code, err := profile.UpdateProfileStatusWithJobScheduling(req, base.Db, base.Logger)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
 		c.JSON(code, rd)
@@ -213,8 +214,9 @@ func (base *Controller) UpdateProfile(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
 
-	code, data, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file)
+	code, data, err := profile.UpdateUserProfile(req, base.Db.Postgresql, base.Logger, userId, ext, file, orgId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Profile not found", err, nil)
@@ -243,8 +245,9 @@ func (base *Controller) DeleteUserProfileImage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
 
-	code, err := profile.DeleteUserProfileImage(base.Db.Postgresql, base.Logger, userId)
+	code, err := profile.DeleteUserProfileImage(base.Db.Postgresql, base.Logger, userId, orgId)
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
