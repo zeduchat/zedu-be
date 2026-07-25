@@ -1,6 +1,7 @@
 package test_onesignal
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	onesignalService "github.com/hngprojects/telex_be/services/onesignal"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -200,4 +202,48 @@ func TestGetNotificationsByUserAndOrgService(t *testing.T) {
 	expectedAvatarURL := avatar.GenerateDefaultAvatarURL(senderUser.ID)
 	require.NotNil(t, notifs[0].Payload)
 	assert.Equal(t, expectedAvatarURL, notifs[0].Payload["default_avatar_url"])
+}
+
+func TestResolvePushTitleAndBody(t *testing.T) {
+	db := storage.Connection()
+
+	randomUser := "user_" + utility.RandomString(8)
+	randomChan := "chan_" + utility.RandomString(8)
+
+	// Standard channel title
+	req1 := models.PushRequest{
+		ChannelName: randomChan,
+	}
+	assert.Equal(t, "#"+randomChan, push_notifications.ResolvePushTitle(req1, db.Postgresql))
+
+	// DM channel title (no # prefix)
+	req2 := models.PushRequest{
+		ChannelName: randomUser,
+		Payload: map[string]interface{}{
+			"notification_type": "dm",
+		},
+	}
+	assert.Equal(t, randomUser, push_notifications.ResolvePushTitle(req2, db.Postgresql))
+
+	// Empty channel name fallback to sender username
+	req3 := models.PushRequest{
+		ChannelName: "",
+		Title:       "# ",
+		Username:    randomUser,
+	}
+	assert.Equal(t, randomUser, push_notifications.ResolvePushTitle(req3, db.Postgresql))
+
+	// Empty channel name fallback to New Message when no username or title
+	req4 := models.PushRequest{
+		ChannelName: "",
+		Title:       "# ",
+	}
+	assert.Equal(t, "New Message", push_notifications.ResolvePushTitle(req4, db.Postgresql))
+
+	// Body formatting with username prefix
+	msgContent := "hello " + utility.RandomString(6)
+	expectedFormattedBody := fmt.Sprintf("(%s): %s", randomUser, msgContent)
+	assert.Equal(t, expectedFormattedBody, push_notifications.ResolvePushBody(randomUser, msgContent))
+	// Body formatting when already prefixed
+	assert.Equal(t, expectedFormattedBody, push_notifications.ResolvePushBody(randomUser, expectedFormattedBody))
 }

@@ -113,6 +113,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsId,
+		ChannelName:      channels.Name,
 		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
 		UpdatedAt:        messageDoc.UpdatedAt.String(),
 		AvatarURL:        profile.AvatarURL,
@@ -252,17 +253,6 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 
 	if _, err := message.UpdateMessage(db, updateKey); err != nil {
 		return &newMsg, http.StatusNotFound, err
-	}
-
-	now := time.Now()
-	postgresUpdates := map[string]interface{}{
-		"edited":    updateKey["edited"],
-		"edited_at": now,
-	}
-
-	if err := message.UpdateMessageInPostgres(db, postgresUpdates); err != nil {
-		logger.Error(fmt.Sprintf("Failed to update message in postgres for message_id: %s, error: %v", req.MessageId, err.Error()))
-		return nil, http.StatusInternalServerError, errors.New("failed to update message in postgres: " + err.Error())
 	}
 
 	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
