@@ -27,7 +27,7 @@ type Profile struct {
 	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
 	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
 	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
-	Userid            string         `gorm:"type:uuid;index;uniqueIndex:idx_user_org" json:"user_id"`
+	Userid            string         `gorm:"type:uuid;index:idx_profiles_userid;uniqueIndex:idx_user_org" json:"user_id"`
 	OrganisationID    *string        `gorm:"type:uuid;null;index;uniqueIndex:idx_user_org" json:"organisation_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`

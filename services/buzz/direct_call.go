@@ -119,9 +119,12 @@ func InitiateDirectCall(db *storage.Database, logger *utility.Logger, channelID,
 		return resp, http.StatusInternalServerError, errors.New("failed to create direct call")
 	}
 
-	callerName := resolveUsername(db.Postgresql, logger, callerID)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", channelID).Select("org_id").Limit(1).Scan(&orgID)
 
-	callParticipants := buildCallParticipants(db.Postgresql, logger, participantIDs, callerID)
+	callerName := resolveUsername(db.Postgresql, logger, callerID, orgID)
+
+	callParticipants := buildCallParticipants(db.Postgresql, logger, participantIDs, callerID, orgID)
 
 	notification := models.Notification[models.DirectCallInitiated]
 	notification.SectionType = models.ChannelsSection
@@ -140,9 +143,6 @@ func InitiateDirectCall(db *storage.Database, logger *utility.Logger, channelID,
 	}
 
 	notification.NotificationId = utility.GenerateUUID()
-
-	var orgID string
-	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", channelID).Select("org_id").Limit(1).Scan(&orgID)
 
 	if orgID != "" {
 		broadcastChannels := make([]string, 0, len(participantIDs))
@@ -209,8 +209,11 @@ func CancelDirectCall(db *storage.Database, logger *utility.Logger, buzzID, user
 		logger.Error("CancelDirectCall: failed to expire invitations: %v", err)
 	}
 
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
 	participantIDs, _ := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
-	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, buzz.HostID)
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, buzz.HostID, orgID)
 
 	others := make([]string, 0, len(participantIDs)-1)
 	for _, uid := range participantIDs {
@@ -254,9 +257,6 @@ func CancelDirectCall(db *storage.Database, logger *utility.Logger, buzzID, user
 		CallerName: callerName,
 		CreatedAt:  buzz.CreatedAt,
 	}
-
-	var orgID string
-	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
 
 	if orgID != "" {
 		broadcastChannels := make([]string, 0, len(participantIDs))
@@ -370,7 +370,10 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		}
 	}
 
-	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID, orgID)
 
 	respNotification := models.Notification[models.DirectCallResponseEvent]
 	respNotification.SectionType = models.ChannelsSection
@@ -399,9 +402,6 @@ func RespondToCall(db *storage.Database, logger *utility.Logger, buzzID, userID,
 		ChannelId: buzz.ChannelID,
 	}
 	respNotification.NotificationId = utility.GenerateUUID()
-
-	var orgID string
-	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
 
 	if orgID != "" {
 		participantIDs, err := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
@@ -455,14 +455,10 @@ func actionToStatus(action string) string {
 	}
 }
 
-func resolveUsername(db *gorm.DB, logger *utility.Logger, userID string) string {
-	var profile models.Profile
-	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
-		logger.Error("resolveUsername: failed to fetch profile for %s: %v", userID, err)
-		return ""
-	}
-	if profile.UserName != "" {
-		return profile.UserName
+func resolveUsername(db *gorm.DB, logger *utility.Logger, userID, orgID string) string {
+	var profModel models.Profile
+	if prof, err := profModel.GetOrCreateProfileForOrg(db, userID, orgID); err == nil && prof.UserName != "" {
+		return prof.UserName
 	}
 	var user models.User
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
@@ -474,34 +470,33 @@ func resolveUsername(db *gorm.DB, logger *utility.Logger, userID string) string 
 	return user.Email
 }
 
-func resolveUserProfile(db *gorm.DB, logger *utility.Logger, userID string) (username, avatarURL string) {
-	var profile models.Profile
-	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
-		logger.Error("resolveUserProfile: failed to fetch profile for %s: %v", userID, err)
-		return resolveUsername(db, logger, userID), ""
-	}
-	name := profile.UserName
-	if name == "" {
-		var user models.User
-		if err := db.Where("id = ?", userID).First(&user).Error; err == nil {
-			if idx := strings.Index(user.Email, "@"); idx != -1 {
-				name = user.Email[:idx]
-			} else {
-				name = user.Email
+func resolveUserProfile(db *gorm.DB, logger *utility.Logger, userID, orgID string) (username, avatarURL string) {
+	var profModel models.Profile
+	if prof, err := profModel.GetOrCreateProfileForOrg(db, userID, orgID); err == nil {
+		name := prof.UserName
+		if name == "" {
+			var user models.User
+			if err := db.Where("id = ?", userID).First(&user).Error; err == nil {
+				if idx := strings.Index(user.Email, "@"); idx != -1 {
+					name = user.Email[:idx]
+				} else {
+					name = user.Email
+				}
 			}
 		}
+		return name, prof.AvatarURL
 	}
-	return name, profile.AvatarURL
+	return resolveUsername(db, logger, userID, orgID), ""
 }
 
-func buildCallParticipants(db *gorm.DB, logger *utility.Logger, participantIDs []string, callerID string) []models.DirectCallParticipant {
+func buildCallParticipants(db *gorm.DB, logger *utility.Logger, participantIDs []string, callerID, orgID string) []models.DirectCallParticipant {
 	result := make([]models.DirectCallParticipant, 0, len(participantIDs))
 	for _, uid := range participantIDs {
 		joinStatus := models.CallStatusPending
 		if uid == callerID {
 			joinStatus = models.CallStatusAccepted
 		}
-		username, avatarURL := resolveUserProfile(db, logger, uid)
+		username, avatarURL := resolveUserProfile(db, logger, uid, orgID)
 
 		callRole := "receiver"
 		if uid == callerID {
@@ -536,7 +531,7 @@ func fetchCallParticipants(db *gorm.DB, logger *utility.Logger, buzzID string) [
 
 	result := make([]models.DirectCallParticipant, 0, len(participants))
 	for _, p := range participants {
-		username, avatarURL := resolveUserProfile(db, logger, p.UserID)
+		username, avatarURL := resolveUserProfile(db, logger, p.UserID, "")
 
 		callRole := "receiver"
 		if hostID != "" && p.UserID == hostID {
@@ -567,7 +562,10 @@ func notifyCallParticipants(db *storage.Database, logger *utility.Logger, partic
 		return
 	}
 
-	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", channelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID, orgID)
 	pushMsg := models.CallPushPayload{
 		BuzzID:           buzzID,
 		ChannelID:        channelID,
@@ -599,7 +597,10 @@ func notifyCallCanceled(db *storage.Database, logger *utility.Logger, participan
 		return
 	}
 
-	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", channelID).Select("org_id").Limit(1).Scan(&orgID)
+
+	callerName, avatarURL := resolveUserProfile(db.Postgresql, logger, callerID, orgID)
 	pushMsg := models.CallPushPayload{
 		BuzzID:           buzzID,
 		ChannelID:        channelID,
@@ -621,7 +622,9 @@ func notifyCallCanceled(db *storage.Database, logger *utility.Logger, participan
 
 func handleDirectCallCancellation(db *storage.Database, logger *utility.Logger, buzz models.Buzz, buzzID string) (models.DirectCallResponse, int, error) {
 	participantIDs, _ := models.GetDMParticipants(db.Postgresql, buzz.ChannelID)
-	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID)
+	var orgID string
+	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+	callerName := resolveUsername(db.Postgresql, logger, buzz.HostID, orgID)
 
 	// notify onesignal
 	go notifyCallCanceled(db, logger, participantIDs, buzz.HostID, callerName, buzz.ChannelID, buzz.ID)
@@ -642,8 +645,7 @@ func handleDirectCallCancellation(db *storage.Database, logger *utility.Logger, 
 		CreatedAt:  buzz.CreatedAt,
 	}
 
-	var orgID string
-	db.Postgresql.Model(&models.DmChannels{}).Where("channel_id = ?", buzz.ChannelID).Select("org_id").Limit(1).Scan(&orgID)
+
 
 	if orgID != "" {
 		broadcastChannels := make([]string, 0, len(participantIDs))

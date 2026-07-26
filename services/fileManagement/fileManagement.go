@@ -790,11 +790,10 @@ func GetFileInfo(db *gorm.DB, params models.File) *models.FileInfoResponse {
 	}
 
 	// Fetch username from profile
-	var profile models.Profile
+	var profModel models.Profile
 	owner := params.UserID // fallback to user ID
-	err := db.Select("user_name").Where("userid = ?", params.UserID).First(&profile).Error
-	if err == nil && profile.UserName != "" {
-		owner = profile.UserName
+	if prof, err := profModel.GetOrCreateProfileForOrg(db, params.UserID, params.OrganisationID); err == nil && prof.UserName != "" {
+		owner = prof.UserName
 	}
 
 	response := &models.FileInfoResponse{

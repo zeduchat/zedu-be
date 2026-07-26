@@ -314,6 +314,7 @@ func (base *Controller) ChangeProfilePresence(c *gin.Context) {
 
 func (base *Controller) GetProfilePresence(c *gin.Context) {
 	userID := c.Param("user_id")
+	orgID := ""
 	if userID == "" {
 		claims, exists := c.Get("userClaims")
 		if !exists {
@@ -324,9 +325,10 @@ func (base *Controller) GetProfilePresence(c *gin.Context) {
 		}
 		userClaims := claims.(jwt.MapClaims)
 		userID = userClaims["user_id"].(string)
+		orgID, _ = userClaims["org_id"].(string)
 	}
 
-	presence, code, err := profile.GetUserPresence(userID, base.Db.Postgresql)
+	presence, code, err := profile.GetUserPresence(userID, orgID, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("Failed to fetch user presence", err)
 		rd := utility.BuildErrorResponse(code, "error", "Failed to fetch user presence", err, nil)

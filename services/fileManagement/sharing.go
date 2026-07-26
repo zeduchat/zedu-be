@@ -353,8 +353,9 @@ func SendFileToUsersDM(db *storage.Database, logger *utility.Logger, extReq requ
 	}
 
 	// Get sender profile
-	var senderProfile models.Profile
-	if err := db.Postgresql.Where("userid = ?", senderID).First(&senderProfile).Error; err != nil {
+	var profModel models.Profile
+	senderProfile, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, senderID, orgID)
+	if err != nil {
 		return nil, fmt.Errorf("sender profile not found")
 	}
 

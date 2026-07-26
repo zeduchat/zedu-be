@@ -368,14 +368,18 @@ func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logge
 	return http.StatusOK, nil
 }
 
-func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
+func GetUserPresence(userID, orgID string, db *gorm.DB) (bool, int, error) {
 	var profile models.Profile
 
-	if err := db.Select("online").Where("userid = ?", userID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, http.StatusNotFound, fmt.Errorf("profile not found")
+	profile, err := profile.GetOrCreateProfileForOrg(db, userID, orgID)
+
+	if err != nil {
+		if err := db.Select("online").Where("userid = ?", userID).First(&profile).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return false, http.StatusNotFound, fmt.Errorf("profile not found")
+			}
+			return false, http.StatusInternalServerError, fmt.Errorf("failed to fetch presence: %w", err)
 		}
-		return false, http.StatusInternalServerError, fmt.Errorf("failed to fetch presence: %w", err)
 	}
 
 	return profile.Online, http.StatusOK, nil
