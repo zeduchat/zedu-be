@@ -137,8 +137,6 @@ func TestMultiOrgSimulation_FirstTimeOrgJoin_ExpectedProfileNotCloned(t *testing
 	assert.Equal(t, "User", profOrg5.LastName)
 	assert.Equal(t, "Custom User", profOrg5.FullName)
 
-	// Validate AvatarURL uses fresh default avatar URL (avatar.GenerateDefaultAvatarURL(userID)), NOT cloned custom avatar
-	expectedDefaultAvatar := avatar.GenerateDefaultAvatarURL(userID)
-	assert.Equal(t, expectedDefaultAvatar, profOrg5.AvatarURL)
-	assert.NotEqual(t, customAvatarURL, profOrg5.AvatarURL)
+	// Validate AvatarURL inherits base profile avatar URL when set
+	assert.Equal(t, customAvatarURL, profOrg5.AvatarURL)
 }

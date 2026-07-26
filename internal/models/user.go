@@ -98,20 +98,73 @@ type UserMentionResponse struct {
 
 
 func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
-
 	err := db.Model(user).Association("Organisations").Append(orgs...)
 	if err != nil {
 		return err
+	}
+
+	var userID string
+	switch v := user.(type) {
+	case *User:
+		userID = v.ID
+	case User:
+		userID = v.ID
+	case string:
+		userID = v
+	}
+
+	if userID != "" {
+		var profModel Profile
+		for _, o := range orgs {
+			var orgID string
+			switch v := o.(type) {
+			case *Organisation:
+				orgID = v.ID
+			case Organisation:
+				orgID = v.ID
+			case string:
+				orgID = v
+			}
+			if orgID != "" {
+				_, _ = profModel.GetOrCreateProfileForOrg(db, userID, orgID)
+			}
+		}
 	}
 
 	return nil
 }
 
 func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) error {
-
 	err := db.Model(user).Association("Organisations").Delete(orgs...)
 	if err != nil {
 		return err
+	}
+
+	var userID string
+	switch v := user.(type) {
+	case *User:
+		userID = v.ID
+	case User:
+		userID = v.ID
+	case string:
+		userID = v
+	}
+
+	if userID != "" {
+		for _, o := range orgs {
+			var orgID string
+			switch v := o.(type) {
+			case *Organisation:
+				orgID = v.ID
+			case Organisation:
+				orgID = v.ID
+			case string:
+				orgID = v
+			}
+			if orgID != "" {
+				_ = db.Where("userid = ? AND organisation_id = ?", userID, orgID).Delete(&Profile{}).Error
+			}
+		}
 	}
 
 	return nil

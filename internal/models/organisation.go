@@ -129,6 +129,12 @@ func (c *Organisation) Delete(db *gorm.DB, orgId string) error {
 		return errors.New("failed to remove organisation-user management mapping")
 	}
 
+	if err := postgresql.DeleteRecordWithNoModel(db,
+		"DELETE FROM profiles WHERE organisation_id = ?",
+		orgId); err != nil {
+		return fmt.Errorf("failed to remove organisation profiles: %v", err)
+	}
+
 	err = postgresql.DeleteRecordFromDb(db, c)
 	if err != nil {
 		return errors.New("failed to delete organisation")
@@ -478,9 +484,9 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.username as username, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, profiles.status").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
 		Where("user_organisations.organisation_id = ?", orgId).
 		Offset(offset).
 		Limit(pagination.Limit).
@@ -491,7 +497,7 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	var totalUsers int64
 	if err := db.Table("users").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
 		Where("user_organisations.organisation_id = ?", orgId).
 		Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -750,7 +756,7 @@ func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, e
 	err := db.Table("org_user_managements AS oum").
 		Select(selectQuery).
 		Joins("JOIN users ON users.id = oum.user_id").
-		Joins("JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = oum.organisation_id)").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = oum.organisation_id)").
 		Where("oum.organisation_id = ? AND oum.user_id != ?", ids.OrganisationID, ids.UserID).
 		Where(`
 			TRIM(profiles.user_name) != '' OR 

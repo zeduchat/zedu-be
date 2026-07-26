@@ -36,7 +36,7 @@ func GetUserProfile(db *gorm.DB, userID string, orgID ...string) (*models.Profil
 	}
 
 	var user models.User
-	userObj, _ := user.GetUserByID(db, userID)
+	userObj, _ := user.GetUserByID(db, userID, targetOrg)
 
 	profileSummary := constructProfileSummaryWithProfile(userObj, profile)
 	return profileSummary, http.StatusOK, nil
@@ -289,22 +289,22 @@ func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
 
 // GetUserStatus retrieves the current status for a user.
 // Returns a UserStatus object with default values if no status is set or profile not found.
-func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
-	var profile models.Profile
+func GetUserStatus(userID string, db *gorm.DB, orgID ...string) (models.UserStatus, int, error) {
+	var profModel models.Profile
+	var targetOrg string
+	if len(orgID) > 0 {
+		targetOrg = orgID[0]
+	}
 
-	// Query profile by userid
-	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Return empty status with defaults if profile not found
-			return models.UserStatus{
-				Text:       "",
-				Emoji:      "",
-				Expiry:     0,
-				Visibility: "public",
-				Online:     false,
-			}, http.StatusOK, nil
-		}
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	profile, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
+	if err != nil {
+		return models.UserStatus{
+			Text:       "",
+			Emoji:      "",
+			Expiry:     0,
+			Visibility: "public",
+			Online:     false,
+		}, http.StatusOK, nil
 	}
 
 	// Parse StatusTimeout string to int64 expiry timestamp
@@ -334,17 +334,13 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 }
 
 func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
-	var profile models.Profile
-
-	// check if user exists
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return http.StatusNotFound, fmt.Errorf("profile not found")
-		}
-		return http.StatusInternalServerError, err
+	var profModel models.Profile
+	profile, err := profModel.GetOrCreateProfileForOrg(db, req.UserID, req.OrgID)
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("profile not found")
 	}
 
-	if err := db.Model(&profile).Update("online", req.IsActive).Error; err != nil {
+	if err := db.Model(&models.Profile{}).Where("id = ?", profile.ID).Update("online", req.IsActive).Error; err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update presence: %w", err)
 	}
 

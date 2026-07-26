@@ -107,7 +107,7 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 
 	var user models.User
 
-	user, err = user.GetUserByID(db, userId)
+	user, err = user.GetUserByID(db, userId, org.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +127,6 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-	var profModel models.Profile
-	_, _ = profModel.GetOrCreateProfileForOrg(db, userId, orgId)
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
@@ -363,7 +361,7 @@ func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db
 		return err
 	}
 
-	user, err = user.GetUserByID(db, req.UserId)
+	user, err = user.GetUserByID(db, req.UserId, orgId)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("user not found")

@@ -244,19 +244,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			updates["status_timeout"] = req.StatusTimeout
 		}
 
-		// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
-		if req.StatusExpiry == "" && req.StatusTimeout == "" {
-			ctx := context.Background()
-			if j.RiverJobID != nil && storage.DB.River != nil {
-				_, cancelErr := storage.DB.River.JobCancel(ctx, *j.RiverJobID)
-				if cancelErr != nil {
-					logger.Error("failed to cancel clear status job %d: %v", *j.RiverJobID, cancelErr)
-				} else {
-					logger.Info("Cancelled clear status job %d", *j.RiverJobID)
-				}
-			}
-			updates["river_job_id"] = nil
-		}
+
 	}
 
 	// Apply updates to target profile by primary key ID
@@ -398,12 +386,12 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...st
 		targetOrg = orgId[0]
 	}
 
-	query := db.Model(&Profile{}).Where("userid = ?", userId)
-	if targetOrg != "" {
-		query = query.Where("organisation_id = ?", targetOrg)
+	targetProf, err := p.GetOrCreateProfileForOrg(db, userId, targetOrg)
+	if err != nil {
+		return err
 	}
 
-	result := query.Update("avatar_url", "")
+	result := db.Model(&Profile{}).Where("id = ?", targetProf.ID).Update("avatar_url", "")
 	if result.Error != nil {
 		return result.Error
 	}
@@ -462,9 +450,15 @@ func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID str
 		return profile, fmt.Errorf("failed to fetch existing profile: %w", err)
 	}
 
+	var userOrgIDs []string
+	db.Table("user_organisations").
+		Where("user_id = ?", userID).
+		Distinct("organisation_id").
+		Pluck("organisation_id", &userOrgIDs)
+
 	if len(existingProfiles) > 0 {
-		bindUnassignedBaseProfiles(db, userID, orgID, existingProfiles, appLogger)
-		orgMap, baseProfile := populateMissingOrgProfiles(db, userID, orgID, existingProfiles, appLogger)
+		bindUnassignedBaseProfiles(db, userID, orgID, existingProfiles, userOrgIDs, appLogger)
+		orgMap, baseProfile := populateMissingOrgProfiles(db, userID, orgID, existingProfiles, userOrgIDs, appLogger)
 
 		if orgID != "" {
 			if targetProf, ok := orgMap[orgID]; ok {
@@ -484,24 +478,36 @@ func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID str
 	return createInitialDefaultProfile(db, userID, orgID, appLogger)
 }
 
-func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, appLogger *utility.Logger) {
+func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) {
 	utility.LogInfo(appLogger, "[bindUnassignedBaseProfiles] Starting check for userID=%s, orgID=%s across %d profile(s)", userID, orgID, len(existingProfiles))
+
+	assignedOrgs := make(map[string]bool)
+	for _, prof := range existingProfiles {
+		if prof.OrganisationID != nil && *prof.OrganisationID != "" {
+			assignedOrgs[*prof.OrganisationID] = true
+		}
+	}
+
+	availableOrgs := make([]string, 0)
+	if orgID != "" && !assignedOrgs[orgID] {
+		availableOrgs = append(availableOrgs, orgID)
+	}
+	for _, oid := range userOrgIDs {
+		if oid != "" && !assignedOrgs[oid] && oid != orgID {
+			availableOrgs = append(availableOrgs, oid)
+		}
+	}
+
 	boundCount := 0
+	orgIdx := 0
 	for i := range existingProfiles {
 		if existingProfiles[i].OrganisationID == nil || *existingProfiles[i].OrganisationID == "" {
-			var firstOrgID string
-			db.Table("user_organisations").
-				Where("user_id = ?", userID).
-				Pluck("organisation_id", &firstOrgID)
-
-			targetOrg := orgID
-			if targetOrg == "" {
-				targetOrg = firstOrgID
-			}
-
-			if targetOrg != "" {
+			if orgIdx < len(availableOrgs) {
+				targetOrg := availableOrgs[orgIdx]
 				existingProfiles[i].OrganisationID = &targetOrg
 				_ = db.Model(&Profile{}).Where("id = ?", existingProfiles[i].ID).Update("organisation_id", targetOrg).Error
+				assignedOrgs[targetOrg] = true
+				orgIdx++
 				boundCount++
 			}
 
@@ -514,23 +520,21 @@ func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existi
 	utility.LogInfo(appLogger, "[bindUnassignedBaseProfiles] Completed for userID=%s: bound %d unassigned profile(s)", userID, boundCount)
 }
 
-func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, appLogger *utility.Logger) (map[string]Profile, Profile) {
+func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) (map[string]Profile, Profile) {
 	utility.LogInfo(appLogger, "[populateMissingOrgProfiles] Starting population for userID=%s, target orgID=%s", userID, orgID)
-	var userOrgIDs []string
-	db.Table("user_organisations").
-		Where("user_id = ?", userID).
-		Pluck("organisation_id", &userOrgIDs)
 
+	allOrgIDs := make([]string, len(userOrgIDs))
+	copy(allOrgIDs, userOrgIDs)
 	if orgID != "" {
 		found := false
-		for _, o := range userOrgIDs {
+		for _, o := range allOrgIDs {
 			if o == orgID {
 				found = true
 				break
 			}
 		}
 		if !found {
-			userOrgIDs = append(userOrgIDs, orgID)
+			allOrgIDs = append(allOrgIDs, orgID)
 		}
 	}
 
@@ -541,35 +545,61 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 		}
 	}
 
-	baseProfile := existingProfiles[0]
+	var baseProfile Profile
+	for _, prof := range existingProfiles {
+		if prof.OrganisationID == nil || *prof.OrganisationID == "" {
+			baseProfile = prof
+			break
+		}
+	}
+	if baseProfile.ID == "" && len(existingProfiles) > 0 {
+		baseProfile = existingProfiles[0]
+	}
 	createdCount := 0
 
-	for _, mappedOrgID := range userOrgIDs {
+	for _, mappedOrgID := range allOrgIDs {
 		if mappedOrgID == "" {
 			continue
 		}
 		if _, exists := existingOrgMap[mappedOrgID]; !exists {
 			orgCopy := mappedOrgID
+			avatarURL := baseProfile.AvatarURL
+			if avatarURL == "" {
+				avatarURL = avatar.GenerateDefaultAvatarURL(userID)
+			}
 			newProf := Profile{
-				ID:             utility.GenerateUUID(),
-				Userid:         userID,
-				OrganisationID: &orgCopy,
-				FirstName:      baseProfile.FirstName,
-				LastName:       baseProfile.LastName,
-				FullName:       baseProfile.FullName,
-				UserName:       baseProfile.UserName,
-				AvatarURL:      avatar.GenerateDefaultAvatarURL(userID),
-				CreatedAt:      time.Now(),
-				UpdatedAt:      time.Now(),
+				ID:                utility.GenerateUUID(),
+				Userid:            userID,
+				OrganisationID:    &orgCopy,
+				FirstName:         baseProfile.FirstName,
+				LastName:          baseProfile.LastName,
+				FullName:          baseProfile.FullName,
+				UserName:          baseProfile.UserName,
+				DisplayName:       baseProfile.DisplayName,
+				Title:             baseProfile.Title,
+				NamePronunciation: baseProfile.NamePronunciation,
+				Timezone:          baseProfile.Timezone,
+				Phone:             baseProfile.Phone,
+				WorkspaceID:       baseProfile.WorkspaceID,
+				Track:             baseProfile.Track,
+				Links:             baseProfile.Links,
+				AvatarURL:         avatarURL,
+				CreatedAt:         time.Now(),
+				UpdatedAt:         time.Now(),
 			}
 			if createErr := db.Create(&newProf).Error; createErr == nil {
 				existingOrgMap[mappedOrgID] = newProf
 				createdCount++
+			} else {
+				var raceFetched Profile
+				if fetchErr := db.Where("userid = ? AND organisation_id = ?", userID, orgCopy).First(&raceFetched).Error; fetchErr == nil {
+					existingOrgMap[mappedOrgID] = raceFetched
+				}
 			}
 		}
 	}
 
-	utility.LogInfo(appLogger, "[populateMissingOrgProfiles] Completed: created %d profile(s) for userID=%s across %d mapped org(s)", createdCount, userID, len(userOrgIDs))
+	utility.LogInfo(appLogger, "[populateMissingOrgProfiles] Completed: created %d profile(s) for userID=%s across %d mapped org(s)", createdCount, userID, len(allOrgIDs))
 	return existingOrgMap, baseProfile
 }
 

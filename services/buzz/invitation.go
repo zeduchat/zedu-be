@@ -40,8 +40,25 @@ func SearchChannelMembers(db *storage.Database, logger *utility.Logger, req mode
 	}
 
 	orgID := ""
-	if buzz.OrgID != nil {
+	if buzz.OrgID != nil && *buzz.OrgID != "" {
 		orgID = *buzz.OrgID
+	} else {
+		var channel models.Channels
+		if err := db.Postgresql.Where("id = ?", buzz.ChannelID).First(&channel).Error; err == nil {
+			orgID = channel.OrganisationID
+		} else {
+			var dmChannel models.DmChannels
+			if err := db.Postgresql.Where("channel_id = ?", buzz.ChannelID).First(&dmChannel).Error; err == nil {
+				orgID = dmChannel.OrgId
+			}
+		}
+	}
+
+	joinCond := "JOIN profiles p ON p.userid = uc.user_id"
+	var joinArgs []interface{}
+	if orgID != "" {
+		joinCond += " AND (p.organisation_id IS NULL OR p.organisation_id = ?)"
+		joinArgs = append(joinArgs, orgID)
 	}
 
 	query := db.Postgresql.Table("user_channels uc").
@@ -50,7 +67,7 @@ func SearchChannelMembers(db *storage.Database, logger *utility.Logger, req mode
 				CONCAT(p.first_name, ' ', p.last_name) as full_name,
 				u.email,
 				p.avatar_url as avatar_url`).
-		Joins("JOIN profiles p ON p.userid = uc.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", orgID).
+		Joins(joinCond, joinArgs...).
 		Joins("JOIN users u ON u.id = uc.user_id").
 		Where("uc.channels_id = ?", req.ChannelID)
 
@@ -211,7 +228,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		}
 
 		// Send buzz invitation email asynchronously
-		go sendBuzzInvitationEmail(db, logger, inviteeID, inviterProfile.UserName, buzz.ID)
+		go sendBuzzInvitationEmail(db, logger, inviteeID, inviterProfile.UserName, buzz.ID, orgID)
 
 		successfulInvites = append(successfulInvites, inviteeID)
 	}
@@ -275,10 +292,8 @@ func RespondToInvitation(db *storage.Database, logger *utility.Logger, req model
 	now := time.Now().UTC()
 	invitation.RespondedAt = &now
 
-	var inviteeProfile models.Profile
-	if err := db.Postgresql.Where("userid = ?", userID).First(&inviteeProfile).Error; err != nil {
-		logger.Error("failed to fetch invitee profile: %v", err)
-	}
+	var profModel models.Profile
+	inviteeProfile, _ := profModel.GetOrCreateProfileForOrg(db.Postgresql, userID, invitation.OrgID, logger)
 
 	if req.Accept {
 		invitation.Status = models.BuzzInvitationAccepted
@@ -455,15 +470,16 @@ func publishInvitationResponseEvent(logger *utility.Logger, invitation models.Bu
 }
 
 // sendBuzzInvitationEmail sends a buzz invitation email to a user asynchronously via Redis queue
-func sendBuzzInvitationEmail(db *storage.Database, logger *utility.Logger, inviteeID, inviterName, buzzID string) {
+func sendBuzzInvitationEmail(db *storage.Database, logger *utility.Logger, inviteeID, inviterName, buzzID, orgID string) {
 	var inviteeUser models.User
 	if err := db.Postgresql.Where("id = ?", inviteeID).First(&inviteeUser).Error; err != nil {
 		logger.Error("failed to fetch invitee user for email: %v", err)
 		return
 	}
 
-	var inviteeProfile models.Profile
-	if err := db.Postgresql.Where("userid = ?", inviteeID).First(&inviteeProfile).Error; err != nil {
+	var profModel models.Profile
+	inviteeProfile, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, inviteeID, orgID, logger)
+	if err != nil {
 		logger.Error("failed to fetch invitee profile for email: %v", err)
 		return
 	}

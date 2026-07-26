@@ -79,7 +79,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, channels.OrganisationID)
 	if err != nil && !agent_message {
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}
@@ -231,7 +231,7 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		return &newMsg, http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
-	user, err = user.GetUserByID(db, userID)
+	user, err = user.GetUserByID(db, userID, req.OrgId)
 
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("failed to get user")

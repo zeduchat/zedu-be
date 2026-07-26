@@ -130,6 +130,10 @@ func TestRoleFiltering(t *testing.T) {
 		t.Fatalf("Failed to add user3 to user_organisations: %v", err)
 	}
 
+	var profModel models.Profile
+	_, _ = profModel.GetOrCreateProfileForOrg(db.Postgresql, user2.ID, orgID)
+	_, _ = profModel.GetOrCreateProfileForOrg(db.Postgresql, user3.ID, orgID)
+
 	tests := []struct {
 		Name         string
 		Role         string

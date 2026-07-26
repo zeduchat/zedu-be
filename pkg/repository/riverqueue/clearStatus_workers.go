@@ -53,7 +53,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		"river_job_id":   nil,
 	}
 
-	if err := w.db.Model(&profile).Updates(updates).Error; err != nil {
+	if err := w.db.Model(&models.Profile{}).Where("id = ?", profile.ID).Updates(updates).Error; err != nil {
 		w.logger.Error("Failed to clear status for user %s: %v", job.Args.UserID, err)
 		return err
 	}

@@ -581,13 +581,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
                 AND u.id != ?
                 AND (
                     u.email ILIKE ? OR 
+                    u.name ILIKE ? OR 
                     p.user_name ILIKE ? OR 
                     p.first_name ILIKE ? OR 
                     p.last_name ILIKE ?
                 )
             )
         `
-		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if recentDm {
@@ -729,13 +730,14 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
                 AND u.id != ?
                 AND (
                     u.email ILIKE ? OR 
+                    u.name ILIKE ? OR 
                     p.user_name ILIKE ? OR 
                     p.first_name ILIKE ? OR 
                     p.last_name ILIKE ?
                 )
             )
         `
-		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if recentDm {
@@ -1045,10 +1047,17 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				UserId    string
 			}
 
+			profJoinCond := "LEFT JOIN profiles p ON p.userid = u.id"
+			var profJoinArgs []interface{}
+			if r.OrgId != "" {
+				profJoinCond += " AND (p.organisation_id IS NULL OR p.organisation_id = ?)"
+				profJoinArgs = append(profJoinArgs, r.OrgId)
+			}
+
 			if err := db.Table("channel_participants AS cp").
 				Select("COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) AS user_name, p.avatar_url, u.id as user_id").
 				Joins("JOIN users u ON u.id = cp.user_id").
-				Joins("LEFT JOIN profiles p ON p.userid = u.id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", r.OrgId).
+				Joins(profJoinCond, profJoinArgs...).
 				Where("cp.channel_id = ?", r.ChannelId).
 				Scan(&userProfiles).Error; err != nil {
 				return nil, errors.New("error fetching participant profiles")

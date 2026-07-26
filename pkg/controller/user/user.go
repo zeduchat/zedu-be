@@ -362,6 +362,7 @@ func (base *Controller) GetUserStatus(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
+	orgID, _ := userClaims["org_id"].(string)
 
 	if loggedUserID != userID {
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "forbidden to view another user's status", "forbidden", nil)
@@ -369,7 +370,7 @@ func (base *Controller) GetUserStatus(c *gin.Context) {
 		return
 	}
 
-	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql)
+	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", "Failed to get user status", err, nil)
 		c.JSON(code, rd)
