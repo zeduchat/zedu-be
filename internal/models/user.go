@@ -22,7 +22,7 @@ type User struct {
 	ProfileUpdated              bool           `gorm:"column:profile_updated; type:bool" json:"profile_updated"`
 	CurrentOrg                  uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
 	OneSignalSubscriptionID     string         `gorm:"column:onesignal_subscription_id; type:varchar(255); null" json:"onesignal_subscription_id"`
-	Profile                     Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
+	Profile                     Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;-:migration" json:"profile"`
 	Channelss                   []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations               []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
 	OrgRoleID                   *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
