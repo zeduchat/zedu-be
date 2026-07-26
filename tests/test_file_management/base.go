@@ -20,6 +20,7 @@ func SetupFileManagementTestRouter() (*gin.Engine, *fileManagement.Controller, *
 	logger := tests.Setup()
 
 	db := storage.Connection()
+	db.Postgresql.Exec("ALTER TABLE file_shares DROP CONSTRAINT IF EXISTS fk_file_shares_shared_by;")
 
 	minio.ConnectToMinio(logger, config.Config.Minio)
 

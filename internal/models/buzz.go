@@ -432,6 +432,7 @@ type BuzzInvitation struct {
 	ID          string               `gorm:"type:uuid;primaryKey" json:"id"`
 	BuzzID      string               `gorm:"type:uuid;not null;index:idx_buzz_invitations_buzz" json:"buzz_id"`
 	ChannelID   string               `gorm:"type:uuid;not null;index" json:"channel_id"`
+	OrgID       string               `gorm:"type:uuid;index" json:"org_id"`
 	InviterID   string               `gorm:"type:uuid;not null" json:"inviter_id"`
 	InviteeID   string               `gorm:"type:uuid;not null;index:idx_buzz_invitations_invitee" json:"invitee_id"`
 	Status      BuzzInvitationStatus `gorm:"type:varchar(20);not null;default:'pending'" json:"status"`
@@ -442,8 +443,8 @@ type BuzzInvitation struct {
 
 	// Relationships
 	Buzz    Buzz    `gorm:"foreignKey:BuzzID;references:ID" json:"-"`
-	Inviter Profile `gorm:"foreignKey:InviterID;references:Userid" json:"-"`
-	Invitee Profile `gorm:"foreignKey:InviteeID;references:Userid" json:"-"`
+	Inviter Profile `gorm:"foreignKey:InviterID;references:Userid;-:migration" json:"-"`
+	Invitee Profile `gorm:"foreignKey:InviteeID;references:Userid;-:migration" json:"-"`
 }
 
 func (BuzzInvitation) TableName() string {

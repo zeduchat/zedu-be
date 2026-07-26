@@ -377,7 +377,7 @@ type FileShare struct {
 
 	// Relationships
 	File     *File    `gorm:"foreignKey:FileID" json:"file,omitempty"`
-	SharedBy *Profile `gorm:"foreignKey:SharedByUserID" json:"shared_by,omitempty"`
+	SharedBy *Profile `gorm:"foreignKey:SharedByUserID;references:Userid;-:migration" json:"shared_by,omitempty"`
 }
 
 func (fs *FileShare) TableName() string {

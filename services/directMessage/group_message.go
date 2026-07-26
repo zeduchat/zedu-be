@@ -39,7 +39,7 @@ func CreateGroupDMChannel(req models.GroupDMChannelsRequest, base *storage.Datab
 		var usernames []string
 		for _, participantID := range participants {
 			var user models.User
-			userDetails, userErr := user.GetUserByID(base.Postgresql, participantID)
+			userDetails, userErr := user.GetUserByID(base.Postgresql, participantID, req.OrgId)
 			if userErr == nil {
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
@@ -101,7 +101,7 @@ func LeaveGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, l
 	}
 
 	var user models.User
-	userDetails, userErr := user.GetUserByID(base.Postgresql, req.UserId)
+	userDetails, userErr := user.GetUserByID(base.Postgresql, req.UserId, req.OrgId)
 	if userErr == nil {
 		if userDetails.Profile.UserName == "" {
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
@@ -143,7 +143,7 @@ func JoinGroupDMChannel(req models.DmChannelsRequest, base *storage.Database, lo
 	}
 
 	var user models.User
-	userDetails, userErr := user.GetUserByID(base.Postgresql, req.UserId)
+	userDetails, userErr := user.GetUserByID(base.Postgresql, req.UserId, req.OrgId)
 	if userErr == nil {
 		if userDetails.Profile.UserName == "" {
 			userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
@@ -186,7 +186,7 @@ func AddParticipantsToGroupDM(req models.AddParticipantsRequest, base *storage.D
 		var usernames []string
 		for _, participantID := range req.UserIds {
 			var user models.User
-			userDetails, userErr := user.GetUserByID(base.Postgresql, participantID)
+			userDetails, userErr := user.GetUserByID(base.Postgresql, participantID, req.OrgId)
 			if userErr == nil {
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]
@@ -259,7 +259,7 @@ func GetUserGroupDMs(req models.GroupDMChannelsRequest, db *gorm.DB, c *gin.Cont
 		resp models.Participant
 	)
 
-	user, err := user.GetUserByID(db, req.UserId)
+	user, err := user.GetUserByID(db, req.UserId, req.OrgId)
 	if err != nil {
 		return resp, http.StatusNotFound, fmt.Errorf("user does not exist")
 	}

@@ -431,7 +431,7 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 
 	switch dm.ChannelType {
 	case "dm", "":
-		userDetails, err := user.GetUserByID(db, *dm.ParticipantId)
+		userDetails, err := user.GetUserByID(db, *dm.ParticipantId, dm.OrgId)
 		if err != nil {
 			return DmChannelsResponse{}, err
 		}
@@ -476,7 +476,7 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 				p.online
 			`).
 			Joins("JOIN users u ON u.id = cp.user_id").
-			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id").
+			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", dm.OrgId).
 			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dm.ChannelId).
 			Scan(&participantsWithProfile).Error
 
@@ -488,7 +488,7 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 		profilePic, defaultAvatar, email := "", "", ""
 
 		for _, part := range participantsWithProfile {
-			userDetails, err := user.GetUserByID(db, part.UserId)
+			userDetails, err := user.GetUserByID(db, part.UserId, dm.OrgId)
 			if err != nil {
 				continue
 			}
@@ -568,7 +568,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		queryString += `
             AND EXISTS (
                 SELECT 1 FROM users u
-                LEFT JOIN profiles p ON p.userid = u.id
+                LEFT JOIN profiles p ON p.userid = u.id AND (p.organisation_id IS NULL OR p.organisation_id = dm_channels.org_id)
                 WHERE (
                     (u.id = dm_channels.participant_id)
                     OR
@@ -581,13 +581,14 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
                 AND u.id != ?
                 AND (
                     u.email ILIKE ? OR 
+                    u.name ILIKE ? OR 
                     p.user_name ILIKE ? OR 
                     p.first_name ILIKE ? OR 
                     p.last_name ILIKE ?
                 )
             )
         `
-		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if recentDm {
@@ -716,7 +717,7 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 		queryString += `
             AND EXISTS (
                 SELECT 1 FROM users u
-                LEFT JOIN profiles p ON p.userid = u.id
+                LEFT JOIN profiles p ON p.userid = u.id AND (p.organisation_id IS NULL OR p.organisation_id = dm_channels.org_id)
                 WHERE (
                     (u.id = dm_channels.participant_id)
                     OR
@@ -729,13 +730,14 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
                 AND u.id != ?
                 AND (
                     u.email ILIKE ? OR 
+                    u.name ILIKE ? OR 
                     p.user_name ILIKE ? OR 
                     p.first_name ILIKE ? OR 
                     p.last_name ILIKE ?
                 )
             )
         `
-		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm)
+		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
 	if recentDm {
@@ -879,7 +881,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 				return res, errors.New("channel does not exist")
 			}
 
-			userDetails, err := user.GetUserByID(db, *dmChan.ParticipantId)
+			userDetails, err := user.GetUserByID(db, *dmChan.ParticipantId, r.OrgId)
 			if err != nil {
 				return res, err
 			}
@@ -922,7 +924,7 @@ func (r *DmChannels) FetchDmChannelInfo(db *gorm.DB) (DmChannelsResponse, error)
 			participants := []Participant{}
 
 			for _, part := range chanPart {
-				userDetails, err := user.GetUserByID(db, part.UserId)
+				userDetails, err := user.GetUserByID(db, part.UserId, r.OrgId)
 				if err != nil {
 					return res, err
 				}
@@ -989,7 +991,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 
 			if err := db.Model(&DmChannels{}).
 				Select("dm_channels.*, dm_channels.channel_id as id, COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) as name, p.avatar_url as avatar_url, u.email as participant_email").
-				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id").
+				Joins("JOIN profiles AS p ON p.userid = dm_channels.user_id AND (p.organisation_id IS NULL OR p.organisation_id = dm_channels.org_id)").
 				Joins("JOIN users AS u ON u.id = dm_channels.user_id").
 				Where("dm_channels.channel_id = ? AND dm_channels.user_id != ?", r.ChannelId, r.UserId).
 				Order("dm_channels.created_at").
@@ -1013,7 +1015,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 			}
 
 			for i := range chanResp {
-				userDetails, err := user.GetUserByID(db, chanResp[i].UserId)
+				userDetails, err := user.GetUserByID(db, chanResp[i].UserId, r.OrgId)
 				if err != nil {
 					continue
 				}
@@ -1045,10 +1047,17 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 				UserId    string
 			}
 
+			profJoinCond := "LEFT JOIN profiles p ON p.userid = u.id"
+			var profJoinArgs []interface{}
+			if r.OrgId != "" {
+				profJoinCond += " AND (p.organisation_id IS NULL OR p.organisation_id = ?)"
+				profJoinArgs = append(profJoinArgs, r.OrgId)
+			}
+
 			if err := db.Table("channel_participants AS cp").
 				Select("COALESCE(p.user_name, SPLIT_PART(u.email, '@', 1)) AS user_name, p.avatar_url, u.id as user_id").
 				Joins("JOIN users u ON u.id = cp.user_id").
-				Joins("LEFT JOIN profiles p ON p.userid = u.id").
+				Joins(profJoinCond, profJoinArgs...).
 				Where("cp.channel_id = ?", r.ChannelId).
 				Scan(&userProfiles).Error; err != nil {
 				return nil, errors.New("error fetching participant profiles")
@@ -1064,7 +1073,7 @@ func (r *DmChannels) GetUserChannelsUnreadThread(base *storage.Database) ([]DmCh
 					profilePic = prof.AvatarURL
 				}
 
-				userDetails, err := user.GetUserByID(db, prof.UserId)
+				userDetails, err := user.GetUserByID(db, prof.UserId, r.OrgId)
 				if err == nil {
 					if defaultAvatar == "" {
 						defaultAvatar = avatar.GenerateDefaultAvatarURL(userDetails.ID)

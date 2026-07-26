@@ -23,16 +23,22 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func GetUserProfile(db *gorm.DB, userID string) (*models.ProfileSummary, int, error) {
-	var user models.User
-	userProfile, err := user.GetUserWithProfile(db, userID)
+func GetUserProfile(db *gorm.DB, userID string, orgID ...string) (*models.ProfileSummary, int, error) {
+	var targetOrg string
+	if len(orgID) > 0 {
+		targetOrg = orgID[0]
+	}
 
+	var profModel models.Profile
+	profile, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
 	if err != nil {
 		return nil, http.StatusNotFound, err
 	}
 
-	profileSummary := constructProfileSummary(userProfile)
+	var user models.User
+	userObj, _ := user.GetUserByID(db, userID, targetOrg)
 
+	profileSummary := constructProfileSummaryWithProfile(userObj, profile)
 	return profileSummary, http.StatusOK, nil
 }
 
@@ -87,12 +93,10 @@ func logUnauthorizedAvatarAccess(logger *utility.Logger, authenticatedUserID, ta
 	)
 }
 
-func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte) (int, *models.Profile, error) {
+func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger *utility.Logger, userId string, ext string, file []byte, orgId ...string) (int, *models.Profile, error) {
 	var user models.User
 	var userProfile models.Profile
 
-	// Verify ownership before allowing any profile updates (including avatar)
-	// userId is the authenticated user ID from JWT, so we verify it matches and user exists
 	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
 	if err != nil {
 		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
@@ -107,8 +111,13 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		return http.StatusInternalServerError, nil, err
 	}
 
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
+	}
+
 	if len(file) > 0 && ext != "" {
-		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext)
+		avatarURL, err := UploadProfileImage(logger, db, userId, file, ext, targetOrg)
 		if err != nil {
 			return http.StatusInternalServerError, nil, err
 		}
@@ -117,7 +126,7 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		req.AvatarUpdate = true
 	}
 
-	updatedProfile, err := userProfile.UpdateProfileFields(db, req, userId, logger)
+	updatedProfile, err := userProfile.UpdateProfileFields(db, req, userId, logger, targetOrg)
 	if err != nil {
 		return http.StatusBadRequest, nil, err
 	}
@@ -125,11 +134,9 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 	return http.StatusOK, updatedProfile, nil
 }
 
-func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) (int, error) {
+func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string, orgId ...string) (int, error) {
 	var Profile models.Profile
 
-	// Verify ownership before allowing avatar deletion
-	// userId is the authenticated user ID from JWT, so we verify it matches and user exists
 	isOwner, err := VerifyAvatarOwnership(db, userId, userId)
 	if err != nil {
 		logger.Error("Failed to verify avatar ownership", "error", err, "user_id", userId)
@@ -140,7 +147,12 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 		return http.StatusForbidden, errors.New("you do not have permission to modify this avatar")
 	}
 
-	avatarURL, err := GetUserProfileImageURL(db, userId)
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
+	}
+
+	avatarURL, err := GetUserProfileImageURL(db, userId, targetOrg)
 	if err != nil {
 		logger.Error("Failed to retrieve user profile image", "error", err)
 		return http.StatusInternalServerError, err
@@ -156,7 +168,7 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 		return http.StatusInternalServerError, err
 	}
 
-	err = Profile.SetProfileImageToEmpty(db, userId)
+	err = Profile.SetProfileImageToEmpty(db, userId, targetOrg)
 	if err != nil {
 		logger.Error("Failed to update user profile avatar URL in database", "error", err)
 		return http.StatusInternalServerError, err
@@ -165,12 +177,16 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string) 
 	return http.StatusOK, nil
 }
 
-func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file []byte, ext string) (string, error) {
+func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file []byte, ext string, orgId ...string) (string, error) {
 	if file != nil {
-		picId := strings.Split(userID, "-")[4]
-		filename := fmt.Sprintf("profile_pic_%s.%s", picId, ext)
+		var targetOrg string
+		if len(orgId) > 0 {
+			targetOrg = orgId[0]
+		}
 
-		avatarURL, err := GetUserProfileImageURL(db, userID)
+		filename := fmt.Sprintf("profile_pic_%s_%d.%s", userID, time.Now().UnixNano(), ext)
+
+		avatarURL, err := GetUserProfileImageURL(db, userID, targetOrg)
 		if err != nil {
 			return "", err
 		}
@@ -193,19 +209,19 @@ func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file
 	return "", nil
 }
 
-func GetUserProfileImageURL(db *gorm.DB, userID string) (string, error) {
-	var user models.User
+func GetUserProfileImageURL(db *gorm.DB, userID string, orgId ...string) (string, error) {
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
+	}
 
-	userProfile, err := user.GetUserWithProfile(db, userID)
+	var profModel models.Profile
+	prof, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
 	if err != nil {
 		return "", err
 	}
 
-	if userProfile.Profile.AvatarURL == "" {
-		return "", nil
-	}
-
-	return userProfile.Profile.AvatarURL, nil
+	return prof.AvatarURL, nil
 }
 
 func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) error {
@@ -233,57 +249,62 @@ func DeleteUserProfileImageFromMinIO(logger *utility.Logger, avatarURL string) e
 	return nil
 }
 
-func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
+func constructProfileSummaryWithProfile(userObj models.User, prof models.Profile) *models.ProfileSummary {
 	return &models.ProfileSummary{
-		ID:                userProfile.Profile.ID,
-		Email:             userProfile.Email,
-		Phone:             userProfile.Profile.Phone,
-		FirstName:         userProfile.Profile.FirstName,
-		LastName:          userProfile.Profile.LastName,
-		FullName:          userProfile.Profile.FullName,
-		UserName:          userProfile.Profile.UserName,
-		AvatarURL:         userProfile.Profile.AvatarURL,
-		DefaultAvatarURL:  avatar.GenerateDefaultAvatarURL(userProfile.ID),
-		UserId:            userProfile.Profile.Userid,
-		Deactivated:       userProfile.Deactivated,
-		ProfileUpdated:    userProfile.ProfileUpdated,
-		IsOnboarded:       userProfile.IsOnboarded,
-		DisplayName:       userProfile.Profile.DisplayName,
-		Title:             userProfile.Profile.Title,
-		NamePronunciation: userProfile.Profile.NamePronunciation,
-		Timezone:          userProfile.Profile.Timezone,
-		CreatedAt:         userProfile.Profile.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:         userProfile.Profile.UpdatedAt.Format(time.RFC3339),
-		DeletedAt:         userProfile.Profile.DeletedAt.Time.Format(time.RFC3339),
-		Icon:              userProfile.Profile.Icon,
-		Text:              userProfile.Profile.Text,
-		StatusTimeout:     userProfile.Profile.StatusTimeout,
-		PauseNotification: userProfile.Profile.PauseNotification,
-		WorkspaceID:       userProfile.Profile.WorkspaceID,
-		Track:             userProfile.Profile.Track,
-		Links:             []string(userProfile.Profile.Links),
-		Online:            userProfile.Profile.Online,
+		ID:                prof.ID,
+		Email:             userObj.Email,
+		Phone:             prof.Phone,
+		FirstName:         prof.FirstName,
+		LastName:          prof.LastName,
+		FullName:          prof.FullName,
+		UserName:          prof.UserName,
+		AvatarURL:         prof.AvatarURL,
+		DefaultAvatarURL:  avatar.GenerateDefaultAvatarURL(prof.Userid),
+		UserId:            prof.Userid,
+		OrganisationID:    prof.GetOrgID(),
+		Deactivated:       userObj.Deactivated,
+		ProfileUpdated:    userObj.ProfileUpdated,
+		IsOnboarded:       userObj.IsOnboarded,
+		DisplayName:       prof.DisplayName,
+		Title:             prof.Title,
+		NamePronunciation: prof.NamePronunciation,
+		Timezone:          prof.Timezone,
+		CreatedAt:         prof.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         prof.UpdatedAt.Format(time.RFC3339),
+		DeletedAt:         prof.DeletedAt.Time.Format(time.RFC3339),
+		Icon:              prof.Icon,
+		Text:              prof.Text,
+		StatusTimeout:     prof.StatusTimeout,
+		PauseNotification: prof.PauseNotification,
+		WorkspaceID:       prof.WorkspaceID,
+		Track:             prof.Track,
+		Links:             []string(prof.Links),
+		Online:            prof.Online,
 	}
+}
+
+func constructProfileSummary(userProfile models.User) *models.ProfileSummary {
+	return constructProfileSummaryWithProfile(userProfile, userProfile.Profile)
 }
 
 // GetUserStatus retrieves the current status for a user.
 // Returns a UserStatus object with default values if no status is set or profile not found.
-func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
-	var profile models.Profile
+func GetUserStatus(userID string, db *gorm.DB, orgID ...string) (models.UserStatus, int, error) {
+	var profModel models.Profile
+	var targetOrg string
+	if len(orgID) > 0 {
+		targetOrg = orgID[0]
+	}
 
-	// Query profile by userid
-	if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Return empty status with defaults if profile not found
-			return models.UserStatus{
-				Text:       "",
-				Emoji:      "",
-				Expiry:     0,
-				Visibility: "public",
-				Online:     false,
-			}, http.StatusOK, nil
-		}
-		return models.UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
+	profile, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
+	if err != nil {
+		return models.UserStatus{
+			Text:       "",
+			Emoji:      "",
+			Expiry:     0,
+			Visibility: "public",
+			Online:     false,
+		}, http.StatusOK, nil
 	}
 
 	// Parse StatusTimeout string to int64 expiry timestamp
@@ -313,17 +334,13 @@ func GetUserStatus(userID string, db *gorm.DB) (models.UserStatus, int, error) {
 }
 
 func UpdateUserPresence(req models.UpdateUserPresenceRequest, db *gorm.DB, logger *utility.Logger) (int, error) {
-	var profile models.Profile
-
-	// check if user exists
-	if err := db.Where("userid = ?", req.UserID).First(&profile).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return http.StatusNotFound, fmt.Errorf("profile not found")
-		}
-		return http.StatusInternalServerError, err
+	var profModel models.Profile
+	profile, err := profModel.GetOrCreateProfileForOrg(db, req.UserID, req.OrgID)
+	if err != nil {
+		return http.StatusNotFound, fmt.Errorf("profile not found")
 	}
 
-	if err := db.Model(&profile).Update("online", req.IsActive).Error; err != nil {
+	if err := db.Model(&models.Profile{}).Where("id = ?", profile.ID).Update("online", req.IsActive).Error; err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update presence: %w", err)
 	}
 
@@ -365,45 +382,45 @@ func GetUserPresence(userID string, db *gorm.DB) (bool, int, error) {
 }
 
 // UpdateProfileStatusWithJobScheduling updates a user's profile status and handles River job scheduling.
-func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *gorm.DB, logger *utility.Logger) (models.UserStatus, int, error) {
+func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *storage.Database, logger *utility.Logger) (models.UserStatus, int, error) {
 	var profileModel models.Profile
+	var gormDB *gorm.DB
+	if db != nil {
+		gormDB = db.Postgresql
+	}
 
-	status, code, err := profileModel.UpdateProfileStatus(db, req, logger)
+	status, code, err := profileModel.UpdateProfileStatus(gormDB, req, logger)
 	if err != nil {
 		return status, code, err
 	}
 
-	// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
-	if req.StatusTimeout == "" {
-		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
-			logger.Error("failed to reload profile to check river_job_id", "error", err)
-			return status, code, nil
-		}
+	statusTimeout := req.StatusTimeout
+	if statusTimeout == "" {
+		statusTimeout = req.StatusExpiry
+	}
 
-		if profileModel.RiverJobID != nil && storage.DB.River != nil {
+	// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
+	if statusTimeout == "" {
+		riverClient := db.River
+		if riverClient == nil && storage.DB != nil {
+			riverClient = storage.DB.River
+		}
+		if profileModel.RiverJobID != nil && riverClient != nil {
 			ctx := context.Background()
-			_, cancelErr := storage.DB.River.JobCancel(ctx, *profileModel.RiverJobID)
+			_, cancelErr := riverClient.JobCancel(ctx, *profileModel.RiverJobID)
 			if cancelErr != nil {
 				logger.Error("failed to cancel existing clear status job %d: %v", *profileModel.RiverJobID, cancelErr)
 			}
 		}
 
-		if err := db.Model(&models.Profile{}).
-			Where("userid = ?", req.UserId).
-			Update("river_job_id", nil).Error; err != nil {
+		if err := gormDB.Model(&models.Profile{}).Where("id = ?", profileModel.ID).Update("river_job_id", nil).Error; err != nil {
 			logger.Error("failed to clear river_job_id: %v", err)
 		}
 	}
 
-	if req.StatusTimeout != "" {
-
-		if err := db.Where("userid = ?", req.UserId).First(&profileModel).Error; err != nil {
-			logger.Error("failed to reload profile for job scheduling", "error", err)
-			return status, code, nil
-		}
-
+	if statusTimeout != "" {
 		var expiryTimestamp int64
-		expiryTimestamp, err = profileModel.ParseStatusExpiry(req.StatusTimeout)
+		expiryTimestamp, err = profileModel.ParseStatusExpiry(statusTimeout)
 		if err != nil {
 			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
 		}
@@ -413,9 +430,13 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 		}
 
 		if expiryTimestamp > 0 {
-			if profileModel.RiverJobID != nil && storage.DB.River != nil {
+			riverClient := db.River
+			if riverClient == nil && storage.DB != nil {
+				riverClient = storage.DB.River
+			}
+			if profileModel.RiverJobID != nil && riverClient != nil {
 				ctx := context.Background()
-				_, cancelErr := storage.DB.River.JobCancel(ctx, *profileModel.RiverJobID)
+				_, cancelErr := riverClient.JobCancel(ctx, *profileModel.RiverJobID)
 				if cancelErr != nil {
 					logger.Error("failed to cancel existing clear status job %d: %v", *profileModel.RiverJobID, cancelErr)
 				}
@@ -427,23 +448,19 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 			}
 			scheduledAt := time.Unix(expiryTimestamp, 0)
 			logger.Info("Scheduling clear status job for user %s at %s (OrgID: %s)", req.UserId, scheduledAt.Format(time.RFC3339), req.OrgId)
-			insertRes, jobErr := InsertClearStatusJob(context.Background(), storage.DB, jobArgs, scheduledAt)
+			insertRes, jobErr := InsertClearStatusJob(context.Background(), db, jobArgs, scheduledAt)
 			if jobErr != nil {
 				logger.Error("failed to insert clear status job for user %s: %v", req.UserId, jobErr)
 			} else if insertRes != nil {
 				logger.Info("Successfully scheduled clear status job %d for user %s", insertRes.Job.ID, req.UserId)
-				if err := db.Model(&models.Profile{}).
-					Where("userid = ?", req.UserId).
-					Update("river_job_id", insertRes.Job.ID).Error; err != nil {
+				if err := gormDB.Model(&models.Profile{}).Where("id = ?", profileModel.ID).Update("river_job_id", insertRes.Job.ID).Error; err != nil {
 					logger.Error("failed to update river_job_id: %v", err)
 				}
 			} else {
 				logger.Error("failed to insert clear status job for user %s: insert result is nil", req.UserId)
 			}
 		} else {
-			if err := db.Model(&models.Profile{}).
-				Where("userid = ?", req.UserId).
-				Update("river_job_id", nil).Error; err != nil {
+			if err := gormDB.Model(&models.Profile{}).Where("id = ?", profileModel.ID).Update("river_job_id", nil).Error; err != nil {
 				logger.Error("failed to clear river_job_id: %v", err)
 			}
 		}
@@ -456,11 +473,13 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *go
 
 // InsertClearStatusJob schedules a job to clear user status after it expires.
 func InsertClearStatusJob(ctx context.Context, db *storage.Database, args *models.ClearUserStatusJobArgs, scheduledAt time.Time) (*rivertype.JobInsertResult, error) {
-	client := storage.DB.River
-	if client == nil {
+	if db == nil {
+		db = storage.DB
+	}
+	if db == nil || db.River == nil {
 		return nil, fmt.Errorf("river client is not initialized")
 	}
-	insertRes, err := client.Insert(ctx, args, &river.InsertOpts{
+	insertRes, err := db.River.Insert(ctx, args, &river.InsertOpts{
 		MaxAttempts: 3,
 		ScheduledAt: scheduledAt,
 		Priority:    3,

@@ -129,6 +129,12 @@ func (c *Organisation) Delete(db *gorm.DB, orgId string) error {
 		return errors.New("failed to remove organisation-user management mapping")
 	}
 
+	if err := postgresql.DeleteRecordWithNoModel(db,
+		"DELETE FROM profiles WHERE organisation_id = ?",
+		orgId); err != nil {
+		return fmt.Errorf("failed to remove organisation profiles: %v", err)
+	}
+
 	err = postgresql.DeleteRecordFromDb(db, c)
 	if err != nil {
 		return errors.New("failed to delete organisation")
@@ -267,7 +273,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 
 		if err := db.Postgresql.Table("user_channels").
 			Select("profiles.avatar_url").
-			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", ids.OrganisationID).
 			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", chanResp[i].ID).
 			Limit(8).
 			Pluck("profiles.avatar_url", &avatars).Error; err != nil {
@@ -478,9 +484,9 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.username as username, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, profiles.status").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
 		Where("user_organisations.organisation_id = ?", orgId).
 		Offset(offset).
 		Limit(pagination.Limit).
@@ -491,7 +497,7 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	var totalUsers int64
 	if err := db.Table("users").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
 		Where("user_organisations.organisation_id = ?", orgId).
 		Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -713,7 +719,7 @@ func (o *Organisation) FetchUsersInOrgProfile(db *gorm.DB, orgID string) ([]Prof
 
 	query := db.Table("profiles").
 		Select("profiles.*").
-		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid").
+		Joins("JOIN org_user_managements ON org_user_managements.user_id = profiles.userid AND (profiles.organisation_id IS NULL OR org_user_managements.organisation_id = profiles.organisation_id)").
 		Where("org_user_managements.organisation_id = ?", orgID).
 		Order("profiles.created_at DESC")
 
@@ -750,7 +756,7 @@ func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, e
 	err := db.Table("org_user_managements AS oum").
 		Select(selectQuery).
 		Joins("JOIN users ON users.id = oum.user_id").
-		Joins("JOIN profiles ON profiles.userid = users.id").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = oum.organisation_id)").
 		Where("oum.organisation_id = ? AND oum.user_id != ?", ids.OrganisationID, ids.UserID).
 		Where(`
 			TRIM(profiles.user_name) != '' OR 
@@ -810,7 +816,7 @@ func (o *Organisation) FetchOrgChannelsPlusFirst3Members(db *storage.Database, o
 
 		if err := db.Postgresql.Table("user_channels").
 			Select("user_channels.user_id, profiles.avatar_url").
-			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", orgID).
 			Where("user_channels.channels_id = ?", ch.ID).
 			Order("CASE WHEN TRIM(profiles.avatar_url) != '' THEN 0 ELSE 1 END, user_channels.created_at ASC").
 			Limit(3).

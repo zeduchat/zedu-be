@@ -660,11 +660,12 @@ func GetFileShareWithDetails(db *gorm.DB, shareID string) (*models.FileShareList
 	}
 
 	// Include shared by info if available
-	if fileShare.SharedBy != nil {
+	var profModel models.Profile
+	if prof, err := profModel.GetOrCreateProfileForOrg(db, fileShare.SharedByUserID, fileShare.OrganisationID); err == nil {
 		response.SharedBy = &models.ShareByUser{
-			UserID:    fileShare.SharedBy.Userid,
-			Username:  fileShare.SharedBy.UserName,
-			AvatarURL: fileShare.SharedBy.AvatarURL,
+			UserID:    prof.Userid,
+			Username:  prof.UserName,
+			AvatarURL: prof.AvatarURL,
 		}
 	}
 
