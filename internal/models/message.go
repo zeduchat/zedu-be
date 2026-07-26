@@ -156,6 +156,7 @@ type ForwardThreadMessageRequest struct {
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"` //current channels or DM
+	OrgId      string
 }
 
 type ForwardReplyMessageRequest struct {
@@ -168,6 +169,7 @@ type ForwardReplyMessageRequest struct {
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
+	OrgId      string
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]any, error) {

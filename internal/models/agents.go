@@ -742,7 +742,7 @@ func (i *OrganisationIntegrations) GetCustomAgentApps(db *gorm.DB, ids IDS, c *g
 			}
 
 			var user User
-			userDetails, userErr := user.GetUserByID(db, ids.UserID)
+			userDetails, userErr := user.GetUserByID(db, ids.UserID, ids.OrganisationID)
 			if userErr == nil {
 				if userDetails.Profile.UserName == "" {
 					userDetails.Profile.UserName = strings.Split(userDetails.Email, "@")[0]

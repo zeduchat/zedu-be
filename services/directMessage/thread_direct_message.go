@@ -34,12 +34,12 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		channel models.DmChannels
 	)
 
-	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to get user profile")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}
@@ -187,12 +187,12 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 		channel models.DmChannels
 	)
 
-	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to get user profile")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to get user")
 	}

@@ -350,6 +350,7 @@ type UpdateThreadMessage struct {
 	Message   string `json:"content" validate:"required"`
 	ThreadId  string `json:"thread_id"`
 	ChannelId string `json:"channel_id"`
+	OrgId     string
 }
 
 type ThreadWithMessagesResponse struct {
@@ -1814,7 +1815,7 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 						if part.UserId == userId {
 							continue
 						}
-						if userDetails, err := u.GetUserByID(db, part.UserId); err == nil {
+						if userDetails, err := u.GetUserByID(db, part.UserId, dmChan.OrgId); err == nil {
 							name := userDetails.Profile.UserName
 							if name == "" {
 								name = strings.Split(userDetails.Email, "@")[0]
@@ -1832,7 +1833,7 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 				if targetUserId == userId {
 					targetUserId = dmChan.UserId
 				}
-				if userDetails, err := u.GetUserByID(db, targetUserId); err == nil {
+				if userDetails, err := u.GetUserByID(db, targetUserId, dmChan.OrgId); err == nil {
 					name := userDetails.Profile.UserName
 					if name == "" {
 						name = strings.Split(userDetails.Email, "@")[0]

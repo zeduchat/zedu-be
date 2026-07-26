@@ -79,7 +79,7 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 
 	var ownerEmail string
 	var user models.User
-	if owner, err := user.GetUserByID(base.Db.Postgresql, ownerId); err == nil {
+	if owner, err := user.GetUserByID(base.Db.Postgresql, ownerId, orgId); err == nil {
 		ownerEmail = owner.Email
 	}
 

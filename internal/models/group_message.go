@@ -83,7 +83,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 			return gpdmchanresp, http.StatusInternalServerError, fmt.Errorf("failed to get participants for group DM channel %s", existDmchan.ChannelId)
 		}
 		for _, part := range chPartsResp {
-			userDetails, err := user.GetUserByID(db, part.UserId)
+			userDetails, err := user.GetUserByID(db, part.UserId, existDmchan.OrgId)
 			if err != nil {
 				continue
 			}
@@ -100,7 +100,7 @@ func (dm *DmChannels) CreateGroupDMChannel(db *gorm.DB, req GroupDMChannelsReque
 	}
 
 	for _, participantID := range allParticipants {
-		userDetails, err := user.GetUserByID(db, participantID)
+		userDetails, err := user.GetUserByID(db, participantID, req.OrgId)
 		if err != nil {
 			continue
 		}
@@ -133,7 +133,7 @@ func (dm *DmChannels) LeaveGroupDMChannel(db *gorm.DB) (int, error) {
 	)
 
 
-	_, err := user.GetUserByID(db, dm.UserId)
+	_, err := user.GetUserByID(db, dm.UserId, dm.OrgId)
 	if err != nil {
 		return http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
@@ -218,7 +218,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 		gpdmchanresp                 GroupDMChannelsResponse
 	)
 
-	_, err := user.GetUserByID(db, dm.UserId)
+	_, err := user.GetUserByID(db, dm.UserId, dm.OrgId)
 	if err != nil {
 		return gpdmchanresp, http.StatusNotFound, fmt.Errorf("user does not exist")
 	}
@@ -281,7 +281,7 @@ func (dm *DmChannels) JoinGroupDMChannel(db *gorm.DB) (GroupDMChannelsResponse, 
 	gpdmchanresp.Participants = []Participant{}
 
 	for _, part := range remainingChannelParticipants {
-		userDetails, err := user.GetUserByID(db, part.UserId)
+		userDetails, err := user.GetUserByID(db, part.UserId, existDM.OrgId)
 		if err != nil {
 			continue
 		}
@@ -393,7 +393,7 @@ func (dm *DmChannels) AddParticipantsToGroupDM(db *gorm.DB, req AddParticipantsR
 	}
 
 	for _, part := range remainingChannelParticipants {
-		userDetails, err := user.GetUserByID(db, part.UserId)
+		userDetails, err := user.GetUserByID(db, part.UserId, existDM.OrgId)
 		if err != nil {
 			continue
 		}
@@ -459,7 +459,7 @@ func (dm *DmChannels) GetGroupDMChannels(db *gorm.DB, c *gin.Context) ([]GroupDM
 		}
 
 		for _, part := range chanPart {
-			userDetails, err := user.GetUserByID(db, part.UserId)
+			userDetails, err := user.GetUserByID(db, part.UserId, dmchan.OrgId)
 			if err != nil {
 				return nil, paginationResp, err
 			}
@@ -509,7 +509,7 @@ func GetGroupsInCommon(db *gorm.DB, loggedInUserId, participantId, orgId string)
 		var avatarUrl string
 
 		for _, part := range chanParts {
-			userDetails, err := user.GetUserByID(db, part.UserId)
+			userDetails, err := user.GetUserByID(db, part.UserId, orgId)
 			if err != nil {
 				continue
 			}

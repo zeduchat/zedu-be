@@ -293,6 +293,8 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
 
+	userData, _ = user.GetUserByID(db, user.ID, org.ID)
+
 	responseData = gin.H{
 		"user": map[string]any{
 			"id":                        userData.ID,
@@ -493,6 +495,7 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 	}
 
 	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+	userData, _ = user.GetUserByID(db, user.ID, org.ID)
 
 	responseData = gin.H{
 		"user": map[string]any{

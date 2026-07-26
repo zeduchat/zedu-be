@@ -55,7 +55,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		return newchannel, http.StatusBadRequest, err
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrganisationID)
 	if err != nil {
 		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
 	}

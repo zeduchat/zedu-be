@@ -261,7 +261,7 @@ func (o *OrgUserManagement) AddUserToOrganisation(db *gorm.DB) (int, error) {
 		org  Organisation
 	)
 
-	user, err := user.GetUserByID(db, o.UserID)
+	user, err := user.GetUserByID(db, o.UserID, o.OrganisationID)
 	if err != nil {
 		return 404, fmt.Errorf("failed to get user: %w", err)
 	}

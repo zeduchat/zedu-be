@@ -55,13 +55,13 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		req.UserId = req.AgentId
 	}
 
-	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
 
 	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get profile: invalid webhook payload")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 
 	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get user: invalid webhook payload")

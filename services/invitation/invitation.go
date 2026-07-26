@@ -117,7 +117,7 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %s", err)
 	}
 
-	userData, err := user.GetUserByID(db.Postgresql, userID)
+	userData, err := user.GetUserByID(db.Postgresql, userID, invite.OrganisationID)
 	if err != nil {
 		logger.Error("error fetching user data for trigger", err)
 	}

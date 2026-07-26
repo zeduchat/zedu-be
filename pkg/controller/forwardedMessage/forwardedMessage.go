@@ -64,7 +64,7 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-
+	req.OrgId = userClaims["org_id"].(string)
 	req.ChannelsId = channelID
 	req.UserId = userId
 
@@ -122,6 +122,7 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 	req.UserId = userId
+	req.OrgId = userClaims["org_id"].(string)
 
 	response, err := forwardedMessage.ForwardReplyMessage(base.Db, req, base.Logger, userId)
 	if err != nil {

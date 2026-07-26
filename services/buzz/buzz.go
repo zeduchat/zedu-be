@@ -165,7 +165,7 @@ func broadcastBuzzEventToChannelMembers(db *gorm.DB, logger *utility.Logger, cha
 func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, lastUserJoined *models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
 
 	var user models.User
-	userDetails, userErr := user.GetUserByID(db, buzz.HostID)
+	userDetails, userErr := user.GetUserByID(db, buzz.HostID, *buzz.OrgID)
 
 	if userErr != nil {
 		logger.Error("failed to fetch user details for buzz %s: %v", buzz.ID, userErr)
@@ -1667,7 +1667,7 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 		return nil
 	}
 	var user models.User
-	user, userErr := user.GetUserByID(db.Postgresql, hostID)
+	user, userErr := user.GetUserByID(db.Postgresql, hostID, *buzz.OrgID)
 	if userErr != nil {
 		return userErr
 	}

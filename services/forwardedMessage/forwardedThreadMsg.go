@@ -42,11 +42,11 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		originalMsgChannelType = "public"
 	}
 
-	if err := profile.GetProfileByUserId(db.Postgresql, userID); err != nil {
+	if err := profile.GetProfileByUserId(db.Postgresql, userID, req.OrgId); err != nil {
 		return nil, err
 	}
 
-	user, userErr := user.GetUserByID(db.Postgresql, userID)
+	user, userErr := user.GetUserByID(db.Postgresql, userID, req.OrgId)
 	if userErr != nil {
 		return nil, userErr
 	}

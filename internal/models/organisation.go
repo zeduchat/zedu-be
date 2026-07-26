@@ -667,7 +667,7 @@ func (o *Organisation) AddSystemAgentstoOrg(db *gorm.DB, logger *utility.Logger)
 		return nil
 	}
 
-	user, err = user.GetUserByID(db, o.OwnerID)
+	user, err = user.GetUserByID(db, o.OwnerID, o.ID)
 	if err != nil {
 		logger.Error("Failed to fetch user, error: %v", err)
 	}

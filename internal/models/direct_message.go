@@ -249,7 +249,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		existDmchan DmChannels
 	)
 
-	userDetails, err := user.GetUserByID(db, *dm.ParticipantId)
+	userDetails, err := user.GetUserByID(db, *dm.ParticipantId, dm.OrgId)
 	if err != nil {
 		return dmchanresp, errors.New("participant does not exist")
 	}
@@ -303,7 +303,7 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB, loggers ...*utility.Logger) e
 		user User
 	)
 
-	_, err := user.GetUserByID(db, dm.UserId)
+	_, err := user.GetUserByID(db, dm.UserId, dm.OrgId)
 	if err != nil {
 		if logger != nil {
 			logger.Error("Failed to fetch user %s during DM channel deletion: %v", dm.UserId, err)
