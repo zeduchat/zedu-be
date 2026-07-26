@@ -88,7 +88,7 @@ func (base *Controller) ChangeProfileStatus(c *gin.Context) {
 
 	status, code, err := profile.UpdateProfileStatusWithJobScheduling(req, base.Db, base.Logger)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user profile", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}

@@ -193,6 +193,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 	if err != nil {
 		return UserStatus{}, http.StatusNotFound, errors.New("profile does not exist")
 	}
+
 	*j = targetProf
 
 	// Parse status expiry if provided
@@ -200,7 +201,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 	if req.StatusExpiry != "" {
 		expiryTimestamp, err = j.ParseStatusExpiry(req.StatusExpiry)
 		if err != nil {
-			return UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+			return UserStatus{}, http.StatusBadRequest, err
 		}
 	}
 
@@ -248,14 +249,17 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 	}
 
 	// Apply updates to target profile by primary key ID
-	if err := db.Model(&Profile{}).Where("id = ?", j.ID).Updates(updates).Error; err != nil {
+	if err := db.Model(&Profile{}).Where("id = ?", targetProf.ID).Updates(updates).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, errors.New("failed to update user profile")
 	}
 
+    updatedProfile := Profile{}
 	// Reload profile to get updated values
-	if err := db.Where("id = ?", j.ID).First(&j).Error; err != nil {
+	if err := db.Where("id = ?", targetProf.ID).First(&updatedProfile).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
 	}
+
+	*j = updatedProfile
 
 	// Build response status
 	expiry := int64(0)
@@ -360,7 +364,7 @@ func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
 		).AddDate(0, 0, daysUntilSunday)
 		return endOfWeek.Unix(), nil
 
-	case "don't remove", "dont remove", "do not remove":
+	case "don't remove", "dont remove", "do not remove", "Don’t clear":
 		return 0, nil
 
 	default:

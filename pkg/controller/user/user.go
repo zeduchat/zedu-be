@@ -252,7 +252,7 @@ func (base *Controller) PatchUserStatus(c *gin.Context) {
 
 	status, code, err := profile.UpdateProfileStatusWithJobScheduling(updateReq, base.Db, base.Logger)
 	if err != nil {
-		rd := utility.BuildErrorResponse(code, "error", "Failed to update user status", err, nil)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to update user status", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}

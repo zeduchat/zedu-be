@@ -426,7 +426,7 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *st
 		var expiryTimestamp int64
 		expiryTimestamp, err = profileModel.ParseStatusExpiry(statusTimeout)
 		if err != nil {
-			return models.UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+			return models.UserStatus{}, http.StatusBadRequest, err
 		}
 
 		if expiryTimestamp <= 0 {
