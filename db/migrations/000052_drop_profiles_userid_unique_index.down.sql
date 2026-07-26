@@ -1,4 +1,4 @@
--- Migration 52 Down: Drop the plain index created in the up migration.
--- Note: the unique constraint on profiles.userid is intentionally NOT restored,
--- as that would re-break multi-profile-per-user (per-org) functionality.
+-- Migration 52 Down: Drop composite FKs and plain index
+ALTER TABLE buzz_invitations DROP CONSTRAINT IF EXISTS fk_buzz_invitations_inviter;
+ALTER TABLE buzz_invitations DROP CONSTRAINT IF EXISTS fk_buzz_invitations_invitee;
 DROP INDEX IF EXISTS idx_profiles_userid;
