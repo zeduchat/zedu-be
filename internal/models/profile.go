@@ -591,11 +591,13 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 				existingOrgMap[mappedOrgID] = newProf
 				createdCount++
 			} else {
+				utility.LogError(appLogger, "[populateMissingOrgProfiles] Error creating profile for userID=%s, orgID=%s: %v", userID, mappedOrgID, createErr)
 				var raceFetched Profile
 				if fetchErr := db.Where("userid = ? AND organisation_id = ?", userID, orgCopy).First(&raceFetched).Error; fetchErr == nil {
 					existingOrgMap[mappedOrgID] = raceFetched
 				}
 			}
+
 		}
 	}
 
