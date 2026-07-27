@@ -52,6 +52,7 @@ func (base *Controller) AddAGroupThreadDM(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 
 	req.UserId = userClaims["user_id"].(string)
+		req.OrgId = userClaims["org_id"].(string)
 
 	ThreadData, code, err := dm.CreateGroupThreadDMMessage(req, base.Db, base.Logger)
 	if err != nil {

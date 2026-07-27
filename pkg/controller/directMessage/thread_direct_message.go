@@ -53,6 +53,7 @@ func (base *Controller) AddAThreadDm(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 
 	req.UserId = userClaims["user_id"].(string)
+	req.OrgId = userClaims["org_id"].(string)
 
 	threadData, statusCode, err := dm.CreateThreadDmMessage(req, base.Db, base.Logger, base.ExtReq)
 	if err != nil {
@@ -79,6 +80,7 @@ func (base *Controller) GetAllChannelThreads(c *gin.Context) {
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}
+	
 
 	usersData, paginationResponse, code, err := dm.GetAllChannelDmThreads(channelID, base.Db.Postgresql, c)
 	if err != nil {
