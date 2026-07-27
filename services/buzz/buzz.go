@@ -625,7 +625,7 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
 		logger.Error("failed to fetch user for join event: %v", err)
 	} else {
-		
+
 		buzzOrgID := ""
 		if buzz.OrgID != nil {
 			buzzOrgID = *buzz.OrgID
@@ -1632,14 +1632,37 @@ func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID stri
 			orgIDStr = *buzz.OrgID
 		}
 
+		channelName := ""
+		if buzz.ChannelID != "" &&
+			buzz.ChannelID != "00000000-0000-0000-0000-000000000000" &&
+			buzzType == models.BuzzListTypeChannel {
+			channel := models.Channels{}
+			err := channel.FetchChannelByID(db, buzz.ChannelID)
+			if err != nil {
+				logger.Error("failed to fetch channel: %v", err)
+			}
+			channelName = channel.Name
+		} else if buzzType == models.BuzzListTypeOrg {
+			channelName = "General"
+		} else {
+			channelName = "DM"
+		}
+
+		status := models.BuzzStatusActive
+
+		if buzz.BuzzEndTime != nil {
+			status = models.BuzzStatusEnded
+		}
+
 		buzzItems = append(buzzItems, models.OrgAllBuzzItem{
 			BuzzID:           buzz.ID,
 			BuzzCode:         utility.ExtractBuzzCode(buzz.ID),
 			ChannelID:        buzz.ChannelID,
 			ChannelType:      buzz.ChannelType,
+			ChannelName:      channelName,
 			HostID:           buzz.HostID,
 			OrgID:            &orgIDStr,
-			Status:           buzz.Status,
+			Status:           status,
 			ParticipantCount: int(participantCount),
 			BuzzType:         buzzType,
 			CreatedAt:        buzz.CreatedAt,

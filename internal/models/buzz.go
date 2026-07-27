@@ -643,6 +643,7 @@ type OrgAllBuzzItem struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartedAt        time.Time  `json:"started_at"`
 	EndedAt          *time.Time `json:"ended_at,omitempty"`
+	ChannelName 	 string    `json:"channel_name"`
 }
 
 type OrgAllBuzzListResponse struct {

@@ -316,6 +316,16 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
+func (r *Channels) FetchChannelByID(db *storage.Database, channelId string) error {
+
+	exist := postgresql.CheckExists(db.Postgresql, &r, "id = ?", channelId)
+	if !exist {
+		return errors.New("channel not found")
+	}
+
+	return nil
+}
+
 func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
 		channel  Channels
