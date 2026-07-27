@@ -87,6 +87,7 @@ func (base *Controller) GetThreadReactions(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId := userClaims["org_id"].(string)
 
 	threadID := c.Param("thread_id")
 
@@ -107,10 +108,11 @@ func (base *Controller) GetThreadReactions(c *gin.Context) {
 	}
 
 	ids := models.IDS{
-		UserID:     userId,
-		ReactionID: reactionID,
-		ThreadID:   threadID,
-		Type:       "thread",
+		UserID:         userId,
+		ReactionID:     reactionID,
+		ThreadID:       threadID,
+		Type:           "thread",
+		OrganisationID: orgId,
 	}
 
 	code, resp, err := reactions.GetReactionUsernames(base.Db, base.Logger, ids)
@@ -134,6 +136,7 @@ func (base *Controller) GetReplyReactions(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId := userClaims["org_id"].(string)
 
 	messageID := c.Param("message_id")
 
@@ -154,10 +157,11 @@ func (base *Controller) GetReplyReactions(c *gin.Context) {
 	}
 
 	ids := models.IDS{
-		UserID:     userId,
-		ReactionID: reactionID,
-		MessageID:  messageID,
-		Type:       "reply",
+		UserID:         userId,
+		ReactionID:     reactionID,
+		MessageID:      messageID,
+		Type:           "reply",
+		OrganisationID: orgId,
 	}
 
 	code, resp, err := reactions.GetReactionUsernames(base.Db, base.Logger, ids)

@@ -114,16 +114,6 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		return nil, err
 	}
 
-	if len(req.Media) > 0 {
-		fileIDs := make([]string, len(req.Media))
-		for i, file := range req.Media {
-			fileIDs[i] = file.ID
-		}
-
-		// Non-blocking: log error but don't fail message send
-		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
-	}
-
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsID,
 		UserName:         utility.ThisOrThat(profile.UserName, req.AgentName),
@@ -203,6 +193,15 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, mentionMsg)
 	}()
 
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail message send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
 	return &threadDoc, nil
 }
 

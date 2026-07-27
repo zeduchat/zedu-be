@@ -292,7 +292,7 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 	}
 
 	query := db.Model(&models.Folder{}).
-		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = folders.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", params.OrgID).
 		Where("folders.organisation_id = ?", params.OrgID)
 
 	// mode options: all, mine, trash
@@ -656,7 +656,7 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 
 	query := db.Model(&models.File{}).
 		Select("files.*, profiles.full_name as owner_name, profiles.avatar_url as owner_avatar").
-		Joins("LEFT JOIN profiles ON profiles.userid = files.user_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = files.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", params.OrgID).
 		Where("files.organisation_id = ?", params.OrgID)
 
 	// mode options: all, mine, shared, trash

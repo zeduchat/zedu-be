@@ -476,7 +476,7 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 
 	var err = db.Table("messages").
 		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
-		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join profiles on profiles.userid = messages.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", userChannels.OrgId).
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.channels_id = ?", channelID).
 		Scan(&messagesResp).Error

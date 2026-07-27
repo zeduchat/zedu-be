@@ -20,6 +20,7 @@ type Reaction struct {
 	Type       string    `gorm:"type:varchar(50);default:thread" json:"type"`
 	ReactionID string    `gorm:"type:uuid" json:"reaction_id"`
 	CreatedAt  time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	OrgId      string    `gorm:"-" json:"-"`
 }
 
 type ReactionRequest struct {
@@ -169,7 +170,7 @@ func (m *Reaction) GetReactionUsernameByID(db *gorm.DB) (int, []string, error) {
 	}
 
 	if err := db.Table("reactions").
-		Joins("JOIN profiles ON profiles.userid = reactions.user_id").
+		Joins("JOIN profiles ON profiles.userid = reactions.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", m.OrgId).
 		Where(query, m.Type, queryId, m.ReactionID).
 		Pluck("profiles.user_name", &users).Error; err != nil {
 		return http.StatusInternalServerError, users, err
