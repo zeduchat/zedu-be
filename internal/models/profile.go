@@ -364,7 +364,7 @@ func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
 		).AddDate(0, 0, daysUntilSunday)
 		return endOfWeek.Unix(), nil
 
-	case "don't remove", "dont remove", "do not remove", "Don’t clear":
+	case "don't remove", "dont remove", "do not remove", "Don't clear":
 		return 0, nil
 
 	default:

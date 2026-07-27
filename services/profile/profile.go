@@ -131,6 +131,27 @@ func UpdateUserProfile(req models.UpdateUserProfileRequest, db *gorm.DB, logger 
 		return http.StatusBadRequest, nil, err
 	}
 
+	logger.Info("User profile updated", "user_id", userId)
+	notification := models.Notification[models.ProfileUpdated]
+	notification.SectionType = models.OrganisationUsersSection
+	notification.NotificationId = utility.GenerateUUID()
+	notification.ModificationDetails = &models.ModificationDetails{
+		UserId: userId,
+	}
+	notification.Content = struct {
+		UserID  string         `json:"user_id"`
+		Profile models.Profile `json:"profile"`
+	}{
+		UserID:  userId,
+		Profile: *updatedProfile,
+	}
+
+	if err := centrifuge.PublishChannel(logger, targetOrg, notification); err != nil {
+		logger.Error("failed to publish status update event", "error", err, "organisation_id", targetOrg)
+	}
+
+	logger.Info("Published profile update for,", "user_id", userId, "organisation_id", targetOrg)
+
 	return http.StatusOK, updatedProfile, nil
 }
 
