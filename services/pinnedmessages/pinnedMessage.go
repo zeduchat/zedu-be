@@ -34,7 +34,7 @@ func PinThreadMessage(req models.PinMessageRequest, db *storage.Database, logger
 		return nil, code, errors.New("failed to pin thread message, error: " + createErr.Error())
 	}
 
-	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+	ud, _ := user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 	pinnedDetails := models.PinnedDetails{
 		Username: ud.Profile.UserName,
 		Email:    ud.Email,
@@ -90,7 +90,7 @@ func PinReplyMessage(req models.PinMessageRequest, db *storage.Database, logger 
 		return nil, code, errors.New("failed to pin reply-message, error: " + createErr.Error())
 	}
 
-	ud, _ := user.GetUserByID(db.Postgresql, req.UserId)
+	ud, _ := user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 
 	pinnedDetails := models.PinnedDetails{
 		Username: ud.Profile.UserName,

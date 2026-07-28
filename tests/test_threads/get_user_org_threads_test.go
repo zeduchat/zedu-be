@@ -218,7 +218,7 @@ func TestGetUserOrgThreads(t *testing.T) {
 		ID:             utility.GenerateUUID(),
 		ChannelsID:     channelId,
 		OrganisationID: orgId,
-		UserId:         "00000000-0000-0000-0000-000000000000",
+		UserId:         otherUserID,
 		Status:         "success",
 		Type:           "thread",
 		Content:        "Thread with mention",

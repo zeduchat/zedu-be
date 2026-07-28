@@ -60,6 +60,7 @@ type Threads struct {
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `gorm:"-" json:"forwarded_message_metadata,omitempty"`
 	PreviewReply             []MessageDocument         `gorm:"-" json:"preview_reply,omitempty"`
+	ProfileID                string                    `json:"profile_id,omitempty"`
 }
 
 type ThreadDocument struct {
@@ -98,6 +99,7 @@ type ThreadDocument struct {
 	IsForwarded              bool                      `json:"is_forwarded,omitempty"`
 	ForwardedMessageMetadata *ForwardedMessageMetadata `json:"forwarded_message_metadata,omitempty"`
 	PreviewReply             []MessageDocument         `json:"preview_reply,omitempty"`
+	ProfileID                string                    `json:"profile_id,omitempty"`
 }
 
 type ForwardedMessageMetadata struct {
@@ -150,6 +152,7 @@ var Thread_mapping = map[string]any{
 	"mappings": map[string]any{
 		"properties": map[string]any{
 			"id":          map[string]string{"type": "keyword"},
+			"profile_id":  map[string]string{"type": "keyword"},
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
 			"org_id":      map[string]string{"type": "keyword"},
@@ -347,6 +350,7 @@ type UpdateThreadMessage struct {
 	Message   string `json:"content" validate:"required"`
 	ThreadId  string `json:"thread_id"`
 	ChannelId string `json:"channel_id"`
+	OrgId     string
 }
 
 type ThreadWithMessagesResponse struct {
@@ -772,6 +776,13 @@ func (t *ThreadDocument) GetThreadById(threadID string) error {
 	if err := json.Unmarshal(rawJSON, &t); err != nil {
 		return fmt.Errorf("failed to decode search response: %v", err)
 
+	}
+
+	if storage.DB != nil && storage.DB.Postgresql != nil {
+		hydrated := HydrateThreadProfiles(storage.DB.Postgresql, []ThreadDocument{*t})
+		if len(hydrated) > 0 {
+			*t = hydrated[0]
+		}
 	}
 
 	return nil
@@ -1444,7 +1455,82 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 		}
 	}
 
+	if storage.DB != nil && storage.DB.Postgresql != nil {
+		threads = HydrateThreadsStructList(storage.DB.Postgresql, threads)
+	}
+
 	return
+}
+
+func HydrateThreadProfiles(db *gorm.DB, threads []ThreadDocument) []ThreadDocument {
+	if len(threads) == 0 || db == nil {
+		return threads
+	}
+
+	var profModel Profile
+	for i := range threads {
+		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
+			var p Profile
+			var err error
+			if threads[i].ProfileID != "" {
+				err = db.Where("id = ?", threads[i].ProfileID).First(&p).Error
+			}
+			if threads[i].ProfileID == "" || err != nil {
+				p, err = profModel.GetOrCreateProfileForOrg(db, threads[i].UserId, threads[i].OrganisationID)
+			}
+			if err == nil {
+				threads[i].ProfileID = p.ID
+				threads[i].Username = p.UserName
+				threads[i].FullName = p.FullName
+				if p.AvatarURL != "" {
+					threads[i].AvatarURL = p.AvatarURL
+				}
+			}
+		}
+
+		if len(threads[i].Messages) > 0 {
+			threads[i].Messages = HydrateMessageProfiles(db, threads[i].Messages)
+		}
+		if len(threads[i].PreviewReply) > 0 {
+			threads[i].PreviewReply = HydrateMessageProfiles(db, threads[i].PreviewReply)
+		}
+	}
+
+	return threads
+}
+
+func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
+	if len(threads) == 0 || db == nil {
+		return threads
+	}
+
+	var profModel Profile
+	for i := range threads {
+		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
+			var p Profile
+			var err error
+			if threads[i].ProfileID != "" {
+				err = db.Where("id = ?", threads[i].ProfileID).First(&p).Error
+			}
+			if threads[i].ProfileID == "" || err != nil {
+				p, err = profModel.GetOrCreateProfileForOrg(db, threads[i].UserId, threads[i].OrganisationID)
+			}
+			if err == nil {
+				threads[i].ProfileID = p.ID
+				threads[i].Username = p.UserName
+				threads[i].FullName = p.FullName
+				if p.AvatarURL != "" {
+					threads[i].AvatarURL = p.AvatarURL
+				}
+			}
+		}
+
+		if len(threads[i].PreviewReply) > 0 {
+			threads[i].PreviewReply = HydrateMessageProfiles(db, threads[i].PreviewReply)
+		}
+	}
+
+	return threads
 }
 
 func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, int, error) {
@@ -1729,7 +1815,7 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 						if part.UserId == userId {
 							continue
 						}
-						if userDetails, err := u.GetUserByID(db, part.UserId); err == nil {
+						if userDetails, err := u.GetUserByID(db, part.UserId, dmChan.OrgId); err == nil {
 							name := userDetails.Profile.UserName
 							if name == "" {
 								name = strings.Split(userDetails.Email, "@")[0]
@@ -1747,7 +1833,7 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 				if targetUserId == userId {
 					targetUserId = dmChan.UserId
 				}
-				if userDetails, err := u.GetUserByID(db, targetUserId); err == nil {
+				if userDetails, err := u.GetUserByID(db, targetUserId, dmChan.OrgId); err == nil {
 					name := userDetails.Profile.UserName
 					if name == "" {
 						name = strings.Split(userDetails.Email, "@")[0]

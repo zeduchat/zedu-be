@@ -196,7 +196,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, authenticatedUserI
 		return responseData, http.StatusBadRequest, err
 	}
 
-	userData, err := user.GetUserByID(db.Postgresql, userID)
+	userData, err := user.GetUserByID(db.Postgresql, userID, invitation.OrganisationID)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
@@ -382,7 +382,7 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, logger *utility.Logger, db *storage.Database) error {
 	var profile models.Profile
 
-	err := profile.GetProfileByUserId(db.Postgresql, orgmgt.UserID)
+	err := profile.GetProfileByUserId(db.Postgresql, orgmgt.UserID, orgmgt.OrganisationID)
 
 	if err != nil {
 		return fmt.Errorf("failed to get user profile: %v", err)

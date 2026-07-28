@@ -55,13 +55,13 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		req.UserId = req.AgentId
 	}
 
-	err := profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err := profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
 
 	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get profile: invalid webhook payload")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 
 	if err != nil && !agent_message {
 		return nil, fmt.Errorf("failed to get user: invalid webhook payload")
@@ -112,16 +112,6 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	err = threadDoc.CreateThread(db, logger)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(req.Media) > 0 {
-		fileIDs := make([]string, len(req.Media))
-		for i, file := range req.Media {
-			fileIDs[i] = file.ID
-		}
-
-		// Non-blocking: log error but don't fail message send
-		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
 	}
 
 	feed := models.FeedMessageRequest{
@@ -203,6 +193,15 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		userChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread, mentionMsg)
 	}()
 
+	if len(req.Media) > 0 {
+		fileIDs := make([]string, len(req.Media))
+		for i, file := range req.Media {
+			fileIDs[i] = file.ID
+		}
+
+		// Non-blocking: log error but don't fail message send
+		_ = models.UpdateFilesMetadata(db.Postgresql, logger, fileIDs, req.ChannelsID, threadDoc.ID)
+	}
 	return &threadDoc, nil
 }
 

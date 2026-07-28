@@ -1,0 +1,1 @@
+-- Migration 50 Down: No-op (stale GORM FK constraints pointing to profiles primary key should not be recreated)

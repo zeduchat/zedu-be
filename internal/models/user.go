@@ -22,7 +22,7 @@ type User struct {
 	ProfileUpdated              bool           `gorm:"column:profile_updated; type:bool" json:"profile_updated"`
 	CurrentOrg                  uuid.UUID      `gorm:"column:current_org;null; type:uuid" json:"current_org"`
 	OneSignalSubscriptionID     string         `gorm:"column:onesignal_subscription_id; type:varchar(255); null" json:"onesignal_subscription_id"`
-	Profile                     Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"profile"`
+	Profile                     Profile        `gorm:"foreignKey:Userid;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;-:migration" json:"profile"`
 	Channelss                   []Channels     `gorm:"many2many:user_channels;" json:"channels"`
 	Organisations               []Organisation `gorm:"many2many:user_organisations;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"organisations"`
 	OrgRoleID                   *string        `gorm:"type:varchar(100);null;index" json:"org_role_id"`
@@ -98,31 +98,97 @@ type UserMentionResponse struct {
 
 
 func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
-
 	err := db.Model(user).Association("Organisations").Append(orgs...)
 	if err != nil {
 		return err
+	}
+
+	var userID string
+	switch v := user.(type) {
+	case *User:
+		userID = v.ID
+	case User:
+		userID = v.ID
+	case string:
+		userID = v
+	}
+
+	if userID != "" {
+		var profModel Profile
+		for _, o := range orgs {
+			var orgID string
+			switch v := o.(type) {
+			case *Organisation:
+				orgID = v.ID
+			case Organisation:
+				orgID = v.ID
+			case string:
+				orgID = v
+			}
+			if orgID != "" {
+				_, _ = profModel.GetOrCreateProfileForOrg(db, userID, orgID)
+			}
+		}
 	}
 
 	return nil
 }
 
 func (u *User) RemoveUserFromOrganisation(db *gorm.DB, user any, orgs []any) error {
-
 	err := db.Model(user).Association("Organisations").Delete(orgs...)
 	if err != nil {
 		return err
 	}
 
+	var userID string
+	switch v := user.(type) {
+	case *User:
+		userID = v.ID
+	case User:
+		userID = v.ID
+	case string:
+		userID = v
+	}
+
+	if userID != "" {
+		for _, o := range orgs {
+			var orgID string
+			switch v := o.(type) {
+			case *Organisation:
+				orgID = v.ID
+			case Organisation:
+				orgID = v.ID
+			case string:
+				orgID = v
+			}
+			if orgID != "" {
+				_ = db.Where("userid = ? AND organisation_id = ?", userID, orgID).Delete(&Profile{}).Error
+			}
+		}
+	}
+
 	return nil
 }
 
-func (u *User) GetUserByID(db *gorm.DB, userID string) (User, error) {
+func (u *User) GetUserByID(db *gorm.DB, userID string, orgID ...string) (User, error) {
 	var user User
 
-	err, _ := postgresql.SelectOneFromDb(db.Preload("Profile"), &user, "id = ?", userID)
+	err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userID)
 	if err != nil {
 		return User{}, fmt.Errorf("user not found: %w", err)
+	}
+
+	targetOrg := ""
+	if len(orgID) > 0 && orgID[0] != "" {
+		targetOrg = orgID[0]
+	} else if user.CurrentOrg.String() != "" && user.CurrentOrg.String() != "00000000-0000-0000-0000-000000000000" {
+		targetOrg = user.CurrentOrg.String()
+	}
+
+	var profModel Profile
+	prof, err := profModel.GetOrCreateProfileForOrg(db, userID, targetOrg)
+	if err == nil {
+		user.Profile = prof
 	}
 
 	return user, nil

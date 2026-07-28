@@ -31,12 +31,12 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
 	}
 
-	user, err = user.GetUserByID(db.Postgresql, req.UserId)
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
 	if err != nil {
 		return nil, http.StatusBadRequest, errors.New("failed to get user")
 	}

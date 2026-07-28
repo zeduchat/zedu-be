@@ -43,6 +43,7 @@ type PinMessageRequest struct {
 	MessageID  string `json:"message_id"`
 	ChannelsId string `json:"channels_id"`
 	UserId     string `json:"user_id"`
+	OrgId      string
 }
 
 type PinnedDetails struct {

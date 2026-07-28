@@ -33,11 +33,11 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 		return nil, errors.New("channel does not exist")
 	}
 
-	if err := profile.GetProfileByUserId(db.Postgresql, userID); err != nil {
+	if err := profile.GetProfileByUserId(db.Postgresql, userID, req.OrgId); err != nil {
 		return nil, errors.New("failed to get user profile")
 	}
 
-	user, userErr := user.GetUserByID(db.Postgresql, userID)
+	user, userErr := user.GetUserByID(db.Postgresql, userID, req.OrgId)
 	if userErr != nil {
 		return nil, errors.New("failed to get user")
 	}

@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -27,7 +27,8 @@ type Profile struct {
 	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
 	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
 	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
-	Userid            string         `gorm:"type:uuid;unique" json:"user_id"`
+	Userid            string         `gorm:"type:uuid;index:idx_profiles_userid;uniqueIndex:idx_user_org" json:"user_id"`
+	OrganisationID    *string        `gorm:"type:uuid;null;index;uniqueIndex:idx_user_org" json:"organisation_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
@@ -59,6 +60,7 @@ type ProfileSummary struct {
 	AvatarURL         string   `json:"avatar_url"`
 	DefaultAvatarURL  string   `json:"default_avatar_url"`
 	UserId            string   `json:"user_id"`
+	OrganisationID    string   `json:"organisation_id"`
 	Deactivated       bool     `json:"deactivated"`
 	CreatedAt         string   `json:"created_at"`
 	UpdatedAt         string   `json:"updated_at"`
@@ -144,8 +146,16 @@ type UserStatus struct {
 	Online     bool   `json:"online"`
 }
 
-func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger) (*Profile, error) {
-	var userProfile Profile
+func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest, userId string, logger *utility.Logger, orgId ...string) (*Profile, error) {
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
+	}
+
+	targetProfile, err := j.GetOrCreateProfileForOrg(db, userId, targetOrg)
+	if err != nil {
+		return nil, errors.New("Profile does not exist")
+	}
 
 	if req.DisplayName != "" && req.UserName == "" {
 		req.UserName = req.DisplayName
@@ -165,37 +175,8 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		Links:             pq.StringArray(req.Links),
 	}
 
-	query := "userid = ?"
-
-	exist := postgresql.CheckExists(db, &userProfile, query, userId)
-	if !exist {
-		return nil, errors.New("Profile does not exists")
-	}
-
-	if req.AvatarUpdate || (req.UserName != "" && req.UserName != userProfile.UserName) {
-
-		updateThreadsIndex := ThreadDocument{
-			UserId:    userId,
-			Username:  req.UserName,
-			AvatarURL: req.AvatarURL,
-		}
-
-		logger.Info("Updating username and avatar across threads index")
-		go updateThreadsIndex.UpdateThreadUserProfile(logger, &sync.Mutex{})
-
-		updateMessagesIndex := MessageDocument{
-			UserID:    userId,
-			Username:  req.UserName,
-			AvatarURL: req.AvatarURL,
-		}
-
-		logger.Info("Updating username and avatar across messages index")
-		go updateMessagesIndex.UpdateMessageUserProfile(logger, &sync.Mutex{})
-
-		logger.Info("Successfully updated username and avatar across indexess")
-	}
-
-	result, err := postgresql.UpdateFieldsAndReturn(db, &j, profileUpdates, query, userId)
+	query := "id = ?"
+	result, err := postgresql.UpdateFieldsAndReturn(db, &j, profileUpdates, query, targetProfile.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,25 +189,19 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 }
 
 func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logger *utility.Logger) (UserStatus, int, error) {
-	query := "userid = ?"
-
-	exist := postgresql.CheckExists(db, &j, query, req.UserId)
-	if !exist {
+	targetProf, err := j.GetOrCreateProfileForOrg(db, req.UserId, req.OrgId, logger)
+	if err != nil {
 		return UserStatus{}, http.StatusNotFound, errors.New("profile does not exist")
 	}
 
-	// Load current profile to get timezone and existing river_job_id
-	if err := db.Where("userid = ?", req.UserId).First(&j).Error; err != nil {
-		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to load profile: %w", err)
-	}
+	*j = targetProf
 
 	// Parse status expiry if provided
 	var expiryTimestamp int64
 	if req.StatusExpiry != "" {
-		var err error
 		expiryTimestamp, err = j.ParseStatusExpiry(req.StatusExpiry)
 		if err != nil {
-			return UserStatus{}, http.StatusBadRequest, fmt.Errorf("invalid expiry: %w", err)
+			return UserStatus{}, http.StatusBadRequest, err
 		}
 	}
 
@@ -270,32 +245,21 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			updates["status_timeout"] = req.StatusTimeout
 		}
 
-		// Clear river_job_id if no expiry provided (cancels any existing auto-clear job)
-		if req.StatusExpiry == "" && req.StatusTimeout == "" {
-			ctx := context.Background()
-			if j.RiverJobID != nil && storage.DB.River != nil {
-				_, cancelErr := storage.DB.River.JobCancel(ctx, *j.RiverJobID)
-				if cancelErr != nil {
-					logger.Error("failed to cancel clear status job %d: %v", *j.RiverJobID, cancelErr)
-				} else {
-					logger.Info("Cancelled clear status job %d", *j.RiverJobID)
-				}
-			}
-			updates["river_job_id"] = nil
-		}
+
 	}
 
-	// Apply updates
-	if err := db.Model(&Profile{}).
-		Where(query, req.UserId).
-		Updates(updates).Error; err != nil {
+	// Apply updates to target profile by primary key ID
+	if err := db.Model(&Profile{}).Where("id = ?", targetProf.ID).Updates(updates).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, errors.New("failed to update user profile")
 	}
 
+    updatedProfile := Profile{}
 	// Reload profile to get updated values
-	if err := db.Where("userid = ?", req.UserId).First(&j).Error; err != nil {
+	if err := db.Where("id = ?", targetProf.ID).First(&updatedProfile).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
 	}
+
+	*j = updatedProfile
 
 	// Build response status
 	expiry := int64(0)
@@ -400,7 +364,7 @@ func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
 		).AddDate(0, 0, daysUntilSunday)
 		return endOfWeek.Unix(), nil
 
-	case "don't remove", "dont remove", "do not remove":
+	case "don't remove", "dont remove", "do not remove", "Don't clear":
 		return 0, nil
 
 	default:
@@ -420,36 +384,269 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	return user, nil
 }
 
-func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string) error {
-	var userProfile Profile
-
-	exists := postgresql.CheckExists(db, &userProfile, "userid = ?", userId)
-
-	if !exists {
-		return errors.New("profile does not exist")
+func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...string) error {
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
 	}
 
-	result := db.Model(&Profile{}).Where("userid = ?", userId).Update("avatar_url", "")
+	targetProf, err := p.GetOrCreateProfileForOrg(db, userId, targetOrg)
+	if err != nil {
+		return err
+	}
 
+	result := db.Model(&Profile{}).Where("id = ?", targetProf.ID).Update("avatar_url", "")
 	if result.Error != nil {
 		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return errors.New("failed to update avatar URL")
 	}
 
 	return nil
 }
 
-func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string) error {
-	if err := db.Where("userid = ?", userId).First(&p).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("profile not found for user ID: %s", userId)
-		}
-		return fmt.Errorf("failed to fetch profile: %w", err)
+func (p *Profile) GetProfileByUserId(db *gorm.DB, userId string, orgId ...string) error {
+	var targetOrg string
+	if len(orgId) > 0 {
+		targetOrg = orgId[0]
 	}
+	prof, err := p.GetOrCreateProfileForOrg(db, userId, targetOrg)
+	if err != nil {
+		return err
+	}
+	*p = prof
 	return nil
+}
+
+func (p *Profile) GetProfileByUserIdAndOrgId(db *gorm.DB, userId string, orgId string) (Profile, error) {
+	return p.GetOrCreateProfileForOrg(db, userId, orgId)
+}
+
+func (p *Profile) GetOrgID() string {
+	if p != nil && p.OrganisationID != nil {
+		return *p.OrganisationID
+	}
+	return ""
+}
+
+func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID string, logger ...*utility.Logger) (Profile, error) {
+	var appLogger *utility.Logger
+	if len(logger) > 0 {
+		appLogger = logger[0]
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Starting resolution for userID=%s, orgID=%s", userID, orgID)
+	var profile Profile
+	if userID == "" {
+		utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Error: userID is empty")
+		return profile, errors.New("user_id is required")
+	}
+
+	if orgID != "" {
+		if err := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&profile).Error; err == nil {
+			utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Fast-path hit: found profile ID=%s for userID=%s, orgID=%s", profile.ID, userID, orgID)
+			return profile, nil
+		}
+	}
+
+	var existingProfiles []Profile
+	err := db.Where("userid = ?", userID).Order("created_at asc").Find(&existingProfiles).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Error fetching existing profiles for userID=%s: %v", userID, err)
+		return profile, fmt.Errorf("failed to fetch existing profile: %w", err)
+	}
+
+	var userOrgIDs []string
+	db.Table("user_organisations").
+		Where("user_id = ?", userID).
+		Distinct("organisation_id").
+		Pluck("organisation_id", &userOrgIDs)
+
+	if len(existingProfiles) > 0 {
+		bindUnassignedBaseProfiles(db, userID, orgID, existingProfiles, userOrgIDs, appLogger)
+		orgMap, baseProfile := populateMissingOrgProfiles(db, userID, orgID, existingProfiles, userOrgIDs, appLogger)
+
+		if orgID != "" {
+			if targetProf, ok := orgMap[orgID]; ok {
+				utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Completed resolution for userID=%s, orgID=%s, returning profile ID=%s", userID, orgID, targetProf.ID)
+				return targetProf, nil
+			}
+			var fetchedProf Profile
+			if err := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&fetchedProf).Error; err == nil {
+				utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Completed resolution for userID=%s, orgID=%s, returning fetched profile ID=%s", userID, orgID, fetchedProf.ID)
+				return fetchedProf, nil
+			}
+		}
+		utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Completed resolution for userID=%s, returning base profile ID=%s", userID, baseProfile.ID)
+		return baseProfile, nil
+	}
+
+	return createInitialDefaultProfile(db, userID, orgID, appLogger)
+}
+
+func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) {
+	utility.LogInfo(appLogger, "[bindUnassignedBaseProfiles] Starting check for userID=%s, orgID=%s across %d profile(s)", userID, orgID, len(existingProfiles))
+
+	assignedOrgs := make(map[string]bool)
+	for _, prof := range existingProfiles {
+		if prof.OrganisationID != nil && *prof.OrganisationID != "" {
+			assignedOrgs[*prof.OrganisationID] = true
+		}
+	}
+
+	availableOrgs := make([]string, 0)
+	if orgID != "" && !assignedOrgs[orgID] {
+		availableOrgs = append(availableOrgs, orgID)
+	}
+	for _, oid := range userOrgIDs {
+		if oid != "" && !assignedOrgs[oid] && oid != orgID {
+			availableOrgs = append(availableOrgs, oid)
+		}
+	}
+
+	boundCount := 0
+	orgIdx := 0
+	for i := range existingProfiles {
+		if existingProfiles[i].OrganisationID == nil || *existingProfiles[i].OrganisationID == "" {
+			if orgIdx < len(availableOrgs) {
+				targetOrg := availableOrgs[orgIdx]
+				existingProfiles[i].OrganisationID = &targetOrg
+				_ = db.Model(&Profile{}).Where("id = ?", existingProfiles[i].ID).Update("organisation_id", targetOrg).Error
+				assignedOrgs[targetOrg] = true
+				orgIdx++
+				boundCount++
+			}
+
+			if existingProfiles[i].AvatarURL == "" {
+				existingProfiles[i].AvatarURL = avatar.GenerateDefaultAvatarURL(userID)
+				_ = db.Model(&Profile{}).Where("id = ?", existingProfiles[i].ID).Update("avatar_url", existingProfiles[i].AvatarURL).Error
+			}
+		}
+	}
+	utility.LogInfo(appLogger, "[bindUnassignedBaseProfiles] Completed for userID=%s: bound %d unassigned profile(s)", userID, boundCount)
+}
+
+func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) (map[string]Profile, Profile) {
+	utility.LogInfo(appLogger, "[populateMissingOrgProfiles] Starting population for userID=%s, target orgID=%s", userID, orgID)
+
+	allOrgIDs := make([]string, len(userOrgIDs))
+	copy(allOrgIDs, userOrgIDs)
+	if orgID != "" {
+		found := false
+		for _, o := range allOrgIDs {
+			if o == orgID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			allOrgIDs = append(allOrgIDs, orgID)
+		}
+	}
+
+	existingOrgMap := make(map[string]Profile)
+	for _, prof := range existingProfiles {
+		if prof.OrganisationID != nil && *prof.OrganisationID != "" {
+			existingOrgMap[*prof.OrganisationID] = prof
+		}
+	}
+
+	var baseProfile Profile
+	for _, prof := range existingProfiles {
+		if prof.OrganisationID == nil || *prof.OrganisationID == "" {
+			baseProfile = prof
+			break
+		}
+	}
+	if baseProfile.ID == "" && len(existingProfiles) > 0 {
+		baseProfile = existingProfiles[0]
+	}
+	createdCount := 0
+
+	for _, mappedOrgID := range allOrgIDs {
+		if mappedOrgID == "" {
+			continue
+		}
+		if _, exists := existingOrgMap[mappedOrgID]; !exists {
+			orgCopy := mappedOrgID
+			avatarURL := baseProfile.AvatarURL
+			if avatarURL == "" {
+				avatarURL = avatar.GenerateDefaultAvatarURL(userID)
+			}
+			newProf := Profile{
+				ID:                utility.GenerateUUID(),
+				Userid:            userID,
+				OrganisationID:    &orgCopy,
+				FirstName:         baseProfile.FirstName,
+				LastName:          baseProfile.LastName,
+				FullName:          baseProfile.FullName,
+				UserName:          baseProfile.UserName,
+				DisplayName:       baseProfile.DisplayName,
+				Title:             baseProfile.Title,
+				NamePronunciation: baseProfile.NamePronunciation,
+				Timezone:          baseProfile.Timezone,
+				Phone:             baseProfile.Phone,
+				WorkspaceID:       baseProfile.WorkspaceID,
+				Track:             baseProfile.Track,
+				Links:             baseProfile.Links,
+				AvatarURL:         avatarURL,
+				CreatedAt:         time.Now(),
+				UpdatedAt:         time.Now(),
+			}
+			if createErr := db.Create(&newProf).Error; createErr == nil {
+				existingOrgMap[mappedOrgID] = newProf
+				createdCount++
+			} else {
+				utility.LogError(appLogger, "[populateMissingOrgProfiles] Error creating profile for userID=%s, orgID=%s: %v", userID, mappedOrgID, createErr)
+				var raceFetched Profile
+				if fetchErr := db.Where("userid = ? AND organisation_id = ?", userID, orgCopy).First(&raceFetched).Error; fetchErr == nil {
+					existingOrgMap[mappedOrgID] = raceFetched
+				}
+			}
+
+		}
+	}
+
+	utility.LogInfo(appLogger, "[populateMissingOrgProfiles] Completed: created %d profile(s) for userID=%s across %d mapped org(s)", createdCount, userID, len(allOrgIDs))
+	return existingOrgMap, baseProfile
+}
+
+func createInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
+	utility.LogInfo(appLogger, "[createInitialDefaultProfile] Creating initial default profile for userID=%s, orgID=%s", userID, orgID)
+	var userObj User
+	userName := "User"
+	if fetchUserErr := db.Where("id = ?", userID).First(&userObj).Error; fetchUserErr == nil && userObj.Name != "" {
+		userName = userObj.Name
+	}
+
+	var orgPtr *string
+	if orgID != "" {
+		orgPtr = &orgID
+	}
+
+	newProfile := Profile{
+		ID:             utility.GenerateUUID(),
+		Userid:         userID,
+		OrganisationID: orgPtr,
+		FirstName:      userName,
+		FullName:       userName,
+		UserName:       userName,
+		AvatarURL:      avatar.GenerateDefaultAvatarURL(userID),
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		Online:         true,
+		IsActive:       true,
+	}
+
+	var profile Profile
+	if createErr := db.Create(&newProfile).Error; createErr != nil {
+		if fetchErr := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&profile).Error; fetchErr == nil {
+			utility.LogInfo(appLogger, "[createInitialDefaultProfile] Initial profile race condition resolved, found ID=%s for userID=%s", profile.ID, userID)
+			return profile, nil
+		}
+		utility.LogError(appLogger, "[createInitialDefaultProfile] Error creating initial profile for userID=%s: %v", userID, createErr)
+		return profile, fmt.Errorf("failed to create initial profile: %w", createErr)
+	}
+	utility.LogInfo(appLogger, "[createInitialDefaultProfile] Successfully created initial profile ID=%s for userID=%s, orgID=%s", newProfile.ID, userID, orgID)
+	return newProfile, nil
 }
 
 // updateProfileLinks updates the `links` text[] column for a user's profile.

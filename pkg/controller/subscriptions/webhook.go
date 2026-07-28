@@ -23,7 +23,7 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
-	base.Logger.Info("DEBUG: Webhook body: %s\n", string(body))
+	// base.Logger.Info("DEBUG: Webhook body: %s\n", string(body))
 	var event stripe.Event
 	if err := json.Unmarshal(body, &event); err != nil {
 		base.Logger.Error("Error parsing event: " + err.Error())

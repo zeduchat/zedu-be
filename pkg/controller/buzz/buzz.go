@@ -637,7 +637,7 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	}
 
 	var profile models.Profile
-	err = profile.GetProfileByUserId(base.Db.Postgresql, userID)
+	err = profile.GetProfileByUserId(base.Db.Postgresql, userID, *buzzRecord.OrgID)
 	if err != nil {
 		base.Logger.Error("Failed to get user profile: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to get user profile", err, nil)
@@ -646,7 +646,7 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	}
 
 	var user models.User
-	user, err = user.GetUserByID(base.Db.Postgresql, userID)
+	user, err = user.GetUserByID(base.Db.Postgresql, userID, *buzzRecord.OrgID)
 	if err != nil {
 		base.Logger.Error("Failed to get user: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to get user", err, nil)

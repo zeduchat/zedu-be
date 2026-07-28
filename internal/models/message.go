@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,6 +44,7 @@ type Message struct {
 
 type MessageDocument struct {
 	ID               string            `json:"id,omitempty"`
+	ProfileID        string            `json:"profile_id,omitempty"`
 	Content          string            `json:"message"`
 	OrganisationID   string            `json:"org_id"`
 	ChannelsID       string            `json:"channels_id"`
@@ -69,6 +71,7 @@ type MessageDocument struct {
 
 var MessageMapping = map[string]any{
 	"id":                 map[string]string{"type": "keyword"},
+	"profile_id":         map[string]string{"type": "keyword"},
 	"channels_id":        map[string]string{"type": "keyword"},
 	"user_id":            map[string]string{"type": "keyword"},
 	"org_id":             map[string]string{"type": "keyword"},
@@ -153,6 +156,7 @@ type ForwardThreadMessageRequest struct {
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"` //current channels or DM
+	OrgId      string
 }
 
 type ForwardReplyMessageRequest struct {
@@ -165,6 +169,7 @@ type ForwardReplyMessageRequest struct {
 
 	UserId     string `json:"user_id"`
 	ChannelsId string `json:"channels_id"`
+	OrgId      string
 }
 
 func (m *MessageDocument) CreateMessage(db *storage.Database, logger *utility.Logger) (map[string]any, error) {
@@ -527,6 +532,10 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, ThreadID string) ([]M
 		return nil, pagR, err
 	}
 
+	if storage.DB != nil && storage.DB.Postgresql != nil {
+		messages = HydrateMessageProfiles(storage.DB.Postgresql, messages)
+	}
+
 	return messages, pagR, nil
 }
 
@@ -555,6 +564,68 @@ func UnmarshalMessageResponse(messageData any) (messages []MessageDocument, err 
 	}
 
 	return
+}
+
+func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDocument {
+	if len(messages) == 0 || db == nil {
+		return messages
+	}
+
+	profileIDs := make([]string, 0)
+	userOrgKeys := make(map[string]struct{})
+
+	for _, msg := range messages {
+		if msg.ProfileID != "" {
+			profileIDs = append(profileIDs, msg.ProfileID)
+		} else if msg.UserID != "" && msg.UserID != "WEBHOOK" {
+			userOrgKeys[fmt.Sprintf("%s:%s", msg.UserID, msg.OrganisationID)] = struct{}{}
+		}
+	}
+
+	profileMap := make(map[string]Profile)
+	userOrgMap := make(map[string]Profile)
+
+	if len(profileIDs) > 0 {
+		var profs []Profile
+		if err := db.Where("id IN ?", profileIDs).Find(&profs).Error; err == nil {
+			for _, p := range profs {
+				profileMap[p.ID] = p
+			}
+		}
+	}
+
+	var profModel Profile
+	for key := range userOrgKeys {
+		parts := strings.Split(key, ":")
+		uID, oID := parts[0], parts[1]
+		if p, err := profModel.GetOrCreateProfileForOrg(db, uID, oID); err == nil {
+			userOrgMap[key] = p
+		}
+	}
+
+	for i := range messages {
+		var p Profile
+		var found bool
+
+		if messages[i].ProfileID != "" {
+			p, found = profileMap[messages[i].ProfileID]
+		}
+		if !found && messages[i].UserID != "" && messages[i].UserID != "WEBHOOK" {
+			key := fmt.Sprintf("%s:%s", messages[i].UserID, messages[i].OrganisationID)
+			p, found = userOrgMap[key]
+		}
+
+		if found {
+			messages[i].ProfileID = p.ID
+			messages[i].Username = p.UserName
+			messages[i].FullName = p.FullName
+			if p.AvatarURL != "" {
+				messages[i].AvatarURL = p.AvatarURL
+			}
+		}
+	}
+
+	return messages
 }
 
 func (m *MessageDocument) UpdateMessageUserProfile(logger *utility.Logger, mu *sync.Mutex) error {

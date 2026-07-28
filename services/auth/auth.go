@@ -102,8 +102,9 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		name = strings.Split(email, "@")[0]
 	}
 
+	userID := utility.GenerateUUID()
 	user := models.User{
-		ID:             utility.GenerateUUID(),
+		ID:             userID,
 		Name:           name,
 		Email:          email,
 		Password:       password,
@@ -116,6 +117,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 			FullName:  firstName + " " + lastName,
 			UserName:  name,
 			Phone:     phoneNumber,
+			AvatarURL: avatar.GenerateDefaultAvatarURL(userID),
 		},
 	}
 
@@ -290,6 +292,8 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	}
 
 	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+
+	userData, _ = user.GetUserByID(db, user.ID, org.ID)
 
 	responseData = gin.H{
 		"user": map[string]any{
@@ -491,6 +495,7 @@ func FetchUser(userId string, db *gorm.DB) (gin.H, int, error) {
 	}
 
 	org, _ = org.GetOrgByID(db, userData.CurrentOrg.String())
+	userData, _ = user.GetUserByID(db, user.ID, org.ID)
 
 	responseData = gin.H{
 		"user": map[string]any{

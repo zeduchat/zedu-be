@@ -165,7 +165,7 @@ func broadcastBuzzEventToChannelMembers(db *gorm.DB, logger *utility.Logger, cha
 func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, lastUserJoined *models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
 
 	var user models.User
-	userDetails, userErr := user.GetUserByID(db, buzz.HostID)
+	userDetails, userErr := user.GetUserByID(db, buzz.HostID, *buzz.OrgID)
 
 	if userErr != nil {
 		logger.Error("failed to fetch user details for buzz %s: %v", buzz.ID, userErr)
@@ -625,8 +625,16 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
 		logger.Error("failed to fetch user for join event: %v", err)
 	} else {
-		if err := db.Where("userid = ?", userID).First(&profile).Error; err != nil {
-			logger.Error("failed to fetch profile for join event: %v", err)
+
+		buzzOrgID := ""
+		if buzz.OrgID != nil {
+			buzzOrgID = *buzz.OrgID
+		}
+		var profModel models.Profile
+		var profErr error
+		profile, profErr = profModel.GetOrCreateProfileForOrg(db, userID, buzzOrgID)
+		if profErr != nil {
+			logger.Error("failed to fetch profile for join event: %v", profErr)
 		} else {
 			joinedUsername = profile.UserName
 			if joinedUsername == "" {
@@ -781,7 +789,12 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		return nil, http.StatusInternalServerError, errors.New("failed to fetch user")
 	}
 
-	if err := tx.Where("userid = ?", userID).First(&profile).Error; err != nil {
+	buzzOrgID := ""
+	if buzz.OrgID != nil {
+		buzzOrgID = *buzz.OrgID
+	}
+	var profModel models.Profile
+	if profile, err = profModel.GetOrCreateProfileForOrg(tx, userID, buzzOrgID); err != nil {
 		tx.Rollback()
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, http.StatusNotFound, errors.New("user not found")
@@ -1619,14 +1632,37 @@ func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID stri
 			orgIDStr = *buzz.OrgID
 		}
 
+		channelName := ""
+		if buzz.ChannelID != "" &&
+			buzz.ChannelID != "00000000-0000-0000-0000-000000000000" &&
+			buzzType == models.BuzzListTypeChannel {
+			channel := models.Channels{}
+			err := channel.FetchChannelByID(db, buzz.ChannelID)
+			if err != nil {
+				logger.Error("failed to fetch channel: %v", err)
+			}
+			channelName = channel.Name
+		} else if buzzType == models.BuzzListTypeOrg {
+			channelName = "General"
+		} else {
+			channelName = "DM"
+		}
+
+		status := models.BuzzStatusActive
+
+		if buzz.BuzzEndTime != nil {
+			status = models.BuzzStatusEnded
+		}
+
 		buzzItems = append(buzzItems, models.OrgAllBuzzItem{
 			BuzzID:           buzz.ID,
 			BuzzCode:         utility.ExtractBuzzCode(buzz.ID),
 			ChannelID:        buzz.ChannelID,
 			ChannelType:      buzz.ChannelType,
+			ChannelName:      channelName,
 			HostID:           buzz.HostID,
 			OrgID:            &orgIDStr,
-			Status:           buzz.Status,
+			Status:           status,
 			ParticipantCount: int(participantCount),
 			BuzzType:         buzzType,
 			CreatedAt:        buzz.CreatedAt,
@@ -1654,7 +1690,7 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 		return nil
 	}
 	var user models.User
-	user, userErr := user.GetUserByID(db.Postgresql, hostID)
+	user, userErr := user.GetUserByID(db.Postgresql, hostID, *buzz.OrgID)
 	if userErr != nil {
 		return userErr
 	}

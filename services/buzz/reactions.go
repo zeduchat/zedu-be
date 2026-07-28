@@ -31,8 +31,13 @@ func SendBuzzReaction(db *storage.Database, logger *utility.Logger, req models.S
 	}
 
 	// Fetch user profile for username
-	var profile models.Profile
-	if err := db.Postgresql.Where("userid = ?", userID).First(&profile).Error; err != nil {
+	var profModel models.Profile
+	orgID := ""
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+	profile, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, userID, orgID)
+	if err != nil {
 		logger.Error("failed to fetch user profile: %v", err)
 		return http.StatusInternalServerError, errors.New("failed to fetch user details")
 	}
@@ -71,19 +76,24 @@ func SendBuzzReaction(db *storage.Database, logger *utility.Logger, req models.S
 func UpdateBuzzSticker(db *storage.Database, logger *utility.Logger, req models.BuzzStickerUpdateRequest, userID string) (models.BuzzStickerUpdateResponse, int, error) {
 	var resp models.BuzzStickerUpdateResponse
 
-	// Fetch user profile early to fail fast before any DB writes
-	var profile models.Profile
-	if err := db.Postgresql.Where("userid = ?", userID).First(&profile).Error; err != nil {
-		logger.Error("failed to fetch user profile: %v", err)
-		return resp, http.StatusInternalServerError, errors.New("failed to fetch user details")
-	}
-
 	// Validate that user is an active participant in the buzz
 	buzz, err := permissions.IsBuzzActive(db.Postgresql, req.BuzzID)
 	if err != nil {
 		statusCode, errMsg := mapPermissionError(err, "update sticker")
 		logger.Error("buzz validation failed: %v", err)
 		return resp, statusCode, errors.New(errMsg)
+	}
+
+	// Fetch user profile early to fail fast before any DB writes
+	var profModel models.Profile
+	orgID := ""
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+	profile, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, userID, orgID)
+	if err != nil {
+		logger.Error("failed to fetch user profile: %v", err)
+		return resp, http.StatusInternalServerError, errors.New("failed to fetch user details")
 	}
 
 	var participant models.BuzzParticipant

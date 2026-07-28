@@ -49,9 +49,11 @@ func (base *Controller) PinThreadMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId := userClaims["org_id"].(string)
 
 	req.UserId = userId
 	req.ChannelsId = c.Param("channel_id")
+	req.OrgId = orgId
 
 	if _, err := uuid.Parse(req.ChannelsId); err != nil {
 		base.Logger.Error("Invalid Channel Id format", err)
@@ -98,9 +100,11 @@ func (base *Controller) PinReplyMessage(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	orgId := userClaims["org_id"].(string)
 
 	req.UserId = userId
 	req.ChannelsId = c.Param("channel_id")
+	req.OrgId = orgId
 
 	if req.MessageID == "" {
 		base.Logger.Error("Validation failed", err)

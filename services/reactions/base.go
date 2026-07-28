@@ -197,6 +197,7 @@ func GetReactionUsernames(db *storage.Database, logger *utility.Logger, ids mode
 	react.MessageID = &ids.MessageID
 	react.ReactionID = ids.ReactionID
 	react.Type = ids.Type
+	react.OrgId = ids.OrganisationID
 
 	code, resp, err := react.GetReactionUsernameByID(db.Postgresql)
 

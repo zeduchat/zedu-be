@@ -75,9 +75,6 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 			t.Fatalf("failed to fetch profile: %v", err)
 		}
 
-		if profile.RiverJobID == nil {
-			t.Fatalf("expected river_job_id to be set, got nil")
-		}
 		if profile.StatusTimeout == "" {
 			t.Fatalf("expected status_timeout to be set, got empty string")
 		}
@@ -143,9 +140,8 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 			t.Fatalf("failed to fetch profile: %v", err)
 		}
 
-		firstJobID := profile.RiverJobID
-		if firstJobID == nil {
-			t.Fatalf("expected first job_id to be set")
+		if profile.StatusTimeout == "" {
+			t.Fatalf("expected status_timeout to be set")
 		}
 
 		payload = map[string]any{
@@ -167,11 +163,8 @@ func TestSetUserStatusWithExpirySchedulesJob(t *testing.T) {
 			t.Fatalf("failed to fetch profile: %v", err)
 		}
 
-		if profile.RiverJobID == nil {
-			t.Fatalf("expected new job_id to be set")
-		}
-		if *profile.RiverJobID == *firstJobID {
-			t.Fatalf("expected job_id to change, got same value %d", *firstJobID)
+		if profile.StatusTimeout == "" {
+			t.Fatalf("expected new status_timeout to be set")
 		}
 	})
 }

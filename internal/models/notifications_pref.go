@@ -30,6 +30,7 @@ var (
 	NewMessage                  NotificationType = "new_message"
 	StatusUpdate                NotificationType = "status_update"
 	ProfileStatusUpdated        NotificationType = "profile_status_updated"
+	ProfileUpdated              NotificationType = "profile_updated"
 	UserPresenceChanged         NotificationType = "user_presence_changed"
 	UnReadThreadChange          NotificationType = "unread_thread_change"
 	ChannelMention              NotificationType = "channel_mention"
@@ -165,6 +166,9 @@ var Notification = map[NotificationType]Content{
 	},
 	ProfileStatusUpdated: Content{
 		NotificationType: ProfileStatusUpdated,
+	},
+	ProfileUpdated: Content{
+		NotificationType: ProfileUpdated,
 	},
 	UserPresenceChanged: Content{
 		NotificationType: UserPresenceChanged,

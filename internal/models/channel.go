@@ -316,6 +316,16 @@ func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, erro
 	return channels, nil
 }
 
+func (r *Channels) FetchChannelByID(db *storage.Database, channelId string) error {
+
+	exist := postgresql.CheckExists(db.Postgresql, &r, "id = ?", channelId)
+	if !exist {
+		return errors.New("channel not found")
+	}
+
+	return nil
+}
+
 func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (GetChannelResp, error) {
 	var (
 		channel  Channels
@@ -466,7 +476,7 @@ func (r *Channels) GetChannelsMessages(db *gorm.DB, userID, channelID string) (M
 
 	var err = db.Table("messages").
 		Select("messages.*, profiles.full_name, profiles.user_name, profiles.avatar_url, users.email").
-		Joins("left join profiles on profiles.userid = messages.user_id").
+		Joins("left join profiles on profiles.userid = messages.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", userChannels.OrgId).
 		Joins("left join users on users.id = messages.user_id").
 		Where("messages.channels_id = ?", channelID).
 		Scan(&messagesResp).Error
@@ -1058,7 +1068,8 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 
 		if err := db.Table("user_channels").
 			Select("profiles.avatar_url").
-			Joins("JOIN profiles ON profiles.userid = user_channels.user_id").
+			Joins("JOIN channels ON channels.id = user_channels.channels_id").
+			Joins("JOIN profiles ON profiles.userid = user_channels.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = channels.organisation_id)").
 			Where("user_channels.channels_id = ? AND profiles.avatar_url != ''", chanResp[i].ID).
 			Limit(8).
 			Pluck("profiles.avatar_url", &avatars).Error; err != nil {

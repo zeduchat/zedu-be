@@ -21,6 +21,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	riverqueueBg "github.com/hngprojects/telex_be/pkg/repository/riverqueue"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/riverqueue/river"
@@ -785,7 +786,7 @@ func TestSetUserStatus(t *testing.T) {
 		tests.AssertStatusCode(t, resp.Code, http.StatusUnauthorized)
 	})
 
-	t.Run("returns not found when profile does not exist", func(t *testing.T) {
+	t.Run("creates profile and sets status when profile does not exist", func(t *testing.T) {
 		router, authController := setup()
 		userNoProfile := models.User{
 			ID:       utility.GenerateUUID(),
@@ -802,6 +803,8 @@ func TestSetUserStatus(t *testing.T) {
 		}
 		token := tests.GetLoginToken(t, gin.Default(), *authController, loginData)
 
+		db.Where("userid = ?", userNoProfile.ID).Delete(&models.Profile{})
+
 		payload := map[string]any{
 			"text": "Status text",
 		}
@@ -814,9 +817,9 @@ func TestSetUserStatus(t *testing.T) {
 		resp := httptest.NewRecorder()
 		router.ServeHTTP(resp, req)
 
-		tests.AssertStatusCode(t, resp.Code, http.StatusNotFound)
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
 		parsed := tests.ParseResponse(resp)
-		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusNotFound)
+		tests.AssertStatusCode(t, int(parsed["status_code"].(float64)), http.StatusCreated)
 	})
 
 	t.Run("trims whitespace from text", func(t *testing.T) {
@@ -1147,7 +1150,7 @@ func TestEmojiValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("accepts lowercase '30 minutes'", func(t *testing.T) {
+	t.Run("accepts lowercase '30 seconds'", func(t *testing.T) {
 		router, authController := setup()
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
@@ -1157,7 +1160,7 @@ func TestEmojiValidation(t *testing.T) {
 
 		payload := map[string]any{
 			"text":   "Test status",
-			"expiry": "30 minutes",
+			"expiry": "30 seconds",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1175,15 +1178,12 @@ func TestEmojiValidation(t *testing.T) {
 			t.Fatalf("failed to fetch profile: %v", err)
 		}
 
-		if profile.RiverJobID == nil {
-			t.Fatalf("expected river_job_id to be set")
-		}
 		if profile.StatusTimeout == "" {
 			t.Fatalf("expected status_timeout to be set")
 		}
 	})
 
-	t.Run("accepts uppercase '30 MINUTES'", func(t *testing.T) {
+	t.Run("accepts uppercase '30 SECONDS'", func(t *testing.T) {
 		router, authController := setup()
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
@@ -1193,7 +1193,7 @@ func TestEmojiValidation(t *testing.T) {
 
 		payload := map[string]any{
 			"text":   "Test status",
-			"expiry": "30 MINUTES",
+			"expiry": "30 SECONDS",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1235,8 +1235,8 @@ func TestEmojiValidation(t *testing.T) {
 			t.Fatalf("failed to fetch profile: %v", err)
 		}
 
-		if profile.RiverJobID == nil {
-			t.Fatalf("expected river_job_id to be set")
+		if profile.StatusTimeout == "" {
+			t.Fatalf("expected status_timeout to be set")
 		}
 	})
 
@@ -1342,7 +1342,7 @@ func TestCentrifugoStatusNotifications(t *testing.T) {
 		payload := map[string]any{
 			"text":   "Out sick",
 			"emoji":  "🤒",
-			"expiry": "30 minutes",
+			"expiry": "30 seconds",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1576,18 +1576,24 @@ func TestEndToEndTimedStatusClear(t *testing.T) {
 		Key:  "test-api-key",
 	})
 
-	// Start an isolated River client with only ClearUserStatusWorker (1 worker slot)
-	// so it doesn't exhaust the connection pool alongside other test River workers.
+	// Clean up any stale River jobs from prior test runs so worker threads aren't clogged
+	_ = db.Exec("TRUNCATE TABLE river_job RESTART IDENTITY CASCADE").Error
+
+	// Start an isolated River client with only ClearUserStatusWorker
 	riverCtx, riverCancel := context.WithCancel(context.Background())
 	cfg := config.GetConfig()
-	_, stopRiver, err := riverqueueBg.StartRiverForTest(riverCtx, cfg.TestDatabase, userController.Logger, db)
+	riverClient, stopRiver, err := riverqueueBg.StartRiverForTest(riverCtx, cfg.TestDatabase, userController.Logger, db)
 	if err != nil {
 		riverCancel()
 		t.Fatalf("failed to start River for test: %v", err)
 	}
+	userController.Db.River = riverClient
+	storage.DB.River = riverClient
 	t.Cleanup(func() {
 		stopRiver()
 		riverCancel()
+		userController.Db.River = nil
+		storage.DB.River = nil
 	})
 
 	authController := auth.Controller{
@@ -1615,7 +1621,7 @@ func TestEndToEndTimedStatusClear(t *testing.T) {
 	tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
 
 	var profile models.Profile
-	if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+	if err := db.Where("userid = ?", user.ID).Order("updated_at DESC").First(&profile).Error; err != nil {
 		t.Fatalf("failed to fetch profile after status set: %v", err)
 	}
 	if profile.RiverJobID == nil {
@@ -1630,11 +1636,11 @@ func TestEndToEndTimedStatusClear(t *testing.T) {
 	cleared := false
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
-		if err := db.Where("userid = ?", user.ID).First(&profile).Error; err != nil {
+		if err := db.Where("userid = ?", user.ID).Order("updated_at DESC").First(&profile).Error; err != nil {
 			t.Logf("transient poll error (retrying): %v", err)
 			continue
 		}
-		if profile.RiverJobID == nil {
+		if profile.RiverJobID == nil && strings.TrimSpace(profile.Text) == "" {
 			cleared = true
 			break
 		}

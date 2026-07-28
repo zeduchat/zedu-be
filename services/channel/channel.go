@@ -55,7 +55,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		return newchannel, http.StatusBadRequest, err
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId)
+	err = profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrganisationID)
 	if err != nil {
 		return channel, http.StatusInternalServerError, fmt.Errorf("failed to get profile: %v", err)
 	}
@@ -207,7 +207,7 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 	}
 
 	var user models.User
-	userDetails, _ := user.GetUserByID(db.Postgresql, user_id)
+	userDetails, _ := user.GetUserByID(db.Postgresql, user_id, chanResp.OrganisationID)
 
 	systemMsg := models.CreateThreadMsgReq{
 		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> left #%s</p><p></p>", user_id, userDetails.Profile.UserName, userDetails.Profile.UserName, chanResp.Name),
@@ -406,7 +406,7 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 	)
 
 	for _, userId := range validUserIds {
-		userDetails, err := user.GetUserByID(db.Postgresql, userId)
+		userDetails, err := user.GetUserByID(db.Postgresql, userId, ch.OrganisationID)
 		if err != nil {
 			logger.Error("Failed to get user %s username", userId)
 			continue
@@ -483,7 +483,7 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 	)
 
 	for _, userId := range removedUserIds {
-		userDetails, err := user.GetUserByID(db.Postgresql, userId)
+		userDetails, err := user.GetUserByID(db.Postgresql, userId, ch.OrganisationID)
 		if err != nil {
 			logger.Error("Failed to get user %s username", userId)
 			continue

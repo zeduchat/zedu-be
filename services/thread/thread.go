@@ -464,7 +464,7 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
-	user, err = user.GetUserByID(db, userID)
+	user, err = user.GetUserByID(db, userID, req.OrgId)
 
 	if err != nil {
 		return threadResp, http.StatusBadRequest, errors.New("failed to get user")
