@@ -61,7 +61,7 @@ func mapPermissionError(err error, action string) (int, string) {
 }
 
 // getParticipantsMetadata fetches detailed metadata for all participants in a buzz
-func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMetadata, error) {
+func getParticipantsMetadata(db *gorm.DB, buzzID, orgId string) ([]models.ParticipantMetadata, error) {
 	var participants []models.ParticipantMetadata
 
 	query := `
@@ -86,12 +86,12 @@ func getParticipantsMetadata(db *gorm.DB, buzzID string) ([]models.ParticipantMe
 			bp.media_state
 		FROM buzz_participants bp
 		JOIN users u ON bp.user_id = u.id
-		LEFT JOIN profiles p ON u.id = p.userid
+		LEFT JOIN profiles p ON u.id = p.userid AND (p.organisation_id IS NULL OR p.organisation_id = ?)
 		WHERE bp.buzz_id = ? AND bp.status != 'left'
 		ORDER BY bp.joined_at ASC
 	`
 
-	if err := db.Raw(query, buzzID).Scan(&participants).Error; err != nil {
+	if err := db.Raw(query, orgId, buzzID).Scan(&participants).Error; err != nil {
 		return nil, err
 	}
 
@@ -255,7 +255,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	if err == nil {
 		logger.Info("active buzz already exists in channel %s, joining user %s", channelID, hostID)
 
-		joinResp, code, err := JoinBuzz(db, logger, existingBuzz.ID, hostID)
+		joinResp, code, err := JoinBuzz(db, logger, existingBuzz.ID, hostID, req.OrgID)
 		if err != nil {
 			logger.Error("failed to join existing buzz: %v", err)
 			return resp, code, err
@@ -316,6 +316,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 		Status:         models.BuzzStatusActive,
 		CreatedAt:      now,
 		UpdatedAt:      now,
+		OrgID:          &req.OrgID,
 	}
 
 	// Generate Agora token BEFORE creating buzz in database (using hostID as UID)
@@ -364,7 +365,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 	}
 
 	// Fetch participant metadata
-	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID, req.OrgID)
 	if err != nil {
 		logger.Error("failed to fetch participant metadata: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
@@ -425,7 +426,7 @@ func CreateBuzz(db *storage.Database, logger *utility.Logger, req models.CreateB
 }
 
 // JoinBuzz allows a user to join an existing buzz
-func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.JoinBuzzResponse, int, error) {
+func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID, orgID string) (models.JoinBuzzResponse, int, error) {
 	var resp models.JoinBuzzResponse
 
 	logger.Info("user %s attempting to join buzz %s", userID, buzzID)
@@ -526,7 +527,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 	}
 
 	// Fetch participant metadata
-	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant metadata: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
@@ -554,7 +555,7 @@ func JoinBuzz(db *storage.Database, logger *utility.Logger, buzzID string, userI
 		IsRecording:     isRecording,
 		RecordingStatus: recordingStatus,
 	}
-	publishJoinBuzzEvent(logger, buzz, timestamp, db.Postgresql, userID)
+	publishJoinBuzzEvent(logger, buzz, timestamp, db.Postgresql, userID, orgID)
 
 	logger.Info("user %s successfully joined buzz %s", userID, buzzID)
 	return resp, http.StatusOK, nil
@@ -615,7 +616,7 @@ func addUserToBuzzTransaction(db *storage.Database, logger *utility.Logger, buzz
 	return nil
 }
 
-func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp time.Time, db *gorm.DB, userID string) {
+func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp time.Time, db *gorm.DB, userID, orgID string) {
 	var (
 		joinedUsername string
 		joinedUser     = models.ParticipantDetails{}
@@ -625,14 +626,9 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
 		logger.Error("failed to fetch user for join event: %v", err)
 	} else {
-
-		buzzOrgID := ""
-		if buzz.OrgID != nil {
-			buzzOrgID = *buzz.OrgID
-		}
 		var profModel models.Profile
 		var profErr error
-		profile, profErr = profModel.GetOrCreateProfileForOrg(db, userID, buzzOrgID)
+		profile, profErr = profModel.GetOrCreateProfileForOrg(db, userID, orgID)
 		if profErr != nil {
 			logger.Error("failed to fetch profile for join event: %v", profErr)
 		} else {
@@ -655,7 +651,7 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 		}
 	}
 
-	participantDetails, err := getParticipantsMetadata(db, buzz.ID)
+	participantDetails, err := getParticipantsMetadata(db, buzz.ID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant details for join event: %v", err)
 		participantDetails = []models.ParticipantMetadata{}
@@ -704,7 +700,7 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 	}
 }
 
-func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID string) (*models.BuzzLeaveResponse, int, error) {
+func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID, orgID string) (*models.BuzzLeaveResponse, int, error) {
 	var (
 		profile   models.Profile
 		newHostID = ""
@@ -826,7 +822,7 @@ func LeaveBuzz(db *storage.Database, logger *utility.Logger, buzzID, userID stri
 		userLeft.CallRole = "receiver"
 	}
 
-	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzzID)
+	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzzID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant details for leave event: %v", err)
 		participantDetails = []models.ParticipantMetadata{}
@@ -1141,7 +1137,7 @@ func EndBuzzByChannel(db *storage.Database, logger *utility.Logger, channelID, u
 
 // GetBuzzMetadata returns metadata for a buzz including participants information
 // Accessible to all channel members (not just buzz participants)
-func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string, userID string) (models.BuzzMetadataResponse, int, error) {
+func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID, userID, orgID string) (models.BuzzMetadataResponse, int, error) {
 	var resp models.BuzzMetadataResponse
 
 	logger.Info("fetching metadata for buzz %s by user %s", buzzID, userID)
@@ -1166,7 +1162,7 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 	}
 
 	// Fetch participant metadata
-	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID)
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzzID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant metadata: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
@@ -1230,7 +1226,7 @@ func GetBuzzMetadata(db *storage.Database, logger *utility.Logger, buzzID string
 // GetChannelActiveBuzzIndicator returns whether a channel has an active buzz with participant preview
 // Returns indicator info plus participant count and a preview of first few names
 // Also checks if the requesting user is in the buzz (for member verification)
-func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID, userID string) (models.ActiveBuzzIndicator, int, error) {
+func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger, channelID, userID, orgID string) (models.ActiveBuzzIndicator, int, error) {
 	var resp models.ActiveBuzzIndicator
 
 	logger.Info("checking for active buzz in channel %s", channelID)
@@ -1255,7 +1251,7 @@ func GetChannelActiveBuzzIndicator(db *storage.Database, logger *utility.Logger,
 	}
 
 	// Active buzz found - fetch participant metadata for preview
-	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant metadata for indicator: %v", err)
 		// Don't fail the entire request, just return without participant preview
@@ -1503,7 +1499,7 @@ func CreateOrgBuzz(db *storage.Database, logger *utility.Logger, hostID string, 
 		return resp, http.StatusInternalServerError, errors.New("failed to create buzz")
 	}
 
-	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	participantMetadata, err := getParticipantsMetadata(db.Postgresql, buzz.ID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant metadata: %v", err)
 		return resp, http.StatusInternalServerError, errors.New("failed to fetch participant details")
@@ -1601,6 +1597,30 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 	return resp, http.StatusOK, nil
 }
 
+func DetermineBuzzStatus(buzz *models.Buzz) string {
+	if buzz.Status == models.BuzzStatusEnded {
+		return models.BuzzStatusEnded
+	}
+
+	now := time.Now().UTC()
+	if buzz.BuzzEndTime != nil {
+		if now.After(*buzz.BuzzEndTime) {
+			return models.BuzzStatusEnded
+		}
+	} else {
+		startTime := buzz.BuzzStartTime
+		if startTime.IsZero() {
+			startTime = buzz.CreatedAt
+		}
+		capEndTime := startTime.Add(time.Duration(DefaultBuzzDurationMinutes) * time.Minute)
+		if now.After(capEndTime) {
+			return models.BuzzStatusEnded
+		}
+	}
+
+	return buzz.Status
+}
+
 func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string, orgID string, pagination postgresql.Pagination) ([]models.OrgAllBuzzItem, postgresql.PaginationResponse, int, error) {
 	logger.Info("fetching all org and channel/DM buzzes for user %s in org %s", userID, orgID)
 
@@ -1648,11 +1668,7 @@ func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID stri
 			channelName = "DM"
 		}
 
-		status := models.BuzzStatusActive
-
-		if buzz.BuzzEndTime != nil {
-			status = models.BuzzStatusEnded
-		}
+		status := DetermineBuzzStatus(&buzz)
 
 		buzzItems = append(buzzItems, models.OrgAllBuzzItem{
 			BuzzID:           buzz.ID,
@@ -1737,7 +1753,7 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 	return nil
 }
 
-func MuteParticipants(db *storage.Database, logger *utility.Logger, buzzID, userID string) (int, error) {
+func MuteParticipants(db *storage.Database, logger *utility.Logger, buzzID, userID, orgID string) (int, error) {
 
 	buzz, err := permissions.CanPerformHostAction(db.Postgresql, buzzID, userID)
 	if err != nil {
@@ -1757,7 +1773,7 @@ func MuteParticipants(db *storage.Database, logger *utility.Logger, buzzID, user
 
 	timestamp := time.Now().UTC()
 
-	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzz.ID)
+	participantDetails, err := getParticipantsMetadata(db.Postgresql, buzz.ID, orgID)
 	if err != nil {
 		logger.Error("failed to fetch participant details for mute event: %v", err)
 		participantDetails = []models.ParticipantMetadata{}

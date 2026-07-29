@@ -94,6 +94,7 @@ type BuzzParticipant struct {
 type CreateBuzzRequest struct {
 	ChannelID     string  `json:"channel_id" validate:"omitempty,uuid"`
 	ParticipantID *string `json:"participant_id" validate:"omitempty,uuid"`
+	OrgID         string  `json:"org_id"`
 }
 
 // ParticipantMetadata contains detailed information about a buzz participant
@@ -239,7 +240,7 @@ func IsUserInChannel(db *gorm.DB, channelID, userID string) bool {
 
 type BuzzEventPayload struct {
 	Event              string               `json:"event"`
-	BuzzID             string               `json:"buzz_id"`	
+	BuzzID             string               `json:"buzz_id"`
 	ChannelID          string               `json:"channel_id"`
 	HostID             string               `json:"host_id"`
 	ParticipantIDs     []string             `json:"participant_ids,omitempty"`
@@ -643,7 +644,7 @@ type OrgAllBuzzItem struct {
 	CreatedAt        time.Time  `json:"created_at"`
 	StartedAt        time.Time  `json:"started_at"`
 	EndedAt          *time.Time `json:"ended_at,omitempty"`
-	ChannelName 	 string    `json:"channel_name"`
+	ChannelName      string     `json:"channel_name"`
 }
 
 type OrgAllBuzzListResponse struct {

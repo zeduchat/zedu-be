@@ -25,7 +25,7 @@ fix-dirty:
 		PREV_VERSION=$$((VERSION - 1)); \
 		echo "Dirty state detected. Forcing to version $$PREV_VERSION"; \
 		make migrate-force version=$$PREV_VERSION; \
-		make migrate-down; \
+# 		make migrate-down; \
 	else \
 		echo "Migration state is clean. No action needed."; \
 	fi

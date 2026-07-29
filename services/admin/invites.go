@@ -248,7 +248,7 @@ func getTopInviters(db *gorm.DB, limit int) []TopInviter {
 	db.Table("users").
 		Select("users.id, users.name, users.email, profiles.avatar_url, COALESCE(COUNT(invitations.id), 0) as referrals").
 		Joins("LEFT JOIN invitations ON invitations.invited_by = users.id").
-		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organization_id is NULL OR profiles.organization_id = invitations.organization_id)").
+		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id is NULL OR profiles.organisation_id = invitations.organisation_id)").
 		Where("users.deleted_at IS NULL").
 		Group("users.id, profiles.avatar_url").
 		Order("referrals desc").

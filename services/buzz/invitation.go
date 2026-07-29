@@ -343,7 +343,7 @@ func RespondToInvitation(db *storage.Database, logger *utility.Logger, req model
 			}
 		}
 
-		joinResp, statusCode, err := JoinBuzz(db, logger, invitation.BuzzID, userID)
+		joinResp, statusCode, err := JoinBuzz(db, logger, invitation.BuzzID, userID, invitation.OrgID)
 		if err != nil {
 			logger.Error("failed to join buzz after accepting invitation: %v", err)
 			return resp, statusCode, err
