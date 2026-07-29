@@ -38,6 +38,14 @@ func (base *Controller) Create(c *gin.Context) {
 		return
 	}
 
+	orgId, err := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	if err != nil {
+		base.Logger.Info("unable to fetch organization claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "authentication required", err, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Info("error parsing buzz request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
@@ -52,6 +60,7 @@ func (base *Controller) Create(c *gin.Context) {
 		return
 	}
 
+	req.OrgID = orgId.(string)
 	resp, code, err := buzz.CreateBuzz(base.Db, base.Logger, req, userID.(string))
 	if err != nil {
 		base.Logger.Error("failed to create buzz: %v", err)
@@ -91,7 +100,10 @@ func (base *Controller) Join(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := buzz.JoinBuzz(base.Db, base.Logger, buzzID, userID.(string))
+	orgIDClaim, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+
+	resp, code, err := buzz.JoinBuzz(base.Db, base.Logger, buzzID, userID.(string), orgID)
 	if err != nil {
 		base.Logger.Error("failed to join buzz: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -176,7 +188,10 @@ func (base *Controller) LeaveBuzz(c *gin.Context) {
 		return
 	}
 
-	data, statusCode, err := buzz.LeaveBuzz(base.Db, base.Logger, buzzID, userID)
+	orgIDClaim, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+
+	data, statusCode, err := buzz.LeaveBuzz(base.Db, base.Logger, buzzID, userID, orgID)
 
 	if err != nil {
 		base.Logger.Error("Failed to leave buzz: %v", err)
@@ -309,7 +324,10 @@ func (base *Controller) GetMetadata(c *gin.Context) {
 		return
 	}
 
-	data, statusCode, err := buzz.GetBuzzMetadata(base.Db, base.Logger, buzzID, userID)
+	orgIDClaim, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+
+	data, statusCode, err := buzz.GetBuzzMetadata(base.Db, base.Logger, buzzID, userID, orgID)
 
 	if err != nil {
 		base.Logger.Error("Failed to fetch buzz metadata: %v", err)
@@ -353,7 +371,10 @@ func (base *Controller) getActiveBuzzForChannel(c *gin.Context, paramName, chann
 		return
 	}
 
-	data, statusCode, err := buzz.GetChannelActiveBuzzIndicator(base.Db, base.Logger, channelID, userID.(string))
+	orgIDClaim, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+
+	data, statusCode, err := buzz.GetChannelActiveBuzzIndicator(base.Db, base.Logger, channelID, userID.(string), orgID)
 
 	if err != nil {
 		base.Logger.Error("Failed to fetch active buzz indicator: %v", err)
@@ -605,6 +626,7 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 	}
 	userClaims := claims.(jwt.MapClaims)
 	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
 
 	var buzzRecord models.Buzz
 	if err := base.Db.Postgresql.Where("id = ?", buzzID).First(&buzzRecord).Error; err != nil {
@@ -636,15 +658,6 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 		return
 	}
 
-	var profile models.Profile
-	err = profile.GetProfileByUserId(base.Db.Postgresql, userID, *buzzRecord.OrgID)
-	if err != nil {
-		base.Logger.Error("Failed to get user profile: " + err.Error())
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to get user profile", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
 	var user models.User
 	user, err = user.GetUserByID(base.Db.Postgresql, userID, *buzzRecord.OrgID)
 	if err != nil {
@@ -654,10 +667,7 @@ func (base *Controller) SendBuzzMessage(c *gin.Context) {
 		return
 	}
 
-	orgID := ""
-	if buzzRecord.OrgID != nil {
-		orgID = *buzzRecord.OrgID
-	}
+	profile := user.Profile
 
 	feed := models.FeedMessageRequest{
 		ChannelID:        buzzRecord.ChannelID,
@@ -726,7 +736,10 @@ func (base *Controller) MuteParticipants(c *gin.Context) {
 		return
 	}
 
-	code, err := buzz.MuteParticipants(base.Db, base.Logger, buzzID, userID)
+	orgIDClaim, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+
+	code, err := buzz.MuteParticipants(base.Db, base.Logger, buzzID, userID, orgID)
 	if err != nil {
 		base.Logger.Error("failed to mute participants: %v", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
