@@ -1597,6 +1597,30 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 	return resp, http.StatusOK, nil
 }
 
+func DetermineBuzzStatus(buzz *models.Buzz) string {
+	if buzz.Status == models.BuzzStatusEnded {
+		return models.BuzzStatusEnded
+	}
+
+	now := time.Now().UTC()
+	if buzz.BuzzEndTime != nil {
+		if now.After(*buzz.BuzzEndTime) {
+			return models.BuzzStatusEnded
+		}
+	} else {
+		startTime := buzz.BuzzStartTime
+		if startTime.IsZero() {
+			startTime = buzz.CreatedAt
+		}
+		capEndTime := startTime.Add(time.Duration(DefaultBuzzDurationMinutes) * time.Minute)
+		if now.After(capEndTime) {
+			return models.BuzzStatusEnded
+		}
+	}
+
+	return buzz.Status
+}
+
 func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string, orgID string, pagination postgresql.Pagination) ([]models.OrgAllBuzzItem, postgresql.PaginationResponse, int, error) {
 	logger.Info("fetching all org and channel/DM buzzes for user %s in org %s", userID, orgID)
 
@@ -1644,11 +1668,7 @@ func GetAllOrgBuzzList(db *storage.Database, logger *utility.Logger, userID stri
 			channelName = "DM"
 		}
 
-		status := models.BuzzStatusActive
-
-		if buzz.BuzzEndTime != nil {
-			status = models.BuzzStatusEnded
-		}
+		status := DetermineBuzzStatus(&buzz)
 
 		buzzItems = append(buzzItems, models.OrgAllBuzzItem{
 			BuzzID:           buzz.ID,
