@@ -16,6 +16,7 @@ import (
 type NotificationType string
 type SectionType string
 type ChannelType string
+type TriggerAction string
 
 var (
 	Updated                     NotificationType = "updated"
@@ -69,6 +70,9 @@ var (
 	DMChannel                   ChannelType      = "dm_channel"
 	GroupDMChannel              ChannelType      = "group_dm_channel"
 	ThreadChannel               ChannelType      = "thread_channel"
+	JoinedChannel               TriggerAction    = "joined"
+	CreateChannel               TriggerAction    = "create"
+	LeaveChannel                TriggerAction    = "leave"
 )
 
 type Content struct {
@@ -114,9 +118,9 @@ type ToolCallNotification struct {
 }
 
 type TriggerNotificationPayload struct {
-	TriggerAction   string `json:"trigger_action"`
-	TargetComponent string `json:"target_component,omitempty"`
-	Data            any    `json:"data,omitempty"`
+	TriggerAction   TriggerAction `json:"trigger_action"`
+	TargetComponent string        `json:"target_component,omitempty"`
+	Data            any           `json:"data,omitempty"`
 }
 
 var Notification = map[NotificationType]Content{

@@ -364,7 +364,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 				ChannelId: req.ChannelsID,
 			}
 			triggerNotif.Content = models.TriggerNotificationPayload{
-				TriggerAction: "create",
+				TriggerAction: models.CreateChannel,
 			}
 			triggerNotif.NotificationId = utility.GenerateUUID()
 
