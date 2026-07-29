@@ -184,7 +184,7 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 		UserId:    req.UserID,
 	}
 	triggerNotif.Content = models.TriggerNotificationPayload{
-		TriggerAction: "create",
+		TriggerAction: models.JoinedChannel,
 	}
 	triggerNotif.NotificationId = utility.GenerateUUID()
 
@@ -233,6 +233,20 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
+
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.ChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     channel.OrganisationID,
+		ChannelId: channel.ID,
+		UserId:    user_id,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: models.LeaveChannel,
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", channel.OrganisationID, user_id), triggerNotif)
 
 	return http.StatusOK, nil
 
@@ -380,7 +394,7 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 		UserId:    req.UserID,
 	}
 	triggerNotif.Content = models.TriggerNotificationPayload{
-		TriggerAction: "create",
+		TriggerAction: models.JoinedChannel,
 	}
 	triggerNotif.NotificationId = utility.GenerateUUID()
 
@@ -455,13 +469,21 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		ChannelId: ch.ID,
 	}
 	triggerNotif.Content = models.TriggerNotificationPayload{
-		TriggerAction: "create",
+		TriggerAction: models.JoinedChannel,
 	}
 	triggerNotif.NotificationId = utility.GenerateUUID()
+	channelIds := []string{}
 
 	for _, uID := range validUserIds {
-		centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", ch.OrganisationID, uID), triggerNotif)
+		channelIds = append(channelIds, fmt.Sprintf("%s/%s", ch.OrganisationID, uID))
 	}
+
+	err = centrifuge.BatchBroadcastToChannel(logger, channelIds, triggerNotif)
+	if err != nil {
+		logger.Error("failed to batch broadcast user joins, %s, %v", ch.Name, err.Error())
+	}
+
+	logger.Info("Batch broadcasted user joins to channel %s", ch.Name)
 
 	return nil
 }
@@ -524,8 +546,31 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 	if _, err := thread.SaveThreadMessage(systemMsg, db, logger); err != nil {
 		logger.Error("failed to save system message for channel %s", ch.Name)
 	}
-
 	logger.Info("Added system message for users leaving the channel")
+
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.ChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     ch.OrganisationID,
+		ChannelId: ch.ID,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: models.LeaveChannel,
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+	channelIds := []string{}
+
+	for _, uID := range removedUserIds {
+		channelIds = append(channelIds, fmt.Sprintf("%s/%s", ch.OrganisationID, uID))
+	}
+
+	err = centrifuge.BatchBroadcastToChannel(logger, channelIds, triggerNotif)
+	if err != nil {
+		logger.Error("failed to batch broadcast user leaves, %s, %v", ch.Name, err.Error())
+	}
+
+	logger.Info("Batch broadcasted user leaves to channel %s", ch.Name)
+
 	return nil
 }
 
