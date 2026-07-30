@@ -23,7 +23,7 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		var (
 			tokenStr     string
 			access_token models.AccessToken
-			oum          models.OrgUserManagement
+			// oum          models.OrgUserManagement
 		)
 
 		bearerToken := c.GetHeader("Authorization")
@@ -82,25 +82,25 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 
 		}
 
-		ids := models.IDS{
-			OrganisationID: org_id,
-			UserID:         userID,
-		}
+		// ids := models.IDS{
+		// 	OrganisationID: org_id,
+		// 	UserID:         userID,
+		// }
 
-		if oum.CheckIsUserDeactivated(db, ids) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "User is deactivated from organisation", "Unauthorized", nil))
-			return
-		}
+		// if oum.CheckIsUserDeactivated(db, ids) {
+		// 	c.AbortWithStatusJSON(http.StatusUnauthorized, utility.BuildErrorResponse(http.StatusUnauthorized, "error", "User is deactivated from organisation", "Unauthorized", nil))
+		// 	return
+		// }
 
 		// Always resolve role_id from OrgUserManagement for the current org.
 		// The JWT's role_id may be stale (e.g., role deleted, org switched)
 		// so the DB is always authoritative.
-		{
-			var membership models.OrgUserManagement
-			if err := db.Where("user_id = ? AND organisation_id = ?", userID, org_id).First(&membership).Error; err == nil && membership.RoleID != "" {
-				claims["role_id"] = membership.RoleID
-			}
-		}
+		// {
+		// 	var membership models.OrgUserManagement
+		// 	if err := db.Where("user_id = ? AND organisation_id = ?", userID, org_id).First(&membership).Error; err == nil && membership.RoleID != "" {
+		// 		claims["role_id"] = membership.RoleID
+		// 	}
+		// }
 
 		// check if access id exists and fetch it
 		accessID, ok := claims["access_uuid"].(string) //convert the interface to string
@@ -127,14 +127,14 @@ func Authorize(db *gorm.DB) gin.HandlerFunc {
 		// call the next handler
 		c.Next()
 
-		if userID != "" {
-			// Update last_activity_at to now and set last_activity_started_at to now only if the previous
-			// last_activity_at is null or older than the inactivity threshold (30 minutes)
-			_ = db.Exec(
-				"UPDATE users SET last_activity_at = now(), last_activity_started_at = CASE WHEN last_activity_at IS NULL OR last_activity_at < now() - interval '30 minutes' THEN now() ELSE last_activity_started_at END WHERE id = ?",
-				userID,
-			).Error
-		}
+		// if userID != "" {
+		// 	// Update last_activity_at to now and set last_activity_started_at to now only if the previous
+		// 	// last_activity_at is null or older than the inactivity threshold (30 minutes)
+		// 	_ = db.Exec(
+		// 		"UPDATE users SET last_activity_at = now(), last_activity_started_at = CASE WHEN last_activity_at IS NULL OR last_activity_at < now() - interval '30 minutes' THEN now() ELSE last_activity_started_at END WHERE id = ?",
+		// 		userID,
+		// 	).Error
+		// }
 
 	}
 }
