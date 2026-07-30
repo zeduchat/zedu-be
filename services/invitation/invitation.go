@@ -87,15 +87,19 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
 	}
 
+	committed := false
 	defer func() {
-		if r := recover(); r != nil {
+		if !committed {
 			tx.Rollback()
+		}
+		if r := recover(); r != nil {
 			logger.Error("transaction failed", fmt.Errorf("%v", r))
 		}
 	}()
 
 	code, err := addToOrg.AddUserToOrganisation(tx)
 	if err != nil {
+		logger.Error("unable to add user to organisation", err)
 		return "", code, fmt.Errorf("unable to add user to organisation: %s", err)
 	}
 
@@ -116,6 +120,7 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 		logger.Error("transaction commit failed", err)
 		return "", http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %s", err)
 	}
+	committed = true
 
 	userData, err := user.GetUserByID(db.Postgresql, userID, invite.OrganisationID)
 	if err != nil {

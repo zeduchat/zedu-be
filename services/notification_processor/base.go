@@ -100,6 +100,17 @@ func ProcessNotification(req Job, logger *utility.Logger) error {
 	return nil
 }
 
+func resolveMessageContent(feed models.FeedMessageRequest) string {
+	msg := stripHTMLTags(feed.Content)
+	if msg != "" {
+		return msg
+	}
+	if len(feed.Media) > 0 {
+		return models.BuildPreviewMessage(feed.Content, feed.Media)
+	}
+	return ""
+}
+
 func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
 
 	var (
@@ -148,12 +159,14 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 	// Push fcm notification to channel users
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
 
+	msgText := resolveMessageContent(feed)
+
 	pushReq := models.PushRequest{
 		ChannelId:   channelId,
 		OrgId:       orgId,
 		ChannelName: feed.ChannelName,
 		UserIds:     filteredUserIDs,
-		Message:     stripHTMLTags(feed.Content),
+		Message:     msgText,
 		UserId:      userId,
 		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
 		Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
@@ -164,7 +177,8 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 			"sender_name":       feed.UserName,
 			"sender_id":         feed.UserId,
 			"avatar_url":        feed.AvatarURL,
-			"content":           stripHTMLTags(feed.Content),
+			"content":           msgText,
+			"type":              feed.Type,
 			"event":             "new_message",
 			"notification_type": "channel",
 			"section":           notifPayload.Notification.SectionType,
@@ -191,6 +205,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 	)
 
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
+	msgText := resolveMessageContent(feed)
 
 	typeCall := map[models.ChannelType]func() error{
 		models.DMChannel: func() error {
@@ -219,7 +234,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				OrgId:       orgId,
 				ChannelName: feed.ChannelName,
 				UserId:      channelId,
-				Message:     stripHTMLTags(feed.Content),
+				Message:     msgText,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       feed.ChannelName,
@@ -230,7 +245,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"sender_name":       feed.UserName,
 					"sender_id":         feed.UserId,
 					"avatar_url":        feed.AvatarURL,
-					"content":           stripHTMLTags(feed.Content),
+					"content":           msgText,
+					"type":              feed.Type,
 					"event":             "new_message",
 					"notification_type": "dm",
 					"section":           notifPayload.Notification.SectionType,
@@ -295,7 +311,7 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 				OrgId:       orgId,
 				UserIds:     filteredUserIDs,
 				ChannelName: feed.ChannelName,
-				Message:     stripHTMLTags(feed.Content),
+				Message:     msgText,
 				TimeStamp:   feed.CreatedAt,
 				AvatarUrl:   feed.AvatarURL,
 				Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
@@ -306,7 +322,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"sender_name":       feed.UserName,
 					"sender_id":         feed.UserId,
 					"avatar_url":        feed.AvatarURL,
-					"content":           stripHTMLTags(feed.Content),
+					"content":           msgText,
+					"type":              feed.Type,
 					"event":             "new_message",
 					"notification_type": "group_dm",
 					"section":           notifPayload.Notification.SectionType,
