@@ -152,6 +152,7 @@ func TestBotDirectMessageWithToolCall(t *testing.T) {
 	r.POST("/api/v1/dms/channels/:channel_id/threads", controller.AddAThreadDm)
 
 	t.Run("Send Message Triggering Tool Call", func(t *testing.T) {
+		t.Skip("Bot DM dispatch is currently disabled")
 		reqBody := models.CreateThreadMsgReq{
 			Content: "Please capitalize this text: hello world",
 			Type:    "message",

@@ -258,9 +258,17 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 	if tx.Error != nil {
 		return tx.Error, http.StatusInternalServerError
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	if err := ValidateAgentIDs(tx, wf.OrgId, []string{wf.AgentId}); err != nil {
-		tx.Rollback()
 		return err, http.StatusBadRequest
 	}
 
@@ -272,18 +280,15 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 		if err == gorm.ErrRecordNotFound {
 			wf.WorkflowId = utility.GenerateUUID()
 			if err := tx.Create(&wf).Error; err != nil {
-				tx.Rollback()
 				return err, http.StatusInternalServerError
 			}
 		} else {
-			tx.Rollback()
 			return err, http.StatusInternalServerError
 		}
 	} else {
 		if err := tx.Unscoped().
 			Where("workflow_id = ?", existing.WorkflowId).
 			Delete(&WorkflowNode{}).Error; err != nil {
-			tx.Rollback()
 			return fmt.Errorf("failed to delete existing workflow nodes: %w", err),
 				http.StatusInternalServerError
 		}
@@ -292,7 +297,6 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 		existing.Name = wf.Name
 
 		if err := tx.Save(&existing).Error; err != nil {
-			tx.Rollback()
 			return err, http.StatusInternalServerError
 		}
 
@@ -304,6 +308,7 @@ func (wf *AgentWorkflow) CreateAgentWorkflow(db *gorm.DB) (error, int) {
 		return fmt.Errorf("failed to commit transaction: %w", err),
 			http.StatusInternalServerError
 	}
+	committed = true
 
 	return nil, http.StatusOK
 }

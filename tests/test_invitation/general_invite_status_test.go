@@ -2,6 +2,7 @@ package test_invitation
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,6 +26,18 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func ensureRedisAvailable(t *testing.T, db *storage.Database) {
+	t.Helper()
+	if db == nil || db.Redis == nil {
+		t.Skip("Redis client is not available; skipping permission test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := db.Redis.Ping(ctx).Err(); err != nil {
+		t.Skipf("Redis connection ping failed (%v); skipping permission test", err)
+	}
+}
+
 // setupOrgWithGeneralInvite creates a user, org, and a general (shareable) invite.
 // Returns orgID, userToken, roleID.
 func setupOrgWithGeneralInvite(t *testing.T) (string, string, string) {
@@ -35,6 +48,7 @@ func setupOrgWithGeneralInvite(t *testing.T) (string, string, string) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
+	ensureRedisAvailable(t, db)
 	ensurePermissionSeeded(t, db)
 
 	uuid := utility.GenerateUUID()
