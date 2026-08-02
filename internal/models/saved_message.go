@@ -315,12 +315,12 @@ func (m *SavedMessage) DeleteSavedMessagesByChannelID(db *gorm.DB, channelID, us
 		savedMessage SavedMessage
 	)
 
-	idExists := postgresql.CheckExists(db, &savedMessage, "channels_id = ? AND user_id", channelID, userID)
+	idExists := postgresql.CheckExists(db, &savedMessage, "channels_id = ? AND user_id = ?", channelID, userID)
 	if !idExists {
 		return errors.New("invalid message ID")
 	}
 
-	query := db.Where("channels_id = ? AND user_id", channelID, userID)
+	query := db.Where("channels_id = ? AND user_id = ?", channelID, userID)
 	err := query.Delete(&SavedMessage{}).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete saved messages : %v", err)

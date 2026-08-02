@@ -76,6 +76,26 @@ func TestChannelsEndpoints(t *testing.T) {
 
 	channels_id, channelName := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
 
+	user2SignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("testuser2_%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "test2",
+		LastName:    "user2",
+		Password:    "password",
+		UserName:    fmt.Sprintf("test_username2_%v", currUUID),
+	}
+	tst.SignupUser(t, gin.Default(), auth, user2SignUpData, false)
+	token2 := tst.GetLoginToken(t, gin.Default(), auth, models.LoginRequestModel{Email: user2SignUpData.Email, Password: user2SignUpData.Password})
+
+	var user2Model models.User
+	db.Postgresql.Where("email = ?", user2SignUpData.Email).First(&user2Model)
+	db.Postgresql.Create(&models.OrgUserManagement{
+		UserID:         user2Model.ID,
+		OrganisationID: orgId,
+		Status:         "active",
+		RoleID:         utility.GenerateUUID(),
+	})
+
 	tests := []struct {
 		Name         string
 		RequestBody  any
@@ -176,6 +196,17 @@ func TestChannelsEndpoints(t *testing.T) {
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
 				"Authorization": "Bearer " + token,
+			},
+		},
+		{
+			Name:         "Join Channels Action",
+			ExpectedCode: http.StatusOK,
+			Message:      "channel joined successfully",
+			Method:       http.MethodPost,
+			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/%s/join", channels_id)},
+			Headers: map[string]string{
+				"Content-Type":  "application/json",
+				"Authorization": "Bearer " + token2,
 			},
 		},
 		{

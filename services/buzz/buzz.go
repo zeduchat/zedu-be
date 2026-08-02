@@ -165,7 +165,11 @@ func broadcastBuzzEventToChannelMembers(db *gorm.DB, logger *utility.Logger, cha
 func buildBuzzMetadataResponse(db *gorm.DB, buzz *models.Buzz, participantMetadata []models.ParticipantMetadata, lastUserJoined *models.ParticipantMetadata, logger *utility.Logger) models.BuzzMetadataResponse {
 
 	var user models.User
-	userDetails, userErr := user.GetUserByID(db, buzz.HostID, *buzz.OrgID)
+	orgID := ""
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+	userDetails, userErr := user.GetUserByID(db, buzz.HostID, orgID)
 
 	if userErr != nil {
 		logger.Error("failed to fetch user details for buzz %s: %v", buzz.ID, userErr)
@@ -1574,12 +1578,16 @@ func GetOrgBuzzList(db *storage.Database, logger *utility.Logger, userID string,
 			Where("buzz_id = ?", buzz.ID).
 			Count(&participantCount)
 
+		orgIDStr := ""
+		if buzz.OrgID != nil {
+			orgIDStr = *buzz.OrgID
+		}
 		buzzItems = append(buzzItems, models.OrgBuzzItem{
 			BuzzID:           buzz.ID,
 			BuzzCode:         utility.ExtractBuzzCode(buzz.ID),
 			ChannelID:        buzz.ChannelID,
 			HostID:           buzz.HostID,
-			OrgID:            *buzz.OrgID,
+			OrgID:            orgIDStr,
 			Status:           buzz.Status,
 			ParticipantCount: int(participantCount),
 			CreatedAt:        buzz.CreatedAt,
@@ -1706,7 +1714,11 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 		return nil
 	}
 	var user models.User
-	user, userErr := user.GetUserByID(db.Postgresql, hostID, *buzz.OrgID)
+	orgID := ""
+	if buzz.OrgID != nil {
+		orgID = *buzz.OrgID
+	}
+	user, userErr := user.GetUserByID(db.Postgresql, hostID, orgID)
 	if userErr != nil {
 		return userErr
 	}
@@ -1727,11 +1739,6 @@ func CreateBuzzSystemMessage(db *storage.Database, logger *utility.Logger, buzz 
 		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> started a buzz</p><p></p>", hostID, displayName, displayName)
 	} else {
 		content = fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> ended the buzz</p><p></p>", hostID, displayName, displayName)
-	}
-
-	var orgID string
-	if buzz.OrgID != nil {
-		orgID = *buzz.OrgID
 	}
 
 	systemMsg := models.CreateThreadMsgReq{

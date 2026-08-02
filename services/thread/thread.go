@@ -343,7 +343,11 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		logger.Error("Failed to begin transaction: %v", tx.Error)
 		return http.StatusInternalServerError, tx.Error
 	}
+	committed := false
 	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
@@ -351,33 +355,28 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	userId, err := middleware.GetUserClaims(c, tx, "user_id")
 	if err != nil {
-		tx.Rollback()
 		return http.StatusNotFound, err
 	}
 
 	userID, ok := userId.(string)
 	if !ok {
-		tx.Rollback()
 		return http.StatusBadRequest, errors.New("user_id is not of type string")
 	}
 
 	_, code, err := user.GetUser(userID, tx)
 	if err != nil {
-		tx.Rollback()
 		return code, err
 	}
 
 	chanExist, _ := channel.CheckChannelExists(tx, channelID)
 	dmChanExist, _ := dmChannel.CheckChannelExists(tx, channelID, userID)
 	if !(dmChanExist || chanExist) {
-		tx.Rollback()
 		return http.StatusNotFound, errors.New("channel does not exist")
 	}
 
 	thread.ID = threadID
 	err = threadDoc.GetThreadById(threadID)
 	if err != nil {
-		tx.Rollback()
 		return http.StatusNotFound, errors.New("thread not found")
 	}
 
@@ -389,7 +388,6 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 
 	if exists := savedMessage.SavedThreadMsgExists(tx, savedMessageIds); exists {
 		if err := savedMessage.DeleteSavedThreadMsgByMessageID(tx, savedMessageIds); err != nil {
-			tx.Rollback()
 			return http.StatusBadRequest, err
 		}
 	}
@@ -400,28 +398,25 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	}
 	if exists := pinnedThread.CheckPinnedReplyExists(tx); exists {
 		if err := pinnedThread.DeletePinnedThreadMessageRecord(tx); err != nil {
-			tx.Rollback()
 			logger.Error("An error occurred while deleting pinned thread message record: %v", err)
 			return http.StatusInternalServerError, err
 		}
 	}
 
 	if _, err := thread.DeleteThread(tx); err != nil {
-		tx.Rollback()
 		return http.StatusBadRequest, err
 	}
 
 	if _, err := thread.DeleteThreadMediaFiles(logger, tx, threadDoc.Media); err != nil {
-		tx.Rollback()
 		return http.StatusBadRequest, err
 	}
 
 	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
 		logger.Error("Failed to commit transaction: %v", err)
 		return http.StatusInternalServerError, err
 	}
+	committed = true
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection

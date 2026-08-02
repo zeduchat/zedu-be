@@ -18,13 +18,20 @@ func SaveAllModelsFields(db *gorm.DB, models []any) (*gorm.DB, error) {
 	if tx.Error != nil {
 		return tx, tx.Error
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// Loop through each model and update it
 	for _, model := range models {
 		result := tx.Save(model)
 		if result.Error != nil {
-			// If any update fails, rollback the transaction and return the error
-			tx.Rollback()
 			return result, result.Error
 		}
 	}
@@ -33,6 +40,7 @@ func SaveAllModelsFields(db *gorm.DB, models []any) (*gorm.DB, error) {
 	if err := tx.Commit().Error; err != nil {
 		return tx, err
 	}
+	committed = true
 
 	return tx, nil
 }

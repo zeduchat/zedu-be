@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -46,4 +47,73 @@ func BuildPreviewMessage(content string, media []File) string {
 		return ""
 	}
 	return mimeTypeToPreviewLabel(media[0].MimeType)
+}
+
+type UserMention struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+func FormatMergedChannelJoinMessage(users []UserMention, adder *UserMention, channelName string) string {
+	if len(users) == 0 {
+		return ""
+	}
+
+	firstUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[0].UserID, users[0].Username, users[0].Username)
+
+	var base string
+	if adder != nil && adder.UserID != "" {
+		adderMention := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, adder.UserID, adder.Username, adder.Username)
+		base = fmt.Sprintf("%s has been added to this channel by %s", firstUser, adderMention)
+	} else {
+		base = fmt.Sprintf("%s joined this channel", firstUser)
+	}
+
+	if len(users) == 1 {
+		return fmt.Sprintf("<p>%s</p><p></p>", base)
+	}
+
+	secondUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[1].UserID, users[1].Username, users[1].Username)
+
+	if len(users) == 2 {
+		return fmt.Sprintf("<p>%s. %s also joined.</p><p></p>", base, secondUser)
+	}
+
+	othersCount := len(users) - 2
+	if othersCount == 1 {
+		return fmt.Sprintf("<p>%s. %s and 1 other also joined.</p><p></p>", base, secondUser)
+	}
+	return fmt.Sprintf("<p>%s. %s and %d others also joined.</p><p></p>", base, secondUser, othersCount)
+}
+
+func FormatMergedChannelLeaveMessage(users []UserMention, remover *UserMention, channelName string) string {
+	if len(users) == 0 {
+		return ""
+	}
+
+	firstUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[0].UserID, users[0].Username, users[0].Username)
+
+	var base string
+	if remover != nil && remover.UserID != "" {
+		removerMention := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, remover.UserID, remover.Username, remover.Username)
+		base = fmt.Sprintf("%s was removed from this channel by %s", firstUser, removerMention)
+	} else {
+		base = fmt.Sprintf("%s left this channel", firstUser)
+	}
+
+	if len(users) == 1 {
+		return fmt.Sprintf("<p>%s</p><p></p>", base)
+	}
+
+	secondUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[1].UserID, users[1].Username, users[1].Username)
+
+	if len(users) == 2 {
+		return fmt.Sprintf("<p>%s. %s also left.</p><p></p>", base, secondUser)
+	}
+
+	othersCount := len(users) - 2
+	if othersCount == 1 {
+		return fmt.Sprintf("<p>%s. %s and 1 other also left.</p><p></p>", base, secondUser)
+	}
+	return fmt.Sprintf("<p>%s. %s and %d others also left.</p><p></p>", base, secondUser, othersCount)
 }

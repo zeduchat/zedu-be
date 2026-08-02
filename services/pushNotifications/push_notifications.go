@@ -201,6 +201,13 @@ func SendWebPushToUsers(req models.PushRequest, logger *utility.Logger, db *gorm
 
 // PushOneSignalToUser sends a OneSignal push notification to a single user
 func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
+	if payloadMap, ok := req.Payload.(map[string]interface{}); ok {
+		if msgType, exists := payloadMap["type"].(string); exists && msgType == "system" {
+			logger.Info("Skipping OneSignal notification for system message in channel %s", req.ChannelId)
+			return nil
+		}
+	}
+
 	// Check notification preferences if ChannelId and OrgId are provided
 	if req.ChannelId != "" && req.OrgId != "" {
 		shouldSend, err := notificationpref.ShouldSendNotification(db, req.UserId, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
@@ -237,6 +244,12 @@ func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gor
 
 // PushOneSignalToUsers sends a OneSignal push notification to multiple users
 func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
+	if payloadMap, ok := req.Payload.(map[string]interface{}); ok {
+		if msgType, exists := payloadMap["type"].(string); exists && msgType == "system" {
+			logger.Info("Skipping OneSignal notification for system message in channel %s", req.ChannelId)
+			return nil
+		}
+	}
 	var (
 		channel models.Channels
 	)

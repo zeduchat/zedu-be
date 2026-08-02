@@ -38,6 +38,13 @@ func AddPushNotificationToQueue(rdb *redis.Client, notificationRecord models.Pus
 		return nil
 	}
 
+	var feed models.FeedMessageRequest
+	if err := json.Unmarshal([]byte(notificationRecord.Data), &feed); err == nil {
+		if feed.Type == "system" {
+			return nil
+		}
+	}
+
 	err := notificationRecord.PushToQueue(rdb)
 
 	if err != nil {

@@ -468,7 +468,7 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 		"admin_user_id": adminUserID.(string),
 	}
 
-	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, c, req, ids)
+	code, err := organisation.ChangeMemberActiveStatus(base.Db.Postgresql, base.Db.Redis, base.Logger, c, req, ids)
 	if err != nil {
 		base.Logger.Error("failed to change member active status: %w", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to change member active status", err.Error(), nil)
@@ -567,7 +567,7 @@ func (base *Controller) UpdateMemberRole(c *gin.Context) {
 		RoleID:         req.RoleID,
 	}
 
-	code, err := organisation.UpdateMemberRole(base.Db.Postgresql, ids)
+	code, err := organisation.UpdateMemberRole(base.Db.Postgresql, base.Db.Redis, base.Logger, ids)
 	if err != nil {
 		base.Logger.Error("failed to update role", err)
 		rd := utility.BuildErrorResponse(code, "error", "failed to update role", err.Error(), nil)

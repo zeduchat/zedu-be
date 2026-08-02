@@ -309,13 +309,13 @@ func sendDMMessageToBot(req models.CreateThreadMsgReq, db *storage.Database, log
 // Direct Message thread
 func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger, extReq request.ExternalRequest) (*models.ThreadDocument, int, error) {
 
-	dmchannel := models.DmChannels{}
+	// dmchannel := models.DmChannels{}
 
-	exists := postgresql.CheckExists(db.Postgresql, &dmchannel, "channel_id = ? AND chat_type = ?", req.ChannelsID, "bot")
+	// exists := postgresql.CheckExists(db.Postgresql, &dmchannel, "channel_id = ? AND chat_type = ?", req.ChannelsID, "bot")
 
-	if exists {
-		return sendDMMessageToBot(req, db, logger, extReq)
-	}
+	// if exists {
+	// 	return sendDMMessageToBot(req, db, logger, extReq)
+	// }
 
 	// Create pair room if first message and not a bot
 	thread := models.ThreadDocument{
@@ -328,6 +328,7 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 		return &thread, code, err
 	}
 
+	
 	if !pairRoom {
 
 		dmchannel := models.DmChannels{}
@@ -351,31 +352,57 @@ func CreateThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, 
 			pairRoomChan.ID = utility.GenerateUUID()
 			pairRoomChan.ChannelId = dmchannel.ChannelId
 			pairRoomChan.OrgId = dmchannel.OrgId
-
+			
 			_, err = pairRoomChan.CreateDmChannel(db.Postgresql)
 			if err != nil {
 				return &thread, http.StatusInternalServerError, err
 			}
 
-			triggerNotif := models.Notification[models.TriggerNotification]
-			triggerNotif.SectionType = models.DmChannelsSection
-			triggerNotif.ModificationDetails = &models.ModificationDetails{
-				OrgId:     dmchannel.OrgId,
-				ChannelId: req.ChannelsID,
-			}
-			triggerNotif.Content = models.TriggerNotificationPayload{
-				TriggerAction: models.CreateChannel,
-			}
-			triggerNotif.NotificationId = utility.GenerateUUID()
-
 			parts := []string{req.UserId, *dmchannel.ParticipantId}
-			for _, pId := range parts {
-				centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", dmchannel.OrgId, pId), triggerNotif)
+			sendDmChannelTriggerNotification(logger, dmchannel.OrgId, req.ChannelsID, parts)
+		}
+	}
+
+	var dmChans []models.DmChannels
+	_ = postgresql.SelectAllFromDb(db.Postgresql, "", &dmChans, "channel_id = ?", req.ChannelsID)
+	hasHidden := false
+	for _, ch := range dmChans {
+		if ch.VisibilityStatus != nil && !*ch.VisibilityStatus {
+			hasHidden = true
+			break
+		}
+	}
+	if hasHidden {
+		dmChanVisibility := models.DmChannels{ChannelId: req.ChannelsID}
+		if updateErr := dmChanVisibility.UpdateInteractionAt(db.Postgresql); updateErr != nil {
+			logger.Error("Error updating visibility for channel %s: %v", req.ChannelsID, updateErr)
+		} else if len(dmChans) > 0 {
+			parts := make([]string, 0, len(dmChans))
+			for _, ch := range dmChans {
+				parts = append(parts, ch.UserId)
 			}
+			sendDmChannelTriggerNotification(logger, dmChans[0].OrgId, req.ChannelsID, parts)
 		}
 	}
 
 	return SaveThreadDmMessage(req, db, logger)
+}
+
+func sendDmChannelTriggerNotification(logger *utility.Logger, orgId, channelId string, participantIDs []string) {
+	triggerNotif := models.Notification[models.TriggerNotification]
+	triggerNotif.SectionType = models.DmChannelsSection
+	triggerNotif.ModificationDetails = &models.ModificationDetails{
+		OrgId:     orgId,
+		ChannelId: channelId,
+	}
+	triggerNotif.Content = models.TriggerNotificationPayload{
+		TriggerAction: models.CreateChannel,
+	}
+	triggerNotif.NotificationId = utility.GenerateUUID()
+
+	for _, pId := range participantIDs {
+		centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, pId), triggerNotif)
+	}
 }
 
 func GetAllChannelDmThreads(channelID string, db *gorm.DB, c *gin.Context) ([]models.Threads, *elastic.PaginationResponse, int, error) {

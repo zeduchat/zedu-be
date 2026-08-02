@@ -158,23 +158,8 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 		return channel, http.StatusBadRequest, err
 	}
 
-	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined #%s</p><p></p>", req.UserID, req.Username, req.Username, channel.Name),
-		Type:       "system",
-		UserId:     req.UserID,
-		ChannelsID: channel.ID,
-		OrgId:      channel.OrganisationID,
-		ThreadId:   utility.GenerateUUID(),
-		Mentions: []models.Mention{
-			{ID: req.UserID, Type: "user"},
-		},
-	}
-
-	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
-	if err != nil {
-		logger.Error("failed to save system message for channel %s", channel.Name)
-	}
+	newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
+	_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
 
 	triggerNotif := models.Notification[models.TriggerNotification]
 	triggerNotif.SectionType = models.ChannelsSection
@@ -209,23 +194,8 @@ func LeaveChannels(db *storage.Database, channels_id, user_id string, logger *ut
 	var user models.User
 	userDetails, _ := user.GetUserByID(db.Postgresql, user_id, chanResp.OrganisationID)
 
-	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> left #%s</p><p></p>", user_id, userDetails.Profile.UserName, userDetails.Profile.UserName, chanResp.Name),
-		Type:       "system",
-		UserId:     user_id,
-		ChannelsID: channels_id,
-		OrgId:      chanResp.OrganisationID,
-		ThreadId:   utility.GenerateUUID(),
-		Mentions: []models.Mention{
-			{ID: user_id, Type: "user"},
-		},
-	}
-
-	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
-	if err != nil {
-		logger.Error("failed to save system message for channel %s", channel.Name)
-	}
+	leftUser := models.UserMention{UserID: user_id, Username: userDetails.Profile.UserName}
+	_ = thread.SaveOrMergeLeaveSystemMessage(db, logger, channels_id, chanResp.Name, chanResp.OrganisationID, []models.UserMention{leftUser}, nil)
 
 	logger.Info("Added system message for user leaving the channel")
 
@@ -368,23 +338,8 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 		return channel, err
 	}
 
-	systemMsg := models.CreateThreadMsgReq{
-		Content:    fmt.Sprintf("<p><span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span> joined #%s</p><p></p>", req.UserID, req.Username, req.Username, channel.Name),
-		Type:       "system",
-		UserId:     req.UserID,
-		ChannelsID: channel.ID,
-		OrgId:      channel.OrganisationID,
-		ThreadId:   utility.GenerateUUID(),
-		Mentions: []models.Mention{
-			{ID: req.UserID, Type: "user"},
-		},
-	}
-
-	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
-	if err != nil {
-		logger.Error("failed to save system message for channel %s", channel.Name)
-	}
+	newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
+	_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
 
 	triggerNotif := models.Notification[models.TriggerNotification]
 	triggerNotif.SectionType = models.ChannelsSection
@@ -414,11 +369,7 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		return err
 	}
 
-	var (
-		mentionList  []models.Mention
-		displayNames []string
-	)
-
+	var newUsers []models.UserMention
 	for _, userId := range validUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId, ch.OrganisationID)
 		if err != nil {
@@ -428,38 +379,13 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 
 		uName := userDetails.Profile.UserName
 		if uName == "" {
-			uName = strings.Split(userDetails.Email, "@")[0]
+			uName = utility.SplitEmailString(userDetails.Email)
 		}
-
-		mentionList = append(mentionList, models.Mention{ID: userId, Type: "user"})
-		displayNames = append(displayNames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userId, uName, uName))
+		newUsers = append(newUsers, models.UserMention{UserID: userId, Username: uName})
 	}
 
-	var content string
-	if len(displayNames) == 1 {
-		content = fmt.Sprintf("<p>%s joined #%s</p><p></p>", displayNames[0], ch.Name)
-	} else if len(displayNames) == 2 {
-		content = fmt.Sprintf("<p>%s and %s joined #%s</p><p></p>", displayNames[0], displayNames[1], ch.Name)
-	} else {
-		lastUser := displayNames[len(displayNames)-1]
-		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
-		content = fmt.Sprintf("<p>%s and %s joined #%s</p><p></p>", otherUsers, lastUser, ch.Name)
-	}
-
-	systemMsg := models.CreateThreadMsgReq{
-		Content:    content,
-		Type:       "system",
-		UserId:     validUserIds[0],
-		ChannelsID: ch.ID,
-		OrgId:      ch.OrganisationID,
-		ThreadId:   utility.GenerateUUID(),
-		Mentions:   mentionList,
-	}
-
-	_, err = thread.SaveThreadMessage(systemMsg, db, logger)
-
-	if err != nil {
-		logger.Error("failed to save system message for channel %s", ch.Name)
+	if len(newUsers) > 0 {
+		_ = thread.SaveOrMergeJoinSystemMessage(db, logger, ch.ID, ch.Name, ch.OrganisationID, newUsers, nil)
 	}
 
 	triggerNotif := models.Notification[models.TriggerNotification]
@@ -499,11 +425,7 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 		return err
 	}
 
-	var (
-		mentionList  []models.Mention
-		displayNames []string
-	)
-
+	var leftUsers []models.UserMention
 	for _, userId := range removedUserIds {
 		userDetails, err := user.GetUserByID(db.Postgresql, userId, ch.OrganisationID)
 		if err != nil {
@@ -512,39 +434,13 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 		}
 		uName := userDetails.Profile.UserName
 		if uName == "" {
-			uName = strings.Split(userDetails.Email, "@")[0]
+			uName = utility.SplitEmailString(userDetails.Email)
 		}
-		mentionList = append(mentionList, models.Mention{ID: userId, Type: "user"})
-		displayNames = append(displayNames, fmt.Sprintf("<span class=\"mention\" data-type=\"mention\" data-id=\"%s\" data-label=\"%s\" data-mention-suggestion-char=\"@\">@%s</span>", userId, uName, uName))
+		leftUsers = append(leftUsers, models.UserMention{UserID: userId, Username: uName})
 	}
 
-	if len(displayNames) == 0 {
-		return nil
-	}
-
-	var content string
-	if len(displayNames) == 1 {
-		content = fmt.Sprintf("<p>%s left #%s</p><p></p>", displayNames[0], ch.Name)
-	} else if len(displayNames) == 2 {
-		content = fmt.Sprintf("<p>%s and %s left #%s</p><p></p>", displayNames[0], displayNames[1], ch.Name)
-	} else {
-		lastUser := displayNames[len(displayNames)-1]
-		otherUsers := strings.Join(displayNames[:len(displayNames)-1], ", ")
-		content = fmt.Sprintf("<p>%s and %s left #%s</p><p></p>", otherUsers, lastUser, ch.Name)
-	}
-
-	systemMsg := models.CreateThreadMsgReq{
-		Content:    content,
-		Type:       "system",
-		UserId:     removedUserIds[0],
-		ChannelsID: ch.ID,
-		OrgId:      ch.OrganisationID,
-		ThreadId:   utility.GenerateUUID(),
-		Mentions:   mentionList,
-	}
-
-	if _, err := thread.SaveThreadMessage(systemMsg, db, logger); err != nil {
-		logger.Error("failed to save system message for channel %s", ch.Name)
+	if len(leftUsers) > 0 {
+		_ = thread.SaveOrMergeLeaveSystemMessage(db, logger, ch.ID, ch.Name, ch.OrganisationID, leftUsers, nil)
 	}
 	logger.Info("Added system message for users leaving the channel")
 
