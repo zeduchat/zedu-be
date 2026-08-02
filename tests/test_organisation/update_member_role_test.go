@@ -2,11 +2,13 @@ package test_organisation
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -22,6 +24,18 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+func ensureRedisAvailable(t *testing.T, db *storage.Database) {
+	t.Helper()
+	if db == nil || db.Redis == nil {
+		t.Skip("Redis client is not available; skipping permission test")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := db.Redis.Ping(ctx).Err(); err != nil {
+		t.Skipf("Redis connection ping failed (%v); skipping permission test", err)
+	}
+}
+
 // setupOrgWithMembers creates:
 //   - An owner who creates an org (gets Administrator role)
 //   - A second user added to the org with the "User" role
@@ -35,6 +49,7 @@ func setupOrgWithMembers(t *testing.T) (string, string, string, string) {
 	validatorRef := validator.New()
 	db := storage.Connection()
 
+	ensureRedisAvailable(t, db)
 	ensureCanChangeUserOrgRoleSeeded(t, db)
 
 	// --- Owner ---

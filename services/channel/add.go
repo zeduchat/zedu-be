@@ -318,7 +318,11 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		logger.Error("Failed to begin transaction: %v", tx.Error)
 		return nil, http.StatusInternalServerError, tx.Error
 	}
+	committed := false
 	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
@@ -327,12 +331,10 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 	chanExist, _ := channel.CheckChannelExists(tx, req.ChannelsId)
 	dmChanExist, _ := dmChannel.CheckChannelExists(tx, req.ChannelsId, req.UserId)
 	if !(dmChanExist || chanExist) {
-		tx.Rollback()
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
 	if err := newMsg.GetMessageById(tx, req.MessageId); err != nil {
-		tx.Rollback()
 		return nil, http.StatusBadRequest, errors.New("message not found")
 	}
 
@@ -346,7 +348,6 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	if exists := savedMessage.SavedReplyMsgExists(tx, savedMessageIds); exists {
 		if err := savedMessage.DeleteSavedMessageByMessageID(tx, savedMessageIds); err != nil {
-			tx.Rollback()
 			return nil, http.StatusBadRequest, err
 		}
 	}
@@ -359,7 +360,6 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	if exists := pinnedReply.CheckPinnedReplyExists(tx); exists {
 		if err := pinnedReply.DeletePinnedReplyMessageRecord(tx); err != nil {
-			tx.Rollback()
 			logger.Error("An error occurred while deleting pinned message record: %v", err)
 			return nil, http.StatusInternalServerError, err
 		}
@@ -367,19 +367,17 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 
 	updateResp, err := newMsg.DeleteMessage(tx, logger)
 	if err != nil {
-		tx.Rollback()
 		return nil, http.StatusInternalServerError, err
 	}
 
 	if _, err := message.DeleteMessageMediaFiles(logger, tx, newMsg.Media); err != nil {
-		tx.Rollback()
 		return nil, http.StatusInternalServerError, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
 		return nil, http.StatusInternalServerError, err
 	}
+	committed = true
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection

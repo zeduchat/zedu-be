@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -114,7 +117,7 @@ func GetOrCreateDeviceNotification(db *gorm.DB, logger *utility.Logger, ids map[
 	return resp, nil
 }
 
-func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
+func ChangeMemberActiveStatus(db *gorm.DB, rdb *redis.Client, logger *utility.Logger, c *gin.Context, req models.ChangeMemberActiveStatus, ids map[string]string) (int, error) {
 	var (
 		user      models.User
 		adminUser models.User
@@ -141,7 +144,11 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 	}
 
 	tx := db.Begin()
+	committed := false
 	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
@@ -149,12 +156,10 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 
 	if req.Activate {
 		if err := user.ActivateOrgMember(tx, orgID); err != nil {
-			tx.Rollback()
 			return http.StatusInternalServerError, err
 		}
 	} else {
 		if err := user.DeactivateOrgMember(tx, orgID); err != nil {
-			tx.Rollback()
 			return http.StatusInternalServerError, err
 		}
 
@@ -164,15 +169,22 @@ func ChangeMemberActiveStatus(db *gorm.DB, c *gin.Context, req models.ChangeMemb
 		if _, err := userToken.GetMostRecentAccessToken(tx); err == nil {
 			accessToken := models.AccessToken{ID: userToken.ID, OwnerID: userID}
 			if err := accessToken.RevokeAccessToken(tx); err != nil {
-				tx.Rollback()
 				return http.StatusInternalServerError, fmt.Errorf("failed to revoke user session: %w", err)
 			}
 		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
 		return http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+	committed = true
+
+	if rdb != nil {
+		isDeactivated := !req.Activate
+		_ = rd.RedisSet(rdb, "user_deactivated:"+userID+":"+orgID, isDeactivated, 24*time.Hour)
+		if logger != nil {
+			logger.Info("updated redis entry for user deactivation status: user_deactivated:%s:%s", userID, orgID)
+		}
 	}
 
 	return http.StatusOK, nil
@@ -198,7 +210,7 @@ func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.
 	return users, nil
 }
 
-func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
+func UpdateMemberRole(db *gorm.DB, rdb *redis.Client, logger *utility.Logger, ids models.IDS) (int, error) {
 	var (
 		oum models.OrgUserManagement
 		r   models.OrgRole
@@ -212,6 +224,15 @@ func UpdateMemberRole(db *gorm.DB, ids models.IDS) (int, error) {
 	err := oum.UpdateMemberRole(db, ids)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update member role: %w", err)
+	}
+
+	if rdb != nil {
+		_, err = rd.RedisDelete(rdb, "user_org_role:"+ids.UserID+":"+ids.OrganisationID)
+		if err != nil {
+			logger.Error("failed to delete redis entry for user role: %s", "user_org_role:"+ids.UserID+":"+ids.OrganisationID)
+		}
+		logger.Info("updated redis entry for user role: %s", "user_org_role:"+ids.UserID+":"+ids.OrganisationID)
+
 	}
 
 	return http.StatusOK, nil

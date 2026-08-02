@@ -265,11 +265,19 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, skillsToAdd []models.
 		logger.Error(fmt.Sprintf("StoreAgentSkills: Failed to begin transaction: %v", tx.Error))
 		return tx.Error
 	}
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	txResult := tx.CreateInBatches(&newSkills, len(newSkills))
 	if txResult.Error != nil {
 		logger.Error(fmt.Sprintf("StoreAgentSkills: Failed to save agent skills: %v", txResult.Error))
-		tx.Rollback()
 		return fmt.Errorf("failed to save agent skills: %v", txResult.Error)
 	}
 
@@ -277,6 +285,7 @@ func StoreAgentSkills(db *gorm.DB, logger *utility.Logger, skillsToAdd []models.
 		logger.Error(fmt.Sprintf("StoreAgentSkills: Failed to commit transaction: %v", err))
 		return fmt.Errorf("failed to commit agent skills transaction: %v", err)
 	}
+	committed = true
 
 	logger.Info(fmt.Sprintf("StoreAgentSkills: Successfully stored %d new agent skills", len(newSkills)))
 	return nil
