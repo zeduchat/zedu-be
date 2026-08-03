@@ -188,7 +188,14 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 	}
 
 	if storage.DB != nil && storage.DB.Redis != nil {
-		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+		c, err := rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+
+		if err != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err, userId, targetOrg)
+		}
+
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis, user_id: %s, org_id: %s", c, userId, targetOrg)
+
 	}
 
 	return j, nil
@@ -267,8 +274,16 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 	*j = updatedProfile
 
 	if storage.DB != nil && storage.DB.Redis != nil {
-		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(req.UserId, req.OrgId))
-		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(req.UserId, ""))
+		key1 := getProfileCacheKey(req.UserId, req.OrgId)
+		c1, err1 := rd.RedisDelete(storage.DB.Redis, key1)
+
+		if err1 != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err1, req.UserId, req.OrgId)
+		}
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis for user_id: %s, org_id: %s", c1, req.UserId, req.OrgId)
+
+		key2 := getProfileCacheKey(req.UserId, "")
+		_, _ = rd.RedisDelete(storage.DB.Redis, key2)
 	}
 
 	// Build response status
@@ -400,7 +415,7 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	return user, nil
 }
 
-func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...string) error {
+func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, logger *utility.Logger, orgId ...string) error {
 	var targetOrg string
 	if len(orgId) > 0 {
 		targetOrg = orgId[0]
@@ -417,7 +432,13 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...st
 	}
 
 	if storage.DB != nil && storage.DB.Redis != nil {
-		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+		c, err := rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+
+		if err != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err, userId, targetOrg)
+		}
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis, user_id: %s, org_id: %s", c, userId, targetOrg)
+
 	}
 
 	return nil
@@ -478,7 +499,11 @@ func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID str
 
 	resolvedProf, err := p.resolveProfileForOrg(db, userID, orgID, appLogger)
 	if err == nil && resolvedProf.ID != "" && storage.DB != nil && storage.DB.Redis != nil {
-		_ = rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour)
+		if setErr := rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour); setErr != nil {
+			utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Failed to set profile cache in redis for key %s: %v", cacheKey, setErr)
+		}
+		utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Set profile cache in redis for key %s (TTL: 12h)", cacheKey)
+
 	}
 	return resolvedProf, err
 }
@@ -557,7 +582,12 @@ func (p *Profile) GetOrCreateMultipleProfilesForOrg(db *gorm.DB, userIDs []strin
 			resultMap[uID] = resolvedProf
 			if storage.DB != nil && storage.DB.Redis != nil && resolvedProf.ID != "" {
 				cacheKey := getProfileCacheKey(uID, orgID)
-				_ = rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour)
+				if setErr := rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour); setErr != nil {
+
+					utility.LogError(appLogger, "[GetOrCreateMultipleProfilesForOrg] Failed to set profile cache in redis for key %s: %v", cacheKey, setErr)
+
+				}
+				utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Set profile cache in redis for key %s (TTL: 12h)", cacheKey)
 			}
 		} else {
 			utility.LogError(appLogger, "[GetOrCreateMultipleProfilesForOrg] Failed to resolve profile for userID=%s: %v", uID, err)

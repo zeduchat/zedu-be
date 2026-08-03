@@ -261,7 +261,7 @@ func TestProfileFlow(t *testing.T) {
 		db.Model(&models.Profile{}).Where("id = ?", prof1.ID).Update("avatar_url", "http://example.com/avatar1.png")
 		db.Model(&models.Profile{}).Where("id = ?", prof2.ID).Update("avatar_url", "http://example.com/avatar2.png")
 
-		err := profModel.SetProfileImageToEmpty(db, uID, org1)
+		err := profModel.SetProfileImageToEmpty(db, uID, nil, org1)
 		if err != nil {
 			t.Fatalf("SetProfileImageToEmpty failed: %v", err)
 		}
