@@ -4255,7 +4255,7 @@ paths:
       tags:
         - channels
       summary: Retrieve media files from a channel
-      description: Fetches all media files (images, videos, documents, audio) from threads in a channel with pagination support
+      description: Fetches all media files from threads in a channel with pagination support
       security:
         - bearerAuth: []
       parameters:
@@ -4309,29 +4309,44 @@ paths:
                     items:
                       type: object
                       properties:
-                        id:
+                        thread_id:
                           type: string
                           format: uuid
-                        file_name:
-                          type: string
-                          example: photo.jpg
-                        file_type:
-                          type: string
-                          example: jpg
-                        mime_type:
-                          type: string
-                          example: image/jpeg
-                        file_link:
-                          type: string
-                          example: https://cdn.example.com/files/photo.jpg
+                          example: 019fc747-d506-774e-b6b6-05218bab0bd0
                         user_id:
                           type: string
                           format: uuid
-                          description: The ID of the user who uploaded the file
+                          example: 019fc747-cce8-774d-acb4-ac8f31835d26
+                        username:
+                          type: string
+                          example: johndoe
+                        avatar_url:
+                          type: string
+                          example: https://cdn.telex.im/avatars/john.jpg
                         created_at:
                           type: string
                           format: date-time
-                          description: When the file was uploaded
+                          example: 2026-08-03T06:00:00Z
+                        media:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              file_name:
+                                type: string
+                                example: photo.jpg
+                              file_type:
+                                type: string
+                                example: jpg
+                              mime_type:
+                                type: string
+                                example: image/jpeg
+                              file_link:
+                                type: string
+                                example: https://cdn.example.com/files/photo.jpg
                   pagination:
                     type: object
                     properties:

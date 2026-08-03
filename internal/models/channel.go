@@ -829,8 +829,20 @@ func (r *Channels) UpdateChannels(db *gorm.DB, req UpdateChannelsRequest, userId
 	return updatedChannels, http.StatusOK, nil
 }
 
-func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, mediaType string) ([]File, postgresql.PaginationResponse, error) {
+type ChannelMediaThreadResponse struct {
+	ThreadID  string    `json:"thread_id"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username"`
+	AvatarURL string    `json:"avatar_url"`
+	CreatedAt time.Time `json:"created_at"`
+	Media     []File    `json:"media"`
+}
+
+func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, mediaType string, orgID ...string) ([]ChannelMediaThreadResponse, postgresql.PaginationResponse, error) {
 	pagination := postgresql.GetPagination(ctx)
+
+	from := (pagination.Page - 1) * pagination.Limit
+	size := pagination.Limit
 
 	query := map[string]any{
 		"query": map[string]any{
@@ -856,8 +868,9 @@ func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, media
 				},
 			},
 		},
-		"_source": []string{"media", "user_id", "created_at"},
-		"size":    1000, // Get all threads with media first
+		"_source": []string{"thread_id", "media", "user_id", "created_at"},
+		"from":    from,
+		"size":    size,
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
@@ -873,24 +886,44 @@ func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, media
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
-	// Parse the response and collect all media files
+	// Parse response
 	threadDataMap, ok := threadData.(map[string]any)
 	if !ok {
-		return []File{}, postgresql.PaginationResponse{}, nil
+		return []ChannelMediaThreadResponse{}, postgresql.PaginationResponse{}, nil
 	}
 
 	hits, ok := threadDataMap["hits"].(map[string]any)
 	if !ok {
-		return []File{}, postgresql.PaginationResponse{}, nil
+		return []ChannelMediaThreadResponse{}, postgresql.PaginationResponse{}, nil
+	}
+
+	var totalHits int64
+	if totalMap, ok := hits["total"].(map[string]any); ok {
+		if val, ok := totalMap["value"].(float64); ok {
+			totalHits = int64(val)
+		}
+	} else if val, ok := hits["total"].(float64); ok {
+		totalHits = int64(val)
 	}
 
 	hitsArray, ok := hits["hits"].([]any)
 	if !ok || len(hitsArray) == 0 {
-		return []File{}, postgresql.PaginationResponse{}, nil
+		pagResp := postgresql.PaginationResponse{
+			CurrentPage:     pagination.Page,
+			TotalPagesCount: 0,
+			PageCount:       0,
+			TotalItems:      totalHits,
+		}
+		return []ChannelMediaThreadResponse{}, pagResp, nil
 	}
 
-	// Collect all media from all threads
-	var allMedia []File
+	var targetOrg string
+	if len(orgID) > 0 {
+		targetOrg = orgID[0]
+	}
+
+	var profModel Profile
+	var result []ChannelMediaThreadResponse
 	for _, hit := range hitsArray {
 		hitMap, ok := hit.(map[string]any)
 		if !ok {
@@ -902,24 +935,39 @@ func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, media
 			continue
 		}
 
-		// Get thread level metadata
+		threadID := utility.GetString(source, "thread_id")
 		threadUserID := utility.GetString(source, "user_id")
-		threadCreatedAt := utility.GetString(source, "created_at")
+		threadCreatedAtStr := utility.GetString(source, "created_at")
+
+		var username string
+		var avatarURL string
+
+		if threadUserID != "" && threadUserID != "WEBHOOK" && db != nil && db.Postgresql != nil {
+			if p, err := profModel.GetOrCreateProfileForOrg(db.Postgresql, threadUserID, targetOrg); err == nil {
+				username = p.UserName
+				avatarURL = p.AvatarURL
+			}
+		}
+
+		if avatarURL == "" && threadUserID != "" {
+			avatarURL = avatar.GenerateDefaultAvatarURL(threadUserID)
+		}
+
+		var createdAt time.Time
+		if threadCreatedAtStr != "" {
+			createdAt, _ = time.Parse(time.RFC3339, threadCreatedAtStr)
+		}
 
 		mediaArray, ok := source["media"].([]any)
 		if !ok {
 			continue
 		}
 
+		var mediaFiles []File
 		for _, m := range mediaArray {
 			mediaMap, ok := m.(map[string]any)
 			if !ok {
 				continue
-			}
-
-			var createdAt time.Time
-			if threadCreatedAt != "" {
-				createdAt, _ = time.Parse(time.RFC3339, threadCreatedAt)
 			}
 
 			file := File{
@@ -939,36 +987,34 @@ func (c *Channels) GetChannelMedia(db *storage.Database, ctx *gin.Context, media
 				}
 			}
 
-			allMedia = append(allMedia, file)
+			mediaFiles = append(mediaFiles, file)
+		}
+
+		if len(mediaFiles) > 0 {
+			result = append(result, ChannelMediaThreadResponse{
+				ThreadID:  threadID,
+				UserID:    threadUserID,
+				Username:  username,
+				AvatarURL: avatarURL,
+				CreatedAt: createdAt,
+				Media:     mediaFiles,
+			})
 		}
 	}
 
-	totalItems := len(allMedia)
-	start := (pagination.Page - 1) * pagination.Limit
-	end := start + pagination.Limit
-
-	if start > totalItems {
-		start = totalItems
-	}
-	if end > totalItems {
-		end = totalItems
-	}
-
-	paginatedMedia := allMedia[start:end]
-
-	totalPages := (totalItems + pagination.Limit - 1) / pagination.Limit
-	if totalPages == 0 {
+	totalPages := int(math.Ceil(float64(totalHits) / float64(pagination.Limit)))
+	if totalPages == 0 && totalHits > 0 {
 		totalPages = 1
 	}
 
 	pagResp := postgresql.PaginationResponse{
 		CurrentPage:     pagination.Page,
 		TotalPagesCount: totalPages,
-		PageCount:       len(paginatedMedia),
-		TotalItems:      int64(totalItems),
+		PageCount:       len(result),
+		TotalItems:      totalHits,
 	}
 
-	return paginatedMedia, pagResp, nil
+	return result, pagResp, nil
 }
 
 func (r *UserChannels) CheckUser(db *gorm.DB, userID, channelID string) (bool, string) {
