@@ -222,7 +222,7 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, authenticatedUserI
 		}
 
 		if defaultChannel.ID != "" {
-			err = addUserToChannel(&defaultChannel, orgmgt, logger, db)
+			err = addUserToChannel(&defaultChannel, orgmgt, logger, db.Postgresql, db)
 			if err != nil {
 				logger.Error("error adding user to the general channel", err)
 				return responseData, http.StatusInternalServerError, err
@@ -278,29 +278,21 @@ func VerifyInvitation(req models.VerifyInvitationLinkRequest, authenticatedUserI
 func getGeneralChannel(db *gorm.DB, orgID string) (models.Channels, error) {
 	var channels models.Channels
 
-	err := db.Where("organisation_id = ? AND name = ?", orgID, "general").First(&channels).Error
-	if err == nil {
-		return channels, nil
-	}
-
-	//if general not found, get the first channel
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		err = db.Where("organisation_id = ?", orgID).
-			Order("created_at ASC").
-			First(&channels).Error
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return channels, fmt.Errorf("no channel found in organisation: %v", err)
-			}
-			return channels, fmt.Errorf("error getting first channel: %v", err)
+	err := db.Where("organisation_id = ?", orgID).
+		Order("created_at ASC").
+		First(&channels).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return channels, fmt.Errorf("no channel found in organisation: %v", err)
 		}
+		return channels, fmt.Errorf("database error getting channel: %w", err)
 	}
 
 	if channels.ID == "" {
 		return channels, errors.New("no channel found in organisation")
 	}
 
-	return channels, fmt.Errorf("database error: %w", err)
+	return channels, nil
 }
 
 func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
@@ -379,10 +371,10 @@ func addUserToOrganisation(orgmgt models.OrgUserManagement, db *gorm.DB) error {
 	return nil
 }
 
-func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, logger *utility.Logger, db *storage.Database) error {
+func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, logger *utility.Logger, gormDB *gorm.DB, storageDB *storage.Database) error {
 	var profile models.Profile
 
-	err := profile.GetProfileByUserId(db.Postgresql, orgmgt.UserID, orgmgt.OrganisationID)
+	err := profile.GetProfileByUserId(gormDB, orgmgt.UserID, orgmgt.OrganisationID)
 
 	if err != nil {
 		return fmt.Errorf("failed to get user profile: %v", err)
@@ -394,12 +386,14 @@ func addUserToChannel(chans *models.Channels, orgmgt models.OrgUserManagement, l
 		UserID:     orgmgt.UserID,
 	}
 
-	if _, err := chans.AddUserToChannel(db.Postgresql, reqs); err != nil {
+	if _, err := chans.AddUserToChannel(gormDB, reqs); err != nil {
 		return err
 	}
 
 	newUser := models.UserMention{UserID: orgmgt.UserID, Username: profile.UserName}
-	_ = thread.SaveOrMergeJoinSystemMessage(db, logger, chans.ID, chans.Name, chans.OrganisationID, []models.UserMention{newUser}, nil)
+	if storageDB != nil {
+		_ = thread.SaveOrMergeJoinSystemMessage(storageDB, logger, chans.ID, chans.Name, chans.OrganisationID, []models.UserMention{newUser}, nil)
+	}
 
 	logger.Info("Added system message for user joining the channel")
 
