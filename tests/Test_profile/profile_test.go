@@ -315,4 +315,55 @@ func TestProfileFlow(t *testing.T) {
 			t.Errorf("Expected org2 avatar_url to remain intact, got '%s'", checkProf2.AvatarURL)
 		}
 	})
+
+	t.Run("GetOrCreateMultipleProfilesForOrg Bulk Resolution Test", func(t *testing.T) {
+		orgID := utility.GenerateUUID()
+		uID1 := utility.GenerateUUID()
+		uID2 := utility.GenerateUUID()
+		uID3 := utility.GenerateUUID()
+
+		user1 := models.User{ID: uID1, Name: "User One", Email: fmt.Sprintf("u1_%s@qa.team", utility.GenerateUUID())}
+		user2 := models.User{ID: uID2, Name: "User Two", Email: fmt.Sprintf("u2_%s@qa.team", utility.GenerateUUID())}
+		user3 := models.User{ID: uID3, Name: "User Three", Email: fmt.Sprintf("u3_%s@qa.team", utility.GenerateUUID())}
+
+		db.Create(&user1)
+		db.Create(&user2)
+		db.Create(&user3)
+
+		var profModel models.Profile
+		inputUserIDs := []string{uID1, uID2, uID3, "WEBHOOK", ""}
+		profilesMap, err := profModel.GetOrCreateMultipleProfilesForOrg(db, inputUserIDs, orgID)
+		if err != nil {
+			t.Fatalf("GetOrCreateMultipleProfilesForOrg failed: %v", err)
+		}
+
+		if len(profilesMap) != 3 {
+			t.Fatalf("Expected 3 profiles in map, got %d", len(profilesMap))
+		}
+
+		if p1, ok := profilesMap[uID1]; !ok || p1.FullName != "User One" {
+			t.Errorf("Expected profile for user1 with FullName 'User One', got: %+v", p1)
+		}
+		if p2, ok := profilesMap[uID2]; !ok || p2.FullName != "User Two" {
+			t.Errorf("Expected profile for user2 with FullName 'User Two', got: %+v", p2)
+		}
+		if p3, ok := profilesMap[uID3]; !ok || p3.FullName != "User Three" {
+			t.Errorf("Expected profile for user3 with FullName 'User Three', got: %+v", p3)
+		}
+
+		threads := []models.ThreadDocument{
+			{ID: utility.GenerateUUID(), UserId: uID1, OrganisationID: orgID},
+			{ID: utility.GenerateUUID(), UserId: uID2, OrganisationID: orgID},
+			{ID: utility.GenerateUUID(), UserId: uID3, OrganisationID: orgID},
+		}
+
+		hydratedThreads := models.HydrateThreadProfiles(db, threads)
+		if len(hydratedThreads) != 3 {
+			t.Fatalf("Expected 3 hydrated threads, got %d", len(hydratedThreads))
+		}
+		if hydratedThreads[0].ProfileID == "" || hydratedThreads[0].FullName != "User One" {
+			t.Errorf("Expected hydrated thread[0] FullName 'User One', got %s", hydratedThreads[0].FullName)
+		}
+	})
 }
+

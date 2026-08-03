@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
+
 
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
@@ -572,15 +572,17 @@ func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDo
 	}
 
 	profileIDs := make([]string, 0)
-	userOrgKeys := make(map[string]struct{})
+	userIDsByOrg := make(map[string][]string)
 
 	for _, msg := range messages {
 		if msg.ProfileID != "" {
 			profileIDs = append(profileIDs, msg.ProfileID)
 		} else if msg.UserID != "" && msg.UserID != "WEBHOOK" {
-			userOrgKeys[fmt.Sprintf("%s:%s", msg.UserID, msg.OrganisationID)] = struct{}{}
+			userIDsByOrg[msg.OrganisationID] = append(userIDsByOrg[msg.OrganisationID], msg.UserID)
 		}
 	}
+
+
 
 	profileMap := make(map[string]Profile)
 	userOrgMap := make(map[string]Profile)
@@ -595,13 +597,15 @@ func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDo
 	}
 
 	var profModel Profile
-	for key := range userOrgKeys {
-		parts := strings.Split(key, ":")
-		uID, oID := parts[0], parts[1]
-		if p, err := profModel.GetOrCreateProfileForOrg(db, uID, oID); err == nil {
-			userOrgMap[key] = p
+	for oID, uIDs := range userIDsByOrg {
+		if profs, err := profModel.GetOrCreateMultipleProfilesForOrg(db, uIDs, oID); err == nil {
+			for uID, p := range profs {
+				key := fmt.Sprintf("%s:%s", uID, oID)
+				userOrgMap[key] = p
+			}
 		}
 	}
+
 
 	for i := range messages {
 		var p Profile

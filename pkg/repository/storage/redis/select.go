@@ -12,6 +12,11 @@ func RedisGet(rdb *redis.Client, key string) ([]byte, error) {
 	return serialized, err
 }
 
+func RedisMGet(rdb *redis.Client, keys ...string) ([]any, error) {
+	return rdb.MGet(Ctx, keys...).Result()
+}
+
+
 func PopFromQueue(rdb *redis.Client) (any, error) {
 	var response any
 

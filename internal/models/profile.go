@@ -251,7 +251,6 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			updates["status_timeout"] = req.StatusTimeout
 		}
 
-
 	}
 
 	// Apply updates to target profile by primary key ID
@@ -259,7 +258,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		return UserStatus{}, http.StatusInternalServerError, errors.New("failed to update user profile")
 	}
 
-    updatedProfile := Profile{}
+	updatedProfile := Profile{}
 	// Reload profile to get updated values
 	if err := db.Where("id = ?", targetProf.ID).First(&updatedProfile).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
@@ -482,6 +481,92 @@ func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID str
 		_ = rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour)
 	}
 	return resolvedProf, err
+}
+
+func (p *Profile) GetOrCreateMultipleProfilesForOrg(db *gorm.DB, userIDs []string, orgID string, logger ...*utility.Logger) (map[string]Profile, error) {
+
+	var appLogger *utility.Logger
+	if len(logger) > 0 {
+		appLogger = logger[0]
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Starting resolution for orgID=%s", orgID)
+
+	resultMap := make(map[string]Profile)
+	if len(userIDs) == 0 {
+		return resultMap, nil
+	}
+
+	uniqueUserIDs := make([]string, 0, len(userIDs))
+	seen := make(map[string]bool)
+	for _, uID := range userIDs {
+		trimmed := strings.TrimSpace(uID)
+		if trimmed != "" && trimmed != "WEBHOOK" && !seen[trimmed] {
+			seen[trimmed] = true
+			uniqueUserIDs = append(uniqueUserIDs, trimmed)
+		}
+	}
+
+	if len(uniqueUserIDs) == 0 {
+		return resultMap, nil
+	}
+
+	missedIDs := make([]string, 0, len(uniqueUserIDs))
+
+	if storage.DB != nil && storage.DB.Redis != nil {
+		keys := make([]string, len(uniqueUserIDs))
+		for i, uID := range uniqueUserIDs {
+			keys[i] = getProfileCacheKey(uID, orgID)
+		}
+
+		vals, err := rd.RedisMGet(storage.DB.Redis, keys...)
+		if err == nil && len(vals) == len(uniqueUserIDs) {
+			for i, val := range vals {
+				uID := uniqueUserIDs[i]
+				if val != nil {
+					var cachedProf Profile
+					var unmarshalErr error
+
+					switch v := val.(type) {
+					case string:
+						unmarshalErr = json.Unmarshal([]byte(v), &cachedProf)
+					case []byte:
+						unmarshalErr = json.Unmarshal(v, &cachedProf)
+					}
+
+					if unmarshalErr == nil && cachedProf.ID != "" {
+						resultMap[uID] = cachedProf
+						utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Redis MGET cache hit for userID=%s, profileID=%s", uID, cachedProf.ID)
+						continue
+					}
+				}
+				missedIDs = append(missedIDs, uID)
+			}
+		} else {
+			missedIDs = append(missedIDs, uniqueUserIDs...)
+		}
+	} else {
+		missedIDs = append(missedIDs, uniqueUserIDs...)
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Resolving uncached Missed IDs: %v", missedIDs)
+
+	for _, uID := range missedIDs {
+		resolvedProf, err := p.resolveProfileForOrg(db, uID, orgID, appLogger)
+		if err == nil {
+			resultMap[uID] = resolvedProf
+			if storage.DB != nil && storage.DB.Redis != nil && resolvedProf.ID != "" {
+				cacheKey := getProfileCacheKey(uID, orgID)
+				_ = rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour)
+			}
+		} else {
+			utility.LogError(appLogger, "[GetOrCreateMultipleProfilesForOrg] Failed to resolve profile for userID=%s: %v", uID, err)
+		}
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Resolved profiles with length of  %d", len(resultMap))
+
+	return resultMap, nil
 }
 
 func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
