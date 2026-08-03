@@ -366,7 +366,8 @@ func (base *Controller) GetChannelFiles(c *gin.Context) {
 		return
 	}
 	userClaims := claims.(jwt.MapClaims)
-	userID := userClaims["user_id"].(string)
+	userID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
 
 	// Check if user is in channel
 	var userChannels models.UserChannels
@@ -381,7 +382,7 @@ func (base *Controller) GetChannelFiles(c *gin.Context) {
 	var channel models.Channels
 	channel.ID = channelID
 
-	files, pagination, err := channel.GetChannelMedia(base.Db, c, mediaType)
+	files, pagination, err := channel.GetChannelMedia(base.Db, c, mediaType, orgID)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch channel files", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)

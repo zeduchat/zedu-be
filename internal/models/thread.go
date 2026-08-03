@@ -1467,18 +1467,24 @@ func HydrateThreadProfiles(db *gorm.DB, threads []ThreadDocument) []ThreadDocume
 		return threads
 	}
 
-	var profModel Profile
+	userIDs := make([]string, 0, len(threads))
+	var orgID string
+
 	for i := range threads {
 		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
-			var p Profile
-			var err error
-			if threads[i].ProfileID != "" {
-				err = db.Where("id = ?", threads[i].ProfileID).First(&p).Error
+			userIDs = append(userIDs, threads[i].UserId)
+			if orgID == "" && threads[i].OrganisationID != "" {
+				orgID = threads[i].OrganisationID
 			}
-			if threads[i].ProfileID == "" || err != nil {
-				p, err = profModel.GetOrCreateProfileForOrg(db, threads[i].UserId, threads[i].OrganisationID)
-			}
-			if err == nil {
+		}
+	}
+
+	var profModel Profile
+	profilesMap, _ := profModel.GetOrCreateMultipleProfilesForOrg(db, userIDs, orgID)
+
+	for i := range threads {
+		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
+			if p, ok := profilesMap[threads[i].UserId]; ok {
 				threads[i].ProfileID = p.ID
 				threads[i].Username = p.UserName
 				threads[i].FullName = p.FullName
@@ -1504,18 +1510,24 @@ func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
 		return threads
 	}
 
-	var profModel Profile
+	userIDs := make([]string, 0, len(threads))
+	var orgID string
+
 	for i := range threads {
 		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
-			var p Profile
-			var err error
-			if threads[i].ProfileID != "" {
-				err = db.Where("id = ?", threads[i].ProfileID).First(&p).Error
+			userIDs = append(userIDs, threads[i].UserId)
+			if orgID == "" && threads[i].OrganisationID != "" {
+				orgID = threads[i].OrganisationID
 			}
-			if threads[i].ProfileID == "" || err != nil {
-				p, err = profModel.GetOrCreateProfileForOrg(db, threads[i].UserId, threads[i].OrganisationID)
-			}
-			if err == nil {
+		}
+	}
+
+	var profModel Profile
+	profilesMap, _ := profModel.GetOrCreateMultipleProfilesForOrg(db, userIDs, orgID)
+
+	for i := range threads {
+		if threads[i].UserId != "" && threads[i].UserId != "WEBHOOK" {
+			if p, ok := profilesMap[threads[i].UserId]; ok {
 				threads[i].ProfileID = p.ID
 				threads[i].Username = p.UserName
 				threads[i].FullName = p.FullName
@@ -1532,6 +1544,7 @@ func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
 
 	return threads
 }
+
 
 func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, int, error) {
 	var (

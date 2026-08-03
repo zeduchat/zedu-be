@@ -127,7 +127,7 @@ func TestGetChannelFiles(t *testing.T) {
 	r.GET("/api/v1/channels/:channelId/files", middleware.Authorize(db.Postgresql), channelController.GetChannelFiles)
 
 	t.Run("Get Channel Files", func(t *testing.T) {
-		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/channels/%s/files", channelID), nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/channels/%s/files?page=1&limit=10", channelID), nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 
 		rr := httptest.NewRecorder()
@@ -153,15 +153,38 @@ func TestGetChannelFiles(t *testing.T) {
 
 		found := false
 		for _, item := range data {
-			file := item.(map[string]interface{})
-			if file["id"] == mediaID {
-				found = true
-				break
+			threadItem, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if threadItem["thread_id"] == threadID {
+				if threadItem["username"] == nil || threadItem["avatar_url"] == nil {
+					t.Errorf("Profile fields missing in thread item: %v", threadItem)
+				}
+				mediaList, ok := threadItem["media"].([]interface{})
+				if ok {
+					for _, m := range mediaList {
+						fileMap, ok := m.(map[string]interface{})
+						if ok && fileMap["id"] == mediaID {
+							found = true
+							break
+						}
+					}
+				}
 			}
 		}
 
 		if !found {
-			t.Errorf("Expected file ID %s not found in response", mediaID)
+			t.Errorf("Expected file ID %s in thread %s not found in response", mediaID, threadID)
+		}
+
+		pagination, ok := response["pagination"].(map[string]interface{})
+		if !ok {
+			t.Fatal("Response pagination metadata is missing")
+		}
+
+		if pagination["current_page"] == nil || pagination["total_items"] == nil {
+			t.Errorf("Incomplete pagination metadata in response: %v", pagination)
 		}
 	})
 }

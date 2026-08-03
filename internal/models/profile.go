@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -185,6 +187,17 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		return nil, errors.New("failed to update user profile")
 	}
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		c, err := rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+
+		if err != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err, userId, targetOrg)
+		}
+
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis, user_id: %s, org_id: %s", c, userId, targetOrg)
+
+	}
+
 	return j, nil
 }
 
@@ -245,7 +258,6 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 			updates["status_timeout"] = req.StatusTimeout
 		}
 
-
 	}
 
 	// Apply updates to target profile by primary key ID
@@ -253,7 +265,7 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		return UserStatus{}, http.StatusInternalServerError, errors.New("failed to update user profile")
 	}
 
-    updatedProfile := Profile{}
+	updatedProfile := Profile{}
 	// Reload profile to get updated values
 	if err := db.Where("id = ?", targetProf.ID).First(&updatedProfile).Error; err != nil {
 		return UserStatus{}, http.StatusInternalServerError, fmt.Errorf("failed to reload profile: %w", err)
@@ -261,9 +273,22 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 
 	*j = updatedProfile
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		key1 := getProfileCacheKey(req.UserId, req.OrgId)
+		c1, err1 := rd.RedisDelete(storage.DB.Redis, key1)
+
+		if err1 != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err1, req.UserId, req.OrgId)
+		}
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis for user_id: %s, org_id: %s", c1, req.UserId, req.OrgId)
+
+		key2 := getProfileCacheKey(req.UserId, "")
+		_, _ = rd.RedisDelete(storage.DB.Redis, key2)
+	}
+
 	// Build response status
 	expiry := int64(0)
-	if j.StatusTimeout != "" {
+	if !req.ClearStatus && j.StatusTimeout != "" {
 		if parsed, err := strconv.ParseInt(j.StatusTimeout, 10, 64); err == nil {
 			expiry = parsed
 		}
@@ -280,6 +305,12 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		Expiry:     expiry,
 		Visibility: visibility,
 		Online:     j.Online,
+	}
+
+	if req.ClearStatus {
+		status.Text = ""
+		status.Emoji = ""
+		status.Expiry = 0
 	}
 
 	// Publish notification
@@ -384,7 +415,7 @@ func (p *Profile) GetUserByUsername(db *gorm.DB, userName string) (Profile, erro
 	return user, nil
 }
 
-func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...string) error {
+func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, logger *utility.Logger, orgId ...string) error {
 	var targetOrg string
 	if len(orgId) > 0 {
 		targetOrg = orgId[0]
@@ -398,6 +429,16 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...st
 	result := db.Model(&Profile{}).Where("id = ?", targetProf.ID).Update("avatar_url", "")
 	if result.Error != nil {
 		return result.Error
+	}
+
+	if storage.DB != nil && storage.DB.Redis != nil {
+		c, err := rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+
+		if err != nil {
+			utility.LogError(logger, "Failed to delete profile from redis: %v, user_id: %s, org_id: %s", err, userId, targetOrg)
+		}
+		utility.LogInfo(logger, "Deleted %d profile key(s) from redis, user_id: %s, org_id: %s", c, userId, targetOrg)
+
 	}
 
 	return nil
@@ -427,18 +468,140 @@ func (p *Profile) GetOrgID() string {
 	return ""
 }
 
+func getProfileCacheKey(userID, orgID string) string {
+	if orgID == "" {
+		return fmt.Sprintf("user:profile:%s:default", userID)
+	}
+	return fmt.Sprintf("user:profile:%s:%s", userID, orgID)
+}
+
 func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID string, logger ...*utility.Logger) (Profile, error) {
 	var appLogger *utility.Logger
 	if len(logger) > 0 {
 		appLogger = logger[0]
 	}
 
-	utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Starting resolution for userID=%s, orgID=%s", userID, orgID)
-	var profile Profile
 	if userID == "" {
 		utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Error: userID is empty")
-		return profile, errors.New("user_id is required")
+		return Profile{}, errors.New("user_id is required")
 	}
+
+	cacheKey := getProfileCacheKey(userID, orgID)
+	if storage.DB != nil && storage.DB.Redis != nil {
+		if cachedBytes, err := rd.RedisGet(storage.DB.Redis, cacheKey); err == nil && len(cachedBytes) > 0 {
+			var cachedProf Profile
+			if jsonErr := json.Unmarshal(cachedBytes, &cachedProf); jsonErr == nil && cachedProf.ID != "" {
+				utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Redis cache hit: found profile ID=%s for userID=%s, orgID=%s", cachedProf.ID, userID, orgID)
+				return cachedProf, nil
+			}
+		}
+	}
+
+	resolvedProf, err := p.resolveProfileForOrg(db, userID, orgID, appLogger)
+	if err == nil && resolvedProf.ID != "" && storage.DB != nil && storage.DB.Redis != nil {
+		if setErr := rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour); setErr != nil {
+			utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Failed to set profile cache in redis for key %s: %v", cacheKey, setErr)
+		}
+		utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Set profile cache in redis for key %s (TTL: 12h)", cacheKey)
+
+	}
+	return resolvedProf, err
+}
+
+func (p *Profile) GetOrCreateMultipleProfilesForOrg(db *gorm.DB, userIDs []string, orgID string, logger ...*utility.Logger) (map[string]Profile, error) {
+
+	var appLogger *utility.Logger
+	if len(logger) > 0 {
+		appLogger = logger[0]
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Starting resolution for orgID=%s", orgID)
+
+	resultMap := make(map[string]Profile)
+	if len(userIDs) == 0 {
+		return resultMap, nil
+	}
+
+	uniqueUserIDs := make([]string, 0, len(userIDs))
+	seen := make(map[string]bool)
+	for _, uID := range userIDs {
+		trimmed := strings.TrimSpace(uID)
+		if trimmed != "" && trimmed != "WEBHOOK" && !seen[trimmed] {
+			seen[trimmed] = true
+			uniqueUserIDs = append(uniqueUserIDs, trimmed)
+		}
+	}
+
+	if len(uniqueUserIDs) == 0 {
+		return resultMap, nil
+	}
+
+	missedIDs := make([]string, 0, len(uniqueUserIDs))
+
+	if storage.DB != nil && storage.DB.Redis != nil {
+		keys := make([]string, len(uniqueUserIDs))
+		for i, uID := range uniqueUserIDs {
+			keys[i] = getProfileCacheKey(uID, orgID)
+		}
+
+		vals, err := rd.RedisMGet(storage.DB.Redis, keys...)
+		if err == nil && len(vals) == len(uniqueUserIDs) {
+			for i, val := range vals {
+				uID := uniqueUserIDs[i]
+				if val != nil {
+					var cachedProf Profile
+					var unmarshalErr error
+
+					switch v := val.(type) {
+					case string:
+						unmarshalErr = json.Unmarshal([]byte(v), &cachedProf)
+					case []byte:
+						unmarshalErr = json.Unmarshal(v, &cachedProf)
+					}
+
+					if unmarshalErr == nil && cachedProf.ID != "" {
+						resultMap[uID] = cachedProf
+						utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Redis MGET cache hit for userID=%s, profileID=%s", uID, cachedProf.ID)
+						continue
+					}
+				}
+				missedIDs = append(missedIDs, uID)
+			}
+		} else {
+			missedIDs = append(missedIDs, uniqueUserIDs...)
+		}
+	} else {
+		missedIDs = append(missedIDs, uniqueUserIDs...)
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Resolving uncached Missed IDs: %v", missedIDs)
+
+	for _, uID := range missedIDs {
+		resolvedProf, err := p.resolveProfileForOrg(db, uID, orgID, appLogger)
+		if err == nil {
+			resultMap[uID] = resolvedProf
+			if storage.DB != nil && storage.DB.Redis != nil && resolvedProf.ID != "" {
+				cacheKey := getProfileCacheKey(uID, orgID)
+				if setErr := rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour); setErr != nil {
+
+					utility.LogError(appLogger, "[GetOrCreateMultipleProfilesForOrg] Failed to set profile cache in redis for key %s: %v", cacheKey, setErr)
+
+				}
+				utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Set profile cache in redis for key %s (TTL: 12h)", cacheKey)
+			}
+		} else {
+			utility.LogError(appLogger, "[GetOrCreateMultipleProfilesForOrg] Failed to resolve profile for userID=%s: %v", uID, err)
+		}
+	}
+
+	utility.LogInfo(appLogger, "[GetOrCreateMultipleProfilesForOrg] Resolved profiles with length of  %d", len(resultMap))
+
+	return resultMap, nil
+}
+
+func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
+	utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Starting resolution for userID=%s, orgID=%s", userID, orgID)
+	var profile Profile
 
 	if orgID != "" {
 		if err := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&profile).Error; err == nil {

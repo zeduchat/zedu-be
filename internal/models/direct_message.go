@@ -50,7 +50,6 @@ type UpdateDmVisibilityRequest struct {
 	VisibilityStatus *bool  `json:"visibility_status" validate:"required"`
 }
 
-
 type DmChannelsResponse struct {
 	ID               string        `json:"channel_id"`
 	Name             string        `json:"username"`
@@ -371,8 +370,6 @@ func (dm *DmChannels) DeleteDmChannel(db *gorm.DB, loggers ...*utility.Logger) e
 	return nil
 }
 
-
-
 func (dm *DmChannels) UpsertGroupDescription(db *gorm.DB, req GroupDescriptionRequest) error {
 	var dmChannel DmChannels
 
@@ -620,6 +617,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	}
 
 	for _, dmchan := range dmchans {
+		dmchan.UserId = dm.UserId
 		resp, err := dmchan.GetDmChannelResponse(db, c)
 		if err != nil {
 			return nil, paginationResp, err
@@ -767,13 +765,61 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 	}
 
 	for _, dmchan := range dmchans {
+		dmchan.UserId = dm.UserId
 		resp, err := dmchan.GetDmChannelResponse(db, c)
 		if err != nil {
+			return nil, paginationResp, err
+		}
+
+		if len(resp.PreviewThread) == 1 && resp.PreviewThread[0].Type == "system" {
 			continue
 		}
+
 		dmChansResp = append(dmChansResp, resp)
 	}
 
+	slices.SortStableFunc(dmChansResp, func(a, b DmChannelsResponse) int {
+		if a.ThreadCount != b.ThreadCount {
+			return cmp.Compare(b.ThreadCount, a.ThreadCount)
+		}
+		if a.ThreadCount == 0 {
+			if len(a.PreviewThread) > 0 && len(b.PreviewThread) > 0 {
+				return b.PreviewThread[0].CreatedAt.Compare(a.PreviewThread[0].CreatedAt)
+			}
+			if len(a.PreviewThread) > 0 {
+				return -1
+			}
+			if len(b.PreviewThread) > 0 {
+				return 1
+			}
+			return b.CreatedAt.Compare(a.CreatedAt)
+		}
+		return 0
+	})
+
+	if len(dmChansResp) < 10 {
+		topUsers, err := dm.GetTopNUsersResponse(db, 20)
+		if err == nil {
+			existingParticipantIDs := make(map[string]bool)
+			for _, resp := range dmChansResp {
+				existingParticipantIDs[resp.ParticipantId] = true
+			}
+
+			for _, topUser := range topUsers {
+				if len(dmChansResp) >= 10 {
+					break
+				}
+				if !existingParticipantIDs[topUser.ParticipantId] {
+					dmChansResp = append(dmChansResp, topUser)
+				}
+			}
+
+			paginationResp.TotalItems = int64(len(dmChansResp))
+			paginationResp.TotalPagesCount = 1
+			paginationResp.CurrentPage = 1
+			paginationResp.PageCount = len(dmChansResp)
+		}
+	}
 
 	return dmChansResp, paginationResp, nil
 }
@@ -795,7 +841,6 @@ func (dm *DmChannels) UpdateDmVisibility(db *gorm.DB, req UpdateDmVisibilityRequ
 
 	return nil
 }
-
 
 func (dm *DmChannels) GetTopNUsersResponse(db *gorm.DB, limit int) ([]DmChannelsResponse, error) {
 	var (
@@ -1367,7 +1412,6 @@ func (r *DmChannels) UpdateInteractionAt(db *gorm.DB) error {
 			"interacted_at":     time.Now(),
 			"visibility_status": true,
 		})
-
 
 	if result.Error != nil {
 		return result.Error

@@ -189,7 +189,7 @@ func DeleteUserProfileImage(db *gorm.DB, logger *utility.Logger, userId string, 
 		return http.StatusInternalServerError, err
 	}
 
-	err = Profile.SetProfileImageToEmpty(db, userId, targetOrg)
+	err = Profile.SetProfileImageToEmpty(db, userId, logger, targetOrg)
 	if err != nil {
 		logger.Error("Failed to update user profile avatar URL in database", "error", err)
 		return http.StatusInternalServerError, err
