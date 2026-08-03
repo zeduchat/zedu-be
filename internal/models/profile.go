@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -185,6 +187,10 @@ func (j *Profile) UpdateProfileFields(db *gorm.DB, req UpdateUserProfileRequest,
 		return nil, errors.New("failed to update user profile")
 	}
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+	}
+
 	return j, nil
 }
 
@@ -261,9 +267,14 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 
 	*j = updatedProfile
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(req.UserId, req.OrgId))
+		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(req.UserId, ""))
+	}
+
 	// Build response status
 	expiry := int64(0)
-	if j.StatusTimeout != "" {
+	if !req.ClearStatus && j.StatusTimeout != "" {
 		if parsed, err := strconv.ParseInt(j.StatusTimeout, 10, 64); err == nil {
 			expiry = parsed
 		}
@@ -280,6 +291,12 @@ func (j *Profile) UpdateProfileStatus(db *gorm.DB, req UpdateProfileStatus, logg
 		Expiry:     expiry,
 		Visibility: visibility,
 		Online:     j.Online,
+	}
+
+	if req.ClearStatus {
+		status.Text = ""
+		status.Emoji = ""
+		status.Expiry = 0
 	}
 
 	// Publish notification
@@ -400,6 +417,10 @@ func (p *Profile) SetProfileImageToEmpty(db *gorm.DB, userId string, orgId ...st
 		return result.Error
 	}
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		_, _ = rd.RedisDelete(storage.DB.Redis, getProfileCacheKey(userId, targetOrg))
+	}
+
 	return nil
 }
 
@@ -427,18 +448,45 @@ func (p *Profile) GetOrgID() string {
 	return ""
 }
 
+func getProfileCacheKey(userID, orgID string) string {
+	if orgID == "" {
+		return fmt.Sprintf("user:profile:%s:default", userID)
+	}
+	return fmt.Sprintf("user:profile:%s:%s", userID, orgID)
+}
+
 func (p *Profile) GetOrCreateProfileForOrg(db *gorm.DB, userID string, orgID string, logger ...*utility.Logger) (Profile, error) {
 	var appLogger *utility.Logger
 	if len(logger) > 0 {
 		appLogger = logger[0]
 	}
 
-	utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Starting resolution for userID=%s, orgID=%s", userID, orgID)
-	var profile Profile
 	if userID == "" {
 		utility.LogError(appLogger, "[GetOrCreateProfileForOrg] Error: userID is empty")
-		return profile, errors.New("user_id is required")
+		return Profile{}, errors.New("user_id is required")
 	}
+
+	cacheKey := getProfileCacheKey(userID, orgID)
+	if storage.DB != nil && storage.DB.Redis != nil {
+		if cachedBytes, err := rd.RedisGet(storage.DB.Redis, cacheKey); err == nil && len(cachedBytes) > 0 {
+			var cachedProf Profile
+			if jsonErr := json.Unmarshal(cachedBytes, &cachedProf); jsonErr == nil && cachedProf.ID != "" {
+				utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Redis cache hit: found profile ID=%s for userID=%s, orgID=%s", cachedProf.ID, userID, orgID)
+				return cachedProf, nil
+			}
+		}
+	}
+
+	resolvedProf, err := p.resolveProfileForOrg(db, userID, orgID, appLogger)
+	if err == nil && resolvedProf.ID != "" && storage.DB != nil && storage.DB.Redis != nil {
+		_ = rd.RedisSet(storage.DB.Redis, cacheKey, resolvedProf, 12*time.Hour)
+	}
+	return resolvedProf, err
+}
+
+func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
+	utility.LogInfo(appLogger, "[GetOrCreateProfileForOrg] Starting resolution for userID=%s, orgID=%s", userID, orgID)
+	var profile Profile
 
 	if orgID != "" {
 		if err := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&profile).Error; err == nil {

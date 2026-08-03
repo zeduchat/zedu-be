@@ -2,10 +2,13 @@ package riverqueueBg
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/riverqueue/river"
 	"gorm.io/gorm"
@@ -58,6 +61,13 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 		return err
 	}
 
+	if storage.DB != nil && storage.DB.Redis != nil {
+		if job.Args.OrgID != "" {
+			_, _ = rd.RedisDelete(storage.DB.Redis, fmt.Sprintf("user:profile:%s:%s", job.Args.UserID, job.Args.OrgID))
+		}
+		_, _ = rd.RedisDelete(storage.DB.Redis, fmt.Sprintf("user:profile:%s:default", job.Args.UserID))
+	}
+
 	notification := models.Notification[models.ProfileStatusUpdated]
 	notification.SectionType = models.ChannelsSection
 	notification.NotificationId = utility.GenerateUUID()
@@ -73,7 +83,7 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 			Text:       "",
 			Emoji:      "",
 			Expiry:     0,
-			Visibility: "public",
+			Visibility: profile.StatusVisibility,
 			Online:     profile.Online,
 		},
 	}
