@@ -109,7 +109,7 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 	}
 
 	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, addToOrg, logger, db)
+		err = addUserToChannel(&generalChannel, addToOrg, logger, tx, db)
 		if err != nil {
 			logger.Error("error adding user to the default channel", err)
 			return "", http.StatusInternalServerError, err
