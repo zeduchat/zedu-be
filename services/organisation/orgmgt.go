@@ -19,7 +19,7 @@ import (
 func CreateOrgUserManagement(db *gorm.DB, userID, orgID string) error {
 	var orgRole models.OrgRole
 
-	orgRole, err := orgRole.GetAOrgRoleByName(db, models.OrgRoleNameAdministrator)
+	orgRole, err := orgRole.GetAOrgRoleByName(db, models.OrgRoleNameOwner)
 	if err != nil {
 		return err
 	}

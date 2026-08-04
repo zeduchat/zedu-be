@@ -3,6 +3,7 @@ package models
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -345,6 +346,22 @@ func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID
 
 	if err != nil {
 		return userRoleInfo, fmt.Errorf("failed to get user role in organisation: %v", err)
+	}
+
+	if !strings.EqualFold(result.RoleName, OrgRoleNameOwner) {
+		var org Organisation
+		if exists := postgresql.CheckExists(db, &org, "id = ? AND owner_id = ?", orgID, userID); exists {
+			var ownerRole OrgRole
+			if role, err := ownerRole.GetAOrgRoleByName(db, OrgRoleNameOwner); err == nil {
+				_ = db.Model(&OrgUserManagement{}).Where("user_id = ? AND organisation_id = ?", userID, orgID).Update("role_id", role.ID).Error
+				result.RoleID = role.ID
+				result.RoleName = role.Name
+			}
+		}
+	}
+
+	if strings.EqualFold(result.RoleName, OrgRoleNameOwner) {
+		result.PermissionList = GetOwnerDefaultPermissions()
 	}
 
 	userRoleInfo = OrgUserRoleInfo{

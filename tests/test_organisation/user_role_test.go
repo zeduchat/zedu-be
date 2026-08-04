@@ -116,6 +116,9 @@ func TestGetOrganisationUserRole(t *testing.T) {
 				if roleName == nil || roleName == "" {
 					t.Error("Expected role_name to have a value")
 				}
+				if roleName != "owner" {
+					t.Errorf("Expected role_name to be 'owner', got '%v'", roleName)
+				}
 
 				permissions, hasPermissions := currentUserRoleInfo["permissions"]
 				if !hasPermissions {

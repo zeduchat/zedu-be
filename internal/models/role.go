@@ -159,7 +159,7 @@ func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 func (r *OrgRole) GetAOrgRoleByName(db *gorm.DB, roleName string) (OrgRole, error) {
 	var orgRole OrgRole
 
-	query := db.Where("name = ?", roleName)
+	query := db.Where("LOWER(name) = LOWER(?)", roleName)
 	err := query.First(&orgRole).Error
 
 	if err != nil {
