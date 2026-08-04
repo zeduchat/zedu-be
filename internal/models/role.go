@@ -59,7 +59,10 @@ type OrgRole struct {
 
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
 
-	permissionList := PermissionList{}
+	permissionList := r.Permissions.PermissionList
+	if permissionList == (PermissionList{}) {
+		permissionList = GetUserDefaultPermissions()
+	}
 
 	permission := Permission{
 		ID:             utility.GenerateUUID(),
@@ -76,6 +79,8 @@ func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
+
+	r.Permissions = permission
 
 	return nil
 }

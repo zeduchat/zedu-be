@@ -179,3 +179,9 @@ func (base *Controller) UpdateOrgPermissions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) GetSystemPermissions(c *gin.Context) {
+	permissions := models.GetMasterSystemPermissions()
+	rd := utility.BuildSuccessResponse(http.StatusOK, "System permissions retrieved successfully", permissions)
+	c.JSON(http.StatusOK, rd)
+}

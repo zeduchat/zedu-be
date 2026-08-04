@@ -13,11 +13,13 @@ import (
 
 // Default org role name constants.
 const (
+	OrgRoleNameOwner         = "Owner"
 	OrgRoleNameAdministrator = "Administrator"
 	OrgRoleNameGuest         = "Guest"
 	OrgRoleNameUser          = "User"
 	OrgRoleNameManager       = "Manager"
 	OrgRoleNameProjectLead   = "Project Lead"
+	OrgRoleNameBot           = "Bot"
 )
 
 type OrgUserManagement struct {

@@ -216,12 +216,36 @@ func UpdateMemberRole(db *gorm.DB, rdb *redis.Client, logger *utility.Logger, id
 		r   models.OrgRole
 	)
 
-	exists := r.CheckExists(db, ids.RoleID)
-	if !exists {
+	targetRole, err := r.GetAOrgRoleById(db, ids.RoleID)
+	if err != nil {
 		return http.StatusNotFound, errors.New("provided role does not exist")
 	}
 
-	err := oum.UpdateMemberRole(db, ids)
+	var currentMembership models.OrgUserManagement
+	var targetCurrentRoleName string
+	m, err := currentMembership.GetByIDs(db, ids.UserID, ids.OrganisationID)
+	if err == nil && m.RoleID != "" {
+		if cr, err := r.GetAOrgRoleById(db, m.RoleID); err == nil {
+			targetCurrentRoleName = cr.Name
+		}
+	}
+
+	isTargetAdminOrOwner := targetRole.Name == models.OrgRoleNameAdministrator ||
+		targetRole.Name == models.OrgRoleNameOwner ||
+		targetCurrentRoleName == models.OrgRoleNameAdministrator ||
+		targetCurrentRoleName == models.OrgRoleNameOwner
+
+	if isTargetAdminOrOwner {
+		if !isUserOwnerOrOwnerRole(db, ids.OwnerID, ids.OrganisationID) {
+			return http.StatusForbidden, errors.New("only organisation owners can manage administrator roles")
+		}
+	} else {
+		if !userCanOrOwner(db, ids.OwnerID, ids.OrganisationID, models.PermChangeUserOrgRole) {
+			return http.StatusForbidden, errors.New("you do not have permission to update member roles")
+		}
+	}
+
+	err = oum.UpdateMemberRole(db, ids)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to update member role: %w", err)
 	}

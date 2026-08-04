@@ -62,6 +62,7 @@ func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Contex
 		"id":          req.ID,
 		"name":        req.Name,
 		"description": req.Description,
+		"permissions": req.Permissions.PermissionList.ToMap(),
 		"message":     "Role created successfully",
 	}
 
