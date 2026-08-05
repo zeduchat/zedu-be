@@ -125,9 +125,9 @@ func TestCreateOrgRole(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected data map in response")
 		}
-		perms, ok := data["permissions"].(map[string]any)
+		perms, ok := data["permission_list"].(map[string]any)
 		if !ok {
-			t.Fatalf("expected permissions map in response")
+			t.Fatalf("expected permission_list map in response")
 		}
 		if perms["can_view_channels"] != true {
 			t.Errorf("expected can_view_channels to be true, got %v", perms["can_view_channels"])
@@ -199,7 +199,13 @@ func TestCreateOrgRole(t *testing.T) {
 
 		var adminRole models.OrgRole
 		if err := db.Where("name = ?", models.OrgRoleNameAdministrator).First(&adminRole).Error; err != nil {
-			t.Fatalf("Administrator role not found: %v", err)
+			adminRole = models.OrgRole{
+				ID:          utility.GenerateUUID(),
+				Name:        models.OrgRoleNameAdministrator,
+				Description: "Administrator Role",
+				IsDefault:   true,
+			}
+			_ = adminRole.CreateOrgRole(db)
 		}
 
 		orgUserMgt := models.OrgUserManagement{

@@ -72,6 +72,12 @@ func (req *CreateOrgRoleRequest) GetPermissionList() PermissionList {
 	return req.Permissions
 }
 
+type UpdateOrgRoleRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description" validate:"required"`
+}
+
+
 type UpdateOrgPermissionsRequest struct {
 	PermissionList                      PermissionList `json:"permission_list"`
 	Permissions                         PermissionList `json:"permissions"`
@@ -151,23 +157,28 @@ func (req *UpdateOrgPermissionsRequest) GetPermissionList() PermissionList {
 }
 
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
+	if r.Permissions.ID == "" {
+		r.Permissions.ID = utility.GenerateUUID()
+	}
+	r.Permissions.RoleID = r.ID
 
 	permissionList := r.Permissions.PermissionList
 	if permissionList == (PermissionList{}) {
 		permissionList = GetUserDefaultPermissions()
 	}
 
+	err := db.Omit("Permissions").Create(r).Error
+	if err != nil {
+		return err
+	}
+
 	permission := Permission{
-		ID:             utility.GenerateUUID(),
+		ID:             r.Permissions.ID,
 		RoleID:         r.ID,
 		PermissionList: permissionList,
 		IsDefault:      false,
 	}
 
-	err := postgresql.CreateOneRecord(db, &r)
-	if err != nil {
-		return err
-	}
 	err = postgresql.CreateOneRecord(db, &permission)
 	if err != nil {
 		return err
@@ -188,8 +199,10 @@ func (r *OrgRole) DeleteOrgRole(db *gorm.DB) error {
 }
 
 func (r *OrgRole) UpdateOrgRole(db *gorm.DB) error {
-	_, err := postgresql.SaveAllFields(db, &r)
-	return err
+	return db.Model(r).Select("name", "description").Updates(map[string]any{
+		"name":        r.Name,
+		"description": r.Description,
+	}).Error
 }
 
 func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
@@ -198,12 +211,18 @@ func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
 }
 
 func (og *OrgRole) CheckExists(db *gorm.DB, roleID string) bool {
+	if roleID == "" {
+		return false
+	}
 	var o OrgRole
 	return postgresql.CheckExists(db, &o, "id = ?", roleID)
 }
 
 func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 	var orgRoles []OrgRole
+	if orgID == "" {
+		return orgRoles, errors.New("organisation id cannot be empty")
+	}
 
 	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true)
 	query = postgresql.PreloadEntities(query, &orgRoles, "Permissions")
@@ -221,6 +240,9 @@ func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 
 func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error) {
 	var orgRole OrgRole
+	if orgID == "" || roleID == "" {
+		return orgRole, errors.New("organisation id and role id cannot be empty")
+	}
 
 	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true).Where("id = ?", roleID)
 	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")
@@ -236,6 +258,9 @@ func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error
 
 func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 	var orgRole OrgRole
+	if roleID == "" {
+		return orgRole, errors.New("role id cannot be empty")
+	}
 
 	query := db.Where("id = ?", roleID)
 	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")

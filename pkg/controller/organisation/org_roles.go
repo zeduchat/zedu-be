@@ -22,7 +22,7 @@ type Controller struct {
 
 func getOrgIDFromContext(c *gin.Context, db *storage.Database) string {
 	if claimOrgID, err := middleware.GetUserClaims(c, db.Postgresql, "org_id"); err == nil {
-		if idStr, ok := claimOrgID.(string); ok && idStr != "" {
+		if idStr, ok := claimOrgID.(string); ok && idStr != "" && idStr != "00000000-0000-0000-0000-000000000000" {
 			return idStr
 		}
 	}
@@ -123,7 +123,7 @@ func (base *Controller) UpdateOrgRole(c *gin.Context) {
 	var (
 		orgId  = getOrgIDFromContext(c, base.Db)
 		roleId = c.Param("role_id")
-		req    = models.OrgRole{}
+		req    = models.UpdateOrgRoleRequest{}
 	)
 
 	err := c.ShouldBind(&req)

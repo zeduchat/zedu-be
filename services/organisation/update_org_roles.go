@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func UpdateOrgRoles(req models.UpdateOrgRoleRequest, orgID, roleID string, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 	var (
 		org      models.Organisation
 		roleData models.OrgRole
@@ -68,9 +68,10 @@ func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gi
 	}
 
 	theResp := gin.H{
-		"id":          roleData.ID,
-		"name":        roleData.Name,
-		"description": roleData.Description,
+		"id":              roleData.ID,
+		"name":            roleData.Name,
+		"description":     roleData.Description,
+		"permission_list": roleData.Permissions.PermissionList.ToMap(),
 	}
 
 	return theResp, http.StatusOK, nil
