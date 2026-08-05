@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
+func CreateOrgRoles(req models.CreateOrgRoleRequest, orgID string, db *gorm.DB, c *gin.Context) (gin.H, int, error) {
 	var (
 		org  models.Organisation
 		user models.User
@@ -47,11 +47,26 @@ func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Contex
 		return nil, http.StatusForbidden, errors.New("you do not have permission to create roles")
 	}
 
-	req.ID = utility.GenerateUUID()
-	req.OrganisationID = &orgData.ID
-	req.IsDefault = false
+	permissionList := req.GetPermissionList()
+	if (permissionList.CanCreateRole || permissionList.CanCreateCustomRole) && !isUserOwnerOrOwnerRole(db, currentUser.ID, orgData.ID) {
+		return nil, http.StatusForbidden, errors.New("only organization owner can grant role creation permissions")
+	}
 
-	if err := req.CreateOrgRole(db); err != nil {
+	roleId := utility.GenerateUUID()
+
+	orgRole := models.OrgRole{
+		ID:             roleId,
+		Name:           req.Name,
+		Description:    req.Description,
+		OrganisationID: &orgData.ID,
+		IsDefault:      false,
+		Permissions: models.Permission{
+			PermissionList: permissionList,
+			RoleID: roleId,
+		},
+	}
+
+	if err := orgRole.CreateOrgRole(db); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
 			return gin.H{}, http.StatusConflict, errors.New("role name already exists")
 		}
@@ -59,11 +74,11 @@ func CreateOrgRoles(req models.OrgRole, orgID string, db *gorm.DB, c *gin.Contex
 	}
 
 	theResp := gin.H{
-		"id":          req.ID,
-		"name":        req.Name,
-		"description": req.Description,
-		"permissions": req.Permissions.PermissionList.ToMap(),
-		"message":     "Role created successfully",
+		"id":              orgRole.ID,
+		"name":            orgRole.Name,
+		"description":     orgRole.Description,
+		"permission_list": orgRole.Permissions.PermissionList.ToMap(),
+		"message":         "Role created successfully",
 	}
 
 	return theResp, http.StatusCreated, nil

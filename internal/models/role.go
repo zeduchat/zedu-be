@@ -57,6 +57,99 @@ type OrgRole struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+type CreateOrgRoleRequest struct {
+	Name           string         `json:"name" validate:"required"`
+	Description    string         `json:"description" validate:"required"`
+	OrganisationID *string        `json:"organisation_id"`
+	PermissionList PermissionList `json:"permission_list"`
+	Permissions    PermissionList `json:"permissions"`
+}
+
+func (req *CreateOrgRoleRequest) GetPermissionList() PermissionList {
+	if req.PermissionList != (PermissionList{}) {
+		return req.PermissionList
+	}
+	return req.Permissions
+}
+
+type UpdateOrgPermissionsRequest struct {
+	PermissionList                      PermissionList `json:"permission_list"`
+	Permissions                         PermissionList `json:"permissions"`
+	CanManageChannels                   bool           `json:"can_manage_channels"`
+	CanManageMembers                    bool           `json:"can_manage_members"`
+	CanManageOrganization               bool           `json:"can_manage_organization"`
+	CanManageSettings                   bool           `json:"can_manage_settings"`
+	CanManageBilling                    bool           `json:"can_manage_billing"`
+	CanManageAgents                     bool           `json:"can_manage_agents"`
+	CanManageWorkflows                  bool           `json:"can_manage_workflows"`
+	CanManageIntegrations               bool           `json:"can_manage_integrations"`
+	CanManageSecurity                   bool           `json:"can_manage_security"`
+	CanManageRoles                      bool           `json:"can_manage_roles"`
+	CanViewAnalytics                     bool           `json:"can_view_analytics"`
+	CanViewBilling                      bool           `json:"can_view_billing"`
+	CanViewChannels                     bool           `json:"can_view_channels"`
+	CanEditMessages                     bool           `json:"can_edit_messages"`
+	CanDeleteMessages                   bool           `json:"can_delete_messages"`
+	CanDeleteFiles                      bool           `json:"can_delete_files"`
+	CanCreateChannels                   bool           `json:"can_create_channels"`
+	CanCreateAgents                     bool           `json:"can_create_agents"`
+	CanCreateRole                       bool           `json:"can_create_role"`
+	CanCreateWebhooks                   bool           `json:"can_create_webhooks"`
+	CanArchiveChannels                  bool           `json:"can_archive_channels"`
+	CanInviteMembers                    bool           `json:"can_invite_members"`
+	CanRemovePeople                     bool           `json:"can_remove_people"`
+	CanCommentThreads                   bool           `json:"can_comment_threads"`
+	CanChangeUserOrgRole                bool           `json:"can_change_user_org_role"`
+	CanCreateCustomRole                 bool           `json:"can_create_custom_role"`
+	CanCreateChannel                    bool           `json:"can_create_channel"`
+	CanCommentOnThreads                 bool           `json:"can_comment_on_threads"`
+	CanDeleteAnyFile                    bool           `json:"can_delete_any_file"`
+	CanRemovePeopleFromOrganization     bool           `json:"can_remove_people_from_organization"`
+	CanManageGeneralInviteLink          bool           `json:"can_manage_general_invite_link"`
+}
+
+func (req *UpdateOrgPermissionsRequest) GetPermissionList() PermissionList {
+	if req.PermissionList != (PermissionList{}) {
+		return req.PermissionList
+	}
+	if req.Permissions != (PermissionList{}) {
+		return req.Permissions
+	}
+	return PermissionList{
+		CanManageChannels:               req.CanManageChannels,
+		CanManageMembers:                req.CanManageMembers,
+		CanManageOrganization:           req.CanManageOrganization,
+		CanManageSettings:               req.CanManageSettings,
+		CanManageBilling:                req.CanManageBilling,
+		CanManageAgents:                 req.CanManageAgents,
+		CanManageWorkflows:              req.CanManageWorkflows,
+		CanManageIntegrations:           req.CanManageIntegrations,
+		CanManageSecurity:               req.CanManageSecurity,
+		CanManageRoles:                  req.CanManageRoles,
+		CanViewAnalytics:                req.CanViewAnalytics,
+		CanViewBilling:                  req.CanViewBilling,
+		CanViewChannels:                 req.CanViewChannels,
+		CanEditMessages:                 req.CanEditMessages,
+		CanDeleteMessages:               req.CanDeleteMessages,
+		CanDeleteFiles:                  req.CanDeleteFiles,
+		CanCreateChannels:               req.CanCreateChannels,
+		CanCreateAgents:                 req.CanCreateAgents,
+		CanCreateRole:                   req.CanCreateRole,
+		CanCreateWebhooks:               req.CanCreateWebhooks,
+		CanArchiveChannels:              req.CanArchiveChannels,
+		CanInviteMembers:                req.CanInviteMembers,
+		CanRemovePeople:                 req.CanRemovePeople,
+		CanCommentThreads:               req.CanCommentThreads,
+		CanChangeUserOrgRole:            req.CanChangeUserOrgRole,
+		CanCreateCustomRole:             req.CanCreateCustomRole,
+		CanCreateChannel:                req.CanCreateChannel,
+		CanCommentOnThreads:             req.CanCommentOnThreads,
+		CanDeleteAnyFile:                req.CanDeleteAnyFile,
+		CanRemovePeopleFromOrganization: req.CanRemovePeopleFromOrganization,
+		CanManageGeneralInviteLink:      req.CanManageGeneralInviteLink,
+	}
+}
+
 func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
 
 	permissionList := r.Permissions.PermissionList

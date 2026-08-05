@@ -76,7 +76,7 @@ func UpdateOrgRoles(req models.OrgRole, orgID, roleID string, db *gorm.DB, c *gi
 	return theResp, http.StatusOK, nil
 }
 
-func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.DB, rdb *redis.Client, c *gin.Context) (int, error) {
+func UpdateOrgPermissions(req models.UpdateOrgPermissionsRequest, orgID, roleID string, db *gorm.DB, rdb *redis.Client, c *gin.Context) (int, error) {
 	var (
 		org      models.Organisation
 		roleData models.OrgRole
@@ -126,7 +126,12 @@ func UpdateOrgPermissions(req models.Permission, orgID, roleID string, db *gorm.
 	if err != nil {
 		return http.StatusBadRequest, err
 	}
-	permData.PermissionList = req.PermissionList
+	permissionList := req.GetPermissionList()
+	if (permissionList.CanCreateRole || permissionList.CanCreateCustomRole) && !isUserOwnerOrOwnerRole(db, currentUser.ID, orgData.ID) {
+		return http.StatusForbidden, errors.New("only organization owner can grant role creation permissions")
+	}
+
+	permData.PermissionList = permissionList
 
 	if err := permData.UpdateOrgPermissions(db); err != nil {
 		if strings.Contains(err.Error(), "duplicate key value") {
