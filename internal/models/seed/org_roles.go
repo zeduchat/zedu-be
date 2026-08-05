@@ -12,6 +12,11 @@ import (
 func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
 	roles := []models.OrgRole{
 		{
+			Name:        models.OrgRoleNameOwner,
+			Description: "Organisation owner with full administration authority",
+			IsDefault:   true,
+		},
+		{
 			Name:        models.OrgRoleNameAdministrator,
 			Description: "Full access, control",
 			IsDefault:   true,
@@ -34,6 +39,11 @@ func SeedRolesAndPermissions(logger *utility.Logger, db *gorm.DB) {
 		{
 			Name:        models.OrgRoleNameProjectLead,
 			Description: "Manage, coordinate, oversee",
+			IsDefault:   true,
+		},
+		{
+			Name:        models.OrgRoleNameBot,
+			Description: "Automated agent or integration identity",
 			IsDefault:   true,
 		},
 	}
@@ -64,70 +74,100 @@ func seedPermissionsForRole(logger *utility.Logger, db *gorm.DB, role models.Org
 	}
 
 	switch role.Name {
+	case models.OrgRoleNameOwner:
+		permission.PermissionList = models.PermissionList{
+			CanManageChannels:     true,
+			CanManageMembers:      true,
+			CanManageOrganization: true,
+			CanManageSettings:     true,
+			CanManageBilling:      true,
+			CanManageAgents:       true,
+			CanManageWorkflows:    true,
+			CanManageIntegrations: true,
+			CanManageSecurity:     true,
+			CanManageRoles:        true,
+			CanViewAnalytics:      true,
+			CanViewBilling:        true,
+			CanViewChannels:       true,
+			CanEditMessages:       true,
+			CanDeleteMessages:     true,
+			CanDeleteFiles:        true,
+			CanCreateChannels:     true,
+			CanCreateAgents:       true,
+			CanCreateRole:         true,
+			CanCreateWebhooks:     true,
+			CanArchiveChannels:    true,
+			CanInviteMembers:      true,
+			CanRemovePeople:       true,
+			CanCommentThreads:     true,
+			CanChangeUserOrgRole:  true,
+		}
 	case models.OrgRoleNameAdministrator:
 		permission.PermissionList = models.PermissionList{
-			CanRemovePeopleFromOrganization: true,
-			CanInviteMembers:                true,
-			CanCreateCustomRole:             true,
-			CanCreateChannel:                true,
-			CanCommentOnThreads:             true,
-			CanViewBilling:                  true,
-			CanCreateWebhooks:               true,
-			CanViewChannels:                 true,
-			CanChangeUserOrgRole:            true,
-			CanDeleteAnyFile:                true,
-			CanManageGeneralInviteLink:      true,
-		}
-	case models.OrgRoleNameGuest:
-		permission.PermissionList = models.PermissionList{
-			CanRemovePeopleFromOrganization: false,
-			CanInviteMembers:                false,
-			CanCreateCustomRole:             false,
-			CanCreateChannel:                false,
-			CanCommentOnThreads:             false,
-			CanViewBilling:                  false,
-			CanCreateWebhooks:               false,
-			CanViewChannels:                 true,
-			CanChangeUserOrgRole:            false,
-		}
-	case models.OrgRoleNameUser:
-		permission.PermissionList = models.PermissionList{
-			CanRemovePeopleFromOrganization: false,
-			CanInviteMembers:                true,
-			CanCreateCustomRole:             false,
-			CanCreateChannel:                true,
-			CanCommentOnThreads:             true,
-			CanViewBilling:                  false,
-			CanCreateWebhooks:               false,
-			CanViewChannels:                 true,
-			CanChangeUserOrgRole:            false,
+			CanManageChannels:     true,
+			CanManageMembers:      true,
+			CanManageOrganization: true,
+			CanManageSettings:     true,
+			CanManageAgents:       true,
+			CanManageWorkflows:    true,
+			CanManageIntegrations: true,
+			CanManageRoles:        true,
+			CanViewAnalytics:      true,
+			CanViewBilling:        true,
+			CanViewChannels:       true,
+			CanEditMessages:       true,
+			CanDeleteMessages:     true,
+			CanDeleteFiles:        true,
+			CanCreateChannels:     true,
+			CanCreateAgents:       true,
+			CanCreateRole:         true,
+			CanCreateWebhooks:     true,
+			CanArchiveChannels:    true,
+			CanInviteMembers:      true,
+			CanRemovePeople:       true,
+			CanCommentThreads:     true,
+			CanChangeUserOrgRole:  true,
 		}
 	case models.OrgRoleNameManager:
 		permission.PermissionList = models.PermissionList{
-			CanRemovePeopleFromOrganization: true,
-			CanInviteMembers:                true,
-			CanCreateCustomRole:             true,
-			CanCreateChannel:                true,
-			CanCommentOnThreads:             true,
-			CanViewBilling:                  true,
-			CanCreateWebhooks:               true,
-			CanViewChannels:                 true,
-			CanChangeUserOrgRole:            true,
-			CanDeleteAnyFile:                true,
-			CanManageGeneralInviteLink:      true,
+			CanManageChannels:    true,
+			CanManageMembers:     true,
+			CanManageSettings:    true,
+			CanManageAgents:      true,
+			CanViewAnalytics:     true,
+			CanViewBilling:       true,
+			CanViewChannels:      true,
+			CanEditMessages:      true,
+			CanDeleteMessages:    true,
+			CanCreateChannels:    true,
+			CanCreateAgents:      true,
+			CanCreateRole:        true,
+			CanArchiveChannels:   true,
+			CanInviteMembers:     true,
+			CanRemovePeople:      true,
+			CanCommentThreads:    true,
+			CanChangeUserOrgRole: true,
 		}
 	case models.OrgRoleNameProjectLead:
 		permission.PermissionList = models.PermissionList{
-			CanRemovePeopleFromOrganization: true,
-			CanInviteMembers:                true,
-			CanCreateCustomRole:             true,
-			CanCreateChannel:                true,
-			CanCommentOnThreads:             true,
-			CanViewBilling:                  false,
-			CanCreateWebhooks:               false,
-			CanViewChannels:                 true,
-			CanChangeUserOrgRole:            true,
-			CanManageGeneralInviteLink:      true,
+			CanManageChannels: true,
+			CanViewChannels:   true,
+			CanEditMessages:   true,
+			CanDeleteMessages: true,
+			CanCreateChannels: true,
+			CanInviteMembers:  true,
+			CanCommentThreads: true,
+		}
+	case models.OrgRoleNameUser:
+		permission.PermissionList = models.GetUserDefaultPermissions()
+	case models.OrgRoleNameBot:
+		permission.PermissionList = models.PermissionList{
+			CanViewAnalytics: true,
+			CanViewChannels:  true,
+		}
+	case models.OrgRoleNameGuest:
+		permission.PermissionList = models.PermissionList{
+			CanViewChannels: true,
 		}
 	}
 

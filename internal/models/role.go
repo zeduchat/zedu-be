@@ -57,25 +57,134 @@ type OrgRole struct {
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
-func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
+type CreateOrgRoleRequest struct {
+	Name           string         `json:"name" validate:"required"`
+	Description    string         `json:"description" validate:"required"`
+	OrganisationID *string        `json:"organisation_id"`
+	PermissionList PermissionList `json:"permission_list"`
+	Permissions    PermissionList `json:"permissions"`
+}
 
-	permissionList := PermissionList{}
+func (req *CreateOrgRoleRequest) GetPermissionList() PermissionList {
+	if req.PermissionList != (PermissionList{}) {
+		return req.PermissionList
+	}
+	return req.Permissions
+}
+
+type UpdateOrgRoleRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description" validate:"required"`
+}
+
+
+type UpdateOrgPermissionsRequest struct {
+	PermissionList                      PermissionList `json:"permission_list"`
+	Permissions                         PermissionList `json:"permissions"`
+	CanManageChannels                   bool           `json:"can_manage_channels"`
+	CanManageMembers                    bool           `json:"can_manage_members"`
+	CanManageOrganization               bool           `json:"can_manage_organization"`
+	CanManageSettings                   bool           `json:"can_manage_settings"`
+	CanManageBilling                    bool           `json:"can_manage_billing"`
+	CanManageAgents                     bool           `json:"can_manage_agents"`
+	CanManageWorkflows                  bool           `json:"can_manage_workflows"`
+	CanManageIntegrations               bool           `json:"can_manage_integrations"`
+	CanManageSecurity                   bool           `json:"can_manage_security"`
+	CanManageRoles                      bool           `json:"can_manage_roles"`
+	CanViewAnalytics                     bool           `json:"can_view_analytics"`
+	CanViewBilling                      bool           `json:"can_view_billing"`
+	CanViewChannels                     bool           `json:"can_view_channels"`
+	CanEditMessages                     bool           `json:"can_edit_messages"`
+	CanDeleteMessages                   bool           `json:"can_delete_messages"`
+	CanDeleteFiles                      bool           `json:"can_delete_files"`
+	CanCreateChannels                   bool           `json:"can_create_channels"`
+	CanCreateAgents                     bool           `json:"can_create_agents"`
+	CanCreateRole                       bool           `json:"can_create_role"`
+	CanCreateWebhooks                   bool           `json:"can_create_webhooks"`
+	CanArchiveChannels                  bool           `json:"can_archive_channels"`
+	CanInviteMembers                    bool           `json:"can_invite_members"`
+	CanRemovePeople                     bool           `json:"can_remove_people"`
+	CanCommentThreads                   bool           `json:"can_comment_threads"`
+	CanChangeUserOrgRole                bool           `json:"can_change_user_org_role"`
+	CanCreateCustomRole                 bool           `json:"can_create_custom_role"`
+	CanCreateChannel                    bool           `json:"can_create_channel"`
+	CanCommentOnThreads                 bool           `json:"can_comment_on_threads"`
+	CanDeleteAnyFile                    bool           `json:"can_delete_any_file"`
+	CanRemovePeopleFromOrganization     bool           `json:"can_remove_people_from_organization"`
+	CanManageGeneralInviteLink          bool           `json:"can_manage_general_invite_link"`
+}
+
+func (req *UpdateOrgPermissionsRequest) GetPermissionList() PermissionList {
+	if req.PermissionList != (PermissionList{}) {
+		return req.PermissionList
+	}
+	if req.Permissions != (PermissionList{}) {
+		return req.Permissions
+	}
+	return PermissionList{
+		CanManageChannels:               req.CanManageChannels,
+		CanManageMembers:                req.CanManageMembers,
+		CanManageOrganization:           req.CanManageOrganization,
+		CanManageSettings:               req.CanManageSettings,
+		CanManageBilling:                req.CanManageBilling,
+		CanManageAgents:                 req.CanManageAgents,
+		CanManageWorkflows:              req.CanManageWorkflows,
+		CanManageIntegrations:           req.CanManageIntegrations,
+		CanManageSecurity:               req.CanManageSecurity,
+		CanManageRoles:                  req.CanManageRoles,
+		CanViewAnalytics:                req.CanViewAnalytics,
+		CanViewBilling:                  req.CanViewBilling,
+		CanViewChannels:                 req.CanViewChannels,
+		CanEditMessages:                 req.CanEditMessages,
+		CanDeleteMessages:               req.CanDeleteMessages,
+		CanDeleteFiles:                  req.CanDeleteFiles,
+		CanCreateChannels:               req.CanCreateChannels,
+		CanCreateAgents:                 req.CanCreateAgents,
+		CanCreateRole:                   req.CanCreateRole,
+		CanCreateWebhooks:               req.CanCreateWebhooks,
+		CanArchiveChannels:              req.CanArchiveChannels,
+		CanInviteMembers:                req.CanInviteMembers,
+		CanRemovePeople:                 req.CanRemovePeople,
+		CanCommentThreads:               req.CanCommentThreads,
+		CanChangeUserOrgRole:            req.CanChangeUserOrgRole,
+		CanCreateCustomRole:             req.CanCreateCustomRole,
+		CanCreateChannel:                req.CanCreateChannel,
+		CanCommentOnThreads:             req.CanCommentOnThreads,
+		CanDeleteAnyFile:                req.CanDeleteAnyFile,
+		CanRemovePeopleFromOrganization: req.CanRemovePeopleFromOrganization,
+		CanManageGeneralInviteLink:      req.CanManageGeneralInviteLink,
+	}
+}
+
+func (r *OrgRole) CreateOrgRole(db *gorm.DB) error {
+	if r.Permissions.ID == "" {
+		r.Permissions.ID = utility.GenerateUUID()
+	}
+	r.Permissions.RoleID = r.ID
+
+	permissionList := r.Permissions.PermissionList
+	if permissionList == (PermissionList{}) {
+		permissionList = GetUserDefaultPermissions()
+	}
+
+	err := db.Omit("Permissions").Create(r).Error
+	if err != nil {
+		return err
+	}
 
 	permission := Permission{
-		ID:             utility.GenerateUUID(),
+		ID:             r.Permissions.ID,
 		RoleID:         r.ID,
 		PermissionList: permissionList,
 		IsDefault:      false,
 	}
 
-	err := postgresql.CreateOneRecord(db, &r)
-	if err != nil {
-		return err
-	}
 	err = postgresql.CreateOneRecord(db, &permission)
 	if err != nil {
 		return err
 	}
+
+	r.Permissions = permission
 
 	return nil
 }
@@ -90,8 +199,10 @@ func (r *OrgRole) DeleteOrgRole(db *gorm.DB) error {
 }
 
 func (r *OrgRole) UpdateOrgRole(db *gorm.DB) error {
-	_, err := postgresql.SaveAllFields(db, &r)
-	return err
+	return db.Model(r).Select("name", "description").Updates(map[string]any{
+		"name":        r.Name,
+		"description": r.Description,
+	}).Error
 }
 
 func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
@@ -100,12 +211,18 @@ func (rp *Permission) UpdateOrgPermissions(db *gorm.DB) error {
 }
 
 func (og *OrgRole) CheckExists(db *gorm.DB, roleID string) bool {
+	if roleID == "" {
+		return false
+	}
 	var o OrgRole
 	return postgresql.CheckExists(db, &o, "id = ?", roleID)
 }
 
 func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 	var orgRoles []OrgRole
+	if orgID == "" {
+		return orgRoles, errors.New("organisation id cannot be empty")
+	}
 
 	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true)
 	query = postgresql.PreloadEntities(query, &orgRoles, "Permissions")
@@ -123,6 +240,9 @@ func (r *OrgRole) GetOrgRoles(db *gorm.DB, orgID string) ([]OrgRole, error) {
 
 func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error) {
 	var orgRole OrgRole
+	if orgID == "" || roleID == "" {
+		return orgRole, errors.New("organisation id and role id cannot be empty")
+	}
 
 	query := db.Where("organisation_id = ? OR is_default = ?", orgID, true).Where("id = ?", roleID)
 	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")
@@ -138,6 +258,9 @@ func (r *OrgRole) GetAOrgRole(db *gorm.DB, orgID, roleID string) (OrgRole, error
 
 func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 	var orgRole OrgRole
+	if roleID == "" {
+		return orgRole, errors.New("role id cannot be empty")
+	}
 
 	query := db.Where("id = ?", roleID)
 	query = postgresql.PreloadEntities(query, &orgRole, "Permissions")
@@ -154,7 +277,7 @@ func (r *OrgRole) GetAOrgRoleById(db *gorm.DB, roleID string) (OrgRole, error) {
 func (r *OrgRole) GetAOrgRoleByName(db *gorm.DB, roleName string) (OrgRole, error) {
 	var orgRole OrgRole
 
-	query := db.Where("name = ?", roleName)
+	query := db.Where("LOWER(name) = LOWER(?)", roleName)
 	err := query.First(&orgRole).Error
 
 	if err != nil {

@@ -82,9 +82,9 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
-		updatedRole := models.OrgRole{
+		updatedRole := models.UpdateOrgRoleRequest{
 			Name:        fmt.Sprintf("%v-New name", utility.RandomString(5)),
 			Description: "Newdescription",
 		}
@@ -130,9 +130,9 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
-		updatedRole := models.OrgRole{
+		updatedRole := models.UpdateOrgRoleRequest{
 			Name:        fmt.Sprintf("%v-Regur name", utility.RandomString(5)),
 			Description: "Regular user role description",
 		}
@@ -157,9 +157,9 @@ func TestUpdateOrgRole(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
-		invalidRole := models.OrgRole{
+		invalidRole := models.UpdateOrgRoleRequest{
 			Description: "Missing name field",
 		}
 		roleJSON, _ := json.Marshal(invalidRole)
@@ -262,7 +262,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    adminUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		updatedPermissions := models.PermissionList{
 			CanRemovePeopleFromOrganization: false,
@@ -315,7 +315,7 @@ func TestUpdateOrgPermissions(t *testing.T) {
 			Email:    regularUser.Email,
 			Password: "password",
 		}
-		token := tests.GetLoginToken(t, gin.Default(), *orgController, loginData)
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
 
 		updatedPermissions := models.Permission{
 			PermissionList: models.PermissionList{

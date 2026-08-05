@@ -20,6 +20,11 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 	organisationCtrl := organisation.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	channelCtrl := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	integrationsCtrl := agents.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
+
+	permissionsUrl := r.Group(fmt.Sprintf("%v/permissions", ApiVersion), middleware.Authorize(db.Postgresql))
+	{
+		permissionsUrl.GET("", organisationCtrl.GetSystemPermissions)
+	}
 	organisationUrl := r.Group(fmt.Sprintf("%v/organisations", ApiVersion), middleware.Authorize(db.Postgresql))
 	{
 		// Organisation routes

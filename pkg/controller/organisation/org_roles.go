@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
@@ -19,9 +20,18 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
+func getOrgIDFromContext(c *gin.Context, db *storage.Database) string {
+	if claimOrgID, err := middleware.GetUserClaims(c, db.Postgresql, "org_id"); err == nil {
+		if idStr, ok := claimOrgID.(string); ok && idStr != "" && idStr != "00000000-0000-0000-0000-000000000000" {
+			return idStr
+		}
+	}
+	return c.Param("org_id")
+}
+
 func (base *Controller) GetOrgRoles(c *gin.Context) {
 
-	orgId := c.Param("org_id")
+	orgId := getOrgIDFromContext(c, base.Db)
 
 	respData, code, err := service.GetOrgRoles(base.Db.Postgresql, orgId, c)
 
@@ -38,7 +48,7 @@ func (base *Controller) GetOrgRoles(c *gin.Context) {
 
 func (base *Controller) GetAOrgRole(c *gin.Context) {
 	var (
-		orgId  = c.Param("org_id")
+		orgId  = getOrgIDFromContext(c, base.Db)
 		roleId = c.Param("role_id")
 	)
 	respData, code, err := service.GetAOrgRole(base.Db.Postgresql, orgId, roleId, c)
@@ -56,10 +66,10 @@ func (base *Controller) GetAOrgRole(c *gin.Context) {
 
 func (base *Controller) CreateOrgRole(c *gin.Context) {
 
-	orgId := c.Param("org_id")
+	orgId := getOrgIDFromContext(c, base.Db)
 
 	var (
-		req = models.OrgRole{}
+		req = models.CreateOrgRoleRequest{}
 	)
 
 	err := c.ShouldBind(&req)
@@ -93,7 +103,7 @@ func (base *Controller) CreateOrgRole(c *gin.Context) {
 func (base *Controller) DeleteOrgRole(c *gin.Context) {
 
 	var (
-		orgId  = c.Param("org_id")
+		orgId  = getOrgIDFromContext(c, base.Db)
 		roleId = c.Param("role_id")
 	)
 
@@ -111,9 +121,9 @@ func (base *Controller) DeleteOrgRole(c *gin.Context) {
 func (base *Controller) UpdateOrgRole(c *gin.Context) {
 
 	var (
-		orgId  = c.Param("org_id")
+		orgId  = getOrgIDFromContext(c, base.Db)
 		roleId = c.Param("role_id")
-		req    = models.OrgRole{}
+		req    = models.UpdateOrgRoleRequest{}
 	)
 
 	err := c.ShouldBind(&req)
@@ -147,9 +157,9 @@ func (base *Controller) UpdateOrgRole(c *gin.Context) {
 func (base *Controller) UpdateOrgPermissions(c *gin.Context) {
 
 	var (
-		orgId  = c.Param("org_id")
+		orgId  = getOrgIDFromContext(c, base.Db)
 		roleId = c.Param("role_id")
-		req    = models.Permission{}
+		req    = models.UpdateOrgPermissionsRequest{}
 	)
 
 	err := c.ShouldBind(&req)
@@ -177,5 +187,11 @@ func (base *Controller) UpdateOrgPermissions(c *gin.Context) {
 	base.Logger.Info("permission updated successfully")
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Permissions updated successfully", nil)
 
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetSystemPermissions(c *gin.Context) {
+	permissions := models.GetMasterSystemPermissions()
+	rd := utility.BuildSuccessResponse(http.StatusOK, "System permissions retrieved successfully", permissions)
 	c.JSON(http.StatusOK, rd)
 }

@@ -87,6 +87,56 @@ func TestCreateOrgRole(t *testing.T) {
 		tests.AssertResponseMessage(t, response["message"].(string), "Org role created successfully")
 	})
 
+	t.Run("Successful Create Org Role with permission_list Payload", func(t *testing.T) {
+		router, orgController := setup()
+
+		loginData := models.LoginRequestModel{
+			Email:    adminUser.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
+
+		roleReq := models.CreateOrgRoleRequest{
+			Name:        fmt.Sprintf("Developer-%v", utility.RandomString(5)),
+			Description: "devs role",
+			PermissionList: models.PermissionList{
+				CanViewChannels:   true,
+				CanEditMessages:   true,
+				CanCreateChannels: true,
+				CanCreateWebhooks: true,
+				CanInviteMembers:  true,
+				CanCommentThreads: true,
+			},
+		}
+		roleJSON, _ := json.Marshal(roleReq)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/roles", orgID), bytes.NewBuffer(roleJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		response := tests.ParseResponse(resp)
+		tests.AssertResponseMessage(t, response["message"].(string), "Org role created successfully")
+
+		data, ok := response["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected data map in response")
+		}
+		perms, ok := data["permission_list"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected permission_list map in response")
+		}
+		if perms["can_view_channels"] != true {
+			t.Errorf("expected can_view_channels to be true, got %v", perms["can_view_channels"])
+		}
+		if perms["can_manage_billing"] != false {
+			t.Errorf("expected can_manage_billing to be false, got %v", perms["can_manage_billing"])
+		}
+	})
+
 	t.Run("Unauthorized Access", func(t *testing.T) {
 		router, _ := setup()
 
@@ -134,6 +184,59 @@ func TestCreateOrgRole(t *testing.T) {
 		tests.AssertStatusCode(t, resp.Code, http.StatusForbidden)
 		response := tests.ParseResponse(resp)
 		tests.AssertResponseMessage(t, response["message"].(string), "you do not have permission to create roles")
+	})
+
+	t.Run("Successful Create Org Role - Non-Owner Administrator", func(t *testing.T) {
+		router, orgController := setup()
+
+		nonOwnerAdmin := models.User{
+			ID:       utility.GenerateUUID(),
+			Name:     "Non-Owner Admin",
+			Email:    fmt.Sprintf("nonowneradmin%v@qa.team", utility.GenerateUUID()),
+			Password: password,
+		}
+		db.Create(&nonOwnerAdmin)
+
+		var adminRole models.OrgRole
+		if err := db.Where("name = ?", models.OrgRoleNameAdministrator).First(&adminRole).Error; err != nil {
+			adminRole = models.OrgRole{
+				ID:          utility.GenerateUUID(),
+				Name:        models.OrgRoleNameAdministrator,
+				Description: "Administrator Role",
+				IsDefault:   true,
+			}
+			_ = adminRole.CreateOrgRole(db)
+		}
+
+		orgUserMgt := models.OrgUserManagement{
+			UserID:         nonOwnerAdmin.ID,
+			OrganisationID: orgID,
+			RoleID:         adminRole.ID,
+		}
+		db.Create(&orgUserMgt)
+
+		loginData := models.LoginRequestModel{
+			Email:    nonOwnerAdmin.Email,
+			Password: "password",
+		}
+		token := tests.GetLoginToken(t, router, *orgController, loginData)
+
+		role := models.OrgRole{
+			Name:        fmt.Sprintf("Admin-%v", utility.RandomString(5)),
+			Description: "Created by non-owner Administrator",
+		}
+		roleJSON, _ := json.Marshal(role)
+
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/organisations/%s/roles", orgID), bytes.NewBuffer(roleJSON))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+		resp := httptest.NewRecorder()
+		router.ServeHTTP(resp, req)
+
+		tests.AssertStatusCode(t, resp.Code, http.StatusCreated)
+		response := tests.ParseResponse(resp)
+		tests.AssertResponseMessage(t, response["message"].(string), "Org role created successfully")
 	})
 
 	t.Run("Bad Request - Missing Fields", func(t *testing.T) {
