@@ -1,7 +1,6 @@
 package invitation
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,28 +46,16 @@ func (base *Controller) GeneralInvitationVerify(c *gin.Context) {
 	}
 	userId := userID.(string)
 
-	response, code, err := invitation.GeneralInvitationVerify(base.Db, req, base.Logger, userId)
+	respData, code, err := invitation.GeneralInvitationVerify(req, userId, base.Db, c, base.Logger)
 	if err != nil {
-		base.Logger.Info("Failed to verify invitation", err.Error())
-		if code == http.StatusConflict {
-			rd := utility.BuildSuccessResponse(http.StatusOK, "User is already a member", map[string]any{
-				"isMember": true,
-				"message":  err.Error(),
-			})
-			c.JSON(http.StatusOK, rd)
-			return
-		}
-
-		rd := utility.BuildErrorResponse(code, "error", fmt.Errorf("failed to verify invitation: %w", err).Error(), err, nil)
+		base.Logger.Info("Failed to verify invitation", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 		c.JSON(code, rd)
 		return
 	}
 
 	base.Logger.Info("user invited successfully")
-	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", map[string]any{
-		"isMember": false,
-		"message":  response,
-	})
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User invited successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
 

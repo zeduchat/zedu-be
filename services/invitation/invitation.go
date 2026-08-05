@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
+	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -35,18 +39,15 @@ func ChangeGeneralInviteStatus(db *gorm.DB, req models.ChangeStatus, logger *uti
 	return http.StatusOK, nil
 }
 
-func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInvitationLink, logger *utility.Logger, userID string) (string, int, error) {
+func GeneralInvitationVerify(req models.VerifyShareableInvitationLink, authenticatedUserID string, db *storage.Database, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
 	var (
-		user   models.User
-		invite models.GeneralInvitation
-		org    models.Organisation
-		orgmgt models.OrgUserManagement
+		user         = models.User{}
+		responseData gin.H
+		invite       models.GeneralInvitation
+		orgmgt       models.OrgUserManagement
+		userID       = authenticatedUserID
+		org          models.Organisation
 	)
-
-	exists := postgresql.CheckExists(db.Postgresql, &user, "id = ?", userID)
-	if !exists {
-		return "", http.StatusNotFound, fmt.Errorf("user does not exist")
-	}
 
 	err := db.Postgresql.Where("token = ? and active_status = ? AND expires_at > ?",
 		req.Token,
@@ -56,99 +57,104 @@ func GeneralInvitationVerify(db *storage.Database, req models.VerifyShareableInv
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Error("invitation not found or expired", err)
-			return "", http.StatusNotFound, fmt.Errorf("invalid or expired invitation")
+			return responseData, http.StatusNotFound, errors.New("invalid or expired invitation")
 		}
 
 		logger.Error("database error", err)
-		return "", http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
+		return responseData, http.StatusInternalServerError, fmt.Errorf("failed to verify invitation: %s", err)
 	}
 
 	_, err = org.CheckOrgExists(invite.OrganisationID, db.Postgresql)
 	if err != nil {
-		return "", http.StatusNotFound, fmt.Errorf("organisation not found or has been deleted")
+		return responseData, http.StatusNotFound, errors.New("organisation not found or has been deleted")
 	}
 
-	exists = postgresql.CheckExists(db.Postgresql, &orgmgt,
-		"user_id = ? AND organisation_id = ?",
-		userID, invite.OrganisationID)
-	if exists {
-		return "", http.StatusConflict, fmt.Errorf("user is already a member of this organisation")
-	}
+	orgmgt.RoleID = invite.Role
+	orgmgt.Status = "active"
+	orgmgt.UserID = userID
+	orgmgt.OrganisationID = invite.OrganisationID
 
-	addToOrg := models.OrgUserManagement{
-		UserID:         userID,
-		OrganisationID: invite.OrganisationID,
-		RoleID:         invite.Role,
-		Status:         "active",
-	}
-
-	tx := db.Postgresql.Begin()
-	if tx.Error != nil {
-		return "", http.StatusInternalServerError, fmt.Errorf("failed to start transaction: %s", tx.Error)
-	}
-
-	committed := false
-	defer func() {
-		if !committed {
-			tx.Rollback()
-		}
-		if r := recover(); r != nil {
-			logger.Error("transaction failed", fmt.Errorf("%v", r))
-		}
-	}()
-
-	code, err := addToOrg.AddUserToOrganisation(tx)
-	if err != nil {
-		logger.Error("unable to add user to organisation", err)
-		return "", code, fmt.Errorf("unable to add user to organisation: %s", err)
-	}
-
-	generalChannel, err := getGeneralChannel(tx, invite.OrganisationID)
-	if err != nil {
-		logger.Error("error getting default channel", err)
-	}
-
-	if generalChannel.ID != "" {
-		err = addUserToChannel(&generalChannel, addToOrg, logger, tx, db)
+	alreadyMember := postgresql.CheckExists(db.Postgresql, &models.OrgUserManagement{}, "user_id = ? AND organisation_id = ?", userID, invite.OrganisationID)
+	if !alreadyMember {
+		err = addUserToOrganisation(orgmgt, db.Postgresql)
 		if err != nil {
-			logger.Error("error adding user to the default channel", err)
-			return "", http.StatusInternalServerError, err
+			logger.Error("error adding user to the invited organisation", err)
+
+			return responseData, http.StatusInternalServerError, err
+		}
+
+		generalChannel, err := getGeneralChannel(db.Postgresql, invite.OrganisationID)
+		if err != nil {
+			logger.Error("error getting general channel", err)
+		}
+
+		if generalChannel.ID != "" {
+			err = addUserToChannel(&generalChannel, orgmgt, logger, db.Postgresql, db)
+			if err != nil {
+				logger.Error("error adding user to the general channel", err)
+
+				return responseData, http.StatusInternalServerError, err
+			}
 		}
 	}
-
-	if err = tx.Commit().Error; err != nil {
-		logger.Error("transaction commit failed", err)
-		return "", http.StatusInternalServerError, fmt.Errorf("failed to commit transaction: %s", err)
-	}
-	committed = true
 
 	userData, err := user.GetUserByID(db.Postgresql, userID, invite.OrganisationID)
 	if err != nil {
-		logger.Error("error fetching user data for trigger", err)
+		return responseData, http.StatusInternalServerError, errors.New("unable to fetch user")
 	}
 
-	triggerNotif := models.Notification[models.TriggerNotification]
-	triggerNotif.SectionType = models.OrganisationUsersSection
-	triggerNotif.ModificationDetails = &models.ModificationDetails{
-		OrgId:  invite.OrganisationID,
-		UserId: userID,
+	orgId, _ := uuid.FromString(invite.OrganisationID)
+	userData.CurrentOrg = orgId
+	if err = db.Postgresql.Model(&userData).Update("current_org", orgId).Error; err != nil {
+		logger.Error("error updating user's current organisation", err)
+		return responseData, http.StatusInternalServerError, err
 	}
-	triggerNotif.Content = models.TriggerNotificationPayload{
-		TriggerAction: "user_joined_org",
-		Data: map[string]any{
-			"username":         userData.Profile.UserName,
-			"firstname":        userData.Profile.FirstName,
-			"lastname":         userData.Profile.LastName,
-			"avatarurl":        userData.Profile.AvatarURL,
-			"defaultavatarurl": avatar.GenerateDefaultAvatarURL(userData.ID),
-			"email":            userData.Email,
-		},
+
+	if !alreadyMember {
+		triggerNotif := models.Notification[models.TriggerNotification]
+		triggerNotif.SectionType = models.OrganisationUsersSection
+		triggerNotif.ModificationDetails = &models.ModificationDetails{
+			OrgId:  invite.OrganisationID,
+			UserId: userID,
+		}
+		triggerNotif.Content = models.TriggerNotificationPayload{
+			TriggerAction: "user_joined_org",
+			Data: map[string]any{
+				"username":         userData.Profile.UserName,
+				"firstname":        userData.Profile.FirstName,
+				"lastname":         userData.Profile.LastName,
+				"avatarurl":        userData.Profile.AvatarURL,
+				"defaultavatarurl": avatar.GenerateDefaultAvatarURL(userData.ID),
+				"email":            userData.Email,
+			},
+		}
+		triggerNotif.NotificationId = utility.GenerateUUID()
+
+		centrifuge.PublishChannel(logger, invite.OrganisationID, triggerNotif)
 	}
-	triggerNotif.NotificationId = utility.GenerateUUID()
 
-	centrifuge.PublishChannel(logger, invite.OrganisationID, triggerNotif)
+	tokenData, err := middleware.CreateToken(userData, c)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("error creating token")
+	}
 
-	return "User verified successfully", http.StatusOK, nil
+	err = saveAccessToken(tokenData, userID, db.Postgresql)
+	if err != nil {
+		return responseData, http.StatusInternalServerError, errors.New("error saving access token")
+	}
+
+	org, _ = org.GetOrgByID(db.Postgresql, userData.CurrentOrg.String())
+
+	responseData = buildUserResponse(userData, tokenData)
+
+	if userData.CurrentOrg.String() != "00000000-0000-0000-0000-000000000000" {
+		if u, ok := responseData["user"].(map[string]any); ok {
+			u["current_organisation_slug"] = slug.Make(org.Name)
+			u["organisation"] = org
+		}
+	}
+
+	return responseData, http.StatusOK, nil
 }
 
 func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, user_id, base_url string) (models.ShareableInviteResponse, int, error) {
