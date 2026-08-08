@@ -42,31 +42,31 @@ func TestSignupEmailValidation(t *testing.T) {
 			name:          "Invalid DNS Domain",
 			email:         "testuser@nonexistentdomainxyz999.com",
 			expectError:   true,
-			expectedError: "invalid email address",
+			expectedError: "email address is invalid",
 		},
 		{
 			name:          "Invalid DNS Domain ddfs.co",
 			email:         "testuser@ddfs.co",
 			expectError:   true,
-			expectedError: "invalid email address",
+			expectedError: "email address is invalid",
 		},
 		{
 			name:          "Invalid Format Missing Domain",
 			email:         "testuser@",
 			expectError:   true,
-			expectedError: "invalid email address",
+			expectedError: "email address is invalid",
 		},
 		{
 			name:          "Invalid Format Plain String",
 			email:         "notanemail",
 			expectError:   true,
-			expectedError: "invalid email address",
+			expectedError: "email address is invalid",
 		},
 		{
 			name:          "Empty Email",
 			email:         "",
 			expectError:   true,
-			expectedError: "invalid email address",
+			expectedError: "email address is invalid",
 		},
 	}
 

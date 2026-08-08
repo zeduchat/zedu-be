@@ -29,20 +29,20 @@ func ValidateSignupEmail(email string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	if len(email) == 0 || len(email) > 254 {
-		return "", errors.New("invalid email address")
+		return "", errors.New("email address is invalid")
 	}
 
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", errors.New("invalid email address")
+		return "", errors.New("email address is invalid")
 	}
 
 	if len(parts[0]) > 64 {
-		return "", errors.New("invalid email address")
+		return "", errors.New("email address is invalid")
 	}
 
 	if _, err := mail.ParseAddress(email); err != nil {
-		return "", errors.New("invalid email address")
+		return "", errors.New("email address is invalid")
 	}
 
 	domain := parts[1]
@@ -55,7 +55,7 @@ func ValidateSignupEmail(email string) (string, error) {
 
 	mxs, err := net.DefaultResolver.LookupMX(ctx, domain)
 	if err != nil || len(mxs) == 0 {
-		return "", errors.New("invalid email address")
+		return "", errors.New("email address is invalid")
 	}
 
 	return email, nil
