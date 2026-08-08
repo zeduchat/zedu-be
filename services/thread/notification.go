@@ -22,6 +22,14 @@ func TrackThreadNotification(
 		logger.Error("Error getting users in thread: %s, with orgid: %s error: %v", channelsId, orgId, err.Error())
 	}
 
+	if storage.DB != nil && storage.DB.Postgresql != nil {
+		go func(oID, tID string, uIDs []string) {
+			if processErr := ProcessThreadUnseenForParticipants(storage.DB.Postgresql, logger, oID, tID, uIDs); processErr != nil {
+				logger.Error("Error processing thread unseen for participants in thread: %s, with orgid: %s error: %v", tID, oID, processErr)
+			}
+		}(orgId, threads.ID, userIds)
+	}
+
 	feed := models.FeedMessageRequest{
 		OrgId:     orgId,
 		ChannelID: channelsId,

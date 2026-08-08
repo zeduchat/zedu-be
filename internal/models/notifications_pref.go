@@ -66,6 +66,7 @@ var (
 	DmChannelsSection           SectionType      = "dm_channels_section"
 	AgentChannelsSection        SectionType      = "agent_channels_section"
 	OrganisationUsersSection    SectionType      = "org_users_section"
+	OrgThreadsSection           SectionType      = "org_threads"
 	Channel                     ChannelType      = "channel"
 	DMChannel                   ChannelType      = "dm_channel"
 	GroupDMChannel              ChannelType      = "group_dm_channel"
@@ -73,6 +74,8 @@ var (
 	JoinedChannel               TriggerAction    = "joined"
 	CreateChannel               TriggerAction    = "create"
 	LeaveChannel                TriggerAction    = "leave"
+	RefreshTriggerAction        TriggerAction    = "refresh"
+	ThreadsTargetComponent      string           = "threads"
 )
 
 type Content struct {

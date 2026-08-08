@@ -44,10 +44,11 @@ func GetGroupByDate(c *gin.Context) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.ThreadWithMessagesResponse, *elastic.PaginationResponse, int, error) {
+func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*models.UserOrgThreadsResponse, *elastic.PaginationResponse, int, error) {
 	var (
-		accessData models.Threads
-		accessResp []models.ThreadWithMessagesResponse
+		accessData         models.Threads
+		accessResp         models.UserOrgThreadsResponse
+		paginationResponse *elastic.PaginationResponse
 	)
 
 	userId, err := middleware.GetUserClaims(c, db, "user_id")
@@ -79,7 +80,7 @@ func GetAllUserOrgThreads(orgID string, db *gorm.DB, c *gin.Context, logger *uti
 	accessData.UserId = userID
 	accessData.OrganisationID = orgID
 
-	accessResp, paginationResponse, err := accessData.GetUserThreadsByOrganization(c, db, logger)
+	accessResp, paginationResponse, err = accessData.GetUserThreadsByOrganization(c, db, logger)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -263,7 +264,7 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
-func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context) (*[]models.MessageDocument, *elastic.PaginationResponse, int, error) {
+func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.MessageDocument, *elastic.PaginationResponse, int, error) {
 	var (
 		messages models.Message
 	)
@@ -290,6 +291,15 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 		}
 		return &accessResp, nil, http.StatusInternalServerError, err
 
+	}
+
+	orgIdClaim, _ := middleware.GetUserClaims(c, db, "org_id")
+	if orgID, ok := orgIdClaim.(string); ok && orgID != "" {
+		go func(oID, uID, tID string) {
+			if processErr := ProcessThreadSeenForUser(db, logger, oID, uID, tID); processErr != nil {
+				logger.Error("failed to process thread seen for user %s: %v", uID, processErr)
+			}
+		}(orgID, userID, threadID)
 	}
 
 	return &accessResp, paginationResponse, http.StatusOK, nil
