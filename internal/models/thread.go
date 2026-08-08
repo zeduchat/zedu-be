@@ -972,12 +972,12 @@ func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
 
 	userIDsMap := make(map[string]struct{})
 
-	if thread.UserId != "" {
+	if thread.UserId != "" && thread.UserId != userId {
 		userIDsMap[thread.UserId] = struct{}{}
 	}
 
 	for _, m := range thread.Mentions {
-		if m.ID != "" && m.Type == "user" {
+		if m.ID != "" && m.Type == "user" && m.ID != userId {
 			userIDsMap[m.ID] = struct{}{}
 		}
 	}
@@ -1003,20 +1003,20 @@ func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
 	}
 
 	for _, msg := range messages {
-		if msg.UserID != "" {
+		if msg.UserID != "" && msg.UserID != userId {
 			userIDsMap[msg.UserID] = struct{}{}
 		}
 		for _, m := range msg.Mentions {
-			if m.ID != "" && m.Type == "user" {
+			if m.ID != "" && m.Type == "user" && m.ID != userId {
 				userIDsMap[m.ID] = struct{}{}
 			}
 		}
 	}
 
 	participantIDs := make([]string, 0, len(userIDsMap))
-	for userID := range userIDsMap {
-		if userID != userId {
-			participantIDs = append(participantIDs, userID)
+	for uID := range userIDsMap {
+		if uID != userId && uID != "WEBHOOK" && uID != "00000000-0000-0000-0000-000000000000" {
+			participantIDs = append(participantIDs, uID)
 		}
 	}
 

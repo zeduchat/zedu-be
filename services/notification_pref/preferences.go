@@ -2,6 +2,8 @@ package notificationpref
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -22,6 +24,27 @@ const (
 )
 
 func ShouldSendNotification(db *gorm.DB, userID, channelID, orgID string, notifType NotificationType) (bool, error) {
+	return ShouldSendNotificationWithTime(db, userID, channelID, orgID, notifType, time.Now())
+}
+
+func ShouldSendNotificationWithTime(db *gorm.DB, userID, channelID, orgID string, notifType NotificationType, nowUTC time.Time) (bool, error) {
+	userLoc := time.UTC
+
+	if userID != "" {
+		var profModel models.Profile
+		prof, err := profModel.GetOrCreateProfileForOrg(db, userID, orgID)
+		if err == nil {
+			if prof.PauseNotification {
+				return false, nil
+			}
+			if prof.Timezone != "" {
+				if loc, err := time.LoadLocation(prof.Timezone); err == nil {
+					userLoc = loc
+				}
+			}
+		}
+	}
+
 	prefs, err := GetEffectivePreferences(db, userID, channelID, orgID)
 	if err != nil {
 		return false, err
@@ -29,11 +52,11 @@ func ShouldSendNotification(db *gorm.DB, userID, channelID, orgID string, notifT
 
 	if len(prefs) == 0 {
 		defaultPrefs := models.GetDefaultChannelDeviceNotification()
-		return shouldSendForDevice(defaultPrefs, notifType), nil
+		return shouldSendForDevice(defaultPrefs, notifType, userLoc, nowUTC), nil
 	}
 
 	for _, devicePrefs := range prefs {
-		if shouldSendForDevice(devicePrefs, notifType) {
+		if shouldSendForDevice(devicePrefs, notifType, userLoc, nowUTC) {
 			return true, nil
 		}
 	}
@@ -41,8 +64,12 @@ func ShouldSendNotification(db *gorm.DB, userID, channelID, orgID string, notifT
 	return false, nil
 }
 
-func shouldSendForDevice(devicePrefs models.DeviceNotification, notifType NotificationType) bool {
+func shouldSendForDevice(devicePrefs models.DeviceNotification, notifType NotificationType, userLoc *time.Location, nowUTC time.Time) bool {
 	if devicePrefs.Muted {
+		return false
+	}
+
+	if devicePrefs.TimeRange != "" && !IsTimeWithinRange(devicePrefs.TimeRange, userLoc, nowUTC) {
 		return false
 	}
 
@@ -60,6 +87,48 @@ func shouldSendForDevice(devicePrefs models.DeviceNotification, notifType Notifi
 	default:
 		return devicePrefs.NotifyAbout == models.AllMessages
 	}
+}
+
+func IsTimeWithinRange(timeRangeStr string, loc *time.Location, nowUTC time.Time) bool {
+	if timeRangeStr == "" {
+		return true
+	}
+
+	parts := strings.Split(timeRangeStr, "-")
+	if len(parts) != 2 {
+		return true
+	}
+
+	startMin, err1 := parseTimeOfDay(parts[0])
+	endMin, err2 := parseTimeOfDay(parts[1])
+	if err1 != nil || err2 != nil {
+		return true
+	}
+
+	if loc == nil {
+		loc = time.UTC
+	}
+
+	userLocalTime := nowUTC.In(loc)
+	currentMin := userLocalTime.Hour()*60 + userLocalTime.Minute()
+
+	if startMin <= endMin {
+		return currentMin >= startMin && currentMin <= endMin
+	} else {
+		return currentMin >= startMin || currentMin <= endMin
+	}
+}
+
+func parseTimeOfDay(timeStr string) (int, error) {
+	timeStr = strings.TrimSpace(timeStr)
+	t, err := time.Parse("3:04 PM", timeStr)
+	if err != nil {
+		t, err = time.Parse("15:04", timeStr)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return t.Hour()*60 + t.Minute(), nil
 }
 
 func FilterUsersByPreferences(db *gorm.DB, userIDs []string, channelID, orgID string, notifType NotificationType) ([]string, error) {
@@ -97,3 +166,4 @@ func GetEffectivePreferences(db *gorm.DB, userID, channelID, orgID string) (mode
 
 	return models.NotificationPreference{}, nil
 }
+

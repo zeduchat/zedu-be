@@ -348,11 +348,22 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
 
 	var (
-		orgId   = notifPayload.OrgId
-		userIds = notifPayload.UserIds
+		orgId     = notifPayload.OrgId
+		channelId = notifPayload.ChannelId
+		userIds   = notifPayload.UserIds
 	)
 
-	for _, userId := range userIds {
+	if len(userIds) == 0 {
+		return nil
+	}
+
+	filteredUserIDs, err := notificationpref.FilterUsersByPreferences(db, userIds, channelId, orgId, notificationpref.NotificationTypeThreadReply)
+	if err != nil {
+		logger.Error("failed to filter thread users by preferences: %v", err)
+		filteredUserIDs = userIds
+	}
+
+	for _, userId := range filteredUserIDs {
 		threadCtx := &gin.Context{
 			Request: &http.Request{
 				URL: &url.URL{
@@ -382,7 +393,37 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 		logger.Info("published thread notification to user %s", userId)
 	}
 
-	logger.Info("published thread notification to %d users", len(userIds))
+	if feed, ok := notifPayload.Notification.Content.(models.FeedMessageRequest); ok && len(filteredUserIDs) > 0 {
+		msgText := resolveMessageContent(feed)
+		pushReq := models.PushRequest{
+			ChannelId:   channelId,
+			OrgId:       orgId,
+			ChannelName: feed.ChannelName,
+			UserIds:     filteredUserIDs,
+			Message:     msgText,
+			UserId:      notifPayload.UserId,
+			Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+			Title:       fmt.Sprintf("New reply in thread from %s", utility.ThisOrThat(feed.UserName, "User")),
+			Payload: map[string]interface{}{
+				"org_id":            orgId,
+				"channel_id":        channelId,
+				"channel_name":      feed.ChannelName,
+				"sender_name":       feed.UserName,
+				"sender_id":         feed.UserId,
+				"thread_id":         feed.ThreadId,
+				"content":           msgText,
+				"type":              feed.Type,
+				"event":             "new_message",
+				"notification_type": "thread",
+				"section":           notifPayload.Notification.SectionType,
+			},
+		}
+		if pushErr := push_notifications.PushOneSignalToUsers(pushReq, logger, db); pushErr != nil {
+			logger.Error("failed to send OneSignal notification to thread users: %v", pushErr)
+		}
+	}
+
+	logger.Info("published thread notification to %d users", len(filteredUserIDs))
 
 	return nil
 }
