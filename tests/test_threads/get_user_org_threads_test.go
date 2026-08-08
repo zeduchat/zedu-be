@@ -21,6 +21,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/controller/thread"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	serviceThread "github.com/hngprojects/telex_be/services/thread"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -383,9 +384,14 @@ func TestGetUserOrgThreads(t *testing.T) {
 					t.Fatal("Expected data field in response, got nil")
 				}
 
-				threads, ok := dataField.([]interface{})
+				dataObj, ok := dataField.(map[string]interface{})
 				if !ok {
-					t.Fatal("Expected data to be an array")
+					t.Fatalf("Expected data to be map[string]interface{}, got %T", dataField)
+				}
+
+				threads, ok := dataObj["threads"].([]interface{})
+				if !ok {
+					t.Fatalf("Expected threads field to be an array, got %T", dataObj["threads"])
 				}
 
 				t.Logf("Retrieved %d thread groups", len(threads))
@@ -484,5 +490,177 @@ func TestGetUserOrgThreads(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetOrgThreadsUnseenCountBeforeAndAfterRead(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	userAData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("usera_unseen%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 7999999999)),
+		FirstName:   "User",
+		LastName:    "A",
+		Password:    "password",
+		UserName:    fmt.Sprintf("user_a_unseen%v", currUUID),
+	}
+	userBData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("userb_unseen%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(8000000000, 8999999999)),
+		FirstName:   "User",
+		LastName:    "B",
+		Password:    "password",
+		UserName:    fmt.Sprintf("user_b_unseen%v", currUUID),
+	}
+
+	authCtrl := auth.Controller{
+		Db:        db,
+		Validator: validatorRef,
+		Logger:    logger,
+		ExtReq: request.ExternalRequest{
+			Logger: logger,
+			Test:   true,
+		},
+	}
+
+	rA := gin.Default()
+	tst.SignupUser(t, rA, authCtrl, userAData, false)
+	tst.SignupUser(t, gin.Default(), authCtrl, userBData, false)
+
+	tokenA := tst.GetLoginToken(t, rA, authCtrl, models.LoginRequestModel{Email: userAData.Email, Password: userAData.Password})
+	tokenB := tst.GetLoginToken(t, gin.Default(), authCtrl, models.LoginRequestModel{Email: userBData.Email, Password: userBData.Password})
+	userIDA := tst.GetUserIDFromToken(t, tokenA, db)
+	userIDB := tst.GetUserIDFromToken(t, tokenB, db)
+
+	channelCtrl := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	orgCtrl := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	threadCtrl := thread.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+
+	orgId, _, _ := tst.CreateOrganisation(t, rA, db, orgCtrl, models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("UnseenOrg%s", currUUID),
+		Description: "Unseen org test",
+		Email:       userAData.Email,
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}, tokenA)
+
+	channelId, _ := tst.CreateChannels(t, rA, channelCtrl, db, models.CreateChannelsRequest{
+		Name:           "UnseenChannel",
+		Username:       "UnseenChan",
+		OrganisationID: orgId,
+		Description:    "Channel for unseen test",
+	}, tokenA)
+
+	_ = db.Postgresql.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?) ON CONFLICT DO NOTHING", userIDB, orgId).Error
+	_ = db.Postgresql.Create(&models.UserChannels{ChannelsID: channelId, UserID: userIDB, Username: userBData.UserName, OrgId: orgId}).Error
+
+	now := time.Now().UTC()
+	thread1ID := utility.GenerateUUID()
+	thread2ID := utility.GenerateUUID()
+
+	thread1 := models.ThreadDocument{
+		ID:             thread1ID,
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         userIDA,
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Thread 1 Root",
+		Username:       userAData.UserName,
+		ChannelName:    "UnseenChannel",
+		CreatedAt:      now.Add(-2 * time.Hour),
+		UpdatedAt:      now.Add(-2 * time.Hour),
+		LastReply:      now.Add(-2 * time.Hour),
+		Messages: []models.MessageDocument{
+			{
+				ID:         utility.GenerateUUID(),
+				Content:    "Root message 1",
+				UserID:     userIDA,
+				Username:   userAData.UserName,
+				ThreadID:   uuid.FromStringOrNil(thread1ID),
+				CreatedAt:  now.Add(-2 * time.Hour),
+				ChannelsID: channelId,
+			},
+		},
+	}
+
+	thread2 := models.ThreadDocument{
+		ID:             thread2ID,
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         userIDA,
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Thread 2 Root",
+		Username:       userAData.UserName,
+		ChannelName:    "UnseenChannel",
+		CreatedAt:      now.Add(-1 * time.Hour),
+		UpdatedAt:      now.Add(-1 * time.Hour),
+		LastReply:      now.Add(-1 * time.Hour),
+		Messages: []models.MessageDocument{
+			{
+				ID:         utility.GenerateUUID(),
+				Content:    "Root message 2",
+				UserID:     userIDA,
+				Username:   userAData.UserName,
+				ThreadID:   uuid.FromStringOrNil(thread2ID),
+				CreatedAt:  now.Add(-1 * time.Hour),
+				ChannelsID: channelId,
+			},
+		},
+	}
+
+	_ = thread1.CreateThread(db, logger)
+	_ = thread2.CreateThread(db, logger)
+	_, _ = thread1.Messages[0].CreateMessage(db, logger)
+	_, _ = thread2.Messages[0].CreateMessage(db, logger)
+
+	_ = serviceThread.ProcessThreadUnseenForParticipants(db.Postgresql, logger, orgId, thread1ID, []string{userIDA, userIDB})
+	_ = serviceThread.ProcessThreadUnseenForParticipants(db.Postgresql, logger, orgId, thread2ID, []string{userIDA, userIDB})
+
+	r := gin.Default()
+	r.GET("/api/v1/threads/organisations/:org_id", middleware.Authorize(db.Postgresql), threadCtrl.GetAllUserOrgThreads)
+	r.GET("/api/v1/threads/:thread_id/channels/:channel_id", middleware.Authorize(db.Postgresql), threadCtrl.GetUserSingleThreads)
+
+	reqBefore, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/organisations/%s", orgId), nil)
+	reqBefore.Header.Set("Authorization", "Bearer "+tokenA)
+	rrBefore := httptest.NewRecorder()
+	r.ServeHTTP(rrBefore, reqBefore)
+
+	tst.AssertStatusCode(t, rrBefore.Code, http.StatusOK)
+	resBefore := tst.ParseResponse(rrBefore)
+	dataBefore := resBefore["data"].(map[string]interface{})
+	unseenBefore := int64(dataBefore["unseen_thread_count"].(float64))
+
+	if unseenBefore != 2 {
+		t.Errorf("Expected unseen_thread_count BEFORE reading replies to be 2, got %d", unseenBefore)
+	}
+
+	reqRead, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/%s/channels/%s", thread1ID, channelId), nil)
+	reqRead.Header.Set("Authorization", "Bearer "+tokenA)
+	rrRead := httptest.NewRecorder()
+	r.ServeHTTP(rrRead, reqRead)
+	tst.AssertStatusCode(t, rrRead.Code, http.StatusOK)
+
+	time.Sleep(200 * time.Millisecond)
+
+	reqAfter, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/organisations/%s", orgId), nil)
+	reqAfter.Header.Set("Authorization", "Bearer "+tokenA)
+	rrAfter := httptest.NewRecorder()
+	r.ServeHTTP(rrAfter, reqAfter)
+
+	tst.AssertStatusCode(t, rrAfter.Code, http.StatusOK)
+	resAfter := tst.ParseResponse(rrAfter)
+	dataAfter := resAfter["data"].(map[string]interface{})
+	unseenAfter := int64(dataAfter["unseen_thread_count"].(float64))
+
+	if unseenAfter != 1 {
+		t.Errorf("Expected unseen_thread_count AFTER reading thread 1 replies to be 1, got %d", unseenAfter)
 	}
 }
