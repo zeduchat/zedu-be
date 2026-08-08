@@ -33,12 +33,11 @@ func ValidateCreateUserRequest(req models.CreateUserRequestModel, db *gorm.DB) (
 	profile := models.Profile{}
 
 	if req.Email != "" {
-		req.Email = strings.ToLower(req.Email)
-		formattedMail, checkBool := utility.EmailValid(req.Email)
-		if !checkBool {
-			return req, fmt.Errorf("email address is invalid")
+		validEmail, err := utility.ValidateSignupEmail(req.Email)
+		if err != nil {
+			return req, err
 		}
-		req.Email = formattedMail
+		req.Email = validEmail
 	}
 
 	if req.PhoneNumber != "" {

@@ -35,7 +35,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	var (
 		userClaims   map[string]any
-		reqUser      models.CreateUserRequestModel
+		formattedReq models.CreateUserRequestModel
 		sendWelcome  bool
 		responseData gin.H
 		org          models.Organisation
@@ -110,16 +110,14 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	var user models.User
 
-	reqUser = models.CreateUserRequestModel{
+	email = strings.ToLower(strings.TrimSpace(email))
+	formattedReq = models.CreateUserRequestModel{
 		Email: email,
-	}
-	formattedReq, err := ValidateCreateUserRequest(reqUser, db)
-	if err != nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("invalid user data: %v", err)
 	}
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
 	if exists {
+		var err error
 		user, err = user.GetUserByEmail(db, formattedReq.Email)
 
 		if err != nil {
@@ -295,7 +293,7 @@ func isAppleIDToken(token string) bool {
 func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, extReq request.ExternalRequest, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
-		reqUser      models.CreateUserRequestModel
+		formattedReq models.CreateUserRequestModel
 		sendWelcome  bool
 		responseData gin.H
 		org          models.Organisation
@@ -347,17 +345,15 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 
 	var user models.User
 
-	reqUser = models.CreateUserRequestModel{
+	email = strings.ToLower(strings.TrimSpace(email))
+	formattedReq = models.CreateUserRequestModel{
 		Email: email,
-	}
-	formattedReq, err := ValidateCreateUserRequest(reqUser, db)
-	if err != nil {
-		return responseData, http.StatusBadRequest, fmt.Errorf("invalid user data: %v", err)
 	}
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", formattedReq.Email)
 	if exists {
 		logger.Info("Existing user found for email: %s", formattedReq.Email)
+		var err error
 		user, err = user.GetUserByEmail(db, formattedReq.Email)
 
 		if err != nil {
