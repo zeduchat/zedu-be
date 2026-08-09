@@ -42,18 +42,20 @@ func GetUserProfile(db *gorm.DB, userID string, orgID ...string) (*models.Profil
 	return profileSummary, http.StatusOK, nil
 }
 
-func IsSameOrganization(db *gorm.DB, reqUserID string, targetUserID string) (int, error) {
-	var user models.User
-	var org models.Organisation
-
-	userProfile, err := user.GetUserByID(db, reqUserID)
-	if err != nil {
-		return http.StatusInternalServerError, err
+func IsSameOrganization(db *gorm.DB, orgID string, reqUserID string, targetUserID string) (int, error) {
+	if orgID == "" {
+		return http.StatusBadRequest, errors.New("organisation ID is required")
 	}
 
-	currentOrgID := (userProfile.CurrentOrg).String()
+	var org models.Organisation
+	if reqUserID != "" {
+		isReqUserMember, err := org.CheckUserIsMemberOfOrg(reqUserID, orgID, db)
+		if err != nil || !isReqUserMember {
+			return http.StatusBadRequest, errors.New("user not authorised to retrieve this organisation")
+		}
+	}
 
-	isMember, err := org.CheckUserIsMemberOfOrg(targetUserID, currentOrgID, db)
+	isMember, err := org.CheckUserIsMemberOfOrg(targetUserID, orgID, db)
 	if err != nil {
 		return http.StatusBadRequest, err
 	}

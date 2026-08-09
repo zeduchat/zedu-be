@@ -7688,7 +7688,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserResponseSchema"
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "User retrieved successfully"
+                  data:
+                    $ref: "#/components/schemas/UserProfileResponseSchema"
         "400":
           description: Bad request
           content:
@@ -7977,20 +7989,17 @@ paths:
               schema:
                 type: object
                 properties:
+                  code:
+                    type: integer
+                    example: 200
                   status:
                     type: string
                     example: "success"
                   message:
                     type: string
                     example: "User profile retrieved successfully"
-                  statusCode:
-                    type: integer
-                    example: 200
                   data:
-                    type: object
-                    properties:
-                      schema:
-                        $ref: "#/components/schemas/ProfileResponseSchema"
+                    $ref: "#/components/schemas/ProfileResponseSchema"
         "401":
           description: Unauthenticated
           content:
@@ -8075,20 +8084,17 @@ paths:
               schema:
                 type: object
                 properties:
+                  code:
+                    type: integer
+                    example: 200
                   status:
                     type: string
                     example: "success"
                   message:
                     type: string
                     example: "User profile retrieved successfully"
-                  statusCode:
-                    type: integer
-                    example: 200
                   data:
-                    type: object
-                    properties:
-                      schema:
-                        $ref: "#/components/schemas/ProfileResponseSchema"
+                    $ref: "#/components/schemas/ProfileResponseSchema"
         "401":
           description: Unauthenticated
           content:
@@ -35736,6 +35742,85 @@ components:
         - first_name
         - last_name
         - username
+
+    UserProfileResponseSchema:
+      type: object
+      properties:
+        user_id:
+          type: string
+          example: "01921343-cb46-77b0-a3d1-6bf612d78586"
+        username:
+          type: string
+          example: "vicradon"
+        email:
+          type: string
+          example: "osinachi.chukwujama@gmail.com"
+        phone:
+          type: string
+          example: ""
+        first_name:
+          type: string
+          example: "osinachi.chukwujama"
+        last_name:
+          type: string
+          example: ""
+        full_name:
+          type: string
+          example: "Osinachi Chukwujama"
+        display_name:
+          type: string
+          example: "vicradon"
+        avatar_url:
+          type: string
+          example: "https://media.zedu.chat/telexprodbucket/public/profile_pics/profile_pic_6bf612d78586"
+        default_avatar_url:
+          type: string
+          example: "https://media.zedu.chat/telexstagingbucket/public/default_avatars/default_avatar_9.png"
+        title:
+          type: string
+          example: "DevvyOpssy and stuff and things"
+        name_pronunciation:
+          type: string
+          example: ""
+        timezone:
+          type: string
+          example: "Africa/Lagos"
+        icon:
+          type: string
+          example: "😙"
+        text:
+          type: string
+          example: "Thinking about cute girls and boyz"
+        pause_notification:
+          type: boolean
+          example: false
+        status_timeout:
+          type: string
+          example: "Don’t remove"
+        workspace_id:
+          type: string
+          example: ""
+        track:
+          type: string
+          example: ""
+        links:
+          type: array
+          items:
+            type: string
+          nullable: true
+          example: null
+        online:
+          type: boolean
+          example: false
+        is_active:
+          type: boolean
+          example: true
+        user_type:
+          type: string
+          example: "user"
+        is_admin:
+          type: boolean
+          example: false
     ChannelUpdateResponseSchema:
       type: object
       properties:

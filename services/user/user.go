@@ -95,41 +95,73 @@ func GetUserByEmail(email string, db *gorm.DB) (models.User, error) {
 	return user, nil
 }
 
-func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.User, int, error) {
-	var userResp models.User
+func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.UserProfileResponse, int, error) {
+	var (
+		userResp   models.UserProfileResponse
+		targetUser models.User
+	)
 
-	userId, err := middleware.GetUserClaims(c, db, "user_id")
+	userClaims := common.GetAllUserClaims(c)
+	orgID, _ := userClaims["org_id"].(string)
+
+	targetUser, err := targetUser.GetUserByID(db, userIDStr, orgID)
 	if err != nil {
-		return nil, http.StatusNotFound, err
-	}
-
-	userID, ok := userId.(string)
-	if !ok {
-		return nil, http.StatusBadRequest, errors.New("user_id is not of type string")
-	}
-
-	user, code, err := GetUser(userID, db)
-	if err != nil {
-		return nil, code, err
-	}
-
-	isSuperAdmin := user.CheckUserIsAdmin(db)
-	if isSuperAdmin {
-		userResp, err = userResp.GetUserByID(db, userIDStr)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &userResp, http.StatusNotFound, errors.New("user not found")
-			}
-			return &userResp, http.StatusBadRequest, err
+		if errors.Is(err, gorm.ErrRecordNotFound) || strings.Contains(err.Error(), "not found") {
+			return nil, http.StatusNotFound, errors.New("user not found")
 		}
-	} else {
-		userResp, err = userResp.GetUserByIDsAdmin(db, userIDStr, userID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return &userResp, http.StatusNotFound, errors.New("user not found")
-			}
-			return &userResp, http.StatusBadRequest, err
+		return nil, http.StatusBadRequest, err
+	}
+
+	username := targetUser.Profile.UserName
+	if username == "" {
+		if targetUser.Name != "" {
+			username = targetUser.Name
+		} else if targetUser.Email != "" {
+			parts := strings.Split(targetUser.Email, "@")
+			username = parts[0]
 		}
+	}
+
+	isAdmin := targetUser.CheckUserIsAdmin(db)
+	if !isAdmin && orgID != "" {
+		var orgMgt models.OrgUserManagement
+		if o, err := orgMgt.GetByIDs(db, userIDStr, orgID); err == nil {
+			var orgRole models.OrgRole
+			if r, err := orgRole.GetAOrgRoleById(db, o.RoleID); err == nil {
+				if strings.EqualFold(r.Name, "owner") || strings.EqualFold(r.Name, "admin") || strings.EqualFold(r.Name, "administrator") {
+					isAdmin = true
+				}
+			}
+		}
+	}
+
+	userType := "user"
+
+	userResp = models.UserProfileResponse{
+		UserID:            targetUser.ID,
+		Username:          username,
+		Email:             targetUser.Email,
+		Phone:             targetUser.Profile.Phone,
+		FirstName:         targetUser.Profile.FirstName,
+		LastName:          targetUser.Profile.LastName,
+		FullName:          targetUser.Profile.FullName,
+		DisplayName:       targetUser.Profile.DisplayName,
+		AvatarURL:         targetUser.Profile.AvatarURL,
+		DefaultAvatarURL:  avatar.GenerateDefaultAvatarURL(targetUser.ID),
+		Title:             targetUser.Profile.Title,
+		NamePronunciation: targetUser.Profile.NamePronunciation,
+		Timezone:          targetUser.Profile.Timezone,
+		Icon:              targetUser.Profile.Icon,
+		Text:              targetUser.Profile.Text,
+		PauseNotification: targetUser.Profile.PauseNotification,
+		StatusTimeout:     targetUser.Profile.StatusTimeout,
+		WorkspaceID:       targetUser.Profile.WorkspaceID,
+		Track:             targetUser.Profile.Track,
+		Links:             targetUser.Profile.Links,
+		Online:            targetUser.Profile.Online,
+		IsActive:          targetUser.Profile.IsActive,
+		UserType:          userType,
+		IsAdmin:           isAdmin,
 	}
 
 	return &userResp, http.StatusOK, nil
