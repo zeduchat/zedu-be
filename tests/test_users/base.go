@@ -68,4 +68,8 @@ func SetupUsersRoutes(r *gin.Engine, userController *user.Controller) {
 		userController.ResetAutoDownloadSettings)
 	r.GET("/api/v1/users/mentions/:user_id", middleware.Authorize(userController.Db.Postgresql),
 		userController.GetAUserForMentions)
+	r.GET("/api/v1/users/:user_id", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetAUser)
+	r.GET("/api/v1/user/:user_id", middleware.Authorize(userController.Db.Postgresql),
+		userController.GetAUser)
 }

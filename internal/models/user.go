@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
@@ -94,6 +95,33 @@ type UserMentionResponse struct {
 	StatusText       string `json:"status_text"`
 	UserID           string `json:"userid"`
 	OnlineStatus     bool   `json:"online_status"`
+}
+
+type UserProfileResponse struct {
+	UserID            string         `json:"user_id"`
+	Username          string         `json:"username"`
+	Email             string         `json:"email"`
+	Phone             string         `json:"phone"`
+	FirstName         string         `json:"first_name"`
+	LastName          string         `json:"last_name"`
+	FullName          string         `json:"full_name"`
+	DisplayName       string         `json:"display_name"`
+	AvatarURL         string         `json:"avatar_url"`
+	DefaultAvatarURL  string         `json:"default_avatar_url"`
+	Title             string         `json:"title"`
+	NamePronunciation string         `json:"name_pronunciation"`
+	Timezone          string         `json:"timezone"`
+	Icon              string         `json:"icon"`
+	Text              string         `json:"text"`
+	PauseNotification bool           `json:"pause_notification"`
+	StatusTimeout     string         `json:"status_timeout"`
+	WorkspaceID       string         `json:"workspace_id"`
+	Track             string         `json:"track"`
+	Links             pq.StringArray `json:"links"`
+	Online            bool           `json:"online"`
+	IsActive          bool           `json:"is_active"`
+	UserType          string         `json:"user_type"`
+	IsAdmin           bool           `json:"is_admin"`
 }
 
 

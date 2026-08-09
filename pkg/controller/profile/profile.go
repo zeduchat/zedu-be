@@ -37,7 +37,7 @@ func (base *Controller) GetUserProfile(c *gin.Context) {
 	targetUserID := userId
 	memberID := c.Param("user_id")
 	if memberID != "" {
-		code, err := profile.IsSameOrganization(base.Db.Postgresql, userId, memberID)
+		code, err := profile.IsSameOrganization(base.Db.Postgresql, orgId, userId, memberID)
 		if err != nil {
 			rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
 			c.JSON(code, rd)
