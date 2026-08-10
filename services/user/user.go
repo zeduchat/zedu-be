@@ -123,9 +123,11 @@ func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.UserProfil
 	}
 
 	isAdmin := targetUser.CheckUserIsAdmin(db)
-	if !isAdmin && orgID != "" {
+	isDeactivated := false
+	if orgID != "" {
 		var orgMgt models.OrgUserManagement
 		if o, err := orgMgt.GetByIDs(db, userIDStr, orgID); err == nil {
+			isDeactivated = o.IsDeactivated
 			var orgRole models.OrgRole
 			if r, err := orgRole.GetAOrgRoleById(db, o.RoleID); err == nil {
 				if strings.EqualFold(r.Name, "owner") || strings.EqualFold(r.Name, "admin") || strings.EqualFold(r.Name, "administrator") {
@@ -162,6 +164,7 @@ func GetAUser(userIDStr string, db *gorm.DB, c *gin.Context) (*models.UserProfil
 		IsActive:          targetUser.Profile.IsActive,
 		UserType:          userType,
 		IsAdmin:           isAdmin,
+		IsDeactivated:     isDeactivated,
 	}
 
 	return &userResp, http.StatusOK, nil
@@ -479,6 +482,10 @@ func SwitchUserOrg(db *gorm.DB, c *gin.Context, req models.SwitchUserOrgReqeust,
 		return gin.H{}, http.StatusBadRequest, err
 	}
 
+	if orgMgt.IsDeactivated || orgMgt.CheckIsUserDeactivated(db, models.IDS{OrganisationID: req.CurrentOrg, UserID: userId}) {
+		return gin.H{}, http.StatusForbidden, errors.New("user is deactivated in this organisation")
+	}
+
 	// getOrgRole, err = getOrgRole.GetAOrgRoleByName(db, "Administrator")
 	// if err != nil {
 	// 	return gin.H{}, http.StatusBadRequest, err
@@ -622,6 +629,7 @@ func GetAUserForMentions(userIDStr, requestingUserID, orgID string, db *gorm.DB)
 		DisplayName:      targetUser.Profile.DisplayName,
 		StatusText:       targetUser.Profile.Text,
 		OnlineStatus:     targetUser.Profile.Online,
+		IsDeactivated:    targetUserOrgMgt.IsDeactivated,
 	}
 
 	return userResp, http.StatusOK, nil

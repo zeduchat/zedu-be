@@ -9,7 +9,10 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 type User struct {
@@ -95,6 +98,7 @@ type UserMentionResponse struct {
 	StatusText       string `json:"status_text"`
 	UserID           string `json:"userid"`
 	OnlineStatus     bool   `json:"online_status"`
+	IsDeactivated    bool   `json:"is_deactivated"`
 }
 
 type UserProfileResponse struct {
@@ -122,8 +126,8 @@ type UserProfileResponse struct {
 	IsActive          bool           `json:"is_active"`
 	UserType          string         `json:"user_type"`
 	IsAdmin           bool           `json:"is_admin"`
+	IsDeactivated     bool           `json:"is_deactivated"`
 }
-
 
 func (u *User) AddUserToOrganisation(db *gorm.DB, user any, orgs []any) error {
 	err := db.Model(user).Association("Organisations").Append(orgs...)
@@ -385,7 +389,7 @@ func (user *User) DeactivateUser(db *gorm.DB, userId string) error {
 	return nil
 }
 
-func (user *User) ActivateOrgMember(db *gorm.DB, orgID string) error {
+func (user *User) ActivateOrgMember(db *gorm.DB, orgID string, logger *utility.Logger) error {
 	result := db.Model(&OrgUserManagement{}).
 		Where("user_id = ? AND organisation_id = ?", user.ID, orgID).
 		Updates(map[string]any{
@@ -399,10 +403,34 @@ func (user *User) ActivateOrgMember(db *gorm.DB, orgID string) error {
 	if result.RowsAffected == 0 {
 		return errors.New("user does not exist in organisation")
 	}
+
+	_ = db.Model(&Profile{}).
+		Where("userid = ? AND organisation_id = ?", user.ID, orgID).
+		Updates(map[string]any{
+			"is_deactivated": false,
+			"is_active":      true,
+		})
+
+	if storage.DB != nil && storage.DB.Redis != nil {
+		key1 := getProfileCacheKey(user.ID, orgID)
+		_, err1 := rd.RedisDelete(storage.DB.Redis, key1)
+		if err1 != nil {
+			utility.LogError(logger, "Failed to delete profile cache from redis for key %s: %v, user_id: %s, org_id: %s", key1, err1, user.ID, orgID)
+		}
+
+		key2 := getProfileCacheKey(user.ID, "")
+		_, err2 := rd.RedisDelete(storage.DB.Redis, key2)
+		if err2 != nil {
+			utility.LogError(logger, "Failed to delete default profile cache from redis for key %s: %v, user_id: %s", key2, err2, user.ID)
+		}
+	}
+
+	utility.LogInfo(logger, "Successfully activated user_id %s in organisation %s and cleared profile cache from redis", user.ID, orgID)
+
 	return nil
 }
 
-func (user *User) DeactivateOrgMember(db *gorm.DB, orgID string) error {
+func (user *User) DeactivateOrgMember(db *gorm.DB, orgID string, logger *utility.Logger) error {
 	result := db.Model(&OrgUserManagement{}).
 		Where("user_id = ? AND organisation_id = ?", user.ID, orgID).
 		Updates(map[string]any{
@@ -416,6 +444,36 @@ func (user *User) DeactivateOrgMember(db *gorm.DB, orgID string) error {
 	if result.RowsAffected == 0 {
 		return errors.New("user does not exist in organisation")
 	}
+
+	_ = db.Model(&Profile{}).
+		Where("userid = ? AND organisation_id = ?", user.ID, orgID).
+		Updates(map[string]any{
+			"is_deactivated": true,
+			"is_active":      false,
+		})
+
+	var accessToken AccessToken
+	if err := accessToken.RevokeUserTokensByOrg(db, user.ID, orgID); err != nil {
+		utility.LogError(logger, "Failed to revoke session tokens for user_id: %s, org_id: %s: %v", user.ID, orgID, err)
+	}
+	utility.LogInfo(logger, "Revoked active session tokens for user_id: %s in org_id: %s", user.ID, orgID)
+
+	if storage.DB != nil && storage.DB.Redis != nil {
+		key1 := getProfileCacheKey(user.ID, orgID)
+		_, err1 := rd.RedisDelete(storage.DB.Redis, key1)
+		if err1 != nil {
+			utility.LogError(logger, "Failed to delete profile cache from redis for key %s: %v, user_id: %s, org_id: %s", key1, err1, user.ID, orgID)
+		}
+
+		key2 := getProfileCacheKey(user.ID, "")
+		_, err2 := rd.RedisDelete(storage.DB.Redis, key2)
+		if err2 != nil {
+			utility.LogError(logger, "Failed to delete default profile cache from redis for key %s: %v, user_id: %s", key2, err2, user.ID)
+		}
+	}
+
+	utility.LogInfo(logger, "Successfully deactivated user_id %s in organisation %s and cleared profile cache from redis", user.ID, orgID)
+
 	return nil
 }
 

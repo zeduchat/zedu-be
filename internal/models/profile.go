@@ -49,6 +49,7 @@ type Profile struct {
 	Links             pq.StringArray `gorm:"type:text[]" json:"links"`
 	Online            bool           `gorm:"type:boolean;default:true" json:"online"`
 	IsActive          bool           `gorm:"type:boolean;default:true" json:"is_active"`
+	IsDeactivated     bool           `gorm:"column:is_deactivated;type:boolean;default:false" json:"is_deactivated"`
 }
 
 type ProfileSummary struct {
@@ -64,6 +65,7 @@ type ProfileSummary struct {
 	UserId            string   `json:"user_id"`
 	OrganisationID    string   `json:"organisation_id"`
 	Deactivated       bool     `json:"deactivated"`
+	IsDeactivated     bool     `json:"is_deactivated"`
 	CreatedAt         string   `json:"created_at"`
 	UpdatedAt         string   `json:"updated_at"`
 	DeletedAt         string   `json:"deleted_at"`
