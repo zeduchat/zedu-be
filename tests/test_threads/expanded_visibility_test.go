@@ -277,9 +277,13 @@ func TestGetUserOrgThreadsExpanded(t *testing.T) {
 			}
 
 			data := tst.ParseResponse(rr)
-			threads, ok := data["data"].([]interface{})
+			threadsObj, ok := data["data"].(map[string]interface{})
 			if !ok {
-				t.Fatalf("Expected data to be []interface{}, got %T", data["data"])
+				t.Fatalf("Expected data to be map[string]interface{}, got %T", data["data"])
+			}
+			threads, ok := threadsObj["threads"].([]interface{})
+			if !ok {
+				t.Fatalf("Expected threads to be []interface{}, got %T", threadsObj["threads"])
 			}
 
 			if len(threads) != test.ExpectedCount {

@@ -364,6 +364,11 @@ type ThreadWithMessagesResponse struct {
 	ThreadId               string           `json:"thread_id"`
 }
 
+type UserOrgThreadsResponse struct {
+	UnseenThreadCount int64                        `json:"unseen_thread_count"`
+	Threads           []ThreadWithMessagesResponse `json:"threads"`
+}
+
 func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
 		CC         ChannelCountInfo
@@ -972,12 +977,12 @@ func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
 
 	userIDsMap := make(map[string]struct{})
 
-	if thread.UserId != "" {
+	if thread.UserId != "" && thread.UserId != userId {
 		userIDsMap[thread.UserId] = struct{}{}
 	}
 
 	for _, m := range thread.Mentions {
-		if m.ID != "" && m.Type == "user" {
+		if m.ID != "" && m.Type == "user" && m.ID != userId {
 			userIDsMap[m.ID] = struct{}{}
 		}
 	}
@@ -1003,27 +1008,27 @@ func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
 	}
 
 	for _, msg := range messages {
-		if msg.UserID != "" {
+		if msg.UserID != "" && msg.UserID != userId {
 			userIDsMap[msg.UserID] = struct{}{}
 		}
 		for _, m := range msg.Mentions {
-			if m.ID != "" && m.Type == "user" {
+			if m.ID != "" && m.Type == "user" && m.ID != userId {
 				userIDsMap[m.ID] = struct{}{}
 			}
 		}
 	}
 
 	participantIDs := make([]string, 0, len(userIDsMap))
-	for userID := range userIDsMap {
-		if userID != userId {
-			participantIDs = append(participantIDs, userID)
+	for uID := range userIDsMap {
+		if uID != userId && uID != "WEBHOOK" && uID != "00000000-0000-0000-0000-000000000000" {
+			participantIDs = append(participantIDs, uID)
 		}
 	}
 
 	return participantIDs, nil
 }
 
-func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]ThreadWithMessagesResponse, *elastic.PaginationResponse, error) {
+func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logger *utility.Logger) (UserOrgThreadsResponse, *elastic.PaginationResponse, error) {
 	var (
 		threads      []Threads
 		channelIDs   []string
@@ -1045,7 +1050,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 	exists := postgresql.CheckExists(db, &org, "id = ?", organisationID)
 	if !exists {
-		return nil, nil, fmt.Errorf("organisation does not exist")
+		return UserOrgThreadsResponse{}, nil, fmt.Errorf("organisation does not exist")
 	}
 
 	err := db.Model(&UserChannels{}).
@@ -1055,7 +1060,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		Find(&channelIDs).Error
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("error fetching channel IDs: %v", err)
+		return UserOrgThreadsResponse{}, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
 
 	var dmChannels []struct {
@@ -1079,7 +1084,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		Scan(&dmChannels).Error
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("error fetching dm channel IDs: %v", err)
+		return UserOrgThreadsResponse{}, nil, fmt.Errorf("error fetching dm channel IDs: %v", err)
 	}
 
 	dmChannelIds = make([]string, len(dmChannels))
@@ -1177,7 +1182,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	pagR, err := elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName, MessageIndexName}, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
+		return UserOrgThreadsResponse{}, pagR, fmt.Errorf("failed to fetch thread records, error in %v", err)
 	}
 
 	var searchResult struct {
@@ -1199,10 +1204,9 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	rawJSON, _ := json.MarshalIndent(threadData.(map[string]any), "", "  ")
 
 	if err := json.Unmarshal(rawJSON, &searchResult); err != nil {
-		return []ThreadWithMessagesResponse{}, pagR, fmt.Errorf("failed to decode search response: %v", err)
+		return UserOrgThreadsResponse{}, pagR, fmt.Errorf("failed to decode search response: %v", err)
 	}
 
-	// Extract unique thread IDs from the aggregation buckets
 	threadIDs = make([]string, 0)
 
 	for _, bucket := range searchResult.Aggs.UniqueThreadIDs.Buckets {
@@ -1210,10 +1214,9 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	}
 
 	if len(threadIDs) == 0 {
-		return []ThreadWithMessagesResponse{}, pagR, nil
+		return UserOrgThreadsResponse{}, pagR, nil
 	}
 
-	// Build the query
 	query = map[string]any{
 		"query": map[string]any{
 			"terms": map[string]any{
@@ -1234,13 +1237,13 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	pagR, err = elastic.SelectWithPagination(storage.DB.Elastic, []string{ThreadIndexName}, query, &threadData, c)
 
 	if err != nil {
-		return nil, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
+		return UserOrgThreadsResponse{}, pagR, fmt.Errorf("failed to fetch thread records, error: %v", err)
 	}
 
 	threads, err = UnmarshalThreadResponse(threadData)
 
 	if err != nil {
-		return nil, pagR, err
+		return UserOrgThreadsResponse{}, pagR, err
 	}
 
 	dmChannelNames := GetDmChannelNames(db, dmChannelIds, userId)
@@ -1352,7 +1355,14 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return result[i].ThreadMessages[0].CreatedAt.After(result[j].ThreadMessages[0].CreatedAt)
 	})
 
-	return result, pagR, nil
+	unseenCount, _ := GetUnseenThreadCountForUser(db, userId, organisationID)
+
+	resp := UserOrgThreadsResponse{
+		UnseenThreadCount: unseenCount,
+		Threads:           result,
+	}
+
+	return resp, pagR, nil
 }
 
 func (t *Threads) GetUserRecentThreads(c *gin.Context, db *gorm.DB, logger *utility.Logger) ([]Threads, *elastic.PaginationResponse, error) {

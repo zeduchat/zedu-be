@@ -12044,151 +12044,158 @@ paths:
                     type: string
                     example: Data retrieved successfully
                   data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        thread_messages:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              thread_id:
-                                type: string
-                                format: uuid
-                              channels_id:
-                                type: string
-                                format: uuid
-                              org_id:
-                                type: string
-                                format: uuid
-                              username:
-                                type: string
-                                example: john_doe
-                              event_name:
-                                type: string
-                              action_type:
-                                type: string
-                              status:
-                                type: string
-                                example: success
-                              created_at:
-                                type: string
-                                format: date-time
-                              updated_at:
-                                type: string
-                                format: date-time
-                              message:
-                                type: string
-                                example: This is a thread message
-                              user_id:
-                                type: string
-                                format: uuid
-                              channel_name:
-                                type: string
-                                description: Channel name for regular channels, or participant username for DM channels
-                                example: general
-                              channel_type:
-                                type: string
-                                description: "Channel type: public, private, or DM"
-                                example: public
-                              message_count:
-                                type: integer
-                                example: 3
-                              last_reply:
-                                type: string
-                                format: date-time
-                              avatar_url:
-                                type: string
-                                format: uri
-                              full_name:
-                                type: string
-                              email:
-                                type: string
-                                format: email
-                              user_type:
-                                type: string
-                              current_status:
-                                type: string
-                              edited:
-                                type: boolean
-                              is_pinned:
-                                type: boolean
-                              is_saved:
-                                type: boolean
-                              is_forwarded:
-                                type: boolean
-                              type:
-                                type: string
-                                example: thread
-                              state:
-                                type: string
-                              messages:
-                                type: array
-                                items:
-                                  type: object
-                                  properties:
-                                    id:
-                                      type: string
-                                      format: uuid
-                                    content:
-                                      type: string
-                                    channels_id:
-                                      type: string
-                                      format: uuid
-                                    user_id:
-                                      type: string
-                                      format: uuid
-                                    username:
-                                      type: string
-                                    created_at:
-                                      type: string
-                                      format: date-time
-                                    updated_at:
-                                      type: string
-                                      format: date-time
-                                    thread_id:
-                                      type: string
-                                      format: uuid
-                                    avatar_url:
-                                      type: string
-                                      format: uri
-                              media:
-                                type: array
-                                items:
-                                  type: object
-                                  properties:
-                                    id:
-                                      type: string
-                                    file_name:
-                                      type: string
-                                    file_type:
-                                      type: string
-                                    file_link:
-                                      type: string
-                              mentions:
-                                type: array
-                                items:
-                                  type: object
-                                  properties:
-                                    type:
-                                      type: string
-                                      enum: [user, bot]
-                                    id:
-                                      type: string
-                                      format: uuid
-                              reactions:
-                                type: array
-                                items:
-                                  type: object
-                        channel_name:
-                          type: string
-                          description: Channel name for regular channels, or participant username for DM channels
-                          example: general
-                        participants:
-                          type: string
-                          description: "Participants summary, e.g. 'john_doe and you' or 'Just you'"
-                          example: john_doe and you
+                    type: object
+                    properties:
+                      unseen_thread_count:
+                        type: integer
+                        description: Number of threads with unseen replies for the user
+                        example: 3
+                      threads:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            thread_messages:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  thread_id:
+                                    type: string
+                                    format: uuid
+                                  channels_id:
+                                    type: string
+                                    format: uuid
+                                  org_id:
+                                    type: string
+                                    format: uuid
+                                  username:
+                                    type: string
+                                    example: john_doe
+                                  event_name:
+                                    type: string
+                                  action_type:
+                                    type: string
+                                  status:
+                                    type: string
+                                    example: success
+                                  created_at:
+                                    type: string
+                                    format: date-time
+                                  updated_at:
+                                    type: string
+                                    format: date-time
+                                  message:
+                                    type: string
+                                    example: This is a thread message
+                                  user_id:
+                                    type: string
+                                    format: uuid
+                                  channel_name:
+                                    type: string
+                                    description: Channel name for regular channels, or participant username for DM channels
+                                    example: general
+                                  channel_type:
+                                    type: string
+                                    description: "Channel type: public, private, or DM"
+                                    example: public
+                                  message_count:
+                                    type: integer
+                                    example: 3
+                                  last_reply:
+                                    type: string
+                                    format: date-time
+                                  avatar_url:
+                                    type: string
+                                    format: uri
+                                  full_name:
+                                    type: string
+                                  email:
+                                    type: string
+                                    format: email
+                                  user_type:
+                                    type: string
+                                  current_status:
+                                    type: string
+                                  edited:
+                                    type: boolean
+                                  is_pinned:
+                                    type: boolean
+                                  is_saved:
+                                    type: boolean
+                                  is_forwarded:
+                                    type: boolean
+                                  type:
+                                    type: string
+                                    example: thread
+                                  state:
+                                    type: string
+                                  messages:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: string
+                                          format: uuid
+                                        content:
+                                          type: string
+                                        channels_id:
+                                          type: string
+                                          format: uuid
+                                        user_id:
+                                          type: string
+                                          format: uuid
+                                        username:
+                                          type: string
+                                        created_at:
+                                          type: string
+                                          format: date-time
+                                        updated_at:
+                                          type: string
+                                          format: date-time
+                                        thread_id:
+                                          type: string
+                                          format: uuid
+                                        avatar_url:
+                                          type: string
+                                          format: uri
+                                  media:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: string
+                                        file_name:
+                                          type: string
+                                        file_type:
+                                          type: string
+                                        file_link:
+                                          type: string
+                                  mentions:
+                                    type: array
+                                    items:
+                                      type: object
+                                      properties:
+                                        type:
+                                          type: string
+                                          enum: [user, bot]
+                                        id:
+                                          type: string
+                                          format: uuid
+                                  reactions:
+                                    type: array
+                                    items:
+                                      type: object
+                            channel_name:
+                              type: string
+                              description: Channel name for regular channels, or participant username for DM channels
+                              example: general
+                            participants:
+                              type: string
+                              description: "Participants summary, e.g. 'john_doe and you' or 'Just you'"
+                              example: john_doe and you
                   pagination:
                     type: object
                     properties:

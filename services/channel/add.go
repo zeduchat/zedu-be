@@ -150,27 +150,28 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 
 	dataByte, _ := json.Marshal(feed)
 
-	notifRec := models.PushNotificationRecord{
-		ChannelType:  models.Channel,
-		Data:         string(dataByte),
-		Sent:         false,
-		ChannelId:    req.ChannelsId,
-		Section:      models.ReplySection,
-		UpdateChange: updateResp,
-		Type:         models.NewMessage,
+	if req.ThreadId == "" {
+		notifRec := models.PushNotificationRecord{
+			ChannelType:  models.Channel,
+			Data:         string(dataByte),
+			Sent:         false,
+			ChannelId:    req.ChannelsId,
+			Section:      models.ReplySection,
+			UpdateChange: updateResp,
+			Type:         models.NewMessage,
+		}
+
+		err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
+		if err != nil {
+			logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsId, req.OrgId, err.Error())
+		}
+
+		logger.Info("added notification to queue for channel %s", req.ChannelsId)
 	}
-
-	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
-
-	if err != nil {
-		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsId, req.OrgId, err.Error())
-	}
-
-	logger.Info("added notification to queue for channel %s", req.ChannelsId)
 
 	thread.TrackThreadNotification(req.UserId, req.ChannelsId, req.OrgId, &threads, logger)
 
-	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsId
 	userChan.UserID = req.UserId
 	if req.UserId == "WEBHOOK" {
@@ -184,7 +185,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	var wg sync.WaitGroup
 	mutex := &sync.Mutex{}
 
-	if len(req.Mentions) > 0 {
+	if len(req.Mentions) > 0 && req.ThreadId == "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

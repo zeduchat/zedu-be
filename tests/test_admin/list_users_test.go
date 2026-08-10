@@ -95,10 +95,10 @@ func TestListUsers_SearchByEmail(t *testing.T) {
 	authCtl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
 
 	currUUID := utility.GenerateUUID()
-	uniqueEmailDomain := currUUID[:8] + "-search.test"
+	uniqueEmailPrefix := "emailsearch" + currUUID[:8]
 
 	user1 := models.CreateUserRequestModel{
-		Email:       fmt.Sprintf("user1@%s", uniqueEmailDomain),
+		Email:       fmt.Sprintf("%s@gmail.com", uniqueEmailPrefix),
 		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
 		FirstName:   "Email",
 		LastName:    "Search",
@@ -111,7 +111,7 @@ func TestListUsers_SearchByEmail(t *testing.T) {
 	r := gin.Default()
 	r.GET("/api/v1/backoffice/admins/users", adminCtl.ListUsers)
 
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/admins/users?search=%s", uniqueEmailDomain), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/backoffice/admins/users?search=%s", uniqueEmailPrefix), nil)
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
