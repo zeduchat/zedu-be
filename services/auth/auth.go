@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
@@ -271,6 +272,24 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	userData, err := user.GetUserByID(db, user.ID)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
+	}
+
+	var oum models.OrgUserManagement
+	if user.CurrentOrg != (uuid.UUID{}) && user.CurrentOrg.String() != "" {
+		if oum.CheckIsUserDeactivated(db, models.IDS{OrganisationID: user.CurrentOrg.String(), UserID: user.ID}) {
+			var orgModel models.Organisation
+			activeOrgs, err := orgModel.GetUserOrganisations(db, user.ID)
+			if err == nil && len(activeOrgs) > 0 {
+				newOrgID, parseErr := uuid.FromString(activeOrgs[0].ID)
+				if parseErr == nil {
+					user.CurrentOrg = newOrgID
+					_ = db.Save(&user).Error
+				}
+			} else {
+				user.CurrentOrg = uuid.UUID{}
+				_ = db.Save(&user).Error
+			}
+		}
 	}
 
 	tokenData, err := middleware.CreateToken(user, c)

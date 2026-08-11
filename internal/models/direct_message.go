@@ -68,6 +68,7 @@ type DmChannelsResponse struct {
 	CreatedAt        time.Time     `json:"created_at"`
 	IsFavourite      bool          `gorm:"-" json:"is_favourite"`
 	IsSuggested      bool          `gorm:"-" json:"is_suggested"`
+	IsDeactivated    bool          `json:"is_deactivated"`
 }
 
 type DmChannelsRequest struct {
@@ -110,13 +111,18 @@ type Participant struct {
 	IsActive          bool     `json:"is_active"`
 	UserType          string   `json:"user_type"`
 	IsAdmin           bool     `json:"is_admin"`
+	IsDeactivated     bool     `json:"is_deactivated"`
 }
 
 // NewParticipant builds a full Participant from a User (with Profile preloaded).
-func NewParticipant(u User, isAdmin bool, userType string) Participant {
+func NewParticipant(u User, isAdmin bool, userType string, isDeactivated ...bool) Participant {
 	username := u.Profile.UserName
 	if username == "" {
 		username = u.Name
+	}
+	deac := false
+	if len(isDeactivated) > 0 {
+		deac = isDeactivated[0]
 	}
 	return Participant{
 		UserId:            u.ID,
@@ -143,6 +149,7 @@ func NewParticipant(u User, isAdmin bool, userType string) Participant {
 		IsActive:          u.Profile.IsActive,
 		UserType:          userType,
 		IsAdmin:           isAdmin,
+		IsDeactivated:     deac,
 	}
 }
 
@@ -253,7 +260,12 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		return dmchanresp, errors.New("participant does not exist")
 	}
 
-	participant := NewParticipant(userDetails, false, "user")
+	var oum OrgUserManagement
+	isDeac := oum.CheckIsUserDeactivated(db, IDS{OrganisationID: dm.OrgId, UserID: *dm.ParticipantId})
+	if isDeac {
+		return dmchanresp, errors.New("user is deactivated in organisation")
+	}
+	participant := NewParticipant(userDetails, false, "user", isDeac)
 
 	exists := postgresql.CheckExists(db, &existDmchan, "user_id = ? AND participant_id = ? AND org_id = ?", dm.UserId, *dm.ParticipantId, dm.OrgId)
 	if exists {
@@ -266,6 +278,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 		dmchanresp.ParticipantId = *dm.ParticipantId
 		dmchanresp.ParticipantEmail = userDetails.Email
 		dmchanresp.Participants = participants
+		dmchanresp.IsDeactivated = isDeac
 
 		return dmchanresp, nil
 	}
@@ -284,6 +297,7 @@ func (dm *DmChannels) CreateDmChannel(db *gorm.DB) (DmChannelsResponse, error) {
 	dmchanresp.ParticipantId = *dm.ParticipantId
 	dmchanresp.ParticipantEmail = userDetails.Email
 	dmchanresp.Participants = participants
+	dmchanresp.IsDeactivated = isDeac
 
 	return dmchanresp, nil
 }
@@ -433,7 +447,10 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 			return DmChannelsResponse{}, err
 		}
 
-		participants = []Participant{NewParticipant(userDetails, false, "user")}
+		var oum OrgUserManagement
+		isDeac := oum.CheckIsUserDeactivated(db, IDS{OrganisationID: dm.OrgId, UserID: *dm.ParticipantId})
+
+		participants = []Participant{NewParticipant(userDetails, false, "user", isDeac)}
 
 		return DmChannelsResponse{
 			ID:               dm.ChannelId,
@@ -450,6 +467,7 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 			PreviewThread:    previewThread,
 			Participants:     participants,
 			CreatedAt:        dm.CreatedAt,
+			IsDeactivated:    isDeac,
 		}, nil
 
 	case "group_dm":
@@ -490,7 +508,9 @@ func (dm *DmChannels) GetDmChannelResponse(db *gorm.DB, c *gin.Context) (DmChann
 				continue
 			}
 
-			p := NewParticipant(userDetails, part.UserId == dm.UserId, "user")
+			var oum OrgUserManagement
+			isDeac := oum.CheckIsUserDeactivated(db, IDS{OrganisationID: dm.OrgId, UserID: part.UserId})
+			p := NewParticipant(userDetails, part.UserId == dm.UserId, "user", isDeac)
 			usernames = append(usernames, p.Username)
 			participants = append(participants, p)
 

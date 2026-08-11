@@ -64,6 +64,7 @@ type MessageDocument struct {
 	Media            []File            `json:"media,omitempty"`
 	IsPinned         bool              `json:"is_pinned"`
 	IsSaved          bool              `json:"is_saved"`
+	IsDeactivated    bool              `json:"is_deactivated"`
 	Mentions         []Mention         `json:"mentions,omitempty"`
 	PinnedDetails    PinnedDetails     `json:"pinned_details,omitempty"`
 	Reactions        []ReactionDetails `json:"reactions"`
@@ -360,8 +361,88 @@ func (t *MessageDocument) CheckExists() (bool, int, error) {
 	return check, http.StatusOK, err
 }
 
-func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]any, error) {
+func GetLatestMessageByThreadAndUser(threadID, userID string) (*MessageDocument, error) {
+	if storage.DB == nil || storage.DB.Elastic == nil {
+		return nil, errors.New("elastic db connection is nil")
+	}
 
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []map[string]any{
+					{
+						"term": map[string]any{
+							"thread_id": threadID,
+						},
+					},
+					{
+						"term": map[string]any{
+							"user_id": userID,
+						},
+					},
+				},
+			},
+		},
+		"size": 1,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var messageData any
+	err := elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	messages, err := UnmarshalMessageResponse(messageData)
+	if err != nil || len(messages) == 0 {
+		return nil, err
+	}
+
+	return &messages[0], nil
+}
+
+func GetLatestMessageByThread(threadID string) (*MessageDocument, error) {
+	if storage.DB == nil || storage.DB.Elastic == nil {
+		return nil, errors.New("elastic db connection is nil")
+	}
+
+	query := map[string]any{
+		"query": map[string]any{
+			"term": map[string]any{
+				"thread_id": threadID,
+			},
+		},
+		"size": 1,
+		"sort": []map[string]any{
+			{
+				"created_at": map[string]any{
+					"order": "desc",
+				},
+			},
+		},
+	}
+
+	var messageData any
+	err := elastic.SelectAll(storage.DB.Elastic, MessageIndexName, query, &messageData)
+	if err != nil {
+		return nil, err
+	}
+
+	messages, err := UnmarshalMessageResponse(messageData)
+	if err != nil || len(messages) == 0 {
+		return nil, err
+	}
+
+	return &messages[0], nil
+}
+
+func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (map[string]any, error) {
 	var (
 		thread ThreadDocument
 	)
@@ -370,13 +451,11 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 	previewSect := false
 
 	err := elastic.DeleteDocument(storage.DB.Elastic, MessageIndexName, m.ID)
-
 	if err != nil {
 		return updateResp, fmt.Errorf("failed to delete message, err: %v", err)
 	}
 
 	err = thread.GetThreadById(m.ThreadID.String())
-
 	if err != nil {
 		return updateResp, err
 	}
@@ -384,61 +463,81 @@ func (m *MessageDocument) DeleteMessage(db *gorm.DB, logger *utility.Logger) (ma
 	for _, con := range thread.Messages {
 		if con.ID == m.ID {
 			previewSect = true
+			break
 		}
 	}
 
-	if previewSect {
-		script := `if (ctx._source.messages == null) {
+	latestUserMsg, _ := GetLatestMessageByThreadAndUser(m.ThreadID.String(), m.UserID)
+	latestOverallMsg, _ := GetLatestMessageByThread(m.ThreadID.String())
+
+	var lastReplyTime *time.Time
+	if latestOverallMsg != nil {
+		lastReplyTime = &latestOverallMsg.CreatedAt
+	}
+
+	params := map[string]any{
+		"message_id": m.ID,
+		"user_id":    m.UserID,
+	}
+	if lastReplyTime != nil {
+		params["last_reply"] = lastReplyTime
+	}
+
+	var script string
+	if latestUserMsg != nil {
+		params["replacement_message"] = latestUserMsg
+		script = `if (ctx._source.messages == null) {
 			ctx._source.messages = [];
 		}
 		boolean found = false;
 		for (int i = 0; i < ctx._source.messages.size(); i++) {
-			if (ctx._source.messages[i] != null && ctx._source.messages[i].id == params.message_id) {
-				ctx._source.messages.remove(i);
+			if (ctx._source.messages[i] != null && (ctx._source.messages[i].user_id == params.user_id || ctx._source.messages[i].id == params.message_id)) {
+				ctx._source.messages[i] = params.replacement_message;
 				found = true;
 				break;
 			}
 		}
-
-		if (found) {
+		if (!found) {
+			ctx._source.messages.add(params.replacement_message);
+		}
+		if (ctx._source.message_count > 0) {
 			ctx._source.message_count--;
+		}
+		if (params.last_reply != null) {
+			ctx._source.last_reply = params.last_reply;
 		}`
-
-		req := map[string]any{
-			"script": map[string]any{
-				"source": script,
-				"params": map[string]any{
-					"message_id": m.ID,
-				},
-			},
-		}
-
-		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
-		if err != nil {
-			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return updateResp, err
-		}
-
 	} else {
-
-		script := `if (ctx._source.message_count > 0) {
+		script = `if (ctx._source.messages == null) {
+			ctx._source.messages = [];
+		}
+		for (int i = 0; i < ctx._source.messages.size(); i++) {
+			if (ctx._source.messages[i] != null && (ctx._source.messages[i].user_id == params.user_id || ctx._source.messages[i].id == params.message_id)) {
+				ctx._source.messages.remove(i);
+				break;
+			}
+		}
+		if (ctx._source.message_count > 0) {
 			ctx._source.message_count--;
+		}
+		if (params.last_reply != null) {
+			ctx._source.last_reply = params.last_reply;
 		}`
-		req := map[string]any{
-			"script": map[string]any{
-				"source": script,
-			},
-		}
+	}
 
-		err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
-		if err != nil {
-			logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
-			return updateResp, err
-		}
+	req := map[string]any{
+		"script": map[string]any{
+			"source": script,
+			"params": params,
+		},
+	}
+
+	err = elastic.UpdateDocWithScript(storage.DB.Elastic, ThreadIndexName, m.ThreadID.String(), req)
+	if err != nil {
+		logger.Error(fmt.Sprintf("An error occurred while updating threads: %v", err))
+		return updateResp, err
 	}
 
 	err = thread.GetThreadById(m.ThreadID.String())
-
 	if err != nil {
 		return updateResp, err
 	}
@@ -582,8 +681,6 @@ func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDo
 		}
 	}
 
-
-
 	profileMap := make(map[string]Profile)
 	userOrgMap := make(map[string]Profile)
 
@@ -606,7 +703,6 @@ func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDo
 		}
 	}
 
-
 	for i := range messages {
 		var p Profile
 		var found bool
@@ -623,6 +719,7 @@ func HydrateMessageProfiles(db *gorm.DB, messages []MessageDocument) []MessageDo
 			messages[i].ProfileID = p.ID
 			messages[i].Username = p.UserName
 			messages[i].FullName = p.FullName
+			messages[i].IsDeactivated = p.IsDeactivated
 			if p.AvatarURL != "" {
 				messages[i].AvatarURL = p.AvatarURL
 			}

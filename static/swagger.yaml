@@ -2561,6 +2561,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (user is deactivated in this organisation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
         "404":
           description: Not found
           content:
@@ -2606,6 +2612,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (user is deactivated in this organisation)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
         "404":
           description: Not found
           content:
@@ -13739,6 +13751,9 @@ paths:
                       status:
                         type: string
                         example: deactivated
+                      is_deactivated:
+                        type: boolean
+                        example: true
                       role_id:
                         type: integer
                       created_at:
@@ -13970,6 +13985,9 @@ paths:
                               user_type:
                                 type: string
                                 enum: [user, bot]
+                              is_deactivated:
+                                type: boolean
+                                example: false
                   pagination:
                     type: array
                     items:
@@ -14062,7 +14080,7 @@ paths:
                       username:
                         type: string
         "400":
-          description: Bad request
+          description: Bad request (e.g. user is deactivated in organisation)
           content:
             application/json:
               schema:
@@ -34203,6 +34221,9 @@ components:
         is_onboarded:
           type: boolean
           example: true
+        is_deactivated:
+          type: boolean
+          example: false
         email:
           type: string
           description: User's primary contact email.

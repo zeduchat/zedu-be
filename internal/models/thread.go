@@ -48,6 +48,7 @@ type Threads struct {
 	Edited                   bool                      `json:"edited"`
 	IsPinned                 bool                      `json:"is_pinned"`
 	IsSaved                  bool                      `json:"is_saved,omitempty"`
+	IsDeactivated            bool                      `json:"is_deactivated"`
 	UserType                 string                    `json:"user_type"`
 	Count                    int                       `json:"frequency,omitempty"`
 	UserId                   string                    `json:"user_id"`
@@ -88,6 +89,7 @@ type ThreadDocument struct {
 	UserId                   string                    `json:"user_id"`
 	Edited                   bool                      `json:"edited"`
 	IsPinned                 bool                      `json:"is_pinned"`
+	IsDeactivated            bool                      `json:"is_deactivated"`
 	Messages                 []MessageDocument         `json:"messages,omitempty"`
 	Count                    int                       `json:"frequency,omitempty"`
 	Media                    []File                    `json:"media,omitempty"`
@@ -1498,6 +1500,7 @@ func HydrateThreadProfiles(db *gorm.DB, threads []ThreadDocument) []ThreadDocume
 				threads[i].ProfileID = p.ID
 				threads[i].Username = p.UserName
 				threads[i].FullName = p.FullName
+				threads[i].IsDeactivated = p.IsDeactivated
 				if p.AvatarURL != "" {
 					threads[i].AvatarURL = p.AvatarURL
 				}
@@ -1541,6 +1544,7 @@ func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
 				threads[i].ProfileID = p.ID
 				threads[i].Username = p.UserName
 				threads[i].FullName = p.FullName
+				threads[i].IsDeactivated = p.IsDeactivated
 				if p.AvatarURL != "" {
 					threads[i].AvatarURL = p.AvatarURL
 				}

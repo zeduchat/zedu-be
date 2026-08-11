@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/thanhpk/randstr"
 	"gorm.io/gorm"
 
@@ -170,6 +171,40 @@ func (a *AccessToken) RevokeTokensByUserIDs(db *gorm.DB, userIDs []string) error
 	if err != nil {
 		return fmt.Errorf("failed to revoke tokens for users: %v", err)
 	}
+	return nil
+}
+
+func (a *AccessToken) RevokeUserTokensByOrg(db *gorm.DB, userID, orgID string) error {
+	if userID == "" || orgID == "" {
+		return nil
+	}
+
+	var liveTokens []AccessToken
+	err := db.Model(&AccessToken{}).
+		Where("owner_id = ? AND is_live = ?", userID, true).
+		Find(&liveTokens).Error
+	if err != nil {
+		return fmt.Errorf("failed to fetch live tokens for user %s: %v", userID, err)
+	}
+
+	for _, t := range liveTokens {
+		shouldRevoke := false
+
+		if t.LoginAccessToken != "" {
+			claims := jwt.MapClaims{}
+			_, _, parseErr := new(jwt.Parser).ParseUnverified(t.LoginAccessToken, claims)
+			if parseErr == nil {
+				if tokenOrgID, ok := claims["org_id"].(string); ok && tokenOrgID == orgID {
+					shouldRevoke = true
+				}
+			}
+		}
+
+		if shouldRevoke {
+			_ = db.Model(&AccessToken{}).Where("id = ?", t.ID).Update("is_live", false).Error
+		}
+	}
+
 	return nil
 }
 
