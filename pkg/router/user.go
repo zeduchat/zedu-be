@@ -24,6 +24,7 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		userUrl.GET("/users/:user_id", user.GetAUser)
 		userUrl.GET("/users/mentions/:user_id", user.GetAUserForMentions)
 		userUrl.DELETE("/users/:user_id", user.DeleteAUser)
+		userUrl.DELETE("/users/me", user.DeactivateSelfUser)
 		userUrl.GET("/users/organisations", user.GetAUserOrganisation)
 		userUrl.GET("/users/:user_id/login-audit", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserLoginAudit)
 		userUrl.GET("/users/:user_id/sessions", middleware.CheckIsDeactivated(db.Postgresql), user.GetUserSessions)

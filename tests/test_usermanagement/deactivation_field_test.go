@@ -11,7 +11,9 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/organisation"
+	userCtrl "github.com/hngprojects/telex_be/pkg/controller/user"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tst "github.com/hngprojects/telex_be/tests"
@@ -156,4 +158,62 @@ func TestOrgUserSoftDeactivationAndIsDeactivatedField(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestDeactivateSelfUser_DELETEUsersMe(t *testing.T) {
+	orgId, _, memberUserID, _ := setupTwoUsersInOrg(t)
+
+	db := storage.Connection()
+	logger := tst.Setup()
+
+	// Update member's CurrentOrg to orgId and obtain a fresh login token scoped to orgId
+	db.Postgresql.Model(&models.User{}).Where("id = ?", memberUserID).Update("current_org", orgId)
+
+	var memberUser models.User
+	if err := db.Postgresql.Where("id = ?", memberUserID).First(&memberUser).Error; err != nil {
+		t.Fatalf("failed to fetch member user: %v", err)
+	}
+
+	authCtrl := auth.Controller{
+		Db:        db,
+		Validator: validator.New(),
+		Logger:    logger,
+	}
+
+	rAuth := gin.Default()
+	memberToken := tst.GetLoginToken(t, rAuth, authCtrl, models.LoginRequestModel{
+		Email:    memberUser.Email,
+		Password: "password",
+	})
+
+	uCtrl := userCtrl.Controller{
+		Db:        db,
+		Validator: validator.New(),
+		Logger:    logger,
+	}
+
+	r := gin.Default()
+	userGroup := r.Group("/api/v1", middleware.Authorize(db.Postgresql))
+	userGroup.DELETE("/users/me", uCtrl.DeactivateSelfUser)
+
+	req, _ := http.NewRequest(http.MethodDelete, "/api/v1/users/me", nil)
+	req.Header.Set("Authorization", "Bearer "+memberToken)
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+	data := tst.ParseResponse(rr)
+	respData, ok := data["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected data object in response, got %v", data["data"])
+	}
+	if respData["access_token"] == nil {
+		t.Errorf("expected access_token in response payload")
+	}
+
+	isDeactivated, status := getOrgMemberState(t, db, memberUserID, orgId)
+	if !isDeactivated || status != "inactive" {
+		t.Errorf("expected member to be deactivated, got isDeactivated=%v, status=%q", isDeactivated, status)
+	}
 }

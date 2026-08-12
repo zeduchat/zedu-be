@@ -105,6 +105,20 @@ func (base *Controller) DeleteAUser(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) DeactivateSelfUser(c *gin.Context) {
+	respData, code, err := service.DeactivateSelfUser(base.Db, c, base.Logger)
+	if err != nil {
+		base.Logger.Error("failed to deactivate user self", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("user self deactivated from organisation successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "User deactivated from organisation successfully", respData)
+	c.JSON(http.StatusOK, rd)
+}
+
 func (base *Controller) UpdateAUser(c *gin.Context) {
 	var (
 		userID = c.Param("user_id")

@@ -18,7 +18,9 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/middleware/common"
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
@@ -245,6 +247,89 @@ func DeleteAUser(userIDStr string, db *gorm.DB, c *gin.Context) (int, error) {
 	}
 
 	return http.StatusOK, nil
+}
+
+func DeactivateSelfUser(db *storage.Database, c *gin.Context, logger *utility.Logger) (gin.H, int, error) {
+	var (
+		user        models.User
+		orgMgt      models.OrgUserManagement
+		orgData     models.Organisation
+		org         models.Organisation
+		err         error
+	)
+
+	userId, err := middleware.GetUserClaims(c, db.Postgresql, "user_id")
+	if err != nil {
+		utility.LogError(logger, "Failed to extract user_id from claims: %v", err)
+		return gin.H{}, http.StatusNotFound, err
+	}
+
+	userIDStr, ok := userId.(string)
+	if !ok {
+		utility.LogError(logger, "user_id in claims is not of type string")
+		return gin.H{}, http.StatusBadRequest, errors.New("user_id is not of type string")
+	}
+
+	user, code, err := GetUser(userIDStr, db.Postgresql)
+	if err != nil {
+		utility.LogError(logger, "Failed to fetch user_id %s: %v", userIDStr, err)
+		return gin.H{}, code, err
+	}
+
+	orgIDClaim, _ := middleware.GetUserClaims(c, db.Postgresql, "org_id")
+	orgID, _ := orgIDClaim.(string)
+	if orgID == "" && user.CurrentOrg.String() != "" {
+		orgID = user.CurrentOrg.String()
+	}
+
+	if orgID == "" {
+		utility.LogError(logger, "organisation_id is empty for user_id %s", userIDStr)
+		return gin.H{}, http.StatusBadRequest, errors.New("organisation_id is required")
+	}
+
+	if err := orgMgt.RemoveMemberFromOrganisation(db, orgID, userIDStr, logger); err != nil {
+		utility.LogError(logger, "Failed to remove user_id %s from org_id %s: %v", userIDStr, orgID, err)
+		return gin.H{}, http.StatusInternalServerError, fmt.Errorf("failed to deactivate user in organisation: %w", err)
+	}
+	utility.LogInfo(logger, "Deactivated user_id %s from org_id %s via RemoveMemberFromOrganisation", userIDStr, orgID)
+
+	activeOrgs, err := orgData.GetUserOrganisations(db.Postgresql, userIDStr)
+	if err == nil && len(activeOrgs) > 0 {
+		user.CurrentOrg = uuid.FromStringOrNil(activeOrgs[0].ID)
+		utility.LogInfo(logger, "Fallback user_id %s CurrentOrg to next active org_id %s", userIDStr, activeOrgs[0].ID)
+	} else {
+		user.CurrentOrg = uuid.Nil
+		utility.LogInfo(logger, "No remaining active organisations for user_id %s; set CurrentOrg to Nil", userIDStr)
+	}
+
+	if err := user.Update(db.Postgresql); err != nil {
+		utility.LogError(logger, "Failed to update CurrentOrg for user_id %s: %v", userIDStr, err)
+	}
+
+	tokenData, err := middleware.CreateToken(user, c)
+	if err != nil {
+		utility.LogError(logger, "Failed to generate new access token for user_id %s: %v", userIDStr, err)
+		return gin.H{}, http.StatusBadRequest, fmt.Errorf("failed to generate new access token: %w", err)
+	}
+
+	tokens := map[string]string{
+		"access_token": tokenData.AccessToken,
+		"at_expires":   strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+
+	accessTokenRecord := models.AccessToken{ID: tokenData.AccessUuid, OwnerID: user.ID}
+	if err := accessTokenRecord.CreateAccessToken(db.Postgresql, tokens); err != nil {
+		utility.LogError(logger, "Error saving access token for user_id %s: %v", userIDStr, err)
+	}
+
+	if user.CurrentOrg != uuid.Nil {
+		org, _ = org.GetOrgByID(db.Postgresql, user.CurrentOrg.String())
+	}
+	user, _ = user.GetUserByID(db.Postgresql, user.ID, org.ID)
+
+	responsePayload := auth.BuildAuthResponse(user, org, tokenData, accessTokenRecord.SubAccessToken)
+
+	return responsePayload, http.StatusOK, nil
 }
 
 func UpdateAUser(userData models.UpdateUserRequestModel, userIDStr string, db *gorm.DB, c *gin.Context) (*models.User, int, error) {

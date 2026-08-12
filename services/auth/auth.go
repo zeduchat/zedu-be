@@ -347,6 +347,37 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	return responseData, http.StatusOK, nil
 }
 
+func BuildAuthResponse(userData models.User, org models.Organisation, tokenData *middleware.TokenDetailDTO, notificationToken string) gin.H {
+	return gin.H{
+		"user": map[string]any{
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"user_id":                   userData.ID,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"current_organisation_slug": slug.Make(org.Name),
+			"organisation":              org,
+			"online":                    userData.Profile.Online,
+		},
+		"access_token":            tokenData.AccessToken,
+		"notification_token":      notificationToken,
+		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
+}
+
 func LogoutUser(req models.LogoutReqModel, db *gorm.DB) (int, error) {
 	var (
 		user models.User
