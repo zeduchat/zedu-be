@@ -83,7 +83,7 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 		ownerEmail = owner.Email
 	}
 
-	removeErr := organisation.RemoveMemberFromOrganisation(ownerId, orgId, userId, base.Db.Postgresql)
+	removeErr := organisation.RemoveMemberFromOrganisation(ownerId, orgId, userId, base.Db, base.Logger)
 
 	// Audit the attempt — success or failure.
 	auditData := map[string]interface{}{

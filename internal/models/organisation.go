@@ -85,6 +85,7 @@ type UserInOrgResponse struct {
 	EntityType       string    `json:"entity_type"` // "user" or "bot"
 	Online           bool      `json:"online"`
 	DefaultAvatarURL string    `json:"default_avatar_url"`
+	IsDeactivated    bool      `json:"is_deactivated"`
 }
 
 type OrgMetricsResponse struct {
@@ -396,7 +397,9 @@ func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]O
 
 	query := db.Model(&Organisation{}).
 		Joins("INNER JOIN user_organisations uo ON organisations.id = uo.organisation_id").
-		Where("uo.user_id = ?", userID)
+		Joins("LEFT JOIN org_user_managements oum ON oum.user_id = uo.user_id AND oum.organisation_id = uo.organisation_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = uo.user_id AND profiles.organisation_id = uo.organisation_id").
+		Where("uo.user_id = ? AND COALESCE(profiles.is_deactivated, oum.is_deactivated, false) = false", userID)
 
 	if err := query.Find(&organisations).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -418,8 +421,9 @@ func (o *Organisation) GetUserOrganisations(db *gorm.DB, userID string) ([]Organ
 		Select(`org.*, 
 			(CASE WHEN upo.id IS NOT NULL THEN 1 ELSE 0 END) AS pinned`).
 		Joins("JOIN org_user_managements AS oum ON org.id = oum.organisation_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = oum.user_id AND profiles.organisation_id = oum.organisation_id").
 		Joins("LEFT JOIN user_pinned_organisations AS upo ON org.id = upo.org_id AND upo.user_id = ?", userID).
-		Where("oum.user_id = ?", userID).
+		Where("oum.user_id = ? AND COALESCE(profiles.is_deactivated, oum.is_deactivated, false) = false", userID).
 		Find(&orgs).Error
 
 	if err != nil {
@@ -449,7 +453,9 @@ func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterI
 
 		query := db.Model(&Organisation{}).
 			Joins("INNER JOIN user_organisations uo ON organisations.id = uo.organisation_id").
-			Where("uo.user_id = ?", userID).
+			Joins("LEFT JOIN org_user_managements oum ON oum.user_id = uo.user_id AND oum.organisation_id = uo.organisation_id").
+			Joins("LEFT JOIN profiles ON profiles.userid = uo.user_id AND profiles.organisation_id = uo.organisation_id").
+			Where("uo.user_id = ? AND COALESCE(profiles.is_deactivated, oum.is_deactivated, false) = false", userID).
 			Where("organisations.owner_id = ?", requesterID)
 		if err := query.Find(&organisations).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -466,7 +472,9 @@ func (u *Organisation) GetOrganisationsByUserIDs(db *gorm.DB, userID, requesterI
 
 	query := db.Model(&Organisation{}).
 		Joins("INNER JOIN user_organisations uo ON organisations.id = uo.organisation_id").
-		Where("uo.user_id = ?", requesterID)
+		Joins("LEFT JOIN org_user_managements oum ON oum.user_id = uo.user_id AND oum.organisation_id = uo.organisation_id").
+		Joins("LEFT JOIN profiles ON profiles.userid = uo.user_id AND profiles.organisation_id = uo.organisation_id").
+		Where("uo.user_id = ? AND COALESCE(profiles.is_deactivated, oum.is_deactivated, false) = false", requesterID)
 	if err := query.Find(&organisations).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return organisations, ErrNotFound
@@ -484,8 +492,9 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number, profiles.username as username, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, profiles.status").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.username as username, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, profiles.status, COALESCE(profiles.is_deactivated, oum.is_deactivated, false) as is_deactivated").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
+		Joins("LEFT JOIN org_user_managements oum ON oum.user_id = users.id AND oum.organisation_id = user_organisations.organisation_id").
 		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
 		Where("user_organisations.organisation_id = ?", orgId).
 		Offset(offset).
@@ -736,9 +745,10 @@ func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, e
 	const maxProfiles = 30
 
 	type userProfileRow struct {
-		UserID    string `gorm:"column:user_id"`
-		Name      string `gorm:"column:name"`
-		AvatarUrl string `gorm:"column:avatar_url"`
+		UserID        string `gorm:"column:user_id"`
+		Name          string `gorm:"column:name"`
+		AvatarUrl     string `gorm:"column:avatar_url"`
+		IsDeactivated bool   `gorm:"column:is_deactivated"`
 	}
 
 	var rows []userProfileRow
@@ -750,7 +760,8 @@ func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, e
 			NULLIF(TRIM(users.name), ''),
 			SUBSTRING(users.email FROM 1 FOR POSITION('@' IN users.email) - 1)
 		) AS name,
-		profiles.avatar_url AS avatar_url
+		profiles.avatar_url AS avatar_url,
+		oum.is_deactivated AS is_deactivated
 	`
 
 	err := db.Table("org_user_managements AS oum").
@@ -783,9 +794,10 @@ func (o *Organisation) FetchOrgUsers(db *gorm.DB, ids IDS) ([]OrgUsersProfile, e
 		}
 
 		profiles = append(profiles, OrgUsersProfile{
-			Name:      name,
-			AvatarUrl: avatarURL,
-			IsOnline:  true,
+			Name:          name,
+			AvatarUrl:     avatarURL,
+			IsOnline:      true,
+			IsDeactivated: r.IsDeactivated,
 		})
 	}
 

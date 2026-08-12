@@ -528,23 +528,21 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 	return entities, paginationResponse, nil
 }
 
-func RemoveMemberFromOrganisation(ownerId, orgId, userId string, db *gorm.DB) error {
+func RemoveMemberFromOrganisation(initiatingUserID, orgId, targetUserID string, db *storage.Database, logger *utility.Logger) error {
 	var (
 		org    models.Organisation
 		orgmgt models.OrgUserManagement
 	)
 
-	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
-	if err != nil {
-		return err
+	isSelf := initiatingUserID == targetUserID
+	isOwner, _ := org.IsOwnerOfOrganisation(db.Postgresql, initiatingUserID, orgId)
+	canManage := isSelf || isOwner || userCanOrOwner(db.Postgresql, initiatingUserID, orgId, models.PermChangeUserOrgRole)
+
+	if !canManage {
+		return errors.New("user is not authorised to remove member from organisation")
 	}
 
-	if !isowner {
-		return errors.New("user is not the owner of the organisation")
-	}
-
-	err = orgmgt.RemoveMemberFromOrganisation(db, orgId, userId)
-
+	err := orgmgt.RemoveMemberFromOrganisation(db, orgId, targetUserID, logger)
 	if err != nil {
 		return err
 	}

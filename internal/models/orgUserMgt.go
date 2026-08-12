@@ -9,7 +9,10 @@ import (
 	"github.com/gofrs/uuid"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 // Default org role name constants.
@@ -46,9 +49,10 @@ type OrgGetStartedResponse struct {
 }
 
 type OrgUsersProfile struct {
-	Name      string `json:"name"`
-	AvatarUrl string `json:"avatar_url"`
-	IsOnline  bool   `json:"is_online"`
+	Name          string `json:"name"`
+	AvatarUrl     string `json:"avatar_url"`
+	IsOnline      bool   `json:"is_online"`
+	IsDeactivated bool   `json:"is_deactivated"`
 }
 
 type OrgChannelsWithMemberAvatars struct {
@@ -65,6 +69,7 @@ type OrgUserManagementResponse struct {
 	OrganisationID string `json:"organisation_id"`
 	RoleID         string `json:"role_id"`
 	Status         string `json:"status"`
+	IsDeactivated  bool   `json:"is_deactivated"`
 	Role           Role   `json:"role"`
 }
 
@@ -218,42 +223,61 @@ func (o *OrgUserManagement) UpdateMember(db *gorm.DB, orgID, userID string, req 
 	return oum, nil
 }
 
-func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *gorm.DB, orgID, userID string) error {
-
-	var (
-		u  User
-		og Organisation
-	)
-
-	exists := postgresql.CheckExists(db, o, "organisation_id = ? AND user_id = ?", orgID, userID)
+func (o *OrgUserManagement) RemoveMemberFromOrganisation(db *storage.Database, orgID, userID string, logger *utility.Logger) error {
+	exists := postgresql.CheckExists(db.Postgresql, o, "organisation_id = ? AND user_id = ?", orgID, userID)
 	if !exists {
 		return errors.New("user not found in organisation")
 	}
 
-	err, _ := postgresql.SelectOneFromDb(db, &o, "organisation_id = ? AND user_id = ?", orgID, userID)
+	err, _ := postgresql.SelectOneFromDb(db.Postgresql, &o, "organisation_id = ? AND user_id = ?", orgID, userID)
 	if err != nil {
 		return errors.New("user not found in organisation")
 	}
 
-	err = postgresql.DeleteRecordFromDb(db, &o)
+	o.IsDeactivated = true
+	o.Status = "inactive"
+
+	result, err := postgresql.UpdateFields(db.Postgresql, o, map[string]any{
+		"is_deactivated": true,
+		"status":         "inactive",
+	}, "organisation_id = ? AND user_id = ?", orgID, userID)
+
 	if err != nil {
-		return errors.New("failed to remove user from organisation")
+		return fmt.Errorf("failed to deactivate user in organisation: %w", err)
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &u, "id = ?", userID)
-	if err != nil {
-		return errors.New("user not found")
+	if result.RowsAffected == 0 {
+		return errors.New("failed to deactivate user in organisation")
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &og, "id = ?", orgID)
-	if err != nil {
-		return errors.New("organisation not found")
+	_ = db.Postgresql.Model(&Profile{}).
+		Where("organisation_id = ? AND userid = ?", orgID, userID).
+		Updates(map[string]any{
+			"is_deactivated": true,
+			"is_active":      false,
+		})
+
+	var accessToken AccessToken
+	if err := accessToken.RevokeUserTokensByOrg(db.Postgresql, userID, orgID); err != nil {
+		utility.LogError(logger, "Failed to revoke session tokens for user_id: %s, org_id: %s: %v", userID, orgID, err)
+	}
+	utility.LogInfo(logger, "Revoked active session tokens for user_id: %s in org_id: %s", userID, orgID)
+
+	if db != nil && db.Redis != nil {
+		key1 := getProfileCacheKey(userID, orgID)
+		_, err1 := rd.RedisDelete(db.Redis, key1)
+		if err1 != nil {
+			utility.LogError(logger, "Failed to delete profile cache from redis for key %s: %v, user_id: %s, org_id: %s", key1, err1, userID, orgID)
+		}
+
+		key2 := getProfileCacheKey(userID, "")
+		_, err2 := rd.RedisDelete(db.Redis, key2)
+		if err2 != nil {
+			utility.LogError(logger, "Failed to delete default profile cache from redis for key %s: %v, user_id: %s", key2, err2, userID)
+		}
 	}
 
-	err = u.RemoveUserFromOrganisation(db, &u, []any{&og})
-	if err != nil {
-		return errors.New("failed to remove user from organisation")
-	}
+	utility.LogInfo(logger, "Successfully removed user_id %s from organisation %s and cleared profile cache from redis", userID, orgID)
 
 	return nil
 }
@@ -375,9 +399,14 @@ func (o *OrgUserManagement) GetUserRoleInOrganisation(db *gorm.DB, userID, orgID
 }
 
 func (o *OrgUserManagement) CheckIsUserDeactivated(db *gorm.DB, ids IDS) bool {
-	var orgUserManagement OrgUserManagement
-
-	return postgresql.CheckExists(db, &orgUserManagement, "organisation_id = ? AND user_id = ? AND is_deactivated = ?", ids.OrganisationID, ids.UserID, true)
+	var count int64
+	db.Raw(`
+		SELECT COUNT(*) FROM org_user_managements oum
+		LEFT JOIN profiles p ON p.userid = oum.user_id AND p.organisation_id = oum.organisation_id
+		WHERE oum.organisation_id = ? AND oum.user_id = ? 
+		  AND (oum.is_deactivated = true OR p.is_deactivated = true)
+	`, ids.OrganisationID, ids.UserID).Scan(&count)
+	return count > 0
 }
 
 func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]UserInOrgResponse, error) {
@@ -393,6 +422,7 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             users.name,
             org_roles.name AS role,
             org_user_managements.status,
+            org_user_managements.is_deactivated,
             users.created_at,
             'user' AS entity_type,
             profiles.online

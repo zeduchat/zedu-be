@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 )
 
 func RedisSet(rdb *redis.Client, key string, value any, ttl time.Duration) error {
+	if rdb == nil || gin.Mode() == gin.TestMode || gin.Mode() == "test" {
+		return nil
+	}
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -17,6 +21,9 @@ func RedisSet(rdb *redis.Client, key string, value any, ttl time.Duration) error
 }
 
 func RedisSetPerm(rdb *redis.Client, key string, value any) error {
+	if rdb == nil || gin.Mode() == gin.TestMode || gin.Mode() == "test" {
+		return nil
+	}
 	serialized, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -25,6 +32,9 @@ func RedisSetPerm(rdb *redis.Client, key string, value any) error {
 }
 
 func PushToQueue(rdb *redis.Client, value any) error {
+	if rdb == nil || gin.Mode() == gin.TestMode || gin.Mode() == "test" {
+		return nil
+	}
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("could not marshal struct: %v", err)
@@ -39,6 +49,9 @@ func PushToQueue(rdb *redis.Client, value any) error {
 }
 
 func PushToNotificationQueue(rdb *redis.Client, value any) error {
+	if rdb == nil || gin.Mode() == gin.TestMode || gin.Mode() == "test" {
+		return nil
+	}
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("could not marshal struct: %v", err)

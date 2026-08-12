@@ -155,11 +155,11 @@ func ChangeMemberActiveStatus(db *gorm.DB, rdb *redis.Client, logger *utility.Lo
 	}()
 
 	if req.Activate {
-		if err := user.ActivateOrgMember(tx, orgID); err != nil {
+		if err := user.ActivateOrgMember(tx, orgID, logger); err != nil {
 			return http.StatusInternalServerError, err
 		}
 	} else {
-		if err := user.DeactivateOrgMember(tx, orgID); err != nil {
+		if err := user.DeactivateOrgMember(tx, orgID, logger); err != nil {
 			return http.StatusInternalServerError, err
 		}
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/gosimple/slug"
 	"gorm.io/gorm"
 
@@ -273,6 +274,24 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		return responseData, http.StatusInternalServerError, fmt.Errorf("unable to fetch user: %w", err)
 	}
 
+	var oum models.OrgUserManagement
+	if user.CurrentOrg != (uuid.UUID{}) && user.CurrentOrg.String() != "" {
+		if oum.CheckIsUserDeactivated(db, models.IDS{OrganisationID: user.CurrentOrg.String(), UserID: user.ID}) {
+			var orgModel models.Organisation
+			activeOrgs, err := orgModel.GetUserOrganisations(db, user.ID)
+			if err == nil && len(activeOrgs) > 0 {
+				newOrgID, parseErr := uuid.FromString(activeOrgs[0].ID)
+				if parseErr == nil {
+					user.CurrentOrg = newOrgID
+					_ = db.Save(&user).Error
+				}
+			} else {
+				user.CurrentOrg = uuid.UUID{}
+				_ = db.Save(&user).Error
+			}
+		}
+	}
+
 	tokenData, err := middleware.CreateToken(user, c)
 	if err != nil {
 		return responseData, http.StatusInternalServerError, fmt.Errorf("error saving token: %w", err)
@@ -326,6 +345,37 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 	audit_utility.LogUserLogin(c, db, extReq, userData.ID, tokenData.AccessUuid, userData.Organisations)
 
 	return responseData, http.StatusOK, nil
+}
+
+func BuildAuthResponse(userData models.User, org models.Organisation, tokenData *middleware.TokenDetailDTO, notificationToken string) gin.H {
+	return gin.H{
+		"user": map[string]any{
+			"id":                        userData.ID,
+			"email":                     userData.Email,
+			"user_id":                   userData.ID,
+			"username":                  userData.Name,
+			"is_verified":               userData.IsVerified,
+			"is_onboarded":              userData.IsOnboarded,
+			"profile_updated":           userData.ProfileUpdated,
+			"is_active":                 userData.IsActive,
+			"current_org":               userData.CurrentOrg,
+			"first_name":                userData.Profile.FirstName,
+			"last_name":                 userData.Profile.LastName,
+			"fullname":                  userData.Profile.FirstName + " " + userData.Profile.LastName,
+			"phone":                     userData.Profile.Phone,
+			"avatar_url":                userData.Profile.AvatarURL,
+			"default_avatar_url":        avatar.GenerateDefaultAvatarURL(userData.ID),
+			"expires_in":                strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+			"created_at":                strconv.Itoa(int(userData.CreatedAt.Unix())),
+			"updated_at":                strconv.Itoa(int(userData.UpdatedAt.Unix())),
+			"current_organisation_slug": slug.Make(org.Name),
+			"organisation":              org,
+			"online":                    userData.Profile.Online,
+		},
+		"access_token":            tokenData.AccessToken,
+		"notification_token":      notificationToken,
+		"access_token_expires_in": strconv.Itoa(int(tokenData.ExpiresAt.Unix())),
+	}
 }
 
 func LogoutUser(req models.LogoutReqModel, db *gorm.DB) (int, error) {
