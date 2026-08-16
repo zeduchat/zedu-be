@@ -30,7 +30,7 @@ func ShouldSendNotification(db *gorm.DB, userID, channelID, orgID string, notifT
 func ShouldSendNotificationWithTime(db *gorm.DB, userID, channelID, orgID string, notifType NotificationType, nowUTC time.Time) (bool, error) {
 	userLoc := time.UTC
 
-	if userID != "" {
+	if db != nil && userID != "" {
 		var profModel models.Profile
 		prof, err := profModel.GetOrCreateProfileForOrg(db, userID, orgID)
 		if err == nil {
@@ -45,23 +45,20 @@ func ShouldSendNotificationWithTime(db *gorm.DB, userID, channelID, orgID string
 		}
 	}
 
-	prefs, err := GetEffectivePreferences(db, userID, channelID, orgID)
-	if err != nil {
-		return false, err
-	}
-
-	if len(prefs) == 0 {
-		defaultPrefs := models.GetDefaultChannelDeviceNotification()
-		return shouldSendForDevice(defaultPrefs, notifType, userLoc, nowUTC), nil
-	}
-
-	for _, devicePrefs := range prefs {
-		if shouldSendForDevice(devicePrefs, notifType, userLoc, nowUTC) {
-			return true, nil
+	if db != nil {
+		prefs, err := GetEffectivePreferences(db, userID, channelID, orgID)
+		if err == nil && len(prefs) > 0 {
+			for _, devicePrefs := range prefs {
+				if shouldSendForDevice(devicePrefs, notifType, userLoc, nowUTC) {
+					return true, nil
+				}
+			}
+			return false, nil
 		}
 	}
 
-	return false, nil
+	defaultPrefs := models.GetDefaultChannelDeviceNotification()
+	return shouldSendForDevice(defaultPrefs, notifType, userLoc, nowUTC), nil
 }
 
 func shouldSendForDevice(devicePrefs models.DeviceNotification, notifType NotificationType, userLoc *time.Location, nowUTC time.Time) bool {

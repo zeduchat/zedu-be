@@ -111,6 +111,45 @@ func resolveMessageContent(feed models.FeedMessageRequest) string {
 	return ""
 }
 
+func ResolveChannelPushTargetUserIDs(db *gorm.DB, feed models.FeedMessageRequest, channelUserIDs []string, channelId, orgId, senderId string) ([]string, error) {
+	isChannelMention := false
+	taggedUserMap := make(map[string]bool)
+
+	for _, m := range feed.Mentions {
+		if m.ID == "00000000-0000-0000-0000-000000000000" {
+			isChannelMention = true
+		} else if m.Type == "user" && m.ID != "" && m.ID != senderId {
+			taggedUserMap[m.ID] = true
+		}
+	}
+
+	if isChannelMention {
+		return notificationpref.FilterUsersByPreferences(db, channelUserIDs, channelId, orgId, notificationpref.NotificationTypeAtChannel)
+	}
+
+	if len(taggedUserMap) > 0 {
+		var taggedUserIDs []string
+		channelUserSet := make(map[string]bool)
+		for _, uID := range channelUserIDs {
+			channelUserSet[uID] = true
+		}
+
+		for uID := range taggedUserMap {
+			if channelUserSet[uID] {
+				taggedUserIDs = append(taggedUserIDs, uID)
+			}
+		}
+
+		if len(taggedUserIDs) == 0 {
+			return nil, nil
+		}
+
+		return notificationpref.FilterUsersByPreferences(db, taggedUserIDs, channelId, orgId, notificationpref.NotificationTypeMentions)
+	}
+
+	return nil, nil
+}
+
 func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload, logger *utility.Logger) error {
 
 	var (
@@ -156,42 +195,49 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 
 	logger.Info("published new_message notification to %d users", len(filteredUserIDs))
 
-	// Push fcm notification to channel users
 	feed := notifPayload.Notification.Content.(models.FeedMessageRequest)
 
 	msgText := resolveMessageContent(feed)
 
-	pushReq := models.PushRequest{
-		ChannelId:   channelId,
-		OrgId:       orgId,
-		ChannelName: feed.ChannelName,
-		UserIds:     filteredUserIDs,
-		Message:     msgText,
-		UserId:      userId,
-		Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
-		Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
-		Payload: map[string]interface{}{
-			"org_id":            orgId,
-			"channel_id":        channelId,
-			"channel_name":      feed.ChannelName,
-			"sender_name":       feed.UserName,
-			"sender_id":         feed.UserId,
-			"avatar_url":        feed.AvatarURL,
-			"content":           msgText,
-			"type":              feed.Type,
-			"event":             "new_message",
-			"notification_type": "channel",
-			"section":           notifPayload.Notification.SectionType,
-		},
-	}
-
-	// Push OneSignal notification to channel users
-	err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
+	pushUserIDs, err := ResolveChannelPushTargetUserIDs(db, feed, userIDs, channelId, orgId, userId)
 	if err != nil {
-		logger.Error("failed to send OneSignal notification to channel users, Err: %v", err.Error())
+		logger.Error("failed to resolve target push users: %v", err)
 	}
 
-	logger.Info("sent OneSignal push notification to channel users")
+	if len(pushUserIDs) > 0 {
+		pushReq := models.PushRequest{
+			ChannelId:   channelId,
+			OrgId:       orgId,
+			ChannelName: feed.ChannelName,
+			UserIds:     pushUserIDs,
+			Message:     msgText,
+			UserId:      userId,
+			Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
+			Title:       fmt.Sprintf("Notification from user %s", feed.ChannelName),
+			Payload: map[string]interface{}{
+				"org_id":            orgId,
+				"channel_id":        channelId,
+				"channel_name":      feed.ChannelName,
+				"sender_name":       feed.UserName,
+				"sender_id":         feed.UserId,
+				"avatar_url":        feed.AvatarURL,
+				"content":           msgText,
+				"type":              feed.Type,
+				"event":             "new_message",
+				"notification_type": "channel",
+				"section":           notifPayload.Notification.SectionType,
+			},
+		}
+
+		err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
+		if err != nil {
+			logger.Error("failed to send OneSignal notification to channel users, Err: %v", err.Error())
+		}
+		logger.Info("sent OneSignal push notification to %d channel user(s)", len(pushUserIDs))
+
+	} else {
+		logger.Info("skipped OneSignal push notification for channel message (no tagged users or @channel mention)")
+	}
 
 	return nil
 }
