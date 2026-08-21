@@ -4562,6 +4562,56 @@ paths:
           description: The ID of the channel to be archived or unarchived.
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                archived:
+                  type: boolean
+                  description: Set to `true` to archive the channel, `false` to unarchive.
+              required:
+                - archived
+              example:
+                archived: true
+      responses:
+        "200":
+          description: Channel archived or unarchived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel archived successfully
+        "400":
+          description: Channel is already in the requested state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 400
+                  message:
+                    type: string
+                    example: channel is already in the requested state
+                  error:
+                    type: object
+                    example: {}
 
   /channels/{channel_id}/export:
     post:
@@ -4723,56 +4773,6 @@ paths:
                       total_items:
                         type: integer
                         example: 5
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                archived:
-                  type: boolean
-                  description: Set to `true` to archive the channel, `false` to unarchive.
-              required:
-                - archived
-              example:
-                archived: true
-      responses:
-        "200":
-          description: Channel archived or unarchived successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  status_code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: channel archived successfully
-        "400":
-          description: Channel is already in the requested state
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: error
-                  status_code:
-                    type: integer
-                    example: 400
-                  message:
-                    type: string
-                    example: channel is already in the requested state
-                  error:
-                    type: object
-                    example: {}
 
   /token/connection:
     get:
