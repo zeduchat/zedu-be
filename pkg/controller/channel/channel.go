@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -854,3 +855,106 @@ func (base *Controller) GetArchivedChannels(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "archived channels retrieved successfully", respData)
 	c.JSON(http.StatusOK, rd)
 }
+
+func (base *Controller) ExportChannel(c *gin.Context) {
+	channelID := c.Param("channelId")
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+
+	resp, code, err := channel.InitiateChannelExport(base.Db, channelID, userID, orgID, base.Logger)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	msg := "Channel export initiated successfully"
+	if code == http.StatusOK {
+		msg = "An export for this channel is already in progress"
+	}
+	base.Logger.Info("channel export endpoint hit successfully")
+	rd := utility.BuildSuccessResponse(code, msg, resp)
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetChannelExportStatus(c *gin.Context) {
+	channelID := c.Param("channelId")
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+
+	resp, code, err := channel.GetLatestChannelExportStatus(base.Db, channelID, userID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	base.Logger.Info("channel export status retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel export status retrieved successfully", resp)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetChannelExportHistory(c *gin.Context) {
+	channelID := c.Param("channelId")
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	exports, pagination, code, err := channel.GetChannelExportHistory(base.Db, channelID, userID, page, limit)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": pagination.CurrentPage,
+		"total_pages":  pagination.TotalPagesCount,
+		"page_size":    pagination.PageCount,
+		"total_items":  pagination.TotalItems,
+	}
+
+	base.Logger.Info("channel export history retrieved successfully")
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel export history retrieved successfully", exports, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
