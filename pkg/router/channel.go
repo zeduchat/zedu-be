@@ -30,6 +30,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/add", channel.AddMembersToChannel)
 		channelUrl.POST("/add-multiple", channel.AddMultipleMembersToChannel)
 		channelUrl.POST("/remove-multiple", channel.RemoveMultipleMembersFromChannel)
+		channelUrl.POST("/:channelId/export", channel.ExportChannel)
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 		channelUrl.POST("/:channelId/notification-preference", channel.UpdateDeviceNotification)
 
@@ -43,6 +44,8 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.DELETE("/:channelId/integration-channels", channel.DeleteChannelIntegration)
 
 		// GET routes
+		channelUrl.GET("/:channelId/export/status", channel.GetChannelExportStatus)
+		channelUrl.GET("/:channelId/export/history", channel.GetChannelExportHistory)
 		channelUrl.GET("/:channelId/messages", channel.GetChannelsMsg)
 		channelUrl.GET("/name/:channelName", channel.GetChannelsByName)
 		channelUrl.GET("/:channelId", channel.GetChannel)
