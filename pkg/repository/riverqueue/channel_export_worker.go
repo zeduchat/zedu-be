@@ -98,7 +98,7 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 			esQuery := map[string]any{
 				"query": map[string]any{
 					"bool": map[string]any{
-						"must": []map[string]any{
+						"should": []map[string]any{
 							{
 								"term": map[string]any{
 									"channels_id": channelID,
@@ -106,10 +106,11 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 							},
 							{
 								"term": map[string]any{
-									"type": "thread",
+									"channel_id": channelID,
 								},
 							},
 						},
+						"minimum_should_match": 1,
 					},
 				},
 				"from": from,
@@ -342,18 +343,9 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 				}
 			}
 
-			if objectKey == "" {
-				continue
-			}
-
-			stat, statErr := minioClient.StatObject(ctx, bucketName, objectKey, minio.StatObjectOptions{})
-			if statErr != nil || stat.Size == 0 {
-				w.logger.Warning("Skipping media file %s (key %s) stat error or empty: %v", mf.ID, objectKey, statErr)
-				continue
-			}
-
 			obj, err := minioClient.GetObject(ctx, bucketName, objectKey, minio.GetObjectOptions{})
 			if err != nil {
+				w.logger.Warning("Failed to open object stream for media file %s (key %s): %v", mf.ID, objectKey, err)
 				continue
 			}
 
