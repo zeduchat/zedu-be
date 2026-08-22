@@ -52,7 +52,7 @@ func SetupRiver(ctx context.Context, configDatabase config.Database, logger *uti
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
-		Workers: registerWorkers(logger, db),
+		Workers: RegisterWorkers(logger, db),
 		Logger:  slogger,
 	})
 	if err != nil {
@@ -84,8 +84,13 @@ func StartRiverForTest(ctx context.Context, configDatabase config.Database, logg
 
 	driver := riverpgxv5.New(dbPool)
 
-	workers := river.NewWorkers()
-	river.AddWorker(workers, NewClearUserStatusWorker(logger, gormDB))
+	var dbRef *storage.Database
+	if storage.DB != nil {
+		dbRef = storage.DB
+	} else {
+		dbRef = &storage.Database{Postgresql: gormDB}
+	}
+	workers := RegisterWorkers(logger, dbRef)
 
 	client, err := river.NewClient(driver, &river.Config{
 		Queues: map[string]river.QueueConfig{
