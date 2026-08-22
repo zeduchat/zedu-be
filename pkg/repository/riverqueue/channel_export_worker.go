@@ -158,6 +158,21 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 				rawBytes, _ := json.Marshal(sourceMap)
 				var doc models.ThreadDocument
 				if err := json.Unmarshal(rawBytes, &doc); err == nil {
+					if doc.ID == "" {
+						if idStr, ok := sourceMap["thread_id"].(string); ok && idStr != "" {
+							doc.ID = idStr
+						} else if idStr, ok := sourceMap["id"].(string); ok && idStr != "" {
+							doc.ID = idStr
+						} else if idStr, ok := hitMap["_id"].(string); ok && idStr != "" {
+							doc.ID = idStr
+						}
+					}
+					if doc.ChannelsID == "" {
+						doc.ChannelsID = channelID
+					}
+					if doc.OrganisationID == "" {
+						doc.OrganisationID = orgID
+					}
 					allThreads = append(allThreads, doc)
 				}
 			}
@@ -171,7 +186,7 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 
 	var activeThreadIDs []string
 	for _, doc := range allThreads {
-		if doc.ID != "" && (len(doc.Messages) > 0 || doc.MessageCount > 0) {
+		if doc.ID != "" {
 			activeThreadIDs = append(activeThreadIDs, doc.ID)
 		}
 	}
@@ -250,6 +265,8 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 		}
 	}
 
+	w.logger.Info("[channel export] Processed %d threads and %d total replies for export %s", len(allThreads), totalReplyCount, export.ID)
+
 	var dbMediaFiles []models.File
 	_ = w.db.Where("channel_id = ? AND file_type != 'zip' AND file_name NOT LIKE 'export_%' AND deleted_at IS NULL", channelID).Find(&dbMediaFiles).Error
 	for _, mf := range dbMediaFiles {
@@ -258,8 +275,27 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 		}
 	}
 
+	var missingMediaIDs []string
+	for mID, mf := range mediaFilesMap {
+		if mf.FileLink == "" || mf.FileName == "" {
+			missingMediaIDs = append(missingMediaIDs, mID)
+		}
+	}
+	if len(missingMediaIDs) > 0 {
+		var fetchedFiles []models.File
+		if err := w.db.Where("id IN ?", missingMediaIDs).Find(&fetchedFiles).Error; err == nil {
+			for _, ff := range fetchedFiles {
+				if ff.ID != "" {
+					mediaFilesMap[ff.ID] = ff
+				}
+			}
+		}
+	}
+
 	zipBuffer := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(zipBuffer)
+
+	w.logger.Info("[channel export] Creating channel info and threads JSON metadata in export archive %s", export.ID)
 
 	channelMetaData := map[string]interface{}{
 		"channel_id":           channel.ID,
@@ -286,6 +322,8 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 		_, _ = fMsgs.Write(threadsBytes)
 	}
 
+	w.logger.Info("[channel export] Creating and archiving %d media files for export %s", len(mediaFilesMap), export.ID)
+
 	if storage.DB != nil && storage.DB.Minio != nil && len(mediaFilesMap) > 0 {
 		minioClient := storage.DB.Minio
 		bucketName := config.Config.Minio.BucketName
@@ -308,12 +346,22 @@ func (w *ChannelExportWorker) processExport(ctx context.Context, export *models.
 				continue
 			}
 
+			stat, statErr := minioClient.StatObject(ctx, bucketName, objectKey, minio.StatObjectOptions{})
+			if statErr != nil || stat.Size == 0 {
+				w.logger.Warning("Skipping media file %s (key %s) stat error or empty: %v", mf.ID, objectKey, statErr)
+				continue
+			}
+
 			obj, err := minioClient.GetObject(ctx, bucketName, objectKey, minio.GetObjectOptions{})
 			if err != nil {
 				continue
 			}
 
-			fileNameInZip := fmt.Sprintf("media/%s_%s", mf.ID[:8], mf.FileName)
+			idPrefix := mf.ID
+			if len(idPrefix) > 8 {
+				idPrefix = idPrefix[:8]
+			}
+			fileNameInZip := fmt.Sprintf("media/%s_%s", idPrefix, mf.FileName)
 			fMedia, err := zipWriter.Create(fileNameInZip)
 			if err == nil {
 				_, _ = io.Copy(fMedia, obj)
