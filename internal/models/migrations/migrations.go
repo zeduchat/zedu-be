@@ -7,6 +7,7 @@ import (
 // _ = db.AutoMigrate(MigrationModels()...)
 func AuthMigrationModels() []any {
 	return []any{
+		models.ChannelExport{},
 		models.UserThreadRead{},
 		models.BuzzRecording{},
 		models.AuditLog{},

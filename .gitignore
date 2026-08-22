@@ -57,9 +57,3 @@ telexbe
 telexbe_staging
 
 *.code-workspace
-
-scripts/generate-bruno-slash-commands.sh
-public/
-branch_structure.json
-
-# IDE

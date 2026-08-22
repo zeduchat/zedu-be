@@ -129,6 +129,7 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 		UserId:           req.UserId,
 		OrgId:            channel.OrganisationID,
 		Media:            req.Media,
+		Mentions:         req.Mentions,
 		ChannelName:      channel.Name,
 		ChannelType:      channelType,
 	}

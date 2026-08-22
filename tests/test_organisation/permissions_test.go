@@ -56,3 +56,11 @@ func TestPermissionListLegacyBackwardCompatibility(t *testing.T) {
 		t.Errorf("expected legacy CanCreateChannel to map to can_create_channels permission")
 	}
 }
+
+func TestGetUserDefaultPermissions(t *testing.T) {
+	defaultPerms := models.GetUserDefaultPermissions()
+	if defaultPerms.CanInviteMembers {
+		t.Errorf("expected CanInviteMembers to be false for default user permissions, got true")
+	}
+}
+

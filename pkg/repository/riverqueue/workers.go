@@ -14,5 +14,6 @@ func registerWorkers(logger *utility.Logger, db *storage.Database) *river.Worker
 	river.AddWorker(workers, &SavedMessagesRemainderWorker{logger: logger, db: db.Postgresql})
 	river.AddWorker(workers, &ClearUserStatusWorker{logger: logger, db: db.Postgresql})
 	river.AddWorker(workers, &BroadcastNotificationWorker{logger: logger, db: db.Postgresql})
+	river.AddWorker(workers, &ChannelExportWorker{logger: logger, db: db.Postgresql})
 	return workers
 }

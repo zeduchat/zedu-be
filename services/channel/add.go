@@ -128,6 +128,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		OrgId:            channels.OrganisationID,
 		UserId:           req.UserId,
 		Media:            req.Media,
+		Mentions:         req.Mentions,
 		Id:               messageDoc.ID,
 	}
 
