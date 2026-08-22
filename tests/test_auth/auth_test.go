@@ -62,6 +62,18 @@ func TestUserSignup(t *testing.T) {
 			ExpectedCode: http.StatusBadRequest,
 			Message:      "Email address already exist, use another email or signin",
 		}, {
+			Name: "details already exist mixed casing",
+			RequestBody: models.CreateUserRequestModel{
+				Email:       fmt.Sprintf("TestUser%v@QA.Team", currUUID),
+				PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+				FirstName:   "test",
+				LastName:    "user",
+				Password:    "password23",
+				UserName:    fmt.Sprintf("test_username_mix%v", currUUID),
+			},
+			ExpectedCode: http.StatusBadRequest,
+			Message:      "Email address already exist, use another email or signin",
+		}, {
 			Name: "invalid email",
 			RequestBody: models.CreateUserRequestModel{
 				Email:       "emailtest",
