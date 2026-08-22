@@ -67,7 +67,7 @@ func GetUser(userIDStr string, db *gorm.DB) (models.User, error) {
 func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.CreateUserRequestModel, db *gorm.DB, logger *utility.Logger) (gin.H, int, error) {
 
 	var (
-		email              = strings.ToLower(req.Email)
+		email              = strings.ToLower(strings.TrimSpace(req.Email))
 		firstName          = strings.ToTitle(strings.ToLower(req.FirstName))
 		lastName           = strings.ToTitle(strings.ToLower(req.LastName))
 		phoneNumber        = req.PhoneNumber
@@ -76,7 +76,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		userChk            = models.User{}
 	)
 
-	exists := postgresql.CheckExists(db, &userChk, "email = ?", req.Email)
+	exists := postgresql.CheckExists(db, &userChk, "email = ?", email)
 	if exists {
 
 		if !utility.CompareHash(req.Password, userChk.Password) {
@@ -163,7 +163,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		return nil, http.StatusInternalServerError, err
 	}
 
-	exists = postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	exists = postgresql.CheckExists(db, &user, "email = ?", email)
 	if !exists {
 		return responseData, 400, fmt.Errorf("invalid credentials")
 	}

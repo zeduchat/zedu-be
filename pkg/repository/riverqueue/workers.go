@@ -7,7 +7,7 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-func registerWorkers(logger *utility.Logger, db *storage.Database) *river.Workers {
+func RegisterWorkers(logger *utility.Logger, db *storage.Database) *river.Workers {
 	workers := river.NewWorkers()
 
 	river.AddWorker(workers, &AgentJobWorker{Logger: logger})
