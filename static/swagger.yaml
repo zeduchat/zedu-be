@@ -22071,16 +22071,20 @@ paths:
           in: query
           required: false
           description: |
-            Filter by file category based on MIME type.
+            Filter by file category based on MIME type and extension.
             Categories automatically group related file types:
             - **documents**: PDF, Word, Text files (.pdf, .doc, .docx, .txt, etc.)
             - **spreadsheets**: Excel, CSV files (.xls, .xlsx, .csv, etc.)
+            - **presentations**: Slides and presentation files (.ppt, .pptx, .key, .odp, etc.)
             - **images**: All image formats (.jpg, .png, .gif, .svg, etc.)
             - **videos**: All video formats (.mp4, .avi, .mov, etc.)
-            - **music**: All audio formats (.mp3, .wav, .flac, etc.)
+            - **music** / **audio**: All audio formats (.mp3, .wav, .flac, etc.)
+            - **archives**: Compressed archives (.zip, .rar, .7z, .tar, .gz, etc.)
+            - **code**: Source code and developer files (.js, .ts, .py, .go, .json, etc.)
+            - **other**: Uncategorized files
           schema:
             type: string
-            enum: [documents, spreadsheets, images, videos, music]
+            enum: [documents, spreadsheets, presentations, images, videos, music, audio, archives, code, other]
           example: "documents"
         - name: date_modified
           in: query
@@ -22251,7 +22255,7 @@ paths:
                   value:
                     status: error
                     status_code: 400
-                    message: "Invalid file_category. Valid values: documents, spreadsheets, images, videos, music"
+                    message: "Invalid file_category. Valid values: documents, spreadsheets, presentations, images, videos, music, audio, archives, code, other"
                     error: null
                 invalid_date_filter:
                   summary: Invalid date modified filter
