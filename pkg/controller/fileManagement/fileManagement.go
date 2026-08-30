@@ -623,20 +623,30 @@ func (base *Controller) GetFiles(c *gin.Context) {
 	}
 	queryParams["folder_id"] = folderID
 	queryParams["search"] = c.Query("search")
-	queryParams["type"] = c.Query("type")
+	
+	typeParam := strings.TrimSpace(c.Query("type"))
+	if typeParam != "" {
+		typeParam = strings.TrimPrefix(typeParam, ".")
+		queryParams["type"] = typeParam
+	}
 
 	fileCategory := c.Query("file_category")
 	if fileCategory != "" {
 		validCategories := map[string]bool{
-			"documents":    true,
-			"spreadsheets": true,
-			"images":       true,
-			"videos":       true,
-			"music":        true,
+			"documents":     true,
+			"spreadsheets":  true,
+			"presentations": true,
+			"images":        true,
+			"videos":        true,
+			"music":         true,
+			"audio":         true,
+			"archives":      true,
+			"code":          true,
+			"other":         true,
 		}
 		if !validCategories[strings.ToLower(fileCategory)] {
 			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error",
-				"Invalid file_category. Valid values: documents, spreadsheets, images, videos, music", nil, nil)
+				"Invalid file_category. Valid values: documents, spreadsheets, presentations, images, videos, music, audio, archives, code, other", nil, nil)
 			c.JSON(http.StatusBadRequest, rd)
 			return
 		}

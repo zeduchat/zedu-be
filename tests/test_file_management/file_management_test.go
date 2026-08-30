@@ -832,6 +832,43 @@ func TestFileFilters(t *testing.T) {
 		}
 	})
 
+	t.Run("FilterByFileType_NormalAndDot", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("type", ".jpg")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		resp := tests.ParseResponse(rr)
+		data := resp["data"].(map[string]interface{})
+		files := data["files"].([]interface{})
+
+		if len(files) == 0 {
+			t.Error("Expected at least one file when querying type=.jpg")
+		}
+	})
+
+	t.Run("FilterByFileCategory_Audio", func(t *testing.T) {
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "audio")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+	})
+
 	t.Run("FilterByFileCategory_Invalid", func(t *testing.T) {
 		u, _ := url.Parse("/api/v1/files")
 		q := u.Query()
@@ -1122,4 +1159,343 @@ func uploadTestFile(t *testing.T, r http.Handler, token, filename, mimeType stri
 	fileID := f["id"].(string)
 
 	return fileID
+}
+
+func TestUserRelevanceAndAdvancedFilters(t *testing.T) {
+	r, _, authController, db := SetupFileManagementTestRouter()
+
+	// Register User A
+	uuidA := utility.GenerateUUID()
+	userSignUpDataA := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("usera_%v@qa.team", uuidA),
+		FirstName:   "UserA",
+		LastName:    "Test",
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+		Password:    "password123",
+		UserName:    fmt.Sprintf("usera_%v", uuidA),
+	}
+
+	var signUpBodyA bytes.Buffer
+	json.NewEncoder(&signUpBodyA).Encode(userSignUpDataA)
+	reqSignUpA, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/register", &signUpBodyA)
+	reqSignUpA.Header.Set("Content-Type", "application/json")
+	rrSignUpA := httptest.NewRecorder()
+	r.ServeHTTP(rrSignUpA, reqSignUpA)
+	if rrSignUpA.Code != http.StatusCreated && rrSignUpA.Code != http.StatusOK {
+		t.Fatalf("User A registration failed: %s", rrSignUpA.Body.String())
+	}
+
+	var loginBodyA bytes.Buffer
+	loginDataA := models.LoginRequestModel{
+		Email:    userSignUpDataA.Email,
+		Password: userSignUpDataA.Password,
+	}
+	json.NewEncoder(&loginBodyA).Encode(loginDataA)
+	reqLoginA, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", &loginBodyA)
+	reqLoginA.Header.Set("Content-Type", "application/json")
+	rrLoginA := httptest.NewRecorder()
+	r.ServeHTTP(rrLoginA, reqLoginA)
+	tokenA := tests.ParseResponse(rrLoginA)["data"].(map[string]interface{})["access_token"].(string)
+
+	var userA models.User
+	db.Postgresql.Preload("Organisations").Where("email = ?", userSignUpDataA.Email).First(&userA)
+	orgID := userA.Organisations[0].ID
+
+	// Register User B in same organization
+	uuidB := utility.GenerateUUID()
+	userSignUpDataB := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("userb_%v@qa.team", uuidB),
+		FirstName:   "UserB",
+		LastName:    "Test",
+		PhoneNumber: fmt.Sprintf("%d", time.Now().UnixNano()),
+		Password:    "password123",
+		UserName:    fmt.Sprintf("userb_%v", uuidB),
+	}
+
+	var signUpBodyB bytes.Buffer
+	json.NewEncoder(&signUpBodyB).Encode(userSignUpDataB)
+	reqSignUpB, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/register", &signUpBodyB)
+	reqSignUpB.Header.Set("Content-Type", "application/json")
+	rrSignUpB := httptest.NewRecorder()
+	r.ServeHTTP(rrSignUpB, reqSignUpB)
+
+	var loginBodyB bytes.Buffer
+	loginDataB := models.LoginRequestModel{
+		Email:    userSignUpDataB.Email,
+		Password: userSignUpDataB.Password,
+	}
+	json.NewEncoder(&loginBodyB).Encode(loginDataB)
+	reqLoginB, _ := http.NewRequest(http.MethodPost, "/api/v1/auth/login", &loginBodyB)
+	reqLoginB.Header.Set("Content-Type", "application/json")
+	rrLoginB := httptest.NewRecorder()
+	r.ServeHTTP(rrLoginB, reqLoginB)
+	tokenB := tests.ParseResponse(rrLoginB)["data"].(map[string]interface{})["access_token"].(string)
+
+	var userB models.User
+	db.Postgresql.Where("email = ?", userSignUpDataB.Email).First(&userB)
+
+	// Add User B to User A's organization
+	db.Postgresql.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", userB.ID, orgID)
+
+	t.Run("TypeFilter_CaseAndDotInsensitive", func(t *testing.T) {
+		fileID := uploadTestFile(t, r, tokenA, "document_test.DOCX", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", []byte("docx content"))
+
+		// Query type=docx
+		u1, _ := url.Parse("/api/v1/files")
+		q1 := u1.Query()
+		q1.Set("type", "docx")
+		u1.RawQuery = q1.Encode()
+		req1, _ := http.NewRequest(http.MethodGet, u1.String(), nil)
+		req1.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+		rr1 := httptest.NewRecorder()
+		r.ServeHTTP(rr1, req1)
+		tests.AssertStatusCode(t, rr1.Code, http.StatusOK)
+		files1 := tests.ParseResponse(rr1)["data"].(map[string]interface{})["files"].([]interface{})
+
+		found1 := false
+		for _, f := range files1 {
+			if f.(map[string]interface{})["id"].(string) == fileID {
+				found1 = true
+				break
+			}
+		}
+		if !found1 {
+			t.Error("Expected to find file uploaded as .DOCX when querying type=docx")
+		}
+
+		// Query type=.DOCX
+		u2, _ := url.Parse("/api/v1/files")
+		q2 := u2.Query()
+		q2.Set("type", ".DOCX")
+		u2.RawQuery = q2.Encode()
+		req2, _ := http.NewRequest(http.MethodGet, u2.String(), nil)
+		req2.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+		rr2 := httptest.NewRecorder()
+		r.ServeHTTP(rr2, req2)
+		tests.AssertStatusCode(t, rr2.Code, http.StatusOK)
+		files2 := tests.ParseResponse(rr2)["data"].(map[string]interface{})["files"].([]interface{})
+
+		found2 := false
+		for _, f := range files2 {
+			if f.(map[string]interface{})["id"].(string) == fileID {
+				found2 = true
+				break
+			}
+		}
+		if !found2 {
+			t.Error("Expected to find file when querying type=.DOCX")
+		}
+
+		db.Postgresql.Unscoped().Delete(&models.File{}, "id = ?", fileID)
+	})
+
+	t.Run("CategoryFilter_MimeAndExtensionMatching", func(t *testing.T) {
+		// Upload file with generic mime_type octet-stream but .pdf extension
+		fileID := uploadTestFile(t, r, tokenA, "generic_document.pdf", "application/octet-stream", []byte("pdf content"))
+
+		u, _ := url.Parse("/api/v1/files")
+		q := u.Query()
+		q.Set("file_category", "documents")
+		u.RawQuery = q.Encode()
+
+		req, _ := http.NewRequest(http.MethodGet, u.String(), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tests.AssertStatusCode(t, rr.Code, http.StatusOK)
+		files := tests.ParseResponse(rr)["data"].(map[string]interface{})["files"].([]interface{})
+
+		found := false
+		for _, f := range files {
+			if f.(map[string]interface{})["id"].(string) == fileID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected file with generic mime type but .pdf extension to match documents category")
+		}
+
+		db.Postgresql.Unscoped().Delete(&models.File{}, "id = ?", fileID)
+	})
+
+	t.Run("UserRelevanceScoping_DMsGroupDMsChannelsAndShares", func(t *testing.T) {
+		// File A: Owned by User A
+		fileA := uploadTestFile(t, r, tokenA, "fileA.txt", "text/plain", []byte("file A content"))
+
+		// File B: Owned by User B (unrelated to User A)
+		fileB := uploadTestFile(t, r, tokenB, "fileB.txt", "text/plain", []byte("file B content"))
+
+		// Channel 1: Standard channel with User A as member
+		chanID := utility.GenerateUUID()
+		chanObj := models.Channels{
+			ID:             chanID,
+			Name:           "test-chan",
+			Description:    "desc",
+			OrganisationID: orgID,
+			OwnerId:        userB.ID,
+		}
+		db.Postgresql.Create(&chanObj)
+
+		userChanObj := models.UserChannels{
+			ChannelsID: chanID,
+			UserID:     userA.ID,
+		}
+		db.Postgresql.Create(&userChanObj)
+
+		fileC := uploadTestFile(t, r, tokenB, "fileC.txt", "text/plain", []byte("file C content"))
+
+		// DM Channel with User A and User B
+		dmChanID := utility.GenerateUUID()
+		dmObj := models.DmChannels{
+			ID:            utility.GenerateUUID(),
+			ChannelId:     dmChanID,
+			UserId:        userB.ID,
+			ParticipantId: &userA.ID,
+			OrgId:         orgID,
+			ChannelType:   "dm",
+			ChatType:      "user",
+		}
+		db.Postgresql.Create(&dmObj)
+
+		fileD := uploadTestFile(t, r, tokenB, "fileD.txt", "text/plain", []byte("file D content"))
+
+		// Group DM Channel with User A
+		grpChanID := utility.GenerateUUID()
+		grpDmObj := models.DmChannels{
+			ID:          utility.GenerateUUID(),
+			ChannelId:   grpChanID,
+			UserId:      userB.ID,
+			OrgId:       orgID,
+			ChannelType: "group_dm",
+			ChatType:    "user",
+		}
+		db.Postgresql.Create(&grpDmObj)
+
+		partObj := models.ChannelParticipant{
+			ID:        utility.GenerateUUID(),
+			ChannelId: grpChanID,
+			UserId:    userA.ID,
+			OrgId:     orgID,
+		}
+		db.Postgresql.Create(&partObj)
+
+		fileE := uploadTestFile(t, r, tokenB, "fileE.txt", "text/plain", []byte("file E content"))
+
+		// File Shared directly with User A
+		fileF := uploadTestFile(t, r, tokenB, "fileF.txt", "text/plain", []byte("file F content"))
+		shareObj := models.FileShare{
+			ID:             utility.GenerateUUID(),
+			FileID:         fileF,
+			SharedByUserID: userA.ID,
+			OrganisationID: orgID,
+			AccessType:     "private",
+			PermissionType: "view",
+		}
+		db.Postgresql.Create(&shareObj)
+
+		// File G: Private file of User B in channel User A is NOT in
+		privateChanID := utility.GenerateUUID()
+		privateChanObj := models.Channels{
+			ID:             privateChanID,
+			Name:           "private-chan",
+			Description:    "desc",
+			OrganisationID: orgID,
+			OwnerId:        userB.ID,
+		}
+		db.Postgresql.Create(&privateChanObj)
+
+		fileG := uploadTestFile(t, r, tokenB, "fileG.txt", "text/plain", []byte("file G content"))
+
+		// Ensure all files are in User A's organization orgID and associated with channels
+		db.Postgresql.Exec("UPDATE files SET organisation_id = ? WHERE id IN (?, ?, ?, ?, ?, ?, ?)", orgID, fileA, fileB, fileC, fileD, fileE, fileF, fileG)
+		db.Postgresql.Exec("UPDATE files SET channel_id = ? WHERE id = ?", chanID, fileC)
+		db.Postgresql.Exec("UPDATE files SET channel_id = ? WHERE id = ?", dmChanID, fileD)
+		db.Postgresql.Exec("UPDATE files SET channel_id = ? WHERE id = ?", grpChanID, fileE)
+		db.Postgresql.Exec("UPDATE files SET channel_id = ? WHERE id = ?", privateChanID, fileG)
+
+		// 1. GetFiles for User A (Default / All Mode)
+		reqDefault, _ := http.NewRequest(http.MethodGet, "/api/v1/files", nil)
+		reqDefault.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+		rrDefault := httptest.NewRecorder()
+		r.ServeHTTP(rrDefault, reqDefault)
+		tests.AssertStatusCode(t, rrDefault.Code, http.StatusOK)
+		filesDefault := tests.ParseResponse(rrDefault)["data"].(map[string]interface{})["files"].([]interface{})
+
+		returnedIDsDefault := make(map[string]bool)
+		for _, f := range filesDefault {
+			returnedIDsDefault[f.(map[string]interface{})["id"].(string)] = true
+		}
+
+		if !returnedIDsDefault[fileA] {
+			t.Error("Expected User A owned fileA in default results")
+		}
+		if !returnedIDsDefault[fileC] {
+			t.Error("Expected channel fileC in default results for User A")
+		}
+		if !returnedIDsDefault[fileD] {
+			t.Error("Expected DM fileD in default results for User A")
+		}
+		if !returnedIDsDefault[fileE] {
+			t.Error("Expected Group DM fileE in default results for User A")
+		}
+		if !returnedIDsDefault[fileF] {
+			t.Error("Expected fileShare fileF in default results for User A")
+		}
+		if returnedIDsDefault[fileB] || returnedIDsDefault[fileG] {
+			t.Error("Did NOT expect unrelated User B files (fileB, fileG) in User A default results")
+		}
+
+		// 2. GetFiles for User A (mode=mine)
+		reqMine, _ := http.NewRequest(http.MethodGet, "/api/v1/files?mode=mine", nil)
+		reqMine.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+		rrMine := httptest.NewRecorder()
+		r.ServeHTTP(rrMine, reqMine)
+		tests.AssertStatusCode(t, rrMine.Code, http.StatusOK)
+		filesMine := tests.ParseResponse(rrMine)["data"].(map[string]interface{})["files"].([]interface{})
+
+		returnedIDsMine := make(map[string]bool)
+		for _, f := range filesMine {
+			returnedIDsMine[f.(map[string]interface{})["id"].(string)] = true
+		}
+
+		if !returnedIDsMine[fileA] {
+			t.Error("Expected fileA in mode=mine")
+		}
+		if returnedIDsMine[fileC] || returnedIDsMine[fileD] || returnedIDsMine[fileE] || returnedIDsMine[fileF] || returnedIDsMine[fileB] || returnedIDsMine[fileG] {
+			t.Error("Did NOT expect non-owned files in mode=mine")
+		}
+
+		// 3. GetFiles for User A (mode=shared)
+		reqShared, _ := http.NewRequest(http.MethodGet, "/api/v1/files?mode=shared", nil)
+		reqShared.Header.Set("Authorization", fmt.Sprintf("Bearer %v", tokenA))
+		rrShared := httptest.NewRecorder()
+		r.ServeHTTP(rrShared, reqShared)
+		tests.AssertStatusCode(t, rrShared.Code, http.StatusOK)
+		filesShared := tests.ParseResponse(rrShared)["data"].(map[string]interface{})["files"].([]interface{})
+
+		returnedIDsShared := make(map[string]bool)
+		for _, f := range filesShared {
+			returnedIDsShared[f.(map[string]interface{})["id"].(string)] = true
+		}
+
+		if !returnedIDsShared[fileC] || !returnedIDsShared[fileD] || !returnedIDsShared[fileE] || !returnedIDsShared[fileF] {
+			t.Error("Expected shared/channel files (fileC, fileD, fileE, fileF) in mode=shared")
+		}
+		if returnedIDsShared[fileA] || returnedIDsShared[fileB] || returnedIDsShared[fileG] {
+			t.Error("Did NOT expect owned files (fileA) or unrelated files (fileB, fileG) in mode=shared")
+		}
+
+		// Cleanup test data in correct FK order
+		db.Postgresql.Exec("DELETE FROM file_shares WHERE file_id IN (?, ?, ?, ?, ?, ?, ?)", fileA, fileB, fileC, fileD, fileE, fileF, fileG)
+		db.Postgresql.Unscoped().Delete(&models.File{}, "id IN ?", []string{fileA, fileB, fileC, fileD, fileE, fileF, fileG})
+		db.Postgresql.Exec("DELETE FROM channel_participants WHERE channel_id = ?", grpChanID)
+		db.Postgresql.Exec("DELETE FROM dm_channels WHERE channel_id IN (?, ?)", dmChanID, grpChanID)
+		db.Postgresql.Exec("DELETE FROM user_channels WHERE channels_id = ?", chanID)
+		db.Postgresql.Exec("DELETE FROM channels WHERE id IN (?, ?)", chanID, privateChanID)
+	})
+
+	_ = authController
 }
