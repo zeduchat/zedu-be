@@ -651,4 +651,69 @@ func TestSearchScopeAndPagination(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Exact phrase search", func(t *testing.T) {
+		channelID := utility.GenerateUUID()
+		channel := models.Channels{
+			ID:             channelID,
+			Name:           "Exact Phrase Channel",
+			OrganisationID: org.ID,
+			OwnerId:        user1.ID,
+		}
+		db.Postgresql.Create(&channel)
+
+		userChannel := models.UserChannels{
+			ChannelsID: channelID,
+			UserID:     user1.ID,
+		}
+		db.Postgresql.Create(&userChannel)
+
+		threadId1 := utility.GenerateUUID()
+		thread1 := map[string]any{
+			"thread_id":   threadId1,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "quick brown fox jumps over the lazy dog",
+			"created_at":  time.Now().Format(time.RFC3339),
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId1, thread1, logger)
+
+		threadId2 := utility.GenerateUUID()
+		thread2 := map[string]any{
+			"thread_id":   threadId2,
+			"channels_id": channelID,
+			"user_id":     user1.ID,
+			"org_id":      org.ID,
+			"message":     "quick blue fox sleeps over the dog lazy",
+			"created_at":  time.Now().Format(time.RFC3339),
+		}
+		elastic.AddDocument(db.Elastic, models.ThreadIndexName, threadId2, thread2, logger)
+
+		time.Sleep(2 * time.Second)
+
+		queryParam := url.QueryEscape("quick brown fox")
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/search/organisation/%s?query=%s", org.ID, queryParam), nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", rr.Code)
+		}
+
+		var resp map[string]any
+		json.Unmarshal(rr.Body.Bytes(), &resp)
+		data := resp["data"].([]interface{})
+		if len(data) != 1 {
+			t.Errorf("Expected exactly 1 match for exact phrase 'quick brown fox', got %d", len(data))
+		} else {
+			resObj := data[0].(map[string]any)
+			threadInfo := resObj["thread"].(map[string]any)
+			if threadInfo["id"] != threadId1 {
+				t.Errorf("Expected matching thread to be threadId1, got %v", threadInfo["id"])
+			}
+		}
+	})
 }
+

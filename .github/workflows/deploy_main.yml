@@ -8,7 +8,7 @@ on:
 
 jobs:
   update_and_restart_app:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, zedu-runner]
     env:
       SSH_USERNAME: ${{ secrets.ZEDU_SERVER_SSH_USER }}
       SSH_HOST: ${{ secrets.ZEDU_SERVER_SSH_HOST }}

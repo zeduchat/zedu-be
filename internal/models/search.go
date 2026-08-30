@@ -431,7 +431,7 @@ func addFullTextSearch(boolQuery map[string]any, opts *SearchQueryFiltersKeyword
 		mustClauses = append(mustClauses, map[string]any{
 			"multi_match": map[string]any{
 				"query": opts.Message,
-				"type":  "best_fields",
+				"type":  "phrase",
 				"fields": []string{
 					"message",
 					"messages.message",
