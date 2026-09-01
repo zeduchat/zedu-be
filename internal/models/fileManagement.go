@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -289,40 +290,69 @@ func UpdateFilesMetadata(db *gorm.DB, logger *utility.Logger, fileIDs []string, 
 	return nil
 }
 
+func SanitizeFileExtension(filename string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return ""
+	}
+	return strings.ToLower(strings.TrimPrefix(ext, "."))
+}
+
 func (file *File) GetFileCategory() string {
 	mimeType := strings.ToLower(file.MimeType)
+	ext := strings.ToLower(file.FileType)
+	if ext == "" {
+		ext = SanitizeFileExtension(file.FileName)
+	}
 
 	if strings.Contains(mimeType, "pdf") ||
 		strings.Contains(mimeType, "document") ||
 		strings.Contains(mimeType, "word") ||
 		strings.Contains(mimeType, "text") ||
 		strings.Contains(mimeType, "rtf") ||
-		strings.HasSuffix(mimeType, "doc") ||
-		strings.HasSuffix(mimeType, "docx") ||
-		strings.HasSuffix(mimeType, "txt") ||
-		strings.HasSuffix(mimeType, "odt") {
+		ext == "pdf" || ext == "doc" || ext == "docx" || ext == "txt" || ext == "rtf" || ext == "odt" {
 		return "documents"
 	}
 
 	if strings.Contains(mimeType, "spreadsheet") ||
 		strings.Contains(mimeType, "excel") ||
-		strings.HasSuffix(mimeType, "xls") ||
-		strings.HasSuffix(mimeType, "xlsx") ||
-		strings.HasSuffix(mimeType, "csv") ||
-		strings.HasSuffix(mimeType, "ods") {
+		ext == "xls" || ext == "xlsx" || ext == "csv" || ext == "ods" {
 		return "spreadsheets"
 	}
 
-	if strings.HasPrefix(mimeType, "image/") {
+	if strings.Contains(mimeType, "presentation") ||
+		strings.Contains(mimeType, "powerpoint") ||
+		ext == "ppt" || ext == "pptx" || ext == "key" || ext == "odp" {
+		return "presentations"
+	}
+
+	if strings.HasPrefix(mimeType, "image/") ||
+		ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif" || ext == "svg" || ext == "webp" || ext == "bmp" || ext == "ico" {
 		return "images"
 	}
 
-	if strings.HasPrefix(mimeType, "video/") {
+	if strings.HasPrefix(mimeType, "video/") ||
+		ext == "mp4" || ext == "avi" || ext == "mov" || ext == "mkv" || ext == "webm" || ext == "flv" {
 		return "videos"
 	}
 
-	if strings.HasPrefix(mimeType, "audio/") {
+	if strings.HasPrefix(mimeType, "audio/") ||
+		ext == "mp3" || ext == "wav" || ext == "flac" || ext == "aac" || ext == "ogg" || ext == "m4a" {
 		return "music"
+	}
+
+	if strings.Contains(mimeType, "zip") ||
+		strings.Contains(mimeType, "compressed") ||
+		strings.Contains(mimeType, "tar") ||
+		ext == "zip" || ext == "rar" || ext == "7z" || ext == "tar" || ext == "gz" || ext == "tgz" {
+		return "archives"
+	}
+
+	if strings.Contains(mimeType, "javascript") ||
+		strings.Contains(mimeType, "json") ||
+		strings.Contains(mimeType, "xml") ||
+		ext == "js" || ext == "ts" || ext == "py" || ext == "go" || ext == "html" || ext == "css" || ext == "json" || ext == "sql" || ext == "xml" || ext == "sh" || ext == "yml" || ext == "yaml" {
+		return "code"
 	}
 
 	return "other"

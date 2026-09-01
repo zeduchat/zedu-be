@@ -241,7 +241,7 @@ func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.Fil
 	newFileEntry := models.File{
 		ID:             utility.GenerateUUID(),
 		FileName:       params.UploadParams.Header.Filename,
-		FileType:       filepath.Ext(params.UploadParams.Header.Filename)[1:],
+		FileType:       models.SanitizeFileExtension(params.UploadParams.Header.Filename),
 		MimeType:       params.MimeType,
 		FileLink:       params.FileLink,
 		Size:           params.UploadParams.Header.Size,
@@ -659,41 +659,58 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 		Joins("LEFT JOIN profiles ON profiles.userid = files.user_id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = ?)", params.OrgID).
 		Where("files.organisation_id = ?", params.OrgID)
 
-	// mode options: all, mine, shared, trash
+	// Get all channels the user belongs to (regular channels, DMs, and Group DMs)
+	var standardChannels []string
+	_ = db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &standardChannels).Error
+
+	var dmChannels []models.DmChannels
+	_ = db.Table("dm_channels").
+		Select("channel_id").
+		Where("user_id = ? OR participant_id = ?", params.UserID, params.UserID).
+		Find(&dmChannels).Error
+
+	var groupDmChannels []string
+	_ = db.Table("channel_participants").
+		Where("user_id = ?", params.UserID).
+		Pluck("channel_id", &groupDmChannels).Error
+
+	dmChannelIDs := make([]string, len(dmChannels))
+	for i, dm := range dmChannels {
+		dmChannelIDs[i] = dm.ChannelId
+	}
+
+	allChannels := append(standardChannels, dmChannelIDs...)
+	allChannels = append(allChannels, groupDmChannels...)
+
+	// Get files directly shared with the user via file_shares
+	var sharedFileIDs []string
+	_ = db.Table("file_shares").
+		Where("shared_by_user_id = ?", params.UserID).
+		Pluck("file_id", &sharedFileIDs).Error
+
 	mode := queryParams["mode"]
 
 	switch mode {
 	case "mine":
-		query = query.Where("files.user_id = ?", params.UserID)
+		query = query.Where("files.user_id = ?", params.UserID).Where("files.deleted_at IS NULL")
 	case "shared":
-		// Get channels the user is in (including DM channels)
-
-		var userChannels []string
-		err := db.Model(&models.UserChannels{}).Where("user_id = ?", params.UserID).Pluck("channels_id", &userChannels).Error
-		if err != nil {
-			return nil, postgresql.PaginationResponse{}, err
-		}
-
-		// Get DM channels where user is participant (owner or receiver)
-		var dmChannels []models.DmChannels
-		err = db.Table("dm_channels").
-			Select("channel_id").
-			Where("user_id = ? OR participant_id = ?", params.UserID, params.UserID).
-			Find(&dmChannels).Error
-		if err != nil {
-			return nil, postgresql.PaginationResponse{}, err
-		}
-
-		dmChannelIDs := make([]string, len(dmChannels))
-		for i, dm := range dmChannels {
-			dmChannelIDs[i] = dm.ChannelId
-		}
-
-		// Combine regular channels and DM channels
-		allChannels := append(userChannels, dmChannelIDs...)
+		sharedClause := ""
+		sharedArgs := []interface{}{}
 
 		if len(allChannels) > 0 {
-			query = query.Where("files.channel_id IN ?", allChannels)
+			sharedClause += "files.channel_id IN ?"
+			sharedArgs = append(sharedArgs, allChannels)
+		}
+		if len(sharedFileIDs) > 0 {
+			if sharedClause != "" {
+				sharedClause += " OR "
+			}
+			sharedClause += "files.id IN ?"
+			sharedArgs = append(sharedArgs, sharedFileIDs)
+		}
+
+		if sharedClause != "" {
+			query = query.Where("files.user_id != ?", params.UserID).Where("files.deleted_at IS NULL").Where("("+sharedClause+")", sharedArgs...)
 		} else {
 			return []models.File{}, postgresql.PaginationResponse{
 				CurrentPage: params.Page,
@@ -703,9 +720,21 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 	case "trash":
 		query = query.Unscoped().Where("files.deleted_at IS NOT NULL")
 	default:
-		// "all" or default: view all files in org (that are not deleted)
-
+		// "all" or default: list files relevant to the user (owned, in user channels/DMs, or shared)
 		query = query.Where("files.deleted_at IS NULL")
+
+		userRelClause := "files.user_id = ?"
+		userRelArgs := []interface{}{params.UserID}
+
+		if len(allChannels) > 0 {
+			userRelClause += " OR files.channel_id IN ?"
+			userRelArgs = append(userRelArgs, allChannels)
+		}
+		if len(sharedFileIDs) > 0 {
+			userRelClause += " OR files.id IN ?"
+			userRelArgs = append(userRelArgs, sharedFileIDs)
+		}
+		query = query.Where("("+userRelClause+")", userRelArgs...)
 	}
 
 	if owner, ok := queryParams["owner"]; ok && owner != "" {
@@ -715,7 +744,6 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 	if folderID, ok := queryParams["folder_id"]; ok && folderID != "" {
 		query = query.Where("files.folder_id = ?", folderID)
 	} else if mode != "trash" && mode != "search" && mode != "shared" {
-
 		if _, searching := queryParams["search"]; !searching {
 			query = query.Where("files.folder_id IS NULL")
 		}
@@ -726,7 +754,8 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 	}
 
 	if fileType, ok := queryParams["type"]; ok && fileType != "" {
-		query = query.Where("files.file_type = ?", fileType)
+		cleanType := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(fileType), "."))
+		query = query.Where("LOWER(files.file_type) = ?", cleanType)
 	}
 
 	if fileCategory, ok := queryParams["file_category"]; ok && fileCategory != "" {
@@ -738,26 +767,62 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 				files.mime_type LIKE '%word%' OR
 				files.mime_type LIKE '%text%' OR
 				files.mime_type LIKE '%rtf%' OR
-				files.mime_type LIKE '%doc' OR
-				files.mime_type LIKE '%docx' OR
-				files.mime_type LIKE '%txt' OR
-				files.mime_type LIKE '%odt'
+				LOWER(files.file_type) IN ('pdf', 'doc', 'docx', 'txt', 'rtf', 'odt')
 			)`)
 		case "spreadsheets":
 			query = query.Where(`(
 				files.mime_type LIKE '%spreadsheet%' OR
 				files.mime_type LIKE '%excel%' OR
-				files.mime_type LIKE '%xls' OR
-				files.mime_type LIKE '%xlsx' OR
-				files.mime_type LIKE '%csv' OR
-				files.mime_type LIKE '%ods'
+				LOWER(files.file_type) IN ('xls', 'xlsx', 'csv', 'ods')
+			)`)
+		case "presentations":
+			query = query.Where(`(
+				files.mime_type LIKE '%presentation%' OR
+				files.mime_type LIKE '%powerpoint%' OR
+				LOWER(files.file_type) IN ('ppt', 'pptx', 'key', 'odp')
 			)`)
 		case "images":
-			query = query.Where("files.mime_type LIKE 'image/%'")
+			query = query.Where(`(
+				files.mime_type LIKE 'image/%' OR
+				LOWER(files.file_type) IN ('jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico')
+			)`)
 		case "videos":
-			query = query.Where("files.mime_type LIKE 'video/%'")
-		case "music":
-			query = query.Where("files.mime_type LIKE 'audio/%'")
+			query = query.Where(`(
+				files.mime_type LIKE 'video/%' OR
+				LOWER(files.file_type) IN ('mp4', 'avi', 'mov', 'mkv', 'webm', 'flv')
+			)`)
+		case "music", "audio":
+			query = query.Where(`(
+				files.mime_type LIKE 'audio/%' OR
+				LOWER(files.file_type) IN ('mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a')
+			)`)
+		case "archives":
+			query = query.Where(`(
+				files.mime_type LIKE '%zip%' OR
+				files.mime_type LIKE '%compressed%' OR
+				files.mime_type LIKE '%tar%' OR
+				LOWER(files.file_type) IN ('zip', 'rar', '7z', 'tar', 'gz', 'tgz')
+			)`)
+		case "code":
+			query = query.Where(`(
+				files.mime_type LIKE '%javascript%' OR
+				files.mime_type LIKE '%json%' OR
+				files.mime_type LIKE '%xml%' OR
+				LOWER(files.file_type) IN ('js', 'ts', 'py', 'go', 'html', 'css', 'json', 'sql', 'xml', 'sh', 'yml', 'yaml')
+			)`)
+		case "other":
+			query = query.Where(`(
+				files.mime_type NOT LIKE 'image/%' AND
+				files.mime_type NOT LIKE 'video/%' AND
+				files.mime_type NOT LIKE 'audio/%' AND
+				files.mime_type NOT LIKE '%pdf%' AND
+				files.mime_type NOT LIKE '%document%' AND
+				files.mime_type NOT LIKE '%word%' AND
+				files.mime_type NOT LIKE '%text%' AND
+				files.mime_type NOT LIKE '%spreadsheet%' AND
+				files.mime_type NOT LIKE '%excel%' AND
+				LOWER(files.file_type) NOT IN ('pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'csv', 'ods', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'mp4', 'avi', 'mov', 'mp3', 'wav', 'zip', 'rar', 'js', 'py', 'go')
+			)`)
 		}
 	}
 
