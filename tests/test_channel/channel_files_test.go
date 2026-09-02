@@ -187,4 +187,64 @@ func TestGetChannelFiles(t *testing.T) {
 			t.Errorf("Incomplete pagination metadata in response: %v", pagination)
 		}
 	})
+
+	t.Run("Get DM Channel Files and Type=Document Filter with docx", func(t *testing.T) {
+		dmChannelID := utility.GenerateUUID()
+		dmChannel := models.DmChannels{
+			ID:          utility.GenerateUUID(),
+			ChannelId:   dmChannelID,
+			UserId:      user.ID,
+			OrgId:       org.ID,
+			ChatType:    "user",
+			ChannelType: "dm",
+		}
+		if err := db.Postgresql.Create(&dmChannel).Error; err != nil {
+			t.Fatalf("Failed to create DM channel: %v", err)
+		}
+
+		dmThreadID := utility.GenerateUUID()
+		docxMediaID := utility.GenerateUUID()
+		docxFile := map[string]interface{}{
+			"id":        docxMediaID,
+			"file_name": "sample_document.docx",
+			"file_type": "docx",
+			"mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			"file_link": "http://example.com/sample_document.docx",
+		}
+		dmThread := map[string]interface{}{
+			"thread_id":   dmThreadID,
+			"channels_id": dmChannelID,
+			"user_id":     user.ID,
+			"org_id":      org.ID,
+			"message":     "Test message with docx file",
+			"created_at":  time.Now().Format(time.RFC3339),
+			"media":       []interface{}{docxFile},
+		}
+
+		if err := elastic.AddDocument(db.Elastic, models.ThreadIndexName, dmThreadID, dmThread, logger); err != nil {
+			t.Fatalf("Failed to add DM thread to Elasticsearch: %v", err)
+		}
+
+		time.Sleep(2 * time.Second)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/channels/%s/files?type=document", dmChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for DM channel files, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].([]interface{})
+		if !ok || len(data) == 0 {
+			t.Fatalf("Expected docx file in DM channel response, got: %v", response)
+		}
+	})
 }

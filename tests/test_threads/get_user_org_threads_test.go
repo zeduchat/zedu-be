@@ -664,3 +664,149 @@ func TestGetOrgThreadsUnseenCountBeforeAndAfterRead(t *testing.T) {
 		t.Errorf("Expected unseen_thread_count AFTER reading thread 1 replies to be 1, got %d", unseenAfter)
 	}
 }
+
+func TestGetUserOrgThreads_SortedByLastReply(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+
+	userAData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("usera_sort%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 7999999999)),
+		FirstName:   "User",
+		LastName:    "Sort",
+		Password:    "password",
+		UserName:    fmt.Sprintf("user_a_sort%v", currUUID),
+	}
+
+	authCtrl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	r := gin.Default()
+	tst.SignupUser(t, r, authCtrl, userAData, false)
+	token := tst.GetLoginToken(t, r, authCtrl, models.LoginRequestModel{Email: userAData.Email, Password: userAData.Password})
+	userID := tst.GetUserIDFromToken(t, token, db)
+
+	channelCtrl := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	orgCtrl := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	threadCtrl := thread.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+
+	orgId, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("SortOrg%s", currUUID),
+		Description: "Sort org test",
+		Email:       userAData.Email,
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}, token)
+
+	channelId, _ := tst.CreateChannels(t, r, channelCtrl, db, models.CreateChannelsRequest{
+		Name:           "SortChannel",
+		Username:       "SortChan",
+		OrganisationID: orgId,
+		Description:    "Channel for sort test",
+	}, token)
+
+	now := time.Now().UTC()
+	threadOldID := utility.GenerateUUID()
+	threadNewID := utility.GenerateUUID()
+
+	threadOld := models.ThreadDocument{
+		ID:             threadOldID,
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         userID,
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Older Thread Root",
+		Username:       userAData.UserName,
+		ChannelName:    "SortChannel",
+		CreatedAt:      now.Add(-5 * time.Hour),
+		UpdatedAt:      now.Add(-5 * time.Hour),
+		LastReply:      now.Add(-5 * time.Hour),
+		Messages: []models.MessageDocument{
+			{
+				ID:         utility.GenerateUUID(),
+				Content:    "Root message old",
+				UserID:     userID,
+				Username:   userAData.UserName,
+				ThreadID:   uuid.FromStringOrNil(threadOldID),
+				CreatedAt:  now.Add(-5 * time.Hour),
+				ChannelsID: channelId,
+			},
+		},
+	}
+
+	threadNew := models.ThreadDocument{
+		ID:             threadNewID,
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+		UserId:         userID,
+		Status:         "success",
+		Type:           "thread",
+		Content:        "Newer Thread Root",
+		Username:       userAData.UserName,
+		ChannelName:    "SortChannel",
+		CreatedAt:      now.Add(-1 * time.Hour),
+		UpdatedAt:      now.Add(-1 * time.Hour),
+		LastReply:      now.Add(-1 * time.Hour),
+		Messages: []models.MessageDocument{
+			{
+				ID:         utility.GenerateUUID(),
+				Content:    "Root message new",
+				UserID:     userID,
+				Username:   userAData.UserName,
+				ThreadID:   uuid.FromStringOrNil(threadNewID),
+				CreatedAt:  now.Add(-1 * time.Hour),
+				ChannelsID: channelId,
+			},
+		},
+	}
+
+	_ = threadOld.CreateThread(db, logger)
+	_ = threadNew.CreateThread(db, logger)
+	_, _ = threadOld.Messages[0].CreateMessage(db, logger)
+	_, _ = threadNew.Messages[0].CreateMessage(db, logger)
+
+	// Add recent reply message to threadOld
+	replyMsg := models.MessageDocument{
+		ID:             utility.GenerateUUID(),
+		Content:        "Brand new reply to older thread",
+		UserID:         userID,
+		Username:       userAData.UserName,
+		ThreadID:       uuid.FromStringOrNil(threadOldID),
+		CreatedAt:      now.Add(10 * time.Minute),
+		UpdatedAt:      now.Add(10 * time.Minute),
+		ChannelsID:     channelId,
+		OrganisationID: orgId,
+	}
+	_, _ = replyMsg.CreateMessage(db, logger)
+
+	time.Sleep(2 * time.Second)
+
+	router := gin.Default()
+	router.GET("/api/v1/threads/organisations/:org_id", middleware.Authorize(db.Postgresql), threadCtrl.GetAllUserOrgThreads)
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/organisations/%s", orgId), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+	res := tst.ParseResponse(rr)
+	dataObj := res["data"].(map[string]interface{})
+	threads := dataObj["threads"].([]interface{})
+
+	if len(threads) < 2 {
+		t.Fatalf("Expected at least 2 threads, got %d", len(threads))
+	}
+
+	firstGroup := threads[0].(map[string]interface{})
+	firstMsgs := firstGroup["thread_messages"].([]interface{})
+	firstThreadDoc := firstMsgs[0].(map[string]interface{})
+
+	if firstThreadDoc["thread_id"] != threadOldID {
+		t.Errorf("Expected oldest thread (%s) with newest reply to be returned first, got thread_id: %v", threadOldID, firstThreadDoc["thread_id"])
+	}
+}

@@ -16,7 +16,6 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
-	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -370,9 +369,8 @@ func (base *Controller) GetChannelFiles(c *gin.Context) {
 	userID, _ := userClaims["user_id"].(string)
 	orgID, _ := userClaims["org_id"].(string)
 
-	// Check if user is in channel
-	var userChannels models.UserChannels
-	if !postgresql.CheckExists(base.Db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", channelID, userID) {
+	// Check if user is in channel (supports regular, DM, and Group DM channels)
+	if !models.IsUserInChannel(base.Db.Postgresql, channelID, userID) {
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "User is not a member of this channel", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return

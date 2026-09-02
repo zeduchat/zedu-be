@@ -1164,7 +1164,12 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 		"sort": []map[string]any{
 			{
-				"created_at": map[string]string{
+				"_script": map[string]any{
+					"type": "number",
+					"script": map[string]any{
+						"lang":   "painless",
+						"source": "doc.containsKey('last_reply') && doc['last_reply'].size() > 0 ? doc['last_reply'].value.toInstant().toEpochMilli() : (doc.containsKey('created_at') && doc['created_at'].size() > 0 ? doc['created_at'].value.toInstant().toEpochMilli() : 0)",
+					},
 					"order": "desc",
 				},
 			},
@@ -1230,7 +1235,12 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		"size": limit,
 		"sort": []map[string]any{
 			{
-				"created_at": map[string]any{
+				"_script": map[string]any{
+					"type": "number",
+					"script": map[string]any{
+						"lang":   "painless",
+						"source": "doc.containsKey('last_reply') && doc['last_reply'].size() > 0 ? doc['last_reply'].value.toInstant().toEpochMilli() : (doc.containsKey('created_at') && doc['created_at'].size() > 0 ? doc['created_at'].value.toInstant().toEpochMilli() : 0)",
+					},
 					"order": "desc",
 				},
 			},
@@ -1355,7 +1365,15 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		if len(result[i].ThreadMessages) == 0 || len(result[j].ThreadMessages) == 0 {
 			return false
 		}
-		return result[i].ThreadMessages[0].CreatedAt.After(result[j].ThreadMessages[0].CreatedAt)
+		timeI := result[i].ThreadMessages[0].LastReply
+		if timeI.IsZero() {
+			timeI = result[i].ThreadMessages[0].CreatedAt
+		}
+		timeJ := result[j].ThreadMessages[0].LastReply
+		if timeJ.IsZero() {
+			timeJ = result[j].ThreadMessages[0].CreatedAt
+		}
+		return timeI.After(timeJ)
 	})
 
 	unseenCount, _ := GetUnseenThreadCountForUser(db, userId, organisationID)
