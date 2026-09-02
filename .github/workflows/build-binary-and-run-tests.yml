@@ -71,6 +71,8 @@ jobs:
           done
       
       - name: Run DB migrations
+        env:
+          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
         run: |
           echo "Running DB migrations..."
           yes | make migrate-safe-up
