@@ -1609,7 +1609,7 @@ func (dm *DmChannels) GetChannelMedia(db *storage.Database, c *gin.Context, medi
 
 			// Apply type filter if specified
 			if mediaType != "" {
-				if !MatchesMediaType(file.MimeType, mediaType) {
+				if !MatchesMediaType(file.MimeType, mediaType, file.FileType, file.FileName) {
 					continue
 				}
 			}

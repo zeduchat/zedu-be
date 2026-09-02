@@ -172,7 +172,8 @@ func SaveThreadDmMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 		dmChan.SendChannelUnReadUpdate(mutex, logger, models.NewThread)
 	}()
 
-	err = channel.UpdateInteractionAt(db.Postgresql)
+	dmChanVisibility := models.DmChannels{ChannelId: req.ChannelsID}
+	err = dmChanVisibility.UpdateInteractionAt(db.Postgresql)
 	if err != nil {
 		logger.Error("Error updating last interacted time of channelid: %s, with orgid: %s error: %v", req.ChannelsID, channel.OrgId, err.Error())
 	}

@@ -755,7 +755,41 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 
 	if fileType, ok := queryParams["type"]; ok && fileType != "" {
 		cleanType := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(fileType), "."))
-		query = query.Where("LOWER(files.file_type) = ?", cleanType)
+		switch cleanType {
+		case "document", "documents", "docs", "doc":
+			query = query.Where(`(
+				files.mime_type LIKE '%pdf%' OR
+				files.mime_type LIKE '%document%' OR
+				files.mime_type LIKE '%word%' OR
+				files.mime_type LIKE '%text%' OR
+				files.mime_type LIKE '%rtf%' OR
+				files.mime_type LIKE '%msword%' OR
+				files.mime_type LIKE '%officedocument%' OR
+				files.mime_type LIKE '%spreadsheet%' OR
+				files.mime_type LIKE '%excel%' OR
+				files.mime_type LIKE '%powerpoint%' OR
+				files.mime_type LIKE '%presentation%' OR
+				files.mime_type LIKE '%csv%' OR
+				LOWER(files.file_type) IN ('pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'csv', 'ods', 'ppt', 'pptx', 'key')
+			)`)
+		case "image", "images":
+			query = query.Where(`(
+				files.mime_type LIKE 'image/%' OR
+				LOWER(files.file_type) IN ('jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico')
+			)`)
+		case "video", "videos":
+			query = query.Where(`(
+				files.mime_type LIKE 'video/%' OR
+				LOWER(files.file_type) IN ('mp4', 'avi', 'mov', 'mkv', 'webm', 'flv')
+			)`)
+		case "audio", "music":
+			query = query.Where(`(
+				files.mime_type LIKE 'audio/%' OR
+				LOWER(files.file_type) IN ('mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a')
+			)`)
+		default:
+			query = query.Where("LOWER(files.file_type) = ?", cleanType)
+		}
 	}
 
 	if fileCategory, ok := queryParams["file_category"]; ok && fileCategory != "" {
