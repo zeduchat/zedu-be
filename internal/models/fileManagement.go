@@ -558,19 +558,51 @@ func ValidateShareExpiration(expiresAt *time.Time) error {
 	return nil
 }
 
-// MatchesMediaType checks if a mimeType matches the requested mediaType
-func MatchesMediaType(mimeType, mediaType string) bool {
-	switch mediaType {
-	case "images":
-		return len(mimeType) >= 6 && mimeType[:6] == "image/"
-	case "videos":
-		return len(mimeType) >= 6 && mimeType[:6] == "video/"
-	case "audio":
-		return len(mimeType) >= 6 && mimeType[:6] == "audio/"
-	case "documents":
-		return ContainsAny(mimeType, []string{"pdf", "document", "word", "text", "rtf"})
-	default:
+// MatchesMediaType checks if a file's mimeType, fileType, or filename matches the requested mediaType
+func MatchesMediaType(mimeType, mediaType string, fileTypeAndName ...string) bool {
+	cleanMediaType := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(mediaType), "."))
+	if cleanMediaType == "" {
 		return true
+	}
+
+	cleanMime := strings.ToLower(strings.TrimSpace(mimeType))
+	var ext string
+	if len(fileTypeAndName) > 0 && fileTypeAndName[0] != "" {
+		ext = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(fileTypeAndName[0]), "."))
+	}
+	if ext == "" && len(fileTypeAndName) > 1 && fileTypeAndName[1] != "" {
+		ext = SanitizeFileExtension(fileTypeAndName[1])
+	}
+
+	switch cleanMediaType {
+	case "document", "documents", "docs", "doc":
+		if ContainsAny(cleanMime, []string{"pdf", "document", "word", "text", "rtf", "msword", "officedocument", "spreadsheet", "excel", "powerpoint", "presentation", "csv"}) {
+			return true
+		}
+		return ContainsAny(ext, []string{"pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ods", "ppt", "pptx", "key"})
+	case "image", "images":
+		if strings.HasPrefix(cleanMime, "image/") {
+			return true
+		}
+		return ContainsAny(ext, []string{"jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"})
+	case "video", "videos":
+		if strings.HasPrefix(cleanMime, "video/") {
+			return true
+		}
+		return ContainsAny(ext, []string{"mp4", "avi", "mov", "mkv", "webm", "flv"})
+	case "audio", "music":
+		if strings.HasPrefix(cleanMime, "audio/") {
+			return true
+		}
+		return ContainsAny(ext, []string{"mp3", "wav", "flac", "aac", "ogg", "m4a"})
+	default:
+		if ext != "" && ext == cleanMediaType {
+			return true
+		}
+		if cleanMime != "" && strings.Contains(cleanMime, cleanMediaType) {
+			return true
+		}
+		return false
 	}
 }
 
