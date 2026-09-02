@@ -31,9 +31,16 @@ jobs:
         run: |
           DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
-          createdb -U actionsdeployer "${DB_NAME}"
-          pg_dump -U actionsdeployer --no-owner --no-privileges telex_staging |
-            psql -U actionsdeployer "${DB_NAME}"
+          # Build a libpq connection string so psql/pg_dump/createdb run non-interactively
+          PGCONN="postgresql://actionsdeployer:${PGPASSWORD}@localhost:5432"
+
+          # Create database non-interactively (use psql to create if createdb prompts)
+          createdb -U actionsdeployer "${DB_NAME}" || \
+            PGPASSWORD="${PGPASSWORD}" psql "$PGCONN" -c "CREATE DATABASE \"${DB_NAME}\";"
+
+          # Restore schema/data from staging into the new DB using connection string
+          PGPASSWORD="${PGPASSWORD}" pg_dump "${PGCONN}/telex_staging" --no-owner --no-privileges | \
+            PGPASSWORD="${PGPASSWORD}" psql "${PGCONN}/${DB_NAME}"
 
       - name: Verify APP_ENV secret is set
         run: |
