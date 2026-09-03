@@ -86,14 +86,17 @@ jobs:
           yes | make migrate-safe-up
       
       - name: Run All Tests
-        run: go test ./tests/... -timeout 600s
-      
-      - name: Stop the application
-        if: always()
         run: |
-          echo "Stopping application: ${BINARY_NAME}"
-          pkill -f "${BINARY_NAME}" || echo "Application already stopped or not found"
-          sleep 2
+          # Create a temporary directory directly inside the repository workspace
+          mkdir -p .gotmp
+          export GOTMPDIR="$(pwd)/.gotmp"
+          
+          echo "Using GOTMPDIR: $GOTMPDIR"
+          go test ./tests/... -timeout 600s
+      
+      - name: Cleanup temporary build directory
+        if: always()
+        run: rm -rf .gotmp
       
       - name: Terminate database sessions
         if: always()
