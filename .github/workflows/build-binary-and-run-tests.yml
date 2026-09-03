@@ -40,7 +40,7 @@ jobs:
           # Create non-interactively via localhost trust connection
           psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "CREATE DATABASE \"${DB_NAME}\";"
 
-          # Dump staging and restore into the new test DB
+          # Dump schema and data cleanly into the new test DB
           pg_dump -n -h 127.0.0.1 -U actionsdeployer telex_staging --no-owner --no-privileges | \
             psql -n -h 127.0.0.1 -U actionsdeployer "${DB_NAME}"
 
