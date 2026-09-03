@@ -34,15 +34,23 @@ jobs:
 
       - name: Create test database
         run: |
+          set -e -o pipefail
+
           DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
 
-          # Create non-interactively via localhost trust connection
+          # 1. Create database
           psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "CREATE DATABASE \"${DB_NAME}\";"
 
-          # Dump schema and data cleanly into the new test DB
-          pg_dump -n -h 127.0.0.1 -U actionsdeployer telex_staging --no-owner --no-privileges | \
-            psql -n -h 127.0.0.1 -U actionsdeployer "${DB_NAME}"
+          # 2. Dump staging database cleanly to file
+          pg_dump -h 127.0.0.1 -U actionsdeployer -d telex_staging --no-owner --no-privileges > staging_dump.sql
+
+          # 3. Restore into new database
+          psql -n -h 127.0.0.1 -U actionsdeployer -d "${DB_NAME}" -c "ALTER SCHEMA public OWNER TO actionsdeployer;"
+          psql -n -h 127.0.0.1 -U actionsdeployer -d "${DB_NAME}" -f staging_dump.sql
+
+          # 4. Cleanup dump artifact
+          rm -f staging_dump.sql
 
       - name: Setup app.env
         run: | 
