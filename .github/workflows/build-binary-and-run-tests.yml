@@ -24,46 +24,39 @@ jobs:
           BINARY_NAME="telex_be_${RANDOM_SUFFIX}"
           echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
           echo "Generated binary name: ${BINARY_NAME}"
-      
-      - name: Create test database
-        env:
-          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
-        run: |
-          DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
-          echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
-          # Build a libpq connection string so psql/pg_dump/createdb run non-interactively
-          PGCONN="postgresql://actionsdeployer:${PGPASSWORD}@localhost:5432"
-
-          # Create database non-interactively using psql (avoid createdb which may prompt)
-          PASSWORD="${PGPASSWORD}"
-          export PGPASSWORD="${PASSWORD}"
-
-          psql -h localhost -U actionsdeployer -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" || true
-
-          # Restore schema/data from staging into the new DB using explicit host/user and PGPASSWORD
-          PGPASSWORD="${PASSWORD}" pg_dump -h localhost -U actionsdeployer telex_staging --no-owner --no-privileges | \
-            PGPASSWORD="${PASSWORD}" psql -h localhost -U actionsdeployer "${DB_NAME}"
 
       - name: Verify APP_ENV secret is set
         run: |
-             if [ -z "${{ secrets.APP_ENV }}" ]; then
-               echo "::error::secrets.APP_ENV is empty or unset"
-               exit 1
-             fi
-       
+          if [ -z "${{ secrets.APP_ENV }}" ]; then
+            echo "::error::secrets.APP_ENV is empty or unset"
+            exit 1
+          fi
+
+      - name: Create test database
+        run: |
+          DB_NAME="telex_be_copy_${GITHUB_RUN_NUMBER}_$(date +%s)"
+          echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
+
+          # Create non-interactively via localhost trust connection
+          psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "CREATE DATABASE \"${DB_NAME}\";"
+
+          # Dump staging and restore into the new test DB
+          pg_dump -n -h 127.0.0.1 -U actionsdeployer telex_staging --no-owner --no-privileges | \
+            psql -n -h 127.0.0.1 -U actionsdeployer "${DB_NAME}"
+
       - name: Setup app.env
         run: | 
           SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
           echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
           echo "${{ secrets.APP_ENV }}" > app.env
-          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer:${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}@localhost:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
+          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer@127.0.0.1:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
           sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
           sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
           sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
-          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
+          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"\"/" app.env
           sed -i "s/^DB_NAME=.*/DB_NAME=${TEST_DB_NAME}/" app.env
           sed -i "s/^USERNAME=.*/USERNAME=actionsdeployer/" app.env
-          sed -i "s/^PASSWORD=.*/PASSWORD=\"${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}\"/" app.env
+          sed -i "s/^PASSWORD=.*/PASSWORD=\"\"/" app.env
       
       - name: Build the application
         run: go build -o ${BINARY_NAME}
@@ -96,22 +89,23 @@ jobs:
       
       - name: Terminate database sessions
         if: always()
-        env:
-          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
         run: |
-          echo "Terminating all sessions for database: ${TEST_DB_NAME}"
-          psql -U actionsdeployer -d postgres -t -c "
-            SELECT pg_terminate_backend(pid)
-            FROM pg_stat_activity
-            WHERE datname = '${TEST_DB_NAME}'
-              AND pid <> pg_backend_pid();
-          "
-      
+          if [ -n "${TEST_DB_NAME}" ]; then
+            echo "Terminating all sessions for database: ${TEST_DB_NAME}"
+            psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "
+              SELECT pg_terminate_backend(pid)
+              FROM pg_stat_activity
+              WHERE datname = '${TEST_DB_NAME}'
+                AND pid <> pg_backend_pid();
+            " || true
+          fi
+
       - name: Cleanup test database
         if: always()
-        env:
-          PGPASSWORD: ${{ secrets.ACTIONSDEPLOYER_DB_PASSWORD }}
-        run: dropdb -U actionsdeployer ${TEST_DB_NAME} || true
+        run: |
+          if [ -n "${TEST_DB_NAME}" ]; then
+            dropdb -h 127.0.0.1 -U actionsdeployer "${TEST_DB_NAME}" || true
+          fi
       
       - name: Cleanup binary
         if: always()
