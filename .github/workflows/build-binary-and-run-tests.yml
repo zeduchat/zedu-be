@@ -34,13 +34,15 @@ jobs:
           # Build a libpq connection string so psql/pg_dump/createdb run non-interactively
           PGCONN="postgresql://actionsdeployer:${PGPASSWORD}@localhost:5432"
 
-          # Create database non-interactively (use psql to create if createdb prompts)
-          createdb -U actionsdeployer "${DB_NAME}" || \
-            PGPASSWORD="${PGPASSWORD}" psql "$PGCONN" -c "CREATE DATABASE \"${DB_NAME}\";"
+          # Create database non-interactively using psql (avoid createdb which may prompt)
+          PASSWORD="${PGPASSWORD}"
+          export PGPASSWORD="${PASSWORD}"
 
-          # Restore schema/data from staging into the new DB using connection string
-          PGPASSWORD="${PGPASSWORD}" pg_dump "${PGCONN}/telex_staging" --no-owner --no-privileges | \
-            PGPASSWORD="${PGPASSWORD}" psql "${PGCONN}/${DB_NAME}"
+          psql -h localhost -U actionsdeployer -d postgres -c "CREATE DATABASE \"${DB_NAME}\";" || true
+
+          # Restore schema/data from staging into the new DB using explicit host/user and PGPASSWORD
+          PGPASSWORD="${PASSWORD}" pg_dump -h localhost -U actionsdeployer telex_staging --no-owner --no-privileges | \
+            PGPASSWORD="${PASSWORD}" psql -h localhost -U actionsdeployer "${DB_NAME}"
 
       - name: Verify APP_ENV secret is set
         run: |
