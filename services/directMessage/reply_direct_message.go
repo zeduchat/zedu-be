@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofrs/uuid"
 
+	"github.com/hngprojects/telex_be/internal/avatar"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -31,38 +32,50 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusBadRequest, errors.New("invalid thread ID")
 	}
 
-	err = profile.GetProfileByUserId(db.Postgresql, req.UserId, req.OrgId)
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
-	}
-
-	user, err = user.GetUserByID(db.Postgresql, req.UserId, req.OrgId)
-	if err != nil {
-		return nil, http.StatusBadRequest, errors.New("failed to get user")
-	}
-
 	ch, err := channel.CheckChannelExists(db.Postgresql, req.ChannelsId, req.UserId)
 	if !ch || err != nil {
 		return nil, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
+	if req.OrgId == "" {
+		req.OrgId = channel.OrgId
+	}
+
+	if err := threads.GetThreadById(req.ThreadId); err != nil {
+		logger.Error(fmt.Sprintf("Failed to get thread by ID: %s, error: %v", req.ThreadId, err))
+	}
+
+	profile, err = profile.GetProfileByUserIdAndOrgId(db.Postgresql, req.UserId, channel.OrgId)
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("failed to get user profile")
+	}
+
+	user, err = user.GetUserByID(db.Postgresql, req.UserId, channel.OrgId)
+	if err != nil {
+		return nil, http.StatusBadRequest, errors.New("failed to get user")
+	}
+
+	defaultAvatarURL := avatar.GenerateDefaultAvatarURL(req.UserId)
+
 	messageDoc := models.MessageDocument{
-		ID:             utility.GenerateUUID(),
-		Content:        req.Content,
-		ChannelsID:     req.ChannelsId,
-		UserID:         req.UserId,
-		ThreadID:       threadId,
-		CreatedAt:      time.Now().UTC(),
-		UpdatedAt:      time.Now().UTC(),
-		AvatarURL:      profile.AvatarURL,
-		Edited:         false,
-		Username:       profile.UserName,
-		FullName:       profile.FullName,
-		Email:          user.Email,
-		UserType:       "user",
-		OrganisationID: channel.OrgId,
-		Mentions:       req.Mentions,
-		Media:          req.Media,
+		ID:               utility.GenerateUUID(),
+		ProfileID:        profile.ID,
+		Content:          req.Content,
+		ChannelsID:       req.ChannelsId,
+		UserID:           req.UserId,
+		ThreadID:         threadId,
+		CreatedAt:        time.Now().UTC(),
+		UpdatedAt:        time.Now().UTC(),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarURL: defaultAvatarURL,
+		Edited:           false,
+		Username:         profile.UserName,
+		FullName:         profile.FullName,
+		Email:            user.Email,
+		UserType:         "user",
+		OrganisationID:   channel.OrgId,
+		Mentions:         req.Mentions,
+		Media:            req.Media,
 	}
 
 	updateResp, err := messageDoc.CreateMessage(db, logger)
@@ -77,22 +90,25 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
 
 	feed := models.FeedMessageRequest{
-		ChannelID:   req.ChannelsId,
-		UserName:    profile.UserName,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-		UpdatedAt:   messageDoc.UpdatedAt.String(),
-		AvatarURL:   profile.AvatarURL,
-		Type:        "message",
-		Content:     req.Content,
-		ThreadId:    req.ThreadId,
-		Email:       user.Email,
-		FullName:    profile.FullName,
-		OrgId:       req.OrgId,
-		UserType:    "user",
-		UserId:      req.UserId,
-		Media:       req.Media,
-		Id:          messageDoc.ID,
-		ChannelName: username,
+		ChannelID:        req.ChannelsId,
+		UserName:         profile.UserName,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
+		UpdatedAt:        messageDoc.UpdatedAt.Format(time.RFC3339),
+		AvatarURL:        profile.AvatarURL,
+		DefaultAvatarUrl: defaultAvatarURL,
+		Type:             "message",
+		Content:          req.Content,
+		ThreadId:         req.ThreadId,
+		Email:            user.Email,
+		FullName:         profile.FullName,
+		OrgId:            channel.OrgId,
+		UserType:         "user",
+		UserId:           req.UserId,
+		Media:            req.Media,
+		Mentions:         req.Mentions,
+		Id:               messageDoc.ID,
+		ChannelName:      username,
+		ChannelType:      channel.ChannelType,
 	}
 
 	err = centrifuge.PublishChannel(logger, threadId.String(), feed)
@@ -110,6 +126,19 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	if err != nil {
 		logger.Error(fmt.Sprintf("Error Publishing update reply message with destination id: %s error: %v", req.ChannelsId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish data: " + err.Error())
+	}
+
+	if threads.UserId != "" && threads.OrganisationID != "" {
+		threadReplyNotif := models.Notification[models.ThreadReply]
+		threadReplyNotif.Content = feed
+		threadReplyNotif.NotificationId = utility.GenerateUUID()
+
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", threads.OrganisationID, threads.UserId), threadReplyNotif)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Error Publishing thread reply message to user, channelid: %s, with userid: %s error: %v", req.ChannelsId, threads.UserId, err.Error()))
+		} else {
+			logger.Info("Published thread reply message to user : %s", threads.UserId)
+		}
 	}
 
 	dataByte, _ := json.Marshal(feed)
@@ -132,8 +161,10 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 
 	logger.Info("added notification to queue for channel %s", req.ChannelsId)
 
-	threads.ID = req.ThreadId
-	threads.OrganisationID = channel.OrgId
+	if threads.ID == "" {
+		threads.ID = req.ThreadId
+		threads.OrganisationID = channel.OrgId
+	}
 
 	thread.TrackThreadNotification(req.UserId, req.ChannelsId, channel.OrgId, &threads, feed, logger)
 
