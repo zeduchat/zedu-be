@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"log"
+	"time"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -60,6 +61,14 @@ func connectToDb(host, user, password, dbname, port, sslmode, timezone string, l
 		utility.LogAndPrint(logger, fmt.Sprintf("connection to %v db failed with: %v", dbname, err))
 		panic(err)
 
+	}
+
+	sqlDB, err := db.DB()
+	if err == nil {
+		sqlDB.SetMaxIdleConns(25)
+		sqlDB.SetMaxOpenConns(100)
+		sqlDB.SetConnMaxLifetime(5 * time.Minute)
+		sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 	}
 
 	utility.LogAndPrint(logger, fmt.Sprintf("connected to %v db", dbname))
