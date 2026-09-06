@@ -171,7 +171,7 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 		logger.Info("added notification to queue for channel %s", req.ChannelsId)
 	}
 
-	thread.TrackThreadNotification(req.UserId, req.ChannelsId, req.OrgId, &threads, logger)
+	thread.TrackThreadNotification(req.UserId, req.ChannelsId, req.OrgId, &threads, feed, logger)
 
 	userChan.ChannelsID = req.ChannelsId
 	userChan.UserID = req.UserId

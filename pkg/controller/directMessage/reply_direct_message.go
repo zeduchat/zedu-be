@@ -51,6 +51,11 @@ func (base *Controller) ReplyThreadDm(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 
 	req.UserId = userClaims["user_id"].(string)
+	if req.OrgId == "" {
+		if orgID, ok := userClaims["org_id"].(string); ok {
+			req.OrgId = orgID
+		}
+	}
 
 	response, code, err := dm.AddChannelsDmMsg(req, base.Db, base.Logger)
 	if err != nil {

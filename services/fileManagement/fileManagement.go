@@ -164,7 +164,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 		var duplicateFile models.File
 		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", params.Header.Filename, params.OrgID, params.UserID, existingFile.FileLink)
 
-		if fID != nil {
+		if fID != nil && utility.IsValidUUID(*fID) {
 			query = query.Where("folder_id = ?", *fID)
 		} else {
 			query = query.Where("folder_id IS NULL")
@@ -237,6 +237,9 @@ type CreateAndSaveFileParams struct {
 }
 
 func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	if params.FolderID != nil && *params.FolderID != "" && !utility.IsValidUUID(*params.FolderID) {
+		return nil, fmt.Errorf("invalid input syntax for type uuid: %q", *params.FolderID)
+	}
 	now := time.Now()
 	newFileEntry := models.File{
 		ID:             utility.GenerateUUID(),
@@ -770,23 +773,23 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 				files.mime_type LIKE '%powerpoint%' OR
 				files.mime_type LIKE '%presentation%' OR
 				files.mime_type LIKE '%csv%' OR
-				LOWER(files.file_type) IN ('pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'csv', 'ods', 'ppt', 'pptx', 'key')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.DocumentExtensions)
 		case "image", "images":
 			query = query.Where(`(
 				files.mime_type LIKE 'image/%' OR
-				LOWER(files.file_type) IN ('jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.ImageExtensions)
 		case "video", "videos":
 			query = query.Where(`(
 				files.mime_type LIKE 'video/%' OR
-				LOWER(files.file_type) IN ('mp4', 'avi', 'mov', 'mkv', 'webm', 'flv')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.VideoExtensions).Where(`LOWER(files.file_type) NOT IN (?)`, models.AudioExtensions)
 		case "audio", "music":
 			query = query.Where(`(
 				files.mime_type LIKE 'audio/%' OR
-				LOWER(files.file_type) IN ('mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.AudioExtensions)
 		default:
 			query = query.Where("LOWER(files.file_type) = ?", cleanType)
 		}

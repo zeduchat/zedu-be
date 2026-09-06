@@ -3,7 +3,6 @@ package admin
 import (
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -69,7 +68,6 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 
 	// Calculate Stats (parallel)
 	if filter.IncludeStats {
-		var wg sync.WaitGroup
 		var stats InvitationStats
 
 		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -82,65 +80,15 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		var acceptedCount int64
 		var currentPeriodAccepted, previousPeriodAccepted int64
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", startOfToday).Count(&stats.SentToday)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", startOfYesterday, startOfToday).Count(&stats.Yesterday)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", startOfWeek).Count(&stats.ThisWeek)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", last30Days).Count(&currentPeriodCount)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", last60Days, last30Days).Count(&previousPeriodCount)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).
-				Where("status = ? AND created_at >= ?", "accepted", last30Days).
-				Count(&currentPeriodAccepted)
-		}()
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			db.Model(&models.Invitation{}).
-				Where("status = ? AND created_at >= ? AND created_at < ?", "accepted", last60Days, last30Days).
-				Count(&previousPeriodAccepted)
-		}()
-
-		wg.Wait()
+		db.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
+		db.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
+		db.Model(&models.Invitation{}).Where("created_at >= ?", startOfToday).Count(&stats.SentToday)
+		db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", startOfYesterday, startOfToday).Count(&stats.Yesterday)
+		db.Model(&models.Invitation{}).Where("created_at >= ?", startOfWeek).Count(&stats.ThisWeek)
+		db.Model(&models.Invitation{}).Where("created_at >= ?", last30Days).Count(&currentPeriodCount)
+		db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", last60Days, last30Days).Count(&previousPeriodCount)
+		db.Model(&models.Invitation{}).Where("status = ? AND created_at >= ?", "accepted", last30Days).Count(&currentPeriodAccepted)
+		db.Model(&models.Invitation{}).Where("status = ? AND created_at >= ? AND created_at < ?", "accepted", last60Days, last30Days).Count(&previousPeriodAccepted)
 
 		// Calculate growth percent
 		if previousPeriodCount > 0 {

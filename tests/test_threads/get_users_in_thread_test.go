@@ -121,3 +121,35 @@ func TestGetUsersInThreadStructFiltering(t *testing.T) {
 		t.Errorf("expected user mention %s to be included in thread participants", commenterID)
 	}
 }
+
+func TestGetUsersInThreadCurrentMentionsMerge(t *testing.T) {
+	senderID := "user-sender-uuid"
+	authorID := "user-author-uuid"
+	pastMentionedUser := "user-past-tagged-uuid"
+	currentMentionedUser := "user-current-tagged-uuid"
+
+	currentMentions := []models.Mention{
+		{ID: currentMentionedUser, Type: "user"},
+		{ID: "channel-123", Type: "channel"},
+	}
+
+	userIDsMap := make(map[string]struct{})
+	userIDsMap[authorID] = struct{}{}
+	userIDsMap[pastMentionedUser] = struct{}{}
+
+	for _, m := range currentMentions {
+		if m.ID != "" && m.Type == "user" && m.ID != senderID {
+			userIDsMap[m.ID] = struct{}{}
+		}
+	}
+
+	if _, exists := userIDsMap[authorID]; !exists {
+		t.Errorf("expected author %s to be in participants", authorID)
+	}
+	if _, exists := userIDsMap[pastMentionedUser]; !exists {
+		t.Errorf("expected past mentioned user %s to be in participants", pastMentionedUser)
+	}
+	if _, exists := userIDsMap[currentMentionedUser]; !exists {
+		t.Errorf("expected current tagged user %s to be merged into participants", currentMentionedUser)
+	}
+}

@@ -558,6 +558,13 @@ func ValidateShareExpiration(expiresAt *time.Time) error {
 	return nil
 }
 
+var (
+	AudioExtensions    = []string{"m4a", "wav", "mp3", "flac", "aac", "ogg", "m4r", "wma", "opus", "amr", "mid", "midi"}
+	VideoExtensions    = []string{"mp4", "avi", "mov", "mkv", "webm", "flv", "3gp", "wmv", "m4v"}
+	ImageExtensions    = []string{"jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"}
+	DocumentExtensions = []string{"pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ods", "ppt", "pptx", "key"}
+)
+
 // MatchesMediaType checks if a file's mimeType, fileType, or filename matches the requested mediaType
 func MatchesMediaType(mimeType, mediaType string, fileTypeAndName ...string) bool {
 	cleanMediaType := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(mediaType), "."))
@@ -579,22 +586,28 @@ func MatchesMediaType(mimeType, mediaType string, fileTypeAndName ...string) boo
 		if ContainsAny(cleanMime, []string{"pdf", "document", "word", "text", "rtf", "msword", "officedocument", "spreadsheet", "excel", "powerpoint", "presentation", "csv"}) {
 			return true
 		}
-		return ContainsAny(ext, []string{"pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "csv", "ods", "ppt", "pptx", "key"})
+		return ContainsAny(ext, DocumentExtensions)
 	case "image", "images":
 		if strings.HasPrefix(cleanMime, "image/") {
 			return true
 		}
-		return ContainsAny(ext, []string{"jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "ico"})
+		return ContainsAny(ext, ImageExtensions)
 	case "video", "videos":
+		if ext != "" && ContainsAny(ext, AudioExtensions) {
+			return false
+		}
 		if strings.HasPrefix(cleanMime, "video/") {
 			return true
 		}
-		return ContainsAny(ext, []string{"mp4", "avi", "mov", "mkv", "webm", "flv"})
+		return ContainsAny(ext, VideoExtensions)
 	case "audio", "music":
+		if ext != "" && ContainsAny(ext, AudioExtensions) {
+			return true
+		}
 		if strings.HasPrefix(cleanMime, "audio/") {
 			return true
 		}
-		return ContainsAny(ext, []string{"mp3", "wav", "flac", "aac", "ogg", "m4a"})
+		return ContainsAny(ext, AudioExtensions)
 	default:
 		if ext != "" && ext == cleanMediaType {
 			return true

@@ -247,4 +247,109 @@ func TestGetChannelFiles(t *testing.T) {
 			t.Fatalf("Expected docx file in DM channel response, got: %v", response)
 		}
 	})
+
+	t.Run("Get Channel Files with Type=Video Filter Excludes Audio Files", func(t *testing.T) {
+		videoChannelID := utility.GenerateUUID()
+		userChan := models.UserChannels{
+			ChannelsID: videoChannelID,
+			UserID:     user.ID,
+			OrgId:      org.ID,
+		}
+		if err := db.Postgresql.Create(&userChan).Error; err != nil {
+			t.Fatalf("Failed to add user to video channel: %v", err)
+		}
+
+		videoThreadID := utility.GenerateUUID()
+		mp4File := map[string]interface{}{
+			"id":        utility.GenerateUUID(),
+			"file_name": "sample_video.mp4",
+			"file_type": "mp4",
+			"mime_type": "video/mp4",
+			"file_link": "http://example.com/sample_video.mp4",
+		}
+		m4aAudioFile := map[string]interface{}{
+			"id":        utility.GenerateUUID(),
+			"file_name": "voice_recording.m4a",
+			"file_type": "m4a",
+			"mime_type": "video/mp4",
+			"file_link": "http://example.com/voice_recording.m4a",
+		}
+		wavAudioFile := map[string]interface{}{
+			"id":        utility.GenerateUUID(),
+			"file_name": "voice_note.wav",
+			"file_type": "wav",
+			"mime_type": "video/webm",
+			"file_link": "http://example.com/voice_note.wav",
+		}
+
+		videoThread := map[string]interface{}{
+			"thread_id":   videoThreadID,
+			"channels_id": videoChannelID,
+			"user_id":     user.ID,
+			"org_id":      org.ID,
+			"message":     "Test message with video and audio files",
+			"created_at":  time.Now().Format(time.RFC3339),
+			"media":       []interface{}{mp4File, m4aAudioFile, wavAudioFile},
+		}
+
+		if err := elastic.AddDocument(db.Elastic, models.ThreadIndexName, videoThreadID, videoThread, logger); err != nil {
+			t.Fatalf("Failed to add video thread to Elasticsearch: %v", err)
+		}
+
+		time.Sleep(2 * time.Second)
+
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/channels/%s/files?type=video", videoChannelID), nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+
+		var response map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		data, ok := response["data"].([]interface{})
+		if !ok || len(data) == 0 {
+			t.Fatalf("Expected mp4 video in channel response, got: %v", response)
+		}
+
+		foundMp4 := false
+		foundAudio := false
+
+		for _, item := range data {
+			threadItem, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			mediaList, ok := threadItem["media"].([]interface{})
+			if !ok {
+				continue
+			}
+			for _, m := range mediaList {
+				fileMap, ok := m.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				fileType, _ := fileMap["file_type"].(string)
+				if fileType == "mp4" {
+					foundMp4 = true
+				}
+				if fileType == "m4a" || fileType == "wav" {
+					foundAudio = true
+				}
+			}
+		}
+
+		if !foundMp4 {
+			t.Errorf("Expected mp4 video file in response")
+		}
+		if foundAudio {
+			t.Errorf("Video filtering returned audio files (.m4a or .wav) in response")
+		}
+	})
 }
