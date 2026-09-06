@@ -403,6 +403,8 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 		return nil
 	}
 
+	feed, hasFeed := notifPayload.Notification.Content.(models.FeedMessageRequest)
+
 	filteredUserIDs, err := notificationpref.FilterUsersByPreferences(db, userIds, channelId, orgId, notificationpref.NotificationTypeThreadReply)
 	if err != nil {
 		logger.Error("failed to filter thread users by preferences: %v", err)
@@ -428,10 +430,11 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 			continue
 		}
 
-		notifPayload.Notification.Content = res
-		notifPayload.Notification.NotificationId = utility.GenerateUUID()
+		userNotif := notifPayload.Notification
+		userNotif.Content = res
+		userNotif.NotificationId = utility.GenerateUUID()
 
-		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, userId), notifPayload.Notification)
+		err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", orgId, userId), userNotif)
 		if err != nil {
 			logger.Error("Error publishing thread notification for user %s: %v", userId, err)
 		}
@@ -439,8 +442,12 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 		logger.Info("published thread notification to user %s", userId)
 	}
 
-	if feed, ok := notifPayload.Notification.Content.(models.FeedMessageRequest); ok && len(filteredUserIDs) > 0 {
+	if hasFeed && len(filteredUserIDs) > 0 {
 		msgText := resolveMessageContent(feed)
+		senderName := utility.ThisOrThat(feed.UserName, utility.ThisOrThat(feed.FullName, strings.Split(feed.Email, "@")[0]))
+		if senderName == "" {
+			senderName = "User"
+		}
 		pushReq := models.PushRequest{
 			ChannelId:   channelId,
 			OrgId:       orgId,
@@ -448,8 +455,8 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 			UserIds:     filteredUserIDs,
 			Message:     msgText,
 			UserId:      notifPayload.UserId,
-			Username:    utility.ThisOrThat(feed.UserName, strings.Split(feed.Email, "@")[0]),
-			Title:       fmt.Sprintf("New reply in thread from %s", utility.ThisOrThat(feed.UserName, "User")),
+			Username:    senderName,
+			Title:       fmt.Sprintf("New reply in thread from %s", senderName),
 			Payload: map[string]interface{}{
 				"org_id":            orgId,
 				"channel_id":        channelId,

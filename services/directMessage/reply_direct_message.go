@@ -135,7 +135,7 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 	threads.ID = req.ThreadId
 	threads.OrganisationID = channel.OrgId
 
-	thread.TrackThreadNotification(req.UserId, req.ChannelsId, channel.OrgId, &threads, logger)
+	thread.TrackThreadNotification(req.UserId, req.ChannelsId, channel.OrgId, &threads, feed, logger)
 
 	dmChanVisibility := models.DmChannels{ChannelId: req.ChannelsId}
 	_ = dmChanVisibility.UpdateInteractionAt(db.Postgresql)

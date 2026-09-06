@@ -14,9 +14,10 @@ func TrackThreadNotification(
 	channelsId string,
 	orgId string,
 	threads *models.ThreadDocument,
+	feed models.FeedMessageRequest,
 	logger *utility.Logger,
 ) {
-	userIds, err := threads.GetUsersInThread(userId)
+	userIds, err := threads.GetUsersInThread(userId, feed.Mentions)
 
 	if err != nil {
 		logger.Error("Error getting users in thread: %s, with orgid: %s error: %v", channelsId, orgId, err.Error())
@@ -30,9 +31,11 @@ func TrackThreadNotification(
 		}(orgId, threads.ID, userIds)
 	}
 
-	feed := models.FeedMessageRequest{
-		OrgId:     orgId,
-		ChannelID: channelsId,
+	if feed.OrgId == "" {
+		feed.OrgId = orgId
+	}
+	if feed.ChannelID == "" {
+		feed.ChannelID = channelsId
 	}
 	dataByte, _ := json.Marshal(feed)
 
