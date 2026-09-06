@@ -26,17 +26,23 @@ jobs:
           files: ./static/swagger.yaml
 
       - name: Setup env
+        env:
+          APP_ENV: ${{ secrets.APP_ENV }}
         run: |
           set -euo pipefail
-          [ -n "${{ secrets.APP_ENV }}" ] || { echo "::error::APP_ENV is unset"; exit 1; }
+
+          printf '%s\n' "$APP_ENV" > app.env
+          if [ ! -s app.env ] || ! grep -q '=' app.env; then
+            echo "::error::APP_ENV secret is empty or malformed"
+            exit 1
+          fi
 
           DB_NAME="telex_be_test_${GITHUB_RUN_NUMBER}_$(date +%s)"
-          echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
+          echo "TEST_DB_NAME=${DB_NAME}" >> "$GITHUB_ENV"
 
           psql -n -h 127.0.0.1 -U actionsdeployer -d postgres \
             -c "CREATE DATABASE \"${DB_NAME}\";"
 
-          echo "${{ secrets.APP_ENV }}" > app.env
           sed -i \
             -e "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer@127.0.0.1:5432/${DB_NAME}?sslmode=disable|" \
             -e "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${DB_NAME}/" \
