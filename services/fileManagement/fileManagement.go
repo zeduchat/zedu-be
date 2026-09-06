@@ -770,23 +770,23 @@ func GetFiles(db *gorm.DB, params models.GetFilesParams) ([]models.File, postgre
 				files.mime_type LIKE '%powerpoint%' OR
 				files.mime_type LIKE '%presentation%' OR
 				files.mime_type LIKE '%csv%' OR
-				LOWER(files.file_type) IN ('pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'xls', 'xlsx', 'csv', 'ods', 'ppt', 'pptx', 'key')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.DocumentExtensions)
 		case "image", "images":
 			query = query.Where(`(
 				files.mime_type LIKE 'image/%' OR
-				LOWER(files.file_type) IN ('jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.ImageExtensions)
 		case "video", "videos":
 			query = query.Where(`(
 				files.mime_type LIKE 'video/%' OR
-				LOWER(files.file_type) IN ('mp4', 'avi', 'mov', 'mkv', 'webm', 'flv')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.VideoExtensions).Where(`LOWER(files.file_type) NOT IN (?)`, models.AudioExtensions)
 		case "audio", "music":
 			query = query.Where(`(
 				files.mime_type LIKE 'audio/%' OR
-				LOWER(files.file_type) IN ('mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a')
-			)`)
+				LOWER(files.file_type) IN (?)
+			)`, models.AudioExtensions)
 		default:
 			query = query.Where("LOWER(files.file_type) = ?", cleanType)
 		}
