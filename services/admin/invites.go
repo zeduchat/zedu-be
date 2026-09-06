@@ -85,49 +85,57 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Count(&stats.TotalInvitationsSent)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("status = ?", "accepted").Count(&acceptedCount)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", startOfToday).Count(&stats.SentToday)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("created_at >= ?", startOfToday).Count(&stats.SentToday)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", startOfYesterday, startOfToday).Count(&stats.Yesterday)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", startOfYesterday, startOfToday).Count(&stats.Yesterday)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", startOfWeek).Count(&stats.ThisWeek)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("created_at >= ?", startOfWeek).Count(&stats.ThisWeek)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ?", last30Days).Count(&currentPeriodCount)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("created_at >= ?", last30Days).Count(&currentPeriodCount)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", last60Days, last30Days).Count(&previousPeriodCount)
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).Where("created_at >= ? AND created_at < ?", last60Days, last30Days).Count(&previousPeriodCount)
 		}()
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).
 				Where("status = ? AND created_at >= ?", "accepted", last30Days).
 				Count(&currentPeriodAccepted)
 		}()
@@ -135,7 +143,8 @@ func GetInvitationDashboard(db *gorm.DB, c *gin.Context, filter InvitationFilter
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			db.Model(&models.Invitation{}).
+			tx := db.Session(&gorm.Session{})
+			tx.Model(&models.Invitation{}).
 				Where("status = ? AND created_at >= ? AND created_at < ?", "accepted", last60Days, last30Days).
 				Count(&previousPeriodAccepted)
 		}()

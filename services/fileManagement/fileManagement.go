@@ -91,7 +91,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 	bucketName := config.Config.Minio.BucketName
 
 	var fID *string
-	if params.FolderID != "" {
+	if params.FolderID != "" && utility.IsValidUUID(params.FolderID) {
 		fID = &params.FolderID
 	}
 
