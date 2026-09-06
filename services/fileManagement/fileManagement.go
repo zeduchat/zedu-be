@@ -91,7 +91,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 	bucketName := config.Config.Minio.BucketName
 
 	var fID *string
-	if params.FolderID != "" && utility.IsValidUUID(params.FolderID) {
+	if params.FolderID != "" {
 		fID = &params.FolderID
 	}
 
@@ -164,7 +164,7 @@ func UploadFile(db *gorm.DB, logger *utility.Logger, params models.UploadFilePar
 		var duplicateFile models.File
 		query := db.Where("file_name = ? AND organisation_id = ? AND user_id = ? AND file_link = ?", params.Header.Filename, params.OrgID, params.UserID, existingFile.FileLink)
 
-		if fID != nil {
+		if fID != nil && utility.IsValidUUID(*fID) {
 			query = query.Where("folder_id = ?", *fID)
 		} else {
 			query = query.Where("folder_id IS NULL")
@@ -237,6 +237,9 @@ type CreateAndSaveFileParams struct {
 }
 
 func createAndSaveFile(db *gorm.DB, params CreateAndSaveFileParams) (*models.File, error) {
+	if params.FolderID != nil && *params.FolderID != "" && !utility.IsValidUUID(*params.FolderID) {
+		return nil, fmt.Errorf("invalid input syntax for type uuid: %q", *params.FolderID)
+	}
 	now := time.Now()
 	newFileEntry := models.File{
 		ID:             utility.GenerateUUID(),
