@@ -155,7 +155,7 @@ func TestOrphanFileRecovery(t *testing.T) {
 			}
 
 		*/
-		uniqueExt := "rollbacktest"
+		uniqueExt := fmt.Sprintf("rollbacktest%d", time.Now().UnixNano())
 		fileName := "rollback_test_invalid_folder." + uniqueExt
 		invalidFolderID := "invalid-uuid-string"
 
