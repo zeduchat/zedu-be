@@ -627,30 +627,32 @@ func publishJoinBuzzEvent(logger *utility.Logger, buzz models.Buzz, timestamp ti
 		profile        models.Profile
 		user           models.User
 	)
-	if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
-		logger.Error("failed to fetch user for join event: %v", err)
-	} else {
-		var profModel models.Profile
-		var profErr error
-		profile, profErr = profModel.GetOrCreateProfileForOrg(db, userID, orgID)
-		if profErr != nil {
-			logger.Error("failed to fetch profile for join event: %v", profErr)
+	if utility.IsValidUUID(userID) {
+		if err := db.Where("id = ?", userID).First(&user).Error; err != nil {
+			logger.Error("failed to fetch user for join event: %v", err)
 		} else {
-			joinedUsername = profile.UserName
-			if joinedUsername == "" {
-				joinedUsername = user.Email
-				if idx := strings.Index(joinedUsername, "@"); idx != -1 {
-					joinedUsername = joinedUsername[:idx]
-				}
-			}
-			joinedUser.UserID = userID
-			joinedUser.Username = joinedUsername
-			joinedUser.AvatarURL = &profile.AvatarURL
-			joinedUser.Color = utility.GenerateUserColor(userID, joinedUsername)
-			if buzz.HostID != "" && userID == buzz.HostID {
-				joinedUser.CallRole = "caller"
+			var profModel models.Profile
+			var profErr error
+			profile, profErr = profModel.GetOrCreateProfileForOrg(db, userID, orgID)
+			if profErr != nil {
+				logger.Error("failed to fetch profile for join event: %v", profErr)
 			} else {
-				joinedUser.CallRole = "receiver"
+				joinedUsername = profile.UserName
+				if joinedUsername == "" {
+					joinedUsername = user.Email
+					if idx := strings.Index(joinedUsername, "@"); idx != -1 {
+						joinedUsername = joinedUsername[:idx]
+					}
+				}
+				joinedUser.UserID = userID
+				joinedUser.Username = joinedUsername
+				joinedUser.AvatarURL = &profile.AvatarURL
+				joinedUser.Color = utility.GenerateUserColor(userID, joinedUsername)
+				if buzz.HostID != "" && userID == buzz.HostID {
+					joinedUser.CallRole = "caller"
+				} else {
+					joinedUser.CallRole = "receiver"
+				}
 			}
 		}
 	}
