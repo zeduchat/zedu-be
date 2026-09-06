@@ -967,7 +967,7 @@ func (t *Threads) GetThreadsByChannelID(c *gin.Context, db *gorm.DB, userId, cha
 	return threads, pagR, nil
 }
 
-func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
+func (t *ThreadDocument) GetUsersInThread(userId string, currentMentions ...[]Mention) ([]string, error) {
 	var thread ThreadDocument
 	err := thread.GetThreadById(t.ID)
 	if err != nil {
@@ -1015,6 +1015,14 @@ func (t *ThreadDocument) GetUsersInThread(userId string) ([]string, error) {
 			userIDsMap[msg.UserID] = struct{}{}
 		}
 		for _, m := range msg.Mentions {
+			if m.ID != "" && m.Type == "user" && m.ID != userId {
+				userIDsMap[m.ID] = struct{}{}
+			}
+		}
+	}
+
+	for _, mentionsList := range currentMentions {
+		for _, m := range mentionsList {
 			if m.ID != "" && m.Type == "user" && m.ID != userId {
 				userIDsMap[m.ID] = struct{}{}
 			}
