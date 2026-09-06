@@ -2,120 +2,71 @@ name: Build Golang Binary and Run Tests
 
 on:
   pull_request:
-    branches:
-      - staging
+    branches: [staging, dev]
   push:
-    branches:
-      - testing
+    branches: [testing]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build_and_test:
     runs-on: self-hosted
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Validate swagger.yaml
         uses: GrantBirki/json-yaml-validate@v3.1.0
         with:
           files: ./static/swagger.yaml
 
-      - name: Generate randomized environment values
+      - name: Setup env
         run: |
-          RANDOM_SUFFIX="${GITHUB_RUN_NUMBER}_$(date +%s)"
-          BINARY_NAME="telex_be_${RANDOM_SUFFIX}"
-          DB_NAME="telex_be_test_${RANDOM_SUFFIX}"
-          
-          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+          set -euo pipefail
+          [ -n "${{ secrets.APP_ENV }}" ] || { echo "::error::APP_ENV is unset"; exit 1; }
+
+          DB_NAME="telex_be_test_${GITHUB_RUN_NUMBER}_$(date +%s)"
           echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
 
-      - name: Verify APP_ENV secret is set
-        run: |
-          if [ -z "${{ secrets.APP_ENV }}" ]; then
-            echo "::error::secrets.APP_ENV is empty or unset"
-            exit 1
-          fi
+          psql -n -h 127.0.0.1 -U actionsdeployer -d postgres \
+            -c "CREATE DATABASE \"${DB_NAME}\";"
 
-      - name: Create fresh test database
-        run: |
-          set -e -o pipefail
-          echo "Creating clean test database: ${TEST_DB_NAME}"
-          psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "CREATE DATABASE \"${TEST_DB_NAME}\";"
-
-      - name: Setup app.env
-        run: | 
-          SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
-          echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
           echo "${{ secrets.APP_ENV }}" > app.env
-          
-          # Inject clean test DB connection strings
-          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer@127.0.0.1:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
-          sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
-          sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
-          sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
-          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"\"/" app.env
-          sed -i "s/^DB_NAME=.*/DB_NAME=${TEST_DB_NAME}/" app.env
-          sed -i "s/^USERNAME=.*/USERNAME=actionsdeployer/" app.env
-          sed -i "s/^PASSWORD=.*/PASSWORD=\"\"/" app.env
+          sed -i \
+            -e "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer@127.0.0.1:5432/${DB_NAME}?sslmode=disable|" \
+            -e "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${DB_NAME}/" \
+            -e "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" \
+            -e "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" \
+            -e "s/^USERNAME=.*/USERNAME=actionsdeployer/" \
+            -e "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"\"/" \
+            -e "s/^PASSWORD=.*/PASSWORD=\"\"/" \
+            app.env
 
-      - name: Build the application
-        run: go build -o ${BINARY_NAME}
+      - name: Build
+        run: go build ./...
 
-      - name: Run the application in background
+      - name: Migrate
+        run: yes | make migrate-safe-up
+
+      - name: Test
         run: |
-          ./${BINARY_NAME} > app.log 2>&1 &
-          echo "APP_PID=$!" >> $GITHUB_ENV
+          set -o pipefail
+          go test -p 1 -failfast -timeout 600s ./tests/... 2>&1 | tee test.log
 
-      - name: Wait for application readiness
-        run: |
-          for i in {1..30}; do
-            curl -s http://localhost:${SERVER_PORT} && break || true
-            sleep 1
-          done
+      - name: Show failures
+        if: failure()
+        run: grep -nE '^(--- )?FAIL|^panic:|\[build failed\]|\[setup failed\]' test.log || true
 
-      - name: Run DB migrations
-        run: |
-          echo "Running DB migrations..."
-          yes | make migrate-safe-up || true
-
-      - name: Run Go Tests
-        run: |
-          mkdir -p .gotmp
-          export GOTMPDIR="$(pwd)/.gotmp"
-          
-          # Executing -p 1 to enforce sequential package execution and avoid GORM auto-migrate deadlocks
-          go test -v -p 1 ./tests/... -timeout 600s
-
-      - name: Stop background application
+      - name: Cleanup
         if: always()
         run: |
-          if [ -n "${APP_PID}" ]; then
-            echo "Stopping background app PID: ${APP_PID}"
-            kill -9 ${APP_PID} || true
-          fi
-
-      - name: Terminate active database sessions
-        if: always()
-        run: |
-          if [ -n "${TEST_DB_NAME}" ]; then
-            psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "
-              SELECT pg_terminate_backend(pid)
-              FROM pg_stat_activity
-              WHERE datname = '${TEST_DB_NAME}'
-                AND pid <> pg_backend_pid();
-            " || true
-          fi
-
-      - name: Cleanup test database
-        if: always()
-        run: |
-          if [ -n "${TEST_DB_NAME}" ]; then
-            dropdb -h 127.0.0.1 -U actionsdeployer "${TEST_DB_NAME}" || true
-          fi
-
-      - name: Cleanup workspace artifacts
-        if: always()
-        run: |
-          rm -rf .gotmp
-          rm -f ${BINARY_NAME}
-          rm -f app.log
+          psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+            WHERE datname = '${TEST_DB_NAME}' AND pid <> pg_backend_pid();" || true
+          dropdb -h 127.0.0.1 -U actionsdeployer "${TEST_DB_NAME}" || true
+          rm -f app.env test.log
