@@ -1631,16 +1631,21 @@ func TestEndToEndTimedStatusClear(t *testing.T) {
 		t.Fatal("expected status_timeout to be set after scheduling, got empty")
 	}
 
+	targetProfileID := profile.ID
+
 	// Poll until River auto-fires the timed clear job (allow 60s for the 30s expiry + execution lag).
 	deadline := time.Now().Add(60 * time.Second)
 	cleared := false
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
-		if err := db.Where("userid = ?", user.ID).Order("updated_at DESC").First(&profile).Error; err != nil {
+		if err := db.Where("id = ?", targetProfileID).First(&profile).Error; err != nil {
 			t.Logf("transient poll error (retrying): %v", err)
 			continue
 		}
-		if profile.RiverJobID == nil && strings.TrimSpace(profile.Text) == "" {
+		mu.Lock()
+		payloadCount := len(receivedPayloads)
+		mu.Unlock()
+		if profile.RiverJobID == nil && strings.TrimSpace(profile.Text) == "" && payloadCount >= 2 {
 			cleared = true
 			break
 		}
