@@ -487,8 +487,9 @@ func GetAICreditPackageStats(db *gorm.DB) (AICreditPackageStats, error) {
 		return stats, fmt.Errorf("failed to calculate monthly credit revenue: %w", err)
 	}
 
-	// Unused credits: sum of all org credit balances
+	// Unused credits: sum of all positive org credit balances
 	if err := db.Model(&Organisation{}).
+		Where("credit_balance > ?", 0).
 		Select("COALESCE(SUM(credit_balance), 0)").
 		Scan(&stats.UnusedCredits).Error; err != nil {
 		return stats, fmt.Errorf("failed to calculate unused credits: %w", err)

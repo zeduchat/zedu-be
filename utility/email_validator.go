@@ -7,8 +7,6 @@ import (
 	"net/mail"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 var disposableDomains = map[string]bool{
@@ -52,11 +50,11 @@ func ValidateSignupEmail(email string) (string, error) {
 		return "", errors.New("disposable email domains are not allowed for registration")
 	}
 
-	if gin.Mode() == gin.TestMode || domain == "qa.team" || domain == "example.com" {
+	if domain == "qa.team" || domain == "example.com" {
 		return email, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	mxs, err := net.DefaultResolver.LookupMX(ctx, domain)
