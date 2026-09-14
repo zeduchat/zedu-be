@@ -157,7 +157,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 	now := time.Now().UTC()
 	var successfulInvites []string
 	var failedInvites []string
-	failedDueToOrgMember := false
+	var failureReasons []string
 
 	for _, inviteeID := range req.InviteeIDs {
 		isInBuzz := false
@@ -170,6 +170,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		if isInBuzz {
 			logger.Info("user %s is already in buzz %s, skipping", inviteeID, req.BuzzID)
 			failedInvites = append(failedInvites, inviteeID)
+			failureReasons = append(failureReasons, "user is already a participant in this buzz")
 			continue
 		}
 
@@ -180,13 +181,14 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 				if err != nil || !isOrgMember {
 					logger.Info("user %s is not a member of organisation %s, skipping", inviteeID, orgID)
 					failedInvites = append(failedInvites, inviteeID)
-					failedDueToOrgMember = true
+					failureReasons = append(failureReasons, "user is not part of this organisation")
 					continue
 				}
 			} else {
 				if !models.IsUserInChannel(db.Postgresql, buzz.ChannelID, inviteeID) {
 					logger.Info("user %s is not a channel member, skipping", inviteeID)
 					failedInvites = append(failedInvites, inviteeID)
+					failureReasons = append(failureReasons, "user is not a member of this channel")
 					continue
 				}
 			}
@@ -196,6 +198,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		if err != nil {
 			logger.Error("failed to check invitation existence: %v", err)
 			failedInvites = append(failedInvites, inviteeID)
+			failureReasons = append(failureReasons, "failed to check invitation status")
 			continue
 		}
 		if exists {
@@ -220,6 +223,7 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 		if err := db.Postgresql.Create(&invitation).Error; err != nil {
 			logger.Error("failed to create invitation for user %s: %v", inviteeID, err)
 			failedInvites = append(failedInvites, inviteeID)
+			failureReasons = append(failureReasons, "failed to create invitation")
 			continue
 		}
 
@@ -236,12 +240,13 @@ func InviteUsersToBuzz(db *storage.Database, logger *utility.Logger, req models.
 	resp.BuzzID = req.BuzzID
 	resp.InvitedUserIDs = successfulInvites
 	resp.FailedUserIDs = failedInvites
+	resp.FailureReasons = failureReasons
 	resp.InvitationsSent = len(successfulInvites)
 
 	if len(successfulInvites) == 0 {
 		resp.Message = "no invitations were sent"
-		if failedDueToOrgMember {
-			return resp, http.StatusBadRequest, errors.New("user is not part of this organisation")
+		if len(failureReasons) > 0 {
+			return resp, http.StatusBadRequest, errors.New(strings.Join(failureReasons, "; "))
 		}
 		return resp, http.StatusBadRequest, errors.New("failed to send any invitations")
 	}

@@ -483,6 +483,7 @@ type InviteUsersToBuzzResponse struct {
 	BuzzID          string   `json:"buzz_id"`
 	InvitedUserIDs  []string `json:"invited_user_ids"`
 	FailedUserIDs   []string `json:"failed_user_ids,omitempty"`
+	FailureReasons  []string `json:"failure_reasons,omitempty"`
 	InvitationsSent int      `json:"invitations_sent"`
 	Message         string   `json:"message"`
 }
