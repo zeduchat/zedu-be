@@ -37,6 +37,8 @@ PR checklist:
 - Follow the coding style and include tests for new behavior.
 - Keep the PR focused and include screenshots or logs if applicable.
 - Add migration steps or configuration notes if the change requires them.
+- Ensure automated CI checks pass before requesting a review.
+- Require at least **2 approvals** from reviewers before merging.
 
 ## Running the project locally
 
@@ -66,10 +68,22 @@ Continuous integration will run automated checks; address any failures reported 
 ## Code style & commit messages
 
 - Follow Go idioms and formatting rules. Run `gofmt` on changed files.
-- Use clear, imperative commit messages, for example:
+- Commit messages should start with one of the conventional prefixes:
+
+- `fix:` — bug fix
+- `feat:` or `feature:` — new feature
+- `docs:` — documentation only changes
+- `chore:` — maintenance tasks
+- `refactor:` — code change that neither fixes a bug nor adds a feature
+- `test:` — adding or updating tests
+- `perf:` — performance improvements
+- `ci:` — continuous integration related
+- `style:` — formatting, missing semi colons, etc; no code change
+
+- Use an imperative, concise subject line after the prefix. Example:
 
 ```
-Add validation to user create endpoint
+feat: add validation to user create endpoint
 
 Fixes: #123
 ```
