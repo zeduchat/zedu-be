@@ -145,20 +145,24 @@ func FilterUsersByPreferences(db *gorm.DB, userIDs []string, channelID, orgID st
 }
 
 func GetEffectivePreferences(db *gorm.DB, userID, channelID, orgID string) (models.NotificationPreference, error) {
-	var userChannel models.UserChannels
-	err := db.Where("user_id = ? AND channels_id = ?", userID, channelID).
-		First(&userChannel).Error
+	if channelID != "" {
+		var userChannel models.UserChannels
+		err := db.Where("user_id = ? AND channels_id = ?", userID, channelID).
+			First(&userChannel).Error
 
-	if err == nil && len(userChannel.Preferences) > 0 {
-		return userChannel.Preferences, nil
+		if err == nil && len(userChannel.Preferences) > 0 {
+			return userChannel.Preferences, nil
+		}
 	}
 
-	var orgUser models.OrgUserManagement
-	err = db.Where("user_id = ? AND organisation_id = ?", userID, orgID).
-		First(&orgUser).Error
+	if orgID != "" {
+		var orgUser models.OrgUserManagement
+		err := db.Where("user_id = ? AND organisation_id = ?", userID, orgID).
+			First(&orgUser).Error
 
-	if err == nil && len(orgUser.Preferences) > 0 {
-		return orgUser.Preferences, nil
+		if err == nil && len(orgUser.Preferences) > 0 {
+			return orgUser.Preferences, nil
+		}
 	}
 
 	return models.NotificationPreference{}, nil

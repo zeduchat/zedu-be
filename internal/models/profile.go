@@ -644,7 +644,7 @@ func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string,
 		return baseProfile, nil
 	}
 
-	return createInitialDefaultProfile(db, userID, orgID, appLogger)
+	return CreateInitialDefaultProfile(db, userID, orgID, appLogger)
 }
 
 func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) {
@@ -774,12 +774,16 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 	return existingOrgMap, baseProfile
 }
 
-func createInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
+func CreateInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
 	utility.LogInfo(appLogger, "[createInitialDefaultProfile] Creating initial default profile for userID=%s, orgID=%s", userID, orgID)
 	var userObj User
-	userName := "User"
-	if fetchUserErr := db.Where("id = ?", userID).First(&userObj).Error; fetchUserErr == nil && userObj.Name != "" {
-		userName = userObj.Name
+	if err := db.Where("id = ?", userID).First(&userObj).Error; err != nil {
+		utility.LogError(appLogger, "[createInitialDefaultProfile] User %s does not exist, skipping profile creation", userID)
+		return Profile{}, fmt.Errorf("user %s does not exist, cannot create profile", userID)
+	}
+	userName := userObj.Name
+	if userName == "" {
+		userName = "User"
 	}
 
 	var orgPtr *string

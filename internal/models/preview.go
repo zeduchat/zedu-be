@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -11,6 +12,25 @@ var htmlTagRegex = regexp.MustCompile(`<[^>]*>`)
 func stripHTMLTags(content string) string {
 	stripped := htmlTagRegex.ReplaceAllString(content, "")
 	return strings.TrimSpace(stripped)
+}
+
+func fileExtensionLabel(fileName, fileType string) string {
+	ext := strings.ToLower(fileType)
+	if ext == "" {
+		ext = strings.ToLower(strings.TrimPrefix(filepath.Ext(fileName), "."))
+	}
+
+	switch ext {
+	case "pdf":
+		return "📄 PDF"
+	case "doc", "docx", "odt", "rtf":
+		return "📝 Document"
+	case "xls", "xlsx", "csv", "ods":
+		return "📊 Spreadsheet"
+	case "ppt", "pptx", "key", "odp":
+		return "📊 Presentation"
+	}
+	return ""
 }
 
 func mimeTypeToPreviewLabel(mimeType string) string {
@@ -45,6 +65,9 @@ func BuildPreviewMessage(content string, media []File) string {
 	}
 	if len(media) == 0 {
 		return ""
+	}
+	if label := fileExtensionLabel(media[0].FileName, media[0].FileType); label != "" {
+		return label
 	}
 	return mimeTypeToPreviewLabel(media[0].MimeType)
 }
