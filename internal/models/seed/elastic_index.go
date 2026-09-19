@@ -10,14 +10,17 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
-var Indexs = map[string]any{
-	"threads":  models.Thread_mapping,
-	"messages": models.Message_mapping,
+func GetIndicesMap() map[string]any {
+	return map[string]any{
+		models.ThreadIndexName:  models.Thread_mapping,
+		models.MessageIndexName: models.Message_mapping,
+	}
 }
 
 func SeedIndex(logger *utility.Logger, es *elasticsearch.Client) {
 
-	for index, mapping := range Indexs {
+	indices := GetIndicesMap()
+	for index, mapping := range indices {
 
 		logger.Info("Creating Index for: " + index)
 
