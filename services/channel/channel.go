@@ -315,7 +315,7 @@ func SearchChannelsByNames(db *gorm.DB, c *gin.Context, name string) ([]models.C
 	return channels, paginationResponse, nil
 }
 
-func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Context) ([]models.User, postgresql.PaginationResponse, error) {
+func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Context) ([]models.ChannelUserResponse, postgresql.PaginationResponse, error) {
 	var channel models.Channels
 
 	users, paginationResponse, err := channel.GetUsersInChannel(c, db, channelID)
@@ -539,4 +539,75 @@ func GetUserNotInChannels(db *gorm.DB, ids models.IDS) (models.GetUserNotChannel
 		return userchannels, err
 	}
 	return userchannels, nil
+}
+
+func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentUserID string) bool {
+	if channel.OwnerId == currentUserID {
+		return true
+	}
+	var u models.User
+	if user, err := u.GetUserByID(db, currentUserID); err == nil {
+		if user.CheckUserIsAdmin(db) {
+			return true
+		}
+	}
+	var org models.Organisation
+	if err := db.Where("id = ?", channel.OrganisationID).First(&org).Error; err == nil {
+		if org.OwnerID == currentUserID {
+			return true
+		}
+	}
+	return false
+}
+
+func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, restricted bool) (int, error) {
+	var (
+		ch models.Channels
+		uc models.UserChannels
+	)
+
+	if err := db.Where("id = ?", channelID).First(&ch).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("channel does not exist")
+		}
+		return http.StatusInternalServerError, err
+	}
+
+	if !CanManageChannelRestrictions(db, ch, currentUserID) {
+		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+	}
+
+	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID, targetUserID)
+	if !exists {
+		return http.StatusNotFound, errors.New("user is not a member of this channel")
+	}
+
+	if err := uc.RestrictUserInChannel(db, channelID, targetUserID, restricted); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
+}
+
+func RestrictAllUsers(db *gorm.DB, channelID, currentUserID string, restricted bool) (int, error) {
+	var (
+		ch models.Channels
+	)
+
+	if err := db.Where("id = ?", channelID).First(&ch).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("channel does not exist")
+		}
+		return http.StatusInternalServerError, err
+	}
+
+	if !CanManageChannelRestrictions(db, ch, currentUserID) {
+		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+	}
+
+	if err := ch.RestrictAllUsersInChannel(db, channelID, restricted); err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	return http.StatusOK, nil
 }

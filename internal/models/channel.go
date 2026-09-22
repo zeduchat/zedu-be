@@ -38,6 +38,7 @@ type Channels struct {
 	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived,omitempty"`
 	GroupID        *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
 	IsPrivate      bool      `gorm:"column:is_private;default:false" json:"is_private"`
+	IsRestricted   bool      `gorm:"column:is_restricted;default:false" json:"is_restricted"`
 	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"-"`
 }
@@ -53,6 +54,7 @@ type UserChannels struct {
 	MentionCount int64                  `gorm:"column:mention_count;default:0" json:"mention_count"`
 	DeletedAt    time.Time              `gorm:"index" json:"deleted_at"`
 	Preferences  NotificationPreference `gorm:"type:jsonb;not null;default:'{}'" json:"preferences"`
+	Restricted   bool                   `gorm:"column:restricted;default:false" json:"restricted"`
 	OrgId        string                 `gorm:"-" json:"-"`
 }
 
@@ -123,6 +125,16 @@ type GetUserChannelResp []struct {
 	PreviewThread  []Threads       `gorm:"-" json:"preview_thread"`
 	PreviewMessage string          `json:"preview_message"`
 	LastReadAt     time.Time       `json:"last_read_at"`
+	Restricted     bool            `json:"restricted"`
+}
+
+type RestrictUserReq struct {
+	Restricted *bool `json:"restricted" validate:"required"`
+}
+
+type ChannelUserResponse struct {
+	User
+	Restricted bool `json:"restricted"`
 }
 
 type GetUserChannelsUnReadResp []struct {
@@ -259,7 +271,7 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 	return users, nil
 }
 
-func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]User, postgresql.PaginationResponse, error) {
+func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]ChannelUserResponse, postgresql.PaginationResponse, error) {
 	var users []User
 	pagination := postgresql.GetPagination(c)
 
@@ -272,6 +284,31 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 		Limit(pagination.Limit).
 		Find(&users).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
+	}
+
+	userIDs := make([]string, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+
+	restrictedMap := make(map[string]bool)
+	if len(userIDs) > 0 {
+		var ucs []UserChannels
+		db.Table("user_channels").
+			Select("user_id, restricted").
+			Where("channels_id = ? AND user_id IN ?", channelId, userIDs).
+			Find(&ucs)
+		for _, uc := range ucs {
+			restrictedMap[uc.UserID] = uc.Restricted
+		}
+	}
+
+	channelUsers := make([]ChannelUserResponse, len(users))
+	for i, u := range users {
+		channelUsers[i] = ChannelUserResponse{
+			User:       u,
+			Restricted: restrictedMap[u.ID],
+		}
 	}
 
 	var totalUsers int64
@@ -289,7 +326,7 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 		TotalPagesCount: totalPages,
 	}
 
-	return users, paginationResponse, nil
+	return channelUsers, paginationResponse, nil
 }
 
 func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {
@@ -524,10 +561,12 @@ func (r *Channels) AddUserToChannel(db *gorm.DB, req JoinChannelsRequest) (Chann
 		req.Username = user.Email
 	}
 
+	isRestricted := channel.IsRestricted && userID != channel.OwnerId
 	userChannels = UserChannels{
 		ChannelsID: channelID,
 		UserID:     userID,
 		Username:   req.Username,
+		Restricted: isRestricted,
 	}
 
 	err := postgresql.CreateOneRecord(db, &userChannels)
@@ -602,10 +641,12 @@ func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembers
 
 		exist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", channelID, user)
 		if !exist {
+			isRestricted := r.IsRestricted && user != r.OwnerId
 			newUserChannels := UserChannels{
 				ChannelsID: channelID,
 				UserID:     user,
 				Username:   userChannels.Username,
+				Restricted: isRestricted,
 			}
 			validUserIds = append(validUserIds, user)
 			userChanList = append(userChanList, newUserChannels)
@@ -1078,7 +1119,7 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 	chanResp := make(GetUserChannelResp, 0)
 
 	query := db.Model(&Channels{}).
-		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, 'true' AS access").
+		Select("channels.id, channels.name, channels.description, channels.organisation_id, channels.is_private, channels.is_restricted, channels.owner_id, channels.archived, channels.group_id, channels.created_at, uc.mention_count, uc.thread_count, uc.last_thread_id, uc.restricted, 'true' AS access").
 		Joins("JOIN user_channels AS uc ON channels.id = uc.channels_id").
 		Where("channels.organisation_id = ? AND uc.user_id = ? AND channels.archived = FALSE", ids.OrganisationID, ids.UserID)
 
@@ -1870,4 +1911,36 @@ func (h *UserChannelHistory) GetBanishedChannelIDs(db *gorm.DB, userID string) (
 	}
 
 	return uniqueChannelIDs, nil
+}
+
+func (uc *UserChannels) RestrictUserInChannel(db *gorm.DB, channelID, userID string, restricted bool) error {
+	return db.Model(&UserChannels{}).
+		Where("channels_id = ? AND user_id = ?", channelID, userID).
+		Update("restricted", restricted).Error
+}
+
+func (c *Channels) RestrictAllUsersInChannel(db *gorm.DB, channelID string, restricted bool) error {
+	if err := db.Model(&Channels{}).Where("id = ?", channelID).Update("is_restricted", restricted).Error; err != nil {
+		return err
+	}
+
+	var channel Channels
+	if err := db.Where("id = ?", channelID).First(&channel).Error; err != nil {
+		return err
+	}
+
+	return db.Model(&UserChannels{}).
+		Where("channels_id = ? AND user_id != ?", channelID, channel.OwnerId).
+		Update("restricted", restricted).Error
+}
+
+func (uc *UserChannels) IsUserRestricted(db *gorm.DB, channelID, userID string) (bool, error) {
+	var userChan UserChannels
+	err := db.Where("channels_id = ? AND user_id = ?", channelID, userID).First(&userChan).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return userChan.Restricted, nil
 }

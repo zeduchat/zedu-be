@@ -956,3 +956,96 @@ func (base *Controller) GetChannelExportHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) RestrictUser(c *gin.Context) {
+	channelID := c.Param("channelId")
+	targetUserID := c.Param("userId")
+
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if !utility.IsValidUUID(targetUserID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid user id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	currentUserID, _ := userClaims["user_id"].(string)
+
+	var req models.RestrictUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := channel.RestrictUser(base.Db.Postgresql, channelID, targetUserID, currentUserID, *req.Restricted)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	msg := "user restriction updated successfully"
+	rd := utility.BuildSuccessResponse(http.StatusOK, msg, nil)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) RestrictAllUsers(c *gin.Context) {
+	channelID := c.Param("channelId")
+
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	currentUserID, _ := userClaims["user_id"].(string)
+
+	var req models.RestrictUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := channel.RestrictAllUsers(base.Db.Postgresql, channelID, currentUserID, *req.Restricted)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	msg := "channel users restriction status updated successfully"
+	rd := utility.BuildSuccessResponse(http.StatusOK, msg, nil)
+	c.JSON(http.StatusOK, rd)
+}
+
