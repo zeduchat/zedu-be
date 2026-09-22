@@ -1,2 +1,0 @@
-ALTER TABLE credit_usages
-ALTER COLUMN user_id SET NOT NULL;

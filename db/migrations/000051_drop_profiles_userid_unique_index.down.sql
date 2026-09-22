@@ -1,2 +1,0 @@
--- Migration 51 Down: No-op — the standalone unique index on profiles.userid should not be recreated.
--- Recreating it would break multi-profile-per-user (per-org) functionality.
