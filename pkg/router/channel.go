@@ -59,6 +59,8 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 		// PATCH routes
 		channelUrl.PATCH("/:channelId/username", channel.UpdateUsername)
+		channelUrl.PATCH("/:channelId/users/restrict-all", channel.RestrictAllUsers)
+		channelUrl.PATCH("/:channelId/users/:userId/restrict", channel.RestrictUser)
 		channelUrl.PATCH("/:channelId", channel.UpdateChannels)
 	}
 

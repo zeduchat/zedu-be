@@ -1,0 +1,2 @@
+ALTER TABLE user_channels ADD COLUMN IF NOT EXISTS restricted BOOLEAN DEFAULT false;
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_restricted BOOLEAN DEFAULT false;

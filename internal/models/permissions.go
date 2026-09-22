@@ -131,7 +131,6 @@ func GetUserDefaultPermissions() PermissionList {
 	return PermissionList{
 		CanViewChannels:   true,
 		CanEditMessages:   true,
-		CanCreateChannels: true,
 		CanCommentThreads: true,
 	}
 }
