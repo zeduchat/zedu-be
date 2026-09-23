@@ -453,7 +453,7 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *st
 		}
 
 		if expiryTimestamp <= 0 {
-			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusTimeout: '%s' - likely 'don't remove')", req.UserId, expiryTimestamp, req.StatusTimeout)
+			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusTimeout: '%s' - likely 'dont-clear')", req.UserId, expiryTimestamp, req.StatusTimeout)
 		}
 
 		if expiryTimestamp > 0 {

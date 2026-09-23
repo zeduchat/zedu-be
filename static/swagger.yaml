@@ -8677,7 +8677,8 @@ paths:
                   example: false
                 status_timeout:
                   type: string
-                  example: 20 minutes
+                  description: "Expiry duration for status (e.g. '30 minutes', '1 hour', 'today', 'this week', 'dont-clear')"
+                  example: dont-clear
                 clear_status:
                   type: boolean
                   description: set to true to clear current status feilds
@@ -36249,7 +36250,7 @@ components:
           example: false
         status_timeout:
           type: string
-          example: "Don’t remove"
+          example: "dont-clear"
         workspace_id:
           type: string
           example: ""

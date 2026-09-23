@@ -317,3 +317,23 @@ func TestChangeMemberActiveStatus_NonExistentUser(t *testing.T) {
 		t.Errorf("expected error status for non-existent user, got 200")
 	}
 }
+
+func TestParseStatusExpiryDontClear(t *testing.T) {
+	p := models.Profile{}
+	for _, val := range []string{"dont-clear", "don't-clear", "dont clear", "don't clear"} {
+		ts, err := p.ParseStatusExpiry(val)
+		if err != nil {
+			t.Errorf("expected no error for %q, got: %v", val, err)
+		}
+		if ts != 0 {
+			t.Errorf("expected 0 expiry timestamp for %q, got: %d", val, ts)
+		}
+	}
+
+	for _, val := range []string{"don't remove", "dont remove", "do not remove"} {
+		_, err := p.ParseStatusExpiry(val)
+		if err == nil {
+			t.Errorf("expected error for removed expiry value %q, got nil", val)
+		}
+	}
+}
