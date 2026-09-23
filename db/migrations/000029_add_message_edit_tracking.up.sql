@@ -1,1 +1,0 @@
--- Add message edit tracking columns to Postgres
