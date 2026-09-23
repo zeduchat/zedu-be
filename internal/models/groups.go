@@ -109,7 +109,7 @@ func (g *Group) GetGroups(db *storage.Database, ids map[string]string) ([]Group,
 		}
 
 		var countInfo any
-		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		err := elastic.SelectAll(es, ThreadIndexName, query, &countInfo)
 		if err != nil {
 			log.Errorf(context.Background(), "error fetching thread count from elastic: %v", err)
 			return 0
@@ -323,7 +323,7 @@ func (group *Group) GetGroupChannels(db *storage.Database, ids map[string]string
 		}
 
 		var countInfo any
-		err := elastic.SelectAll(es, "threads", query, &countInfo)
+		err := elastic.SelectAll(es, ThreadIndexName, query, &countInfo)
 		if err != nil {
 			log.Errorf(context.Background(), "error fetching thread count from elastic: %v", err)
 			return 0

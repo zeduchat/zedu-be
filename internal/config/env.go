@@ -121,6 +121,7 @@ type BaseConfig struct {
 
 	ELASTIC_URL                string `mapstructure:"ELASTIC_URL"`
 	ELASTIC_API_KEY            string `mapstructure:"ELASTIC_API_KEY"`
+	ELASTIC_INDEX_PREFIX       string `mapstructure:"ELASTIC_INDEX_PREFIX"`
 	FIREBASE_SERVICE_FILE_PATH string `mapstructure:"FIREBASE_SERVICE_FILE_PATH"`
 
 	OPENROUTER_API_KEY  string `mapstructure:"OPENROUTER_API_KEY"`
@@ -276,8 +277,10 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			Exchange:   config.RABBITMQ_EXCHANGE,
 		},
 		Elastic: ElasticDb{
-			ElasticEndpoint: config.ELASTIC_URL,
-			ElasticApiKey:   config.ELASTIC_API_KEY,
+			ElasticEndpoint:    config.ELASTIC_URL,
+			ElasticApiKey:      config.ELASTIC_API_KEY,
+			ElasticIndexPrefix: config.ELASTIC_INDEX_PREFIX,
+			AppMode:            config.APP_MODE,
 		},
 		Firebase: Firebase{
 			ServiceFilePath: config.FIREBASE_SERVICE_FILE_PATH,
