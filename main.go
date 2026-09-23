@@ -51,6 +51,7 @@ func main() {
 	models.SetMapPackagePriceID(configuration.Stripe)
 	rabbitmq.QueueClient.QM = rabbitmq.NewQueueManager(configuration.RabbitMQ)
 	rabbitmq.QueueClient.QM.Start(logger)
+	models.InitIndexNames(configuration.Elastic.ElasticIndexPrefix, configuration.App.Mode)
 	elastic.ConnectToElastic(logger, configuration.Elastic)
 	onesignal.ConnectOneSignal(logger, configuration.OneSignal)
 	apns.ConnectAPNs(logger, configuration.Apple)

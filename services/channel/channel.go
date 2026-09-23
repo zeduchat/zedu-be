@@ -577,6 +577,10 @@ func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, re
 		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
 	}
 
+	if targetUserID == ch.OwnerId && restricted {
+		return http.StatusBadRequest, errors.New("cannot restrict channel owner")
+	}
+
 	exists := postgresql.CheckExists(db, &uc, "channels_id = ? AND user_id = ?", channelID, targetUserID)
 	if !exists {
 		return http.StatusNotFound, errors.New("user is not a member of this channel")

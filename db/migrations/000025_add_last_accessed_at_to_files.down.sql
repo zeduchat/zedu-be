@@ -1,1 +1,0 @@
-ALTER TABLE IF EXISTS files DROP COLUMN IF EXISTS last_accessed_at;
