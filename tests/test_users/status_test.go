@@ -1240,7 +1240,7 @@ func TestEmojiValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("handles 'don't remove' with no job scheduled", func(t *testing.T) {
+	t.Run("handles 'dont-clear' with no job scheduled", func(t *testing.T) {
 		router, authController := setup()
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
@@ -1250,7 +1250,7 @@ func TestEmojiValidation(t *testing.T) {
 
 		payload := map[string]any{
 			"text":   "Permanent status",
-			"expiry": "Don't remove",
+			"expiry": "dont-clear",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1269,10 +1269,10 @@ func TestEmojiValidation(t *testing.T) {
 		}
 
 		if profile.RiverJobID != nil {
-			t.Fatalf("expected river_job_id to be nil for 'don't remove', got %d", *profile.RiverJobID)
+			t.Fatalf("expected river_job_id to be nil for 'dont-clear', got %d", *profile.RiverJobID)
 		}
 		if profile.StatusTimeout != "" {
-			t.Fatalf("expected status_timeout to be empty for 'don't remove', got %s", profile.StatusTimeout)
+			t.Fatalf("expected status_timeout to be empty for 'dont-clear', got %s", profile.StatusTimeout)
 		}
 	})
 }
