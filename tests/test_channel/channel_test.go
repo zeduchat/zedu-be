@@ -285,6 +285,22 @@ func TestChannelsEndpoints(t *testing.T) {
 				}
 
 			}
+
+			if test.Name == "Get Channels Action" {
+				responseData, ok := data["data"].(map[string]interface{})
+				if !ok {
+					t.Fatalf("expected data object in Get Channels Action response")
+				}
+				if _, exists := responseData["users"]; !exists {
+					t.Errorf("expected users field in response")
+				}
+				if _, exists := responseData["total_user_count"]; !exists {
+					t.Errorf("expected total_user_count field in response")
+				}
+				if _, exists := responseData["is_restricted"]; !exists {
+					t.Errorf("expected is_restricted field in response")
+				}
+			}
 		})
 
 	}
