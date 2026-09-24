@@ -332,14 +332,31 @@ func TestSingleUserEnableDisableFlow(t *testing.T) {
 
 	performPostRequest(t, r, fmt.Sprintf("/api/v1/channels/%s/join", channelID), token1, map[string]any{}, http.StatusOK)
 
-	// 1. Initially User 1 can post top-level thread
+	// 1. Initially User 1 can post top-level thread and is not restricted
 	threadReq := models.CreateThreadMsgReq{
 		Content: "<p>Top level thread by User 1</p>",
 	}
 	performPostRequest(t, r, fmt.Sprintf("/api/v1/threads/%s", channelID), token1, threadReq, http.StatusCreated)
 
+	rrGet1 := performGetRequest(t, r, fmt.Sprintf("/api/v1/channels/%s", channelID), token1, http.StatusOK)
+	var respGet1 map[string]interface{}
+	json.NewDecoder(rrGet1.Body).Decode(&respGet1)
+	data1, _ := respGet1["data"].(map[string]interface{})
+	if isRestricted, ok := data1["is_restricted"].(bool); !ok || isRestricted {
+		t.Errorf("expected is_restricted to be false for User 1 initially, got %v", data1["is_restricted"])
+	}
+
 	// 2. Owner restricts User 1 (disable write access)
 	performPatchRequest(t, r, fmt.Sprintf("/api/v1/channels/%s/users/%s/restrict", channelID, user1Model.ID), ownerToken, map[string]bool{"restricted": true}, http.StatusOK)
+
+	// Verify User 1 now sees is_restricted = true on GetChannel
+	rrGet2 := performGetRequest(t, r, fmt.Sprintf("/api/v1/channels/%s", channelID), token1, http.StatusOK)
+	var respGet2 map[string]interface{}
+	json.NewDecoder(rrGet2.Body).Decode(&respGet2)
+	data2, _ := respGet2["data"].(map[string]interface{})
+	if isRestricted, ok := data2["is_restricted"].(bool); !ok || !isRestricted {
+		t.Errorf("expected is_restricted to be true for User 1 when restricted, got %v", data2["is_restricted"])
+	}
 
 	// 3. User 1 attempts top-level thread -> Expect 403 Forbidden
 	performPostRequest(t, r, fmt.Sprintf("/api/v1/threads/%s", channelID), token1, threadReq, http.StatusForbidden)
@@ -349,6 +366,15 @@ func TestSingleUserEnableDisableFlow(t *testing.T) {
 
 	// 5. User 1 posts top-level thread again -> Expect 201 Created
 	performPostRequest(t, r, fmt.Sprintf("/api/v1/threads/%s", channelID), token1, threadReq, http.StatusCreated)
+
+	// Verify User 1 sees is_restricted = false on GetChannel after unrestriction
+	rrGet3 := performGetRequest(t, r, fmt.Sprintf("/api/v1/channels/%s", channelID), token1, http.StatusOK)
+	var respGet3 map[string]interface{}
+	json.NewDecoder(rrGet3.Body).Decode(&respGet3)
+	data3, _ := respGet3["data"].(map[string]interface{})
+	if isRestricted, ok := data3["is_restricted"].(bool); !ok || isRestricted {
+		t.Errorf("expected is_restricted to be false for User 1 after unrestriction, got %v", data3["is_restricted"])
+	}
 
 	// 6. Owner attempts to restrict themselves -> Expect 400 Bad Request
 	performPatchRequest(t, r, fmt.Sprintf("/api/v1/channels/%s/users/%s/restrict", channelID, ownerModel.ID), ownerToken, map[string]bool{"restricted": true}, http.StatusBadRequest)

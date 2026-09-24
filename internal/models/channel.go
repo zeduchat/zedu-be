@@ -103,11 +103,12 @@ type GetChannelResp struct {
 	OwnerEmail     string              `json:"owner_email"`
 	WebhookUrl     string              `json:"webhook_url"`
 	Access         bool                `json:"access"`
+	IsRestricted   bool                `json:"is_restricted"`
 	ActiveBuzz     *ActiveBuzzInfo     `json:"active_buzz,omitempty"`
 	PreviewMedia   []FileMediaResponse `json:"preview_media"`
 	CreatedAt      time.Time           `json:"created_at"`
 	Participants   []Participant       `json:"participants"`
-	PreviewUsers   []Participant       `json:"preview_users"`
+	Users          []Participant       `json:"users"`
 	TotalUserCount int64               `json:"total_user_count"`
 }
 
@@ -469,17 +470,25 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 		}
 	}
 
+	var isRestricted bool
+	if db != nil {
+		_ = db.Postgresql.Table("user_channels").
+			Where("channels_id = ? AND user_id = ?", chanReq.ChannelID, chanReq.UserID).
+			Pluck("restricted", &isRestricted)
+	}
+
 	chanResp = GetChannelResp{
 		Channels:       channel,
 		OwnerName:      owner.Name,
 		OwnerEmail:     owner.Email,
 		WebhookUrl:     webhook.WebhookUrl,
 		Access:         access,
+		IsRestricted:   isRestricted,
 		ActiveBuzz:     activeBuzzInfo,
 		PreviewMedia:   previewMedia,
 		CreatedAt:      channel.CreatedAt,
 		Participants:   participants,
-		PreviewUsers:   previewUsers,
+		Users:          previewUsers,
 		TotalUserCount: count,
 	}
 
