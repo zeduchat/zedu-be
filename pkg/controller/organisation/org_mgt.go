@@ -100,17 +100,18 @@ func (base *Controller) RemoveMemberFromOrganisation(c *gin.Context) {
 	}
 
 	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
-		ActorID:      ownerId,
-		ActorEmail:   ownerEmail,
-		ActorRole:    "user",
-		Action:       models.ActionOrganisationLeft,
-		ResourceType: models.ResourceUser,
-		ResourceID:   userId,
-		NewValues:    string(auditDataJSON),
-		Description:  description,
-		IPAddress:    audit_utility.GetClientIP(c),
-		UserAgent:    c.GetHeader("User-Agent"),
-		Success:      success,
+		ActorID:        ownerId,
+		ActorEmail:     ownerEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionMemberRemoved,
+		ResourceType:   models.ResourceUser,
+		ResourceID:     userId,
+		NewValues:      string(auditDataJSON),
+		Description:    description,
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        success,
 	}); auditErr != nil {
 		base.Logger.Error("Failed to create audit log for user leaving organisation", auditErr)
 	}
@@ -482,6 +483,29 @@ func (base *Controller) ChangeMemberActiveStatus(c *gin.Context) {
 	}
 
 	base.Logger.Info("user %s from organisation %s successfully", status, org_id)
+	adminIDStr, _ := adminUserID.(string)
+	var adminEmail string
+	if adminIDStr != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, adminIDStr, org_id); err == nil {
+			adminEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        adminIDStr,
+		ActorEmail:     adminEmail,
+		ActorRole:      "user",
+		OrganisationID: org_id,
+		Action:         models.ActionMemberStatusUpdated,
+		ResourceType:   models.ResourceUser,
+		ResourceID:     user_id,
+		Description:    fmt.Sprintf("User %s %s user %s in organisation %s", adminEmail, status, user_id, org_id),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for member status update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(code, "success", fmt.Sprintf("user %s successfully", status))
 	c.JSON(code, rd)
 }
@@ -576,6 +600,29 @@ func (base *Controller) UpdateMemberRole(c *gin.Context) {
 	}
 
 	base.Logger.Info("member role updated successfully")
+	ownerIDStr, _ := claims.(string)
+	var ownerEmail string
+	if ownerIDStr != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, ownerIDStr, orgId); err == nil {
+			ownerEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        ownerIDStr,
+		ActorEmail:     ownerEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionMemberRoleUpdated,
+		ResourceType:   models.ResourceUser,
+		ResourceID:     userId,
+		Description:    fmt.Sprintf("User %s updated role to %s for user %s in organisation %s", ownerEmail, req.RoleID, userId, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for member role update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(code, "success", nil)
 	c.JSON(code, rd)
 }

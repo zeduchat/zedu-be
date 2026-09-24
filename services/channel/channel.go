@@ -24,7 +24,17 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		joinChannelsReq models.JoinChannelsRequest
 		chans           models.Channels
 		profile         models.Profile
+		org             models.Organisation
 	)
+
+	isMember, err := org.CheckUserIsMemberOfOrg(req.UserId, req.OrganisationID, db.Postgresql)
+	if err != nil || !isMember {
+		return models.Channels{}, http.StatusForbidden, errors.New("user not authorized to create channel in this organisation")
+	}
+
+	if !CanManageChannelRestrictions(db.Postgresql, models.Channels{OrganisationID: req.OrganisationID}, req.UserId) {
+		return models.Channels{}, http.StatusForbidden, errors.New("user not authorized to create channel")
+	}
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
@@ -45,7 +55,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group in this organisation")
 	}
 
-	err := channel.CreateChannel(db.Postgresql)
+	err = channel.CreateChannel(db.Postgresql)
 	if err != nil {
 		return channel, http.StatusInternalServerError, err
 	}
@@ -249,8 +259,14 @@ func DeleteChannel(db *storage.Database, channelId, userId string) (int, error) 
 		return http.StatusBadRequest, errors.New("cannot delete general channel")
 	}
 
-	if channel.OwnerId != userId {
-		return http.StatusUnauthorized, errors.New("user not authorized")
+	ch := models.Channels{
+		ID:             channel.ID,
+		OwnerId:        channel.OwnerId,
+		OrganisationID: channel.OrganisationID,
+	}
+
+	if !CanManageChannelRestrictions(db.Postgresql, ch, userId) {
+		return http.StatusForbidden, errors.New("user not authorized")
 	}
 	if err != nil {
 		return http.StatusInternalServerError, err
@@ -473,6 +489,15 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
 	var channel models.Channels
 
+	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
+	if !exists {
+		return req.Archived, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if !CanManageChannelRestrictions(db, channel, req.UserId) {
+		return req.Archived, http.StatusForbidden, errors.New("unauthorized, only channel owner or channel manager can perform this operation")
+	}
+
 	status, err := channel.ArchiveChannel(db, channelId, req)
 	if err != nil {
 		return status, http.StatusBadRequest, err
@@ -557,7 +582,7 @@ func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentU
 			return true
 		}
 	}
-	return false
+	return models.UserCanManageChannels(db, currentUserID, channel.OrganisationID)
 }
 
 func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, restricted bool) (int, error) {
@@ -574,7 +599,7 @@ func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, re
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if targetUserID == ch.OwnerId && restricted {
@@ -606,7 +631,7 @@ func RestrictAllUsers(db *gorm.DB, channelID, currentUserID string, restricted b
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if err := ch.RestrictAllUsersInChannel(db, channelID, restricted); err != nil {

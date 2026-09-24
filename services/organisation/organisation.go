@@ -289,6 +289,10 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 		return nil, http.StatusForbidden, errors.New("user not authorised to update this organisation")
 	}
 
+	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
+		return nil, http.StatusForbidden, errors.New("user does not have permission to manage this organisation")
+	}
+
 	if updateReq.Email != "" && updateReq.Email != org.Email {
 		updateReq.Email = strings.ToLower(updateReq.Email)
 		formattedMail, checkBool := utility.EmailValid(updateReq.Email)
@@ -330,12 +334,21 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		org models.Organisation
 	)
 
-	isOwner, err := org.IsOwnerOfOrganisation(db, userId, orgId)
+	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "organisation not found" {
+			return errors.New("failed to retrieve organisation: organisation not found")
+		}
 		return err
 	}
-	if !isOwner {
-		return errors.New("user not authorised to delete organisation")
+
+	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
+	if err != nil || !isMember {
+		return errors.New("user not authorised to delete this organisation")
+	}
+
+	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
+		return errors.New("user not authorised to delete this organisation")
 	}
 
 	org.ID = orgId
@@ -534,6 +547,11 @@ func RemoveMemberFromOrganisation(initiatingUserID, orgId, targetUserID string, 
 		orgmgt models.OrgUserManagement
 	)
 
+	isMember, err := org.CheckUserIsMemberOfOrg(initiatingUserID, orgId, db.Postgresql)
+	if err != nil || !isMember {
+		return errors.New("initiating user is not a member of organisation")
+	}
+
 	isSelf := initiatingUserID == targetUserID
 	isOwner, _ := org.IsOwnerOfOrganisation(db.Postgresql, initiatingUserID, orgId)
 	canManage := isSelf || isOwner || userCanOrOwner(db.Postgresql, initiatingUserID, orgId, models.PermChangeUserOrgRole)
@@ -542,7 +560,7 @@ func RemoveMemberFromOrganisation(initiatingUserID, orgId, targetUserID string, 
 		return errors.New("user is not authorised to remove member from organisation")
 	}
 
-	err := orgmgt.RemoveMemberFromOrganisation(db, orgId, targetUserID, logger)
+	err = orgmgt.RemoveMemberFromOrganisation(db, orgId, targetUserID, logger)
 	if err != nil {
 		return err
 	}
@@ -556,12 +574,12 @@ func AddMemberToOrganisation(ownerId, orgId string, req models.OrgUserCreateRequ
 		orgmgt models.OrgUserManagement
 	)
 
-	isowner, err := org.IsOwnerOfOrganisation(db, ownerId, orgId)
-	if err != nil {
-		return http.StatusInternalServerError, err
+	isMember, err := org.CheckUserIsMemberOfOrg(ownerId, orgId, db)
+	if err != nil || !isMember {
+		return http.StatusForbidden, errors.New("user is not a member of the organisation")
 	}
 
-	if !isowner {
+	if !isUserOwnerOrOwnerRole(db, ownerId, orgId) && !userCanOrOwner(db, ownerId, orgId, models.PermManageMembers) {
 		return http.StatusForbidden, errors.New("user is not the owner of the organisation")
 	}
 

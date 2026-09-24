@@ -249,16 +249,22 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 	message.ID = req.MessageId
 
 	updateKey := map[string]any{
-		"message": req.Content,
-		"edited":  true,
+		"message":  req.Content,
+		"edited":   true,
+		"mentions": req.Mentions,
 	}
 
 	if _, err := message.UpdateMessage(db, updateKey); err != nil {
 		return &newMsg, http.StatusNotFound, err
 	}
 
-	if err := thread.DetectAndAddMentions(message.ID, req.Content, db); err != nil {
-		return nil, http.StatusBadRequest, err
+	if len(req.Mentions) > 0 {
+		var userChan models.UserChannels
+		userChan.ChannelsID = req.ChannelsId
+		userChan.UserID = userID
+		userChan.OrgId = req.OrgId
+		mutex := &sync.Mutex{}
+		userChan.ProcessMentions(db, req.Mentions, mutex, logger)
 	}
 
 	err = newMsg.GetMessageById(db, message.ID)
