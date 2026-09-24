@@ -35635,11 +35635,35 @@ components:
                 type: string
                 format: uuid
                 example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+              is_restricted:
+                type: boolean
+                example: false
+                description: "Indicates if the requesting user is restricted in this channel"
               users:
                 type: array
                 items:
-                  type: string
-                nullable: true
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                      format: uuid
+                      example: "019146f6-fd9b-7293-a5d2-b05ba6be2185"
+                    username:
+                      type: string
+                      example: "john_doe"
+                    avatar_url:
+                      type: string
+                      example: "https://example.com/avatar.png"
+                    is_admin:
+                      type: boolean
+                      example: false
+                    role:
+                      type: string
+                      example: "user"
+              total_user_count:
+                type: integer
+                format: int64
+                example: 10
               user_count:
                 type: integer
                 example: 1
