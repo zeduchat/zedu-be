@@ -541,6 +541,22 @@ func GetUserNotInChannels(db *gorm.DB, ids models.IDS) (models.GetUserNotChannel
 	return userchannels, nil
 }
 
+func UserCanManageChannels(db *gorm.DB, userID, orgID string) bool {
+	var oum models.OrgUserManagement
+	membership, err := oum.GetByIDs(db, userID, orgID)
+	if err != nil || membership.RoleID == "" {
+		return false
+	}
+
+	var orgRole models.OrgRole
+	role, err := orgRole.GetAOrgRoleById(db, membership.RoleID)
+	if err != nil {
+		return false
+	}
+
+	return models.OrgUserHasPermission(role.Permissions.PermissionList, models.PermManageChannels)
+}
+
 func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentUserID string) bool {
 	if channel.OwnerId == currentUserID {
 		return true
@@ -557,7 +573,7 @@ func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentU
 			return true
 		}
 	}
-	return false
+	return UserCanManageChannels(db, currentUserID, channel.OrganisationID)
 }
 
 func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, restricted bool) (int, error) {
