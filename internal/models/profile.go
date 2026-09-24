@@ -644,7 +644,24 @@ func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string,
 		return baseProfile, nil
 	}
 
-	return CreateInitialDefaultProfile(db, userID, orgID, appLogger)
+	targetOrgForInitial := orgID
+	if orgID != "" {
+		orgInUserOrgs := false
+		for _, oid := range userOrgIDs {
+			if oid == orgID {
+				orgInUserOrgs = true
+				break
+			}
+		}
+		if !orgInUserOrgs {
+			if len(userOrgIDs) > 0 {
+				targetOrgForInitial = userOrgIDs[0]
+			} else {
+				targetOrgForInitial = ""
+			}
+		}
+	}
+	return CreateInitialDefaultProfile(db, userID, targetOrgForInitial, appLogger)
 }
 
 func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) {
@@ -658,7 +675,14 @@ func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existi
 	}
 
 	availableOrgs := make([]string, 0)
-	if orgID != "" && !assignedOrgs[orgID] {
+	orgInUserOrgs := false
+	for _, oid := range userOrgIDs {
+		if oid == orgID {
+			orgInUserOrgs = true
+			break
+		}
+	}
+	if orgID != "" && !assignedOrgs[orgID] && orgInUserOrgs {
 		availableOrgs = append(availableOrgs, orgID)
 	}
 	for _, oid := range userOrgIDs {
@@ -694,18 +718,6 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 
 	allOrgIDs := make([]string, len(userOrgIDs))
 	copy(allOrgIDs, userOrgIDs)
-	if orgID != "" {
-		found := false
-		for _, o := range allOrgIDs {
-			if o == orgID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			allOrgIDs = append(allOrgIDs, orgID)
-		}
-	}
 
 	existingOrgMap := make(map[string]Profile)
 	for _, prof := range existingProfiles {

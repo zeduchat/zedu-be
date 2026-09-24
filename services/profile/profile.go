@@ -207,7 +207,8 @@ func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file
 			targetOrg = orgId[0]
 		}
 
-		filename := fmt.Sprintf("profile_pic_%s_%d.%s", userID, time.Now().UnixNano(), ext)
+		cleanExt := strings.TrimPrefix(ext, ".")
+		filename := fmt.Sprintf("profile_pic_%s_%d.%s", userID, time.Now().UnixNano(), cleanExt)
 
 		avatarURL, err := GetUserProfileImageURL(db, userID, targetOrg)
 		if err != nil {
