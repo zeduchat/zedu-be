@@ -541,22 +541,6 @@ func GetUserNotInChannels(db *gorm.DB, ids models.IDS) (models.GetUserNotChannel
 	return userchannels, nil
 }
 
-func UserCanManageChannels(db *gorm.DB, userID, orgID string) bool {
-	var oum models.OrgUserManagement
-	membership, err := oum.GetByIDs(db, userID, orgID)
-	if err != nil || membership.RoleID == "" {
-		return false
-	}
-
-	var orgRole models.OrgRole
-	role, err := orgRole.GetAOrgRoleById(db, membership.RoleID)
-	if err != nil {
-		return false
-	}
-
-	return models.OrgUserHasPermission(role.Permissions.PermissionList, models.PermManageChannels)
-}
-
 func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentUserID string) bool {
 	if channel.OwnerId == currentUserID {
 		return true
@@ -573,7 +557,7 @@ func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentU
 			return true
 		}
 	}
-	return UserCanManageChannels(db, currentUserID, channel.OrganisationID)
+	return models.UserCanManageChannels(db, currentUserID, channel.OrganisationID)
 }
 
 func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, restricted bool) (int, error) {
@@ -590,7 +574,7 @@ func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, re
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if targetUserID == ch.OwnerId && restricted {
@@ -622,7 +606,7 @@ func RestrictAllUsers(db *gorm.DB, channelID, currentUserID string, restricted b
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if err := ch.RestrictAllUsersInChannel(db, channelID, restricted); err != nil {
