@@ -557,7 +557,7 @@ func CanManageChannelRestrictions(db *gorm.DB, channel models.Channels, currentU
 			return true
 		}
 	}
-	return false
+	return models.UserCanManageChannels(db, currentUserID, channel.OrganisationID)
 }
 
 func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, restricted bool) (int, error) {
@@ -574,7 +574,7 @@ func RestrictUser(db *gorm.DB, channelID, targetUserID, currentUserID string, re
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if targetUserID == ch.OwnerId && restricted {
@@ -606,7 +606,7 @@ func RestrictAllUsers(db *gorm.DB, channelID, currentUserID string, restricted b
 	}
 
 	if !CanManageChannelRestrictions(db, ch, currentUserID) {
-		return http.StatusForbidden, errors.New("permission denied: only channel owner, superadmin, or organisation owner can restrict users")
+		return http.StatusForbidden, errors.New("permission denied: you do not have permission to manage channel restrictions")
 	}
 
 	if err := ch.RestrictAllUsersInChannel(db, channelID, restricted); err != nil {
