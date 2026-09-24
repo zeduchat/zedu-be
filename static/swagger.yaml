@@ -2790,7 +2790,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MessageCreateSchema"
+              $ref: "#/components/schemas/EditMessageSchema"
       responses:
         "201":
           description: Message created successfully
@@ -13828,7 +13828,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MessageCreateSchema"
+              $ref: "#/components/schemas/EditMessageSchema"
       responses:
         "200":
           description: Message updated successfully
@@ -24213,16 +24213,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                content:
-                  type: string
-                thread_id:
-                  type: string
-                  format: uuid
-                message_id:
-                  type: string
-                  format: uuid
+              $ref: "#/components/schemas/EditMessageSchema"
       responses:
         201:
           description: Message updated successfully
@@ -35747,6 +35738,42 @@ components:
                 example: "https://example.com/file.png"
         mentions:
           type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [bot, user]
+                example: "bot"
+              id:
+                type: string
+                format: uuid
+                example: "550e8400-e29b-41d4-a716-446655440000"
+
+    EditMessageSchema:
+      type: object
+      required:
+        - content
+        - thread_id
+        - message_id
+      properties:
+        content:
+          type: string
+          description: Content of the message
+          example: "Updated message text"
+        thread_id:
+          type: string
+          format: uuid
+          description: Thread ID
+          example: "019bafb8-c2b8-7016-b7a2-ad4c48a9d86e"
+        message_id:
+          type: string
+          format: uuid
+          description: Message ID
+          example: "01a00ab2-14a5-7f57-b49b-c6c654cc7fb5"
+        mentions:
+          type: array
+          description: List of mentioned users or bots
           items:
             type: object
             properties:
