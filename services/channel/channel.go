@@ -249,8 +249,14 @@ func DeleteChannel(db *storage.Database, channelId, userId string) (int, error) 
 		return http.StatusBadRequest, errors.New("cannot delete general channel")
 	}
 
-	if channel.OwnerId != userId {
-		return http.StatusUnauthorized, errors.New("user not authorized")
+	ch := models.Channels{
+		ID:             channel.ID,
+		OwnerId:        channel.OwnerId,
+		OrganisationID: channel.OrganisationID,
+	}
+
+	if !CanManageChannelRestrictions(db.Postgresql, ch, userId) {
+		return http.StatusForbidden, errors.New("user not authorized")
 	}
 	if err != nil {
 		return http.StatusInternalServerError, err
@@ -472,6 +478,15 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 
 func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
 	var channel models.Channels
+
+	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
+	if !exists {
+		return req.Archived, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if !CanManageChannelRestrictions(db, channel, req.UserId) {
+		return req.Archived, http.StatusForbidden, errors.New("unauthorized, only channel owner or channel manager can perform this operation")
+	}
 
 	status, err := channel.ArchiveChannel(db, channelId, req)
 	if err != nil {

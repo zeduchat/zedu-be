@@ -585,10 +585,6 @@ func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChan
 		return req.Archived, errors.New("channel does not exist")
 	}
 
-	if req.UserId == channel.OwnerId {
-		return req.Archived, errors.New("unauthorized, only channel owner can perform this operation")
-	}
-
 	err := db.Raw("SELECT id, COALESCE(archived, false) as archived FROM channels WHERE id = ?", channelId).Scan(&channel).Error
 	if err != nil {
 		return req.Archived, errors.New("could not fetch current channel state")

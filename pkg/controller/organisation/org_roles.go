@@ -1,6 +1,7 @@
 package organisation
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,9 +9,11 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
+	"github.com/hngprojects/telex_be/pkg/middleware/common"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 type Controller struct {
@@ -95,6 +98,30 @@ func (base *Controller) CreateOrgRole(c *gin.Context) {
 	}
 
 	base.Logger.Info("org role created successfully")
+	userClaims := common.GetAllUserClaims(c)
+	actorID, _ := userClaims["user_id"].(string)
+	var actorEmail string
+	if actorID != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, actorID, orgId); err == nil {
+			actorEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        actorID,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionRoleCreated,
+		ResourceType:   models.ResourceRole,
+		ResourceID:     req.Name,
+		Description:    fmt.Sprintf("User %s created org role %s in organisation %s", actorEmail, req.Name, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for org role creation: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Org role created successfully", respData)
 
 	c.JSON(http.StatusCreated, rd)
@@ -112,6 +139,31 @@ func (base *Controller) DeleteOrgRole(c *gin.Context) {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
 		c.JSON(code, rd)
 		return
+	}
+
+	userClaims := common.GetAllUserClaims(c)
+	actorID, _ := userClaims["user_id"].(string)
+	var actorEmail string
+	if actorID != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, actorID, orgId); err == nil {
+			actorEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        actorID,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionRoleDeleted,
+		ResourceType:   models.ResourceRole,
+		ResourceID:     roleId,
+		Description:    fmt.Sprintf("User %s deleted org role %s in organisation %s", actorEmail, roleId, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for org role deletion: " + auditErr.Error())
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Role deleted successfully", nil)
@@ -149,6 +201,30 @@ func (base *Controller) UpdateOrgRole(c *gin.Context) {
 	}
 
 	base.Logger.Info("org role updated successfully")
+	userClaims := common.GetAllUserClaims(c)
+	actorID, _ := userClaims["user_id"].(string)
+	var actorEmail string
+	if actorID != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, actorID, orgId); err == nil {
+			actorEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        actorID,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionRoleUpdated,
+		ResourceType:   models.ResourceRole,
+		ResourceID:     roleId,
+		Description:    fmt.Sprintf("User %s updated org role %s in organisation %s", actorEmail, roleId, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for org role update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Org role updated successfully", respData)
 
 	c.JSON(http.StatusOK, rd)
@@ -185,6 +261,30 @@ func (base *Controller) UpdateOrgPermissions(c *gin.Context) {
 	}
 
 	base.Logger.Info("permission updated successfully")
+	userClaims := common.GetAllUserClaims(c)
+	actorID, _ := userClaims["user_id"].(string)
+	var actorEmail string
+	if actorID != "" {
+		var user models.User
+		if actor, err := user.GetUserByID(base.Db.Postgresql, actorID, orgId); err == nil {
+			actorEmail = actor.Email
+		}
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        actorID,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionPermissionsUpdated,
+		ResourceType:   models.ResourceRole,
+		ResourceID:     roleId,
+		Description:    fmt.Sprintf("User %s updated permissions for role %s in organisation %s", actorEmail, roleId, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for permissions update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Permissions updated successfully", nil)
 
 	c.JSON(http.StatusOK, rd)

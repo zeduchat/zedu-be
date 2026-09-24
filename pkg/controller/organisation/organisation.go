@@ -55,6 +55,26 @@ func (base *Controller) CreateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation created successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, userId); err == nil {
+		actorEmail = actor.Email
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        userId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: respData.ID,
+		Action:         models.ActionOrganisationCreated,
+		ResourceType:   models.ResourceOrganisation,
+		ResourceID:     respData.ID,
+		Description:    fmt.Sprintf("User %s created organisation %s (%s)", actorEmail, respData.Name, respData.ID),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for organisation creation: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Organisation Created Successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
@@ -191,6 +211,26 @@ func (base *Controller) UpdateOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation updated successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, userId); err == nil {
+		actorEmail = actor.Email
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        userId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionOrganisationUpdated,
+		ResourceType:   models.ResourceOrganisation,
+		ResourceID:     orgId,
+		Description:    fmt.Sprintf("User %s updated organisation %s", actorEmail, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for organisation update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Organisation updated successfully", updatedOrg)
 	c.JSON(http.StatusOK, rd)
 }
@@ -230,6 +270,26 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation deleted successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, userId); err == nil {
+		actorEmail = actor.Email
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        userId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionOrganisationDeleted,
+		ResourceType:   models.ResourceOrganisation,
+		ResourceID:     orgId,
+		Description:    fmt.Sprintf("User %s deleted organisation %s", actorEmail, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for organisation deletion: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusNoContent, "", nil)
 	c.JSON(http.StatusNoContent, rd)
 }
@@ -277,16 +337,17 @@ func (base *Controller) AddUserToOrganisation(c *gin.Context) {
 	}
 
 	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
-		ActorID:      actorID,
-		ActorEmail:   actorEmail,
-		ActorRole:    "user",
-		Action:       models.ActionOrganisationJoined,
-		ResourceType: models.ResourceUser,
-		ResourceID:   req.UserId,
-		Description:  description,
-		IPAddress:    audit_utility.GetClientIP(c),
-		UserAgent:    c.GetHeader("User-Agent"),
-		Success:      success,
+		ActorID:        actorID,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionOrganisationJoined,
+		ResourceType:   models.ResourceUser,
+		ResourceID:     req.UserId,
+		Description:    description,
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        success,
 	}); auditErr != nil {
 		base.Logger.Error("failed to create audit log for organisation join: " + auditErr.Error())
 	}

@@ -29,13 +29,14 @@ type LoginActivity struct {
 }
 
 type AuditLog struct {
-	ID           string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
-	ActorID      string       `gorm:"type:uuid;not null;index" json:"actor_id"`
-	ActorEmail   string       `gorm:"type:varchar(255)" json:"actor_email"`
-	ActorRole    string       `gorm:"type:varchar(50)" json:"actor_role"`
-	Action       AuditAction  `gorm:"type:varchar(100);not null;index" json:"action"`
-	ResourceType ResourceType `gorm:"type:varchar(50);index" json:"resource_type"`
-	ResourceID   string       `gorm:"type:varchar(100);index" json:"resource_id"`
+	ID             string       `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
+	ActorID        string       `gorm:"type:uuid;not null;index" json:"actor_id"`
+	ActorEmail     string       `gorm:"type:varchar(255)" json:"actor_email"`
+	ActorRole      string       `gorm:"type:varchar(50)" json:"actor_role"`
+	OrganisationID string       `gorm:"type:varchar(100);index" json:"organisation_id"`
+	Action         AuditAction  `gorm:"type:varchar(100);not null;index" json:"action"`
+	ResourceType   ResourceType `gorm:"type:varchar(50);index" json:"resource_type"`
+	ResourceID     string       `gorm:"type:varchar(100);index" json:"resource_id"`
 
 	OldValues string `gorm:"type:jsonb" json:"old_values"` // Stores JSON string of state before
 	NewValues string `gorm:"type:jsonb" json:"new_values"` // Stores JSON string of state after
@@ -57,6 +58,9 @@ const (
 	ResourceSystem       ResourceType = "system"
 	ResourceData         ResourceType = "data"
 	ResourceNotification ResourceType = "notification"
+	ResourceOrganisation ResourceType = "organisation"
+	ResourceChannel      ResourceType = "channel"
+	ResourceRole         ResourceType = "role"
 )
 
 type AuditAction string
@@ -75,6 +79,25 @@ const (
 	ActionProfileUpdate      AuditAction = "user.profile_update"
 	ActionOrganisationJoined AuditAction = "user.joined_organisation"
 	ActionOrganisationLeft   AuditAction = "user.left_organisation"
+
+	// Organisation Actions
+	ActionOrganisationCreated AuditAction = "organisation.create"
+	ActionOrganisationUpdated AuditAction = "organisation.update"
+	ActionOrganisationDeleted AuditAction = "organisation.delete"
+	ActionMemberRemoved       AuditAction = "organisation.member_removed"
+
+	// Roles & Permissions Actions
+	ActionRoleCreated         AuditAction = "role.create"
+	ActionRoleUpdated         AuditAction = "role.update"
+	ActionRoleDeleted         AuditAction = "role.delete"
+	ActionPermissionsUpdated  AuditAction = "role.permissions_update"
+	ActionMemberRoleUpdated   AuditAction = "user.role_update"
+	ActionMemberStatusUpdated AuditAction = "user.status_update"
+
+	// Channel Actions
+	ActionChannelCreated AuditAction = "channel.create"
+	ActionChannelUpdated AuditAction = "channel.update"
+	ActionChannelDeleted AuditAction = "channel.delete"
 )
 
 func (l *LoginActivity) Create(db *gorm.DB) error {
