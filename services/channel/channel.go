@@ -24,7 +24,17 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		joinChannelsReq models.JoinChannelsRequest
 		chans           models.Channels
 		profile         models.Profile
+		org             models.Organisation
 	)
+
+	isMember, err := org.CheckUserIsMemberOfOrg(req.UserId, req.OrganisationID, db.Postgresql)
+	if err != nil || !isMember {
+		return models.Channels{}, http.StatusForbidden, errors.New("user not authorized to create channel in this organisation")
+	}
+
+	if !CanManageChannelRestrictions(db.Postgresql, models.Channels{OrganisationID: req.OrganisationID}, req.UserId) {
+		return models.Channels{}, http.StatusForbidden, errors.New("user not authorized to create channel")
+	}
 
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
@@ -45,7 +55,7 @@ func CreateChannel(req models.CreateChannelsRequest, db *storage.Database, logge
 		return channel, http.StatusBadRequest, errors.New("that name is already taken by a channel, username, or user group in this organisation")
 	}
 
-	err := channel.CreateChannel(db.Postgresql)
+	err = channel.CreateChannel(db.Postgresql)
 	if err != nil {
 		return channel, http.StatusInternalServerError, err
 	}
