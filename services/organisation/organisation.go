@@ -289,6 +289,10 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 		return nil, http.StatusForbidden, errors.New("user not authorised to update this organisation")
 	}
 
+	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
+		return nil, http.StatusForbidden, errors.New("user does not have permission to manage this organisation")
+	}
+
 	if updateReq.Email != "" && updateReq.Email != org.Email {
 		updateReq.Email = strings.ToLower(updateReq.Email)
 		formattedMail, checkBool := utility.EmailValid(updateReq.Email)
