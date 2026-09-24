@@ -236,7 +236,7 @@ func PerformSearchWithMultipleIndices(client *elasticsearch.Client, query map[st
 	ctx := context.Background()
 	res, err := client.Search(
 		client.Search.WithContext(ctx),
-		client.Search.WithIndex(ThreadIndex, MessageIndex),
+		client.Search.WithIndex(ThreadIndexName, MessageIndexName),
 		client.Search.WithBody(&buf),
 		client.Search.WithTrackTotalHits(true),
 	)
@@ -305,7 +305,7 @@ func PerformSearchWithMultipleIndicesPagination[T any](client *elasticsearch.Cli
 	ctx := context.Background()
 	res, err := client.Search(
 		client.Search.WithContext(ctx),
-		client.Search.WithIndex(ThreadIndex, MessageIndex),
+		client.Search.WithIndex(ThreadIndexName, MessageIndexName),
 		client.Search.WithBody(&buf),
 		client.Search.WithTrackTotalHits(true),
 	)

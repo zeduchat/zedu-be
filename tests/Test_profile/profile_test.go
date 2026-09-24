@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -78,6 +79,10 @@ func TestProfileFlow(t *testing.T) {
 		if err := db.Create(&testUser).Error; err != nil {
 			t.Fatalf("Failed to create test user: %v", err)
 		}
+		db.Create(&models.Organisation{ID: org1, Name: "Org 1", OwnerID: uID})
+		db.Create(&models.Organisation{ID: org2, Name: "Org 2", OwnerID: uID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org1)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org2)
 
 		var profModel models.Profile
 		profOrg1, err := profModel.GetOrCreateProfileForOrg(db, uID, org1)
@@ -129,6 +134,10 @@ func TestProfileFlow(t *testing.T) {
 		userID := testUser.ID
 		orgA := utility.GenerateUUID()
 		orgB := utility.GenerateUUID()
+		db.Create(&models.Organisation{ID: orgA, Name: "Org A", OwnerID: userID})
+		db.Create(&models.Organisation{ID: orgB, Name: "Org B", OwnerID: userID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", userID, orgA)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", userID, orgB)
 
 		dummyFile := []byte("dummy image content")
 		url1, err := profileService.UploadProfileImage(profileController.Logger, db, userID, dummyFile, "png", orgA)
@@ -220,6 +229,10 @@ func TestProfileFlow(t *testing.T) {
 		if err := db.Create(&testUser).Error; err != nil {
 			t.Fatalf("Failed to create test user: %v", err)
 		}
+		db.Create(&models.Organisation{ID: org1, Name: "Org 1", OwnerID: uID})
+		db.Create(&models.Organisation{ID: org2, Name: "Org 2", OwnerID: uID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org1)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org2)
 
 		var profModel models.Profile
 		prof1, _ := profModel.GetOrCreateProfileForOrg(db, uID, org1)
@@ -253,6 +266,10 @@ func TestProfileFlow(t *testing.T) {
 		if err := db.Create(&testUser).Error; err != nil {
 			t.Fatalf("Failed to create test user: %v", err)
 		}
+		db.Create(&models.Organisation{ID: org1, Name: "Org 1", OwnerID: uID})
+		db.Create(&models.Organisation{ID: org2, Name: "Org 2", OwnerID: uID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org1)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org2)
 
 		var profModel models.Profile
 		prof1, _ := profModel.GetOrCreateProfileForOrg(db, uID, org1)
@@ -291,6 +308,10 @@ func TestProfileFlow(t *testing.T) {
 		if err := db.Create(&testUser).Error; err != nil {
 			t.Fatalf("Failed to create test user: %v", err)
 		}
+		db.Create(&models.Organisation{ID: org1, Name: "Org 1", OwnerID: uID})
+		db.Create(&models.Organisation{ID: org2, Name: "Org 2", OwnerID: uID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org1)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, org2)
 
 		var profModel models.Profile
 		prof1, _ := profModel.GetOrCreateProfileForOrg(db, uID, org1)
@@ -329,6 +350,10 @@ func TestProfileFlow(t *testing.T) {
 		db.Create(&user1)
 		db.Create(&user2)
 		db.Create(&user3)
+		db.Create(&models.Organisation{ID: orgID, Name: "Org Bulk", OwnerID: uID1})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID1, orgID)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID2, orgID)
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID3, orgID)
 
 		var profModel models.Profile
 		inputUserIDs := []string{uID1, uID2, uID3, "WEBHOOK", ""}
@@ -365,5 +390,67 @@ func TestProfileFlow(t *testing.T) {
 			t.Errorf("Expected hydrated thread[0] FullName 'User One', got %s", hydratedThreads[0].FullName)
 		}
 	})
+
+	t.Run("Prevent Non-Member Org Profile Creation Leak Test", func(t *testing.T) {
+		uID := utility.GenerateUUID()
+		testUser := models.User{
+			ID:    uID,
+			Name:  "Member User",
+			Email: fmt.Sprintf("member%s@qa.team", utility.GenerateUUID()),
+		}
+		if err := db.Create(&testUser).Error; err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+
+		memberOrg := utility.GenerateUUID()
+		nonMemberOrg := utility.GenerateUUID()
+
+		db.Create(&models.Organisation{ID: memberOrg, Name: "Member Org", OwnerID: uID})
+		db.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", uID, memberOrg)
+
+		var profModel models.Profile
+		prof, err := profModel.GetOrCreateProfileForOrg(db, uID, nonMemberOrg)
+		if err != nil {
+			t.Fatalf("GetOrCreateProfileForOrg returned unexpected error: %v", err)
+		}
+
+		var count int64
+		db.Model(&models.Profile{}).Where("userid = ? AND organisation_id = ?", uID, nonMemberOrg).Count(&count)
+		if count != 0 {
+			t.Errorf("Expected 0 profiles created for non-member org %s, got %d", nonMemberOrg, count)
+		}
+
+		if prof.OrganisationID != nil && *prof.OrganisationID == nonMemberOrg {
+			t.Errorf("Returned profile should not be assigned to non-member org %s", nonMemberOrg)
+		}
+	})
+
+	t.Run("UploadProfileImage Extension Dot Handling Test", func(t *testing.T) {
+		uID := utility.GenerateUUID()
+		testUser := models.User{
+			ID:    uID,
+			Name:  "Extension User",
+			Email: fmt.Sprintf("extuser%s@qa.team", utility.GenerateUUID()),
+		}
+		if err := db.Create(&testUser).Error; err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+
+		orgID := utility.GenerateUUID()
+		dummyFile := []byte("dummy image content")
+
+		urlWithDot, err := profileService.UploadProfileImage(profileController.Logger, db, uID, dummyFile, ".jpeg", orgID)
+		if err != nil {
+			t.Fatalf("UploadProfileImage failed: %v", err)
+		}
+
+		if strings.Contains(urlWithDot, "..jpeg") {
+			t.Errorf("Expected single dot extension in URL, got double dot: %s", urlWithDot)
+		}
+		if !strings.HasSuffix(urlWithDot, ".jpeg") {
+			t.Errorf("Expected URL to end with .jpeg, got: %s", urlWithDot)
+		}
+	})
 }
+
 

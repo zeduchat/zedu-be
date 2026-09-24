@@ -218,9 +218,10 @@ func RegisterCustomValidations(v *validator.Validate) {
 			"1 hr",
 			"today",
 			"this week",
-			"don't remove",
-			"dont remove",
-			"do not remove",
+			"dont-clear",
+			"don't-clear",
+			"dont clear",
+			"don't clear",
 		}
 
 		for _, opt := range validOptions {

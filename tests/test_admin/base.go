@@ -41,6 +41,10 @@ func SetupAdminTestRouter() (*gin.Engine, *auth.Controller, *utility.Logger, *st
 	db := storage.Connection()
 	validator := validator.New()
 
+	// Clean up any orphaned credit test records without existing organisations
+	_ = db.Postgresql.Exec("DELETE FROM credit_usages WHERE organisation_id NOT IN (SELECT id FROM organisations)").Error
+	_ = db.Postgresql.Exec("DELETE FROM credit_transactions WHERE organisation_id NOT IN (SELECT id FROM organisations)").Error
+
 	authController := &auth.Controller{
 		Db:        db,
 		Validator: validator,

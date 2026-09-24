@@ -207,7 +207,8 @@ func UploadProfileImage(logger *utility.Logger, db *gorm.DB, userID string, file
 			targetOrg = orgId[0]
 		}
 
-		filename := fmt.Sprintf("profile_pic_%s_%d.%s", userID, time.Now().UnixNano(), ext)
+		cleanExt := strings.TrimPrefix(ext, ".")
+		filename := fmt.Sprintf("profile_pic_%s_%d.%s", userID, time.Now().UnixNano(), cleanExt)
 
 		avatarURL, err := GetUserProfileImageURL(db, userID, targetOrg)
 		if err != nil {
@@ -453,7 +454,7 @@ func UpdateProfileStatusWithJobScheduling(req models.UpdateProfileStatus, db *st
 		}
 
 		if expiryTimestamp <= 0 {
-			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusTimeout: '%s' - likely 'don't remove')", req.UserId, expiryTimestamp, req.StatusTimeout)
+			logger.Info("Skipping clear status job scheduling for user %s: expiryTimestamp is %d (StatusTimeout: '%s' - likely 'dont-clear')", req.UserId, expiryTimestamp, req.StatusTimeout)
 		}
 
 		if expiryTimestamp > 0 {

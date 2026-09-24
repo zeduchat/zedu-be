@@ -53,6 +53,7 @@ func Setup() *utility.Logger {
 		redis.ConnectToRedis(logger, config.Redis)
 		typesense.ConnectToTypeSense(logger, config.TypeSense)
 		centrifuge.NewCentrifugoService(logger, config.Centrifuge)
+		models.InitIndexNames(config.Elastic.ElasticIndexPrefix, config.App.Mode)
 		elastic.ConnectToElastic(logger, config.Elastic)
 		minio.ConnectToMinio(logger, config.Minio)
 		agora.NewAgoraService(logger, config.Agora)

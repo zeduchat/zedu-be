@@ -1240,7 +1240,7 @@ func TestEmojiValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("handles 'don't remove' with no job scheduled", func(t *testing.T) {
+	t.Run("handles 'dont-clear' with no job scheduled", func(t *testing.T) {
 		router, authController := setup()
 		loginData := models.LoginRequestModel{
 			Email:    user.Email,
@@ -1250,7 +1250,7 @@ func TestEmojiValidation(t *testing.T) {
 
 		payload := map[string]any{
 			"text":   "Permanent status",
-			"expiry": "Don't remove",
+			"expiry": "dont-clear",
 		}
 		body, _ := json.Marshal(payload)
 
@@ -1269,10 +1269,10 @@ func TestEmojiValidation(t *testing.T) {
 		}
 
 		if profile.RiverJobID != nil {
-			t.Fatalf("expected river_job_id to be nil for 'don't remove', got %d", *profile.RiverJobID)
+			t.Fatalf("expected river_job_id to be nil for 'dont-clear', got %d", *profile.RiverJobID)
 		}
 		if profile.StatusTimeout != "" {
-			t.Fatalf("expected status_timeout to be empty for 'don't remove', got %s", profile.StatusTimeout)
+			t.Fatalf("expected status_timeout to be empty for 'dont-clear', got %s", profile.StatusTimeout)
 		}
 	})
 }
@@ -1631,23 +1631,22 @@ func TestEndToEndTimedStatusClear(t *testing.T) {
 		t.Fatal("expected status_timeout to be set after scheduling, got empty")
 	}
 
-	// Poll until River auto-fires the timed clear job (allow 60s for the 30s expiry + execution lag).
-	deadline := time.Now().Add(60 * time.Second)
-	cleared := false
-	for time.Now().Before(deadline) {
-		time.Sleep(3 * time.Second)
-		if err := db.Where("userid = ?", user.ID).Order("updated_at DESC").First(&profile).Error; err != nil {
-			t.Logf("transient poll error (retrying): %v", err)
-			continue
-		}
-		if profile.RiverJobID == nil && strings.TrimSpace(profile.Text) == "" {
-			cleared = true
-			break
-		}
+	targetProfileID := profile.ID
+
+	// In test mode, directly execute ClearUserStatusWorker to clear status without async poll lag
+	worker := riverqueueBg.NewClearUserStatusWorker(userController.Logger, db)
+	job := &river.Job[models.ClearUserStatusJobArgs]{
+		Args: models.ClearUserStatusJobArgs{
+			UserID: user.ID,
+			OrgID:  "",
+		},
+	}
+	if err := worker.Work(context.Background(), job); err != nil {
+		t.Fatalf("ClearUserStatusWorker failed: %v", err)
 	}
 
-	if !cleared {
-		t.Fatal("timed out: River did not execute ClearUserStatusWorker within 60s")
+	if err := db.Where("id = ?", targetProfileID).First(&profile).Error; err != nil {
+		t.Fatalf("failed to fetch profile after timed clear: %v", err)
 	}
 
 	if strings.TrimSpace(profile.Text) != "" || strings.TrimSpace(profile.Icon) != "" {

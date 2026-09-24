@@ -3481,6 +3481,153 @@ paths:
               schema:
                 $ref: "#/components/schemas/NotFoundErrorSchema"
 
+  /channels/{channelId}/users/{userId}/restrict:
+    patch:
+      tags:
+        - channels
+      summary: Restrict or unrestrict a specific user in a channel
+      security:
+        - bearerAuth: []
+      description: Toggles top-level message write restriction for a user in a channel. Accessible by channel owner, superadmin, or organisation owner.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel.
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the target user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restricted
+              properties:
+                restricted:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: User restriction updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: user restriction updated successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (permission denied)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Channel or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
+  /channels/{channelId}/users/restrict-all:
+    patch:
+      tags:
+        - channels
+      summary: Restrict or unrestrict all users in a channel
+      security:
+        - bearerAuth: []
+      description: Restricts or unrestricts top-level writing for all members in a channel (excluding the channel owner). Accessible by channel owner, superadmin, or organisation owner.
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID of the channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restricted
+              properties:
+                restricted:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Channel users restriction status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel users restriction status updated successfully
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadRequestErrorSchema"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedErrorSchema"
+        "403":
+          description: Forbidden (permission denied)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForbiddenErrorSchema"
+        "404":
+          description: Channel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotFoundErrorSchema"
+
   /organisations/{org_id}/user-channels:
     get:
       summary: Fetch User Channels
@@ -8530,7 +8677,8 @@ paths:
                   example: false
                 status_timeout:
                   type: string
-                  example: 20 minutes
+                  description: "Expiry duration for status (e.g. '30 minutes', '1 hour', 'today', 'this week', 'dont-clear')"
+                  example: dont-clear
                 clear_status:
                   type: boolean
                   description: set to true to clear current status feilds
@@ -33224,6 +33372,9 @@ components:
               role:
                 type: integer
                 example: 0
+              restricted:
+                type: boolean
+                example: false
         pagination:
           type: object
           properties:
@@ -36099,7 +36250,7 @@ components:
           example: false
         status_timeout:
           type: string
-          example: "Don’t remove"
+          example: "dont-clear"
         workspace_id:
           type: string
           example: ""

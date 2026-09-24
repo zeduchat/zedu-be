@@ -397,7 +397,7 @@ func (p *Profile) ParseStatusExpiry(expiryStr string) (int64, error) {
 		).AddDate(0, 0, daysUntilSunday)
 		return endOfWeek.Unix(), nil
 
-	case "don't remove", "dont remove", "do not remove", "Don't clear":
+	case "dont-clear", "don't-clear", "dont clear", "don't clear":
 		return 0, nil
 
 	default:
@@ -644,7 +644,24 @@ func (p *Profile) resolveProfileForOrg(db *gorm.DB, userID string, orgID string,
 		return baseProfile, nil
 	}
 
-	return createInitialDefaultProfile(db, userID, orgID, appLogger)
+	targetOrgForInitial := orgID
+	if orgID != "" {
+		orgInUserOrgs := false
+		for _, oid := range userOrgIDs {
+			if oid == orgID {
+				orgInUserOrgs = true
+				break
+			}
+		}
+		if !orgInUserOrgs {
+			if len(userOrgIDs) > 0 {
+				targetOrgForInitial = userOrgIDs[0]
+			} else {
+				targetOrgForInitial = ""
+			}
+		}
+	}
+	return CreateInitialDefaultProfile(db, userID, targetOrgForInitial, appLogger)
 }
 
 func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existingProfiles []Profile, userOrgIDs []string, appLogger *utility.Logger) {
@@ -658,7 +675,14 @@ func bindUnassignedBaseProfiles(db *gorm.DB, userID string, orgID string, existi
 	}
 
 	availableOrgs := make([]string, 0)
-	if orgID != "" && !assignedOrgs[orgID] {
+	orgInUserOrgs := false
+	for _, oid := range userOrgIDs {
+		if oid == orgID {
+			orgInUserOrgs = true
+			break
+		}
+	}
+	if orgID != "" && !assignedOrgs[orgID] && orgInUserOrgs {
 		availableOrgs = append(availableOrgs, orgID)
 	}
 	for _, oid := range userOrgIDs {
@@ -694,18 +718,6 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 
 	allOrgIDs := make([]string, len(userOrgIDs))
 	copy(allOrgIDs, userOrgIDs)
-	if orgID != "" {
-		found := false
-		for _, o := range allOrgIDs {
-			if o == orgID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			allOrgIDs = append(allOrgIDs, orgID)
-		}
-	}
 
 	existingOrgMap := make(map[string]Profile)
 	for _, prof := range existingProfiles {
@@ -774,12 +786,16 @@ func populateMissingOrgProfiles(db *gorm.DB, userID string, orgID string, existi
 	return existingOrgMap, baseProfile
 }
 
-func createInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
+func CreateInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLogger *utility.Logger) (Profile, error) {
 	utility.LogInfo(appLogger, "[createInitialDefaultProfile] Creating initial default profile for userID=%s, orgID=%s", userID, orgID)
 	var userObj User
-	userName := "User"
-	if fetchUserErr := db.Where("id = ?", userID).First(&userObj).Error; fetchUserErr == nil && userObj.Name != "" {
-		userName = userObj.Name
+	if err := db.Where("id = ?", userID).First(&userObj).Error; err != nil {
+		utility.LogError(appLogger, "[createInitialDefaultProfile] User %s does not exist, skipping profile creation", userID)
+		return Profile{}, fmt.Errorf("user %s does not exist, cannot create profile", userID)
+	}
+	userName := userObj.Name
+	if userName == "" {
+		userName = "User"
 	}
 
 	var orgPtr *string

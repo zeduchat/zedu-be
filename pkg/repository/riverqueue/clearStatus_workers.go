@@ -102,6 +102,9 @@ func (w *ClearUserStatusWorker) Work(ctx context.Context, job *river.Job[models.
 	}
 
 	channelID := job.Args.OrgID
+	if channelID == "" {
+		channelID = "00000000-0000-0000-0000-000000000000"
+	}
 	if err := centrifuge.PublishChannel(w.logger, channelID, notification); err != nil {
 		w.logger.Error("Failed to publish status cleared event", "error", err, "channel_id", channelID)
 	}

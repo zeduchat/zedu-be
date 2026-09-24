@@ -142,22 +142,24 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	dataByte, _ := json.Marshal(feed)
 
-	notifRec := models.PushNotificationRecord{
-		ChannelType: models.Channel,
-		Data:        string(dataByte),
-		Sent:        false,
-		ChannelId:   req.ChannelsID,
-		Section:     models.ThreadSection,
-		Type:        models.NewMessage,
+	if req.Type != "system" {
+		notifRec := models.PushNotificationRecord{
+			ChannelType: models.Channel,
+			Data:        string(dataByte),
+			Sent:        false,
+			ChannelId:   req.ChannelsID,
+			Section:     models.ThreadSection,
+			Type:        models.NewMessage,
+		}
+
+		err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
+
+		if err != nil {
+			logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
+		}
+
+		logger.Info("added notification to queue for channel %s", req.ChannelsID)
 	}
-
-	err = actions.AddPushNotificationToQueue(storage.DB.Redis, notifRec)
-
-	if err != nil {
-		logger.Error("Error adding notification to channelid: %s, with orgid: %s error: %v", req.ChannelsID, req.OrgId, err.Error())
-	}
-
-	logger.Info("added notification to queue for channel %s", req.ChannelsID)
 
 	// increase unread count for channel users
 	userChan.ChannelsID = req.ChannelsID
@@ -218,6 +220,14 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	chanReq := models.ChannelInfo{
 		ChannelID: req.ChannelsID,
 		UserID:    req.UserId,
+	}
+
+	if req.Type != "system" {
+		var userChan models.UserChannels
+		isRestricted, _ := userChan.IsUserRestricted(db.Postgresql, req.ChannelsID, req.UserId)
+		if isRestricted {
+			return &models.ThreadDocument{}, fmt.Errorf("permission denied: user is restricted from writing to this channel")
+		}
 	}
 
 	channel_info, err := channel.GetChannelByID(db, chanReq)

@@ -1,1 +1,0 @@
--- Do not drop column to preserve data integrity and prevent data loss

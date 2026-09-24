@@ -430,14 +430,16 @@ type PlatformCreditMetrics struct {
 func GetPlatformCreditSummary(db *gorm.DB) (PlatformCreditMetrics, error) {
 	var metrics PlatformCreditMetrics
 
-	if err := db.Model(&CreditTransaction{}).
-		Select("COALESCE(SUM(amount), 0)").
+	if err := db.Table("credit_transactions").
+		Joins("JOIN organisations ON credit_transactions.organisation_id = organisations.id").
+		Select("COALESCE(SUM(credit_transactions.amount), 0)").
 		Scan(&metrics.TotalCredited).Error; err != nil {
 		return metrics, fmt.Errorf("failed to calculate total credited: %w", err)
 	}
 
-	if err := db.Model(&CreditUsage{}).
-		Select("COALESCE(SUM(amount), 0)").
+	if err := db.Table("credit_usages").
+		Joins("JOIN organisations ON credit_usages.organisation_id = organisations.id").
+		Select("COALESCE(SUM(credit_usages.amount), 0)").
 		Scan(&metrics.TotalUsed).Error; err != nil {
 		return metrics, fmt.Errorf("failed to calculate total used: %w", err)
 	}
@@ -485,8 +487,9 @@ func GetAICreditPackageStats(db *gorm.DB) (AICreditPackageStats, error) {
 		return stats, fmt.Errorf("failed to calculate monthly credit revenue: %w", err)
 	}
 
-	// Unused credits: sum of all org credit balances
+	// Unused credits: sum of all positive org credit balances
 	if err := db.Model(&Organisation{}).
+		Where("credit_balance > ?", 0).
 		Select("COALESCE(SUM(credit_balance), 0)").
 		Scan(&stats.UnusedCredits).Error; err != nil {
 		return stats, fmt.Errorf("failed to calculate unused credits: %w", err)

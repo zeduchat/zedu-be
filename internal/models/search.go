@@ -859,7 +859,7 @@ func FetchThreadDataForThreads(es *elasticsearch.Client, threadIDs []string) (ma
 	}
 
 	var raw any
-	if err := elastic.SelectAll(es, "threads", query, &raw); err != nil {
+	if err := elastic.SelectAll(es, ThreadIndexName, query, &raw); err != nil {
 		return nil, err
 	}
 
@@ -955,7 +955,7 @@ func FetchReplyUsersForThreads(es *elasticsearch.Client, threadIDs []string) (ma
 	}
 
 	var raw any
-	if err := elastic.SelectAll(es, "messages", query, &raw); err != nil {
+	if err := elastic.SelectAll(es, MessageIndexName, query, &raw); err != nil {
 		return nil, err
 	}
 

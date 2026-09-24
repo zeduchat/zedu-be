@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -366,8 +367,12 @@ func (base *Controller) AddAThread(c *gin.Context) {
 	ThreadData, err := service.CreateThreadMessage(req, base.Db, base.Logger)
 	if err != nil {
 		base.Logger.Info("some error occurred while creating thread: " + err.Error())
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		statusCode := http.StatusBadRequest
+		if strings.Contains(err.Error(), "permission denied") {
+			statusCode = http.StatusForbidden
+		}
+		rd := utility.BuildErrorResponse(statusCode, "error", err.Error(), nil, nil)
+		c.JSON(statusCode, rd)
 		base.Logger.Error(fmt.Sprintf("an error occurred while processing request: %v", err))
 		return
 	}

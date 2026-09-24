@@ -3,6 +3,7 @@ package test_auth
 import (
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -10,6 +11,7 @@ func TestSignupEmailValidation(t *testing.T) {
 	tests := []struct {
 		name          string
 		email         string
+		checkDNS      bool
 		expectError   bool
 		expectedError string
 		expectedEmail string
@@ -41,12 +43,14 @@ func TestSignupEmailValidation(t *testing.T) {
 		{
 			name:          "Invalid DNS Domain",
 			email:         "testuser@nonexistentdomainxyz999.com",
+			checkDNS:      true,
 			expectError:   true,
 			expectedError: "email address is invalid",
 		},
 		{
 			name:          "Invalid DNS Domain ddfs.co",
 			email:         "testuser@ddfs.co",
+			checkDNS:      true,
 			expectError:   true,
 			expectedError: "email address is invalid",
 		},
@@ -72,6 +76,10 @@ func TestSignupEmailValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.checkDNS {
+				gin.SetMode(gin.ReleaseMode)
+				defer gin.SetMode(gin.TestMode)
+			}
 			res, err := utility.ValidateSignupEmail(tt.email)
 			if tt.expectError {
 				if err == nil {

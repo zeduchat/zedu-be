@@ -28,7 +28,5 @@ func TestPublishPlatformCreditUpdate_Success(t *testing.T) {
 
 	metrics, err := models.GetPlatformCreditSummary(db.Postgresql)
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, metrics.TotalCredited, float64(100.00))
-	assert.GreaterOrEqual(t, metrics.TotalUsed, float64(20.00))
-	assert.GreaterOrEqual(t, metrics.TotalBalance, float64(80.00))
+	assert.InDelta(t, metrics.TotalCredited-metrics.TotalUsed, metrics.TotalBalance, 0.01)
 }

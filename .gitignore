@@ -35,6 +35,7 @@ playground/
 blankPage.md
 build-errors.log
 *.toml
+!.air.toml
 
 temp
 telex_be

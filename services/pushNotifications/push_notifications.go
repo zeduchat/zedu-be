@@ -199,6 +199,20 @@ func SendWebPushToUsers(req models.PushRequest, logger *utility.Logger, db *gorm
 	return nil
 }
 
+func ResolveNotifType(payload any) notificationpref.NotificationType {
+	if payloadMap, ok := payload.(map[string]interface{}); ok {
+		if notifType, exists := payloadMap["notification_type"].(string); exists {
+			switch notifType {
+			case "dm":
+				return notificationpref.NotificationTypeDirectMessage
+			case "channel":
+				return notificationpref.NotificationTypeAllMessages
+			}
+		}
+	}
+	return notificationpref.NotificationTypeAllMessages
+}
+
 // PushOneSignalToUser sends a OneSignal push notification to a single user
 func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gorm.DB) error {
 	if payloadMap, ok := req.Payload.(map[string]interface{}); ok {
@@ -210,7 +224,7 @@ func PushOneSignalToUser(req models.PushRequest, logger *utility.Logger, db *gor
 
 	// Check notification preferences if ChannelId and OrgId are provided
 	if req.ChannelId != "" && req.OrgId != "" {
-		shouldSend, err := notificationpref.ShouldSendNotification(db, req.UserId, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		shouldSend, err := notificationpref.ShouldSendNotification(db, req.UserId, req.ChannelId, req.OrgId, ResolveNotifType(req.Payload))
 		if err != nil {
 			logger.Error("failed to check notification preferences: %v", err)
 			return nil // Non-critical error
@@ -269,7 +283,7 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 
 	// Filter users by preferences if ChannelId and OrgId provided
 	if req.ChannelId != "" && req.OrgId != "" {
-		filteredUsers, err := notificationpref.FilterUsersByPreferences(db, userArr, req.ChannelId, req.OrgId, notificationpref.NotificationTypeAllMessages)
+		filteredUsers, err := notificationpref.FilterUsersByPreferences(db, userArr, req.ChannelId, req.OrgId, ResolveNotifType(req.Payload))
 		if err != nil {
 			logger.Error("failed to filter users by preferences: %v", err)
 			return err
