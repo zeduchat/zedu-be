@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
+	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
 type Controller struct {
@@ -81,6 +82,26 @@ func (base *Controller) CreateChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("channel created successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, userId, req.OrganisationID); err == nil {
+		actorEmail = actor.Email
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        userId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: req.OrganisationID,
+		Action:         models.ActionChannelCreated,
+		ResourceType:   models.ResourceChannel,
+		ResourceID:     respData.ID,
+		Description:    fmt.Sprintf("User %s created channel %s (%s) in organisation %s", actorEmail, respData.Name, respData.ID, req.OrganisationID),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for channel creation: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Channel Created Successfully", respData)
 	c.JSON(http.StatusCreated, rd)
 }
@@ -330,6 +351,27 @@ func (base *Controller) DeleteChannel(c *gin.Context) {
 	}
 
 	base.Logger.Info("channel deleted successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, UserId); err == nil {
+		actorEmail = actor.Email
+	}
+	orgId, _ := userClaims["org_id"].(string)
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        UserId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: orgId,
+		Action:         models.ActionChannelDeleted,
+		ResourceType:   models.ResourceChannel,
+		ResourceID:     ChannelsId,
+		Description:    fmt.Sprintf("User %s deleted channel %s in organisation %s", actorEmail, ChannelsId, orgId),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for channel deletion: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "channel deleted successfully", nil)
 	c.JSON(code, rd)
 }
@@ -484,6 +526,26 @@ func (base *Controller) UpdateChannels(c *gin.Context) {
 	}
 
 	base.Logger.Info("Channels updated successfully")
+	var actorEmail string
+	var user models.User
+	if actor, err := user.GetUserByID(base.Db.Postgresql, userId); err == nil {
+		actorEmail = actor.Email
+	}
+	if auditErr := audit_utility.CreateAuditLog(base.Db.Postgresql, audit_utility.AuditLogParams{
+		ActorID:        userId,
+		ActorEmail:     actorEmail,
+		ActorRole:      "user",
+		OrganisationID: result.OrganisationID,
+		Action:         models.ActionChannelUpdated,
+		ResourceType:   models.ResourceChannel,
+		ResourceID:     result.ID,
+		Description:    fmt.Sprintf("User %s updated channel %s (%s) in organisation %s", actorEmail, result.Name, result.ID, result.OrganisationID),
+		IPAddress:      audit_utility.GetClientIP(c),
+		UserAgent:      c.GetHeader("User-Agent"),
+		Success:        true,
+	}); auditErr != nil {
+		base.Logger.Error("failed to create audit log for channel update: " + auditErr.Error())
+	}
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Channels updated successfully", result)
 	c.JSON(http.StatusOK, rd)
 }
