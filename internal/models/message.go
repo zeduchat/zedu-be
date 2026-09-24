@@ -140,12 +140,13 @@ type CreateMessageRequest struct {
 }
 
 type EditMessageRequest struct {
-	Content    string `json:"content" validate:"required"`
-	UserId     string `json:"user_id"`
-	ChannelsId string `json:"channels_id"`
-	ThreadId   string `json:"thread_id" validate:"required"`
-	MessageId  string `json:"message_id" validate:"required"`
-	OrgId      string `json:"org_id"`
+	Content    string    `json:"content" validate:"required"`
+	UserId     string    `json:"user_id"`
+	ChannelsId string    `json:"channels_id"`
+	ThreadId   string    `json:"thread_id" validate:"required"`
+	MessageId  string    `json:"message_id" validate:"required"`
+	OrgId      string    `json:"org_id"`
+	Mentions   []Mention `json:"mentions"`
 }
 
 type ForwardThreadMessageRequest struct {

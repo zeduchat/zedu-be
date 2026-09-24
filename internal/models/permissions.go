@@ -263,3 +263,19 @@ func (p *Permission) GetAOrgPermission(db *gorm.DB, roleID string) (Permission, 
 func OrgUserHasPermission(permissionList PermissionList, permission string) bool {
 	return permissionList.ToMap()[permission]
 }
+
+func UserCanManageChannels(db *gorm.DB, userID, orgID string) bool {
+	var oum OrgUserManagement
+	membership, err := oum.GetByIDs(db, userID, orgID)
+	if err != nil || membership.RoleID == "" {
+		return false
+	}
+
+	var orgRole OrgRole
+	role, err := orgRole.GetAOrgRoleById(db, membership.RoleID)
+	if err != nil {
+		return false
+	}
+
+	return OrgUserHasPermission(role.Permissions.PermissionList, PermManageChannels)
+}
