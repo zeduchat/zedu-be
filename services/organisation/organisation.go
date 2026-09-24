@@ -334,13 +334,21 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 		org models.Organisation
 	)
 
+	_, err := org.CheckOrgExists(orgId, db)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "organisation not found" {
+			return errors.New("failed to retrieve organisation: organisation not found")
+		}
+		return err
+	}
+
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil || !isMember {
-		return errors.New("user not authorised to delete organisation")
+		return errors.New("user not authorised to delete this organisation")
 	}
 
 	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
-		return errors.New("user does not have permission to delete organisation")
+		return errors.New("user not authorised to delete this organisation")
 	}
 
 	org.ID = orgId
