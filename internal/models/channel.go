@@ -99,14 +99,16 @@ type ActiveBuzzInfo struct {
 
 type GetChannelResp struct {
 	Channels
-	OwnerName    string              `json:"owner_name"`
-	OwnerEmail   string              `json:"owner_email"`
-	WebhookUrl   string              `json:"webhook_url"`
-	Access       bool                `json:"access"`
-	ActiveBuzz   *ActiveBuzzInfo     `json:"active_buzz,omitempty"`
-	PreviewMedia []FileMediaResponse `json:"preview_media"`
-	CreatedAt    time.Time           `json:"created_at"`
-	Participants []Participant       `json:"participants"`
+	OwnerName      string              `json:"owner_name"`
+	OwnerEmail     string              `json:"owner_email"`
+	WebhookUrl     string              `json:"webhook_url"`
+	Access         bool                `json:"access"`
+	ActiveBuzz     *ActiveBuzzInfo     `json:"active_buzz,omitempty"`
+	PreviewMedia   []FileMediaResponse `json:"preview_media"`
+	CreatedAt      time.Time           `json:"created_at"`
+	Participants   []Participant       `json:"participants"`
+	PreviewUsers   []Participant       `json:"preview_users"`
+	TotalUserCount int64               `json:"total_user_count"`
 }
 
 type GetUserChannelResp []struct {
@@ -437,6 +439,7 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 	}
 
 	var participants []Participant
+	var previewUsers []Participant = make([]Participant, 0)
 	if db != nil {
 		var channelUsers []User
 		err := db.Postgresql.Joins("JOIN user_channels ON user_channels.user_id = users.id").
@@ -450,18 +453,34 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 				participants = append(participants, NewParticipant(u, isAdmin, "user"))
 			}
 		}
+
+		var previewChannelUsers []User
+		err = db.Postgresql.Joins("JOIN user_channels ON user_channels.user_id = users.id").
+			Where("user_channels.channels_id = ?", channel.ID).
+			Preload("Profile").
+			Limit(10).
+			Find(&previewChannelUsers).Error
+
+		if err == nil {
+			for _, u := range previewChannelUsers {
+				isAdmin := u.ID == channel.OwnerId
+				previewUsers = append(previewUsers, NewParticipant(u, isAdmin, "user"))
+			}
+		}
 	}
 
 	chanResp = GetChannelResp{
-		Channels:     channel,
-		OwnerName:    owner.Name,
-		OwnerEmail:   owner.Email,
-		WebhookUrl:   webhook.WebhookUrl,
-		Access:       access,
-		ActiveBuzz:   activeBuzzInfo,
-		PreviewMedia: previewMedia,
-		CreatedAt:    channel.CreatedAt,
-		Participants: participants,
+		Channels:       channel,
+		OwnerName:      owner.Name,
+		OwnerEmail:     owner.Email,
+		WebhookUrl:     webhook.WebhookUrl,
+		Access:         access,
+		ActiveBuzz:     activeBuzzInfo,
+		PreviewMedia:   previewMedia,
+		CreatedAt:      channel.CreatedAt,
+		Participants:   participants,
+		PreviewUsers:   previewUsers,
+		TotalUserCount: count,
 	}
 
 	return chanResp, nil
