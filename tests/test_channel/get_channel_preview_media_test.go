@@ -161,6 +161,11 @@ func TestGetChannelPreviewMedia(t *testing.T) {
 			t.Errorf("Expected file name 'test_image.png', got %s", firstMedia["file_name"])
 		}
 
+		// Assert profile field exists on FileMediaResponse in preview_media
+		if _, ok := firstMedia["profile"]; !ok {
+			t.Errorf("Expected profile field in preview_media FileMediaResponse")
+		}
+
 		// Assert CreatedAt exists (it might be a string in JSON)
 		if _, exists := responseData["created_at"]; !exists {
 			t.Errorf("Expected created_at field in response")
@@ -184,6 +189,32 @@ func TestGetChannelPreviewMedia(t *testing.T) {
 		firstParticipant := participantsArray[0].(map[string]interface{})
 		if _, ok := firstParticipant["user_id"]; !ok {
 			t.Errorf("Expected user_id in participant")
+		}
+
+		// Assert Users exists and is an array
+		users, exists := responseData["users"]
+		if !exists {
+			t.Fatal("Expected users field in response")
+		}
+
+		usersArray, ok := users.([]interface{})
+		if !ok {
+			t.Fatal("Expected users to be an array")
+		}
+
+		if len(usersArray) == 0 {
+			t.Fatal("Expected at least one user in users array")
+		}
+
+		firstUser := usersArray[0].(map[string]interface{})
+		if _, ok := firstUser["user_id"]; !ok {
+			t.Errorf("Expected user_id in user entry")
+		}
+		if _, ok := firstUser["username"]; !ok {
+			t.Errorf("Expected username in user entry")
+		}
+		if _, ok := firstUser["display_name"]; !ok {
+			t.Errorf("Expected display_name in user entry")
 		}
 	})
 }
