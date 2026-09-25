@@ -274,16 +274,37 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 	return users, nil
 }
 
-func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]ChannelUserResponse, postgresql.PaginationResponse, error) {
+func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]ChannelUserResponse, postgresql.PaginationResponse, error) {
 	var users []User
 	pagination := postgresql.GetPagination(c)
 
 	offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Preload("Profile").
+	search := ""
+	if c != nil {
+		search = strings.TrimSpace(c.Query("search"))
+		if search == "" {
+			search = strings.TrimSpace(c.Query("q"))
+		}
+	}
+
+	orgID := ids.OrganisationID
+	channelID := ids.ChannelID
+
+	query := db.Model(&User{}).
+		Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Offset(offset).
+		Where("user_channels.channels_id = ?", channelID)
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", orgID).
+			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
+			Group("users.id")
+	}
+
+	if err := query.Offset(offset).
 		Limit(pagination.Limit).
 		Find(&users).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -299,7 +320,7 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 		var ucs []UserChannels
 		db.Table("user_channels").
 			Select("user_id, restricted").
-			Where("channels_id = ? AND user_id IN ?", channelId, userIDs).
+			Where("channels_id = ? AND user_id IN ?", channelID, userIDs).
 			Find(&ucs)
 		for _, uc := range ucs {
 			restrictedMap[uc.UserID] = uc.Restricted
@@ -315,10 +336,19 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 	}
 
 	var totalUsers int64
-	if err := db.Table("users").
+	countQuery := db.Table("users").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Count(&totalUsers).Error; err != nil {
+		Where("user_channels.channels_id = ?", channelID)
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		countQuery = countQuery.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", orgID).
+			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
+			Select("COUNT(DISTINCT users.id)")
+	}
+
+	if err := countQuery.Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
@@ -458,12 +488,20 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 		var previewChannelUsers []User
 		err = db.Postgresql.Joins("JOIN user_channels ON user_channels.user_id = users.id").
 			Where("user_channels.channels_id = ?", channel.ID).
-			Preload("Profile").
 			Limit(10).
 			Find(&previewChannelUsers).Error
 
 		if err == nil {
+			userIDs := make([]string, len(previewChannelUsers))
+			for i, u := range previewChannelUsers {
+				userIDs[i] = u.ID
+			}
+			var profModel Profile
+			profsMap, _ := profModel.GetOrCreateMultipleProfilesForOrg(db.Postgresql, userIDs, channel.OrganisationID)
 			for _, u := range previewChannelUsers {
+				if prof, ok := profsMap[u.ID]; ok {
+					u.Profile = prof
+				}
 				isAdmin := u.ID == channel.OwnerId
 				previewUsers = append(previewUsers, NewParticipant(u, isAdmin, "user"))
 			}
@@ -1821,7 +1859,41 @@ func (c *Channels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMedia
 		}
 	}
 
+	if db != nil {
+		allMedia = HydrateMediaProfiles(db.Postgresql, allMedia, c.OrganisationID)
+	}
+
 	return allMedia, len(allMedia), nil
+}
+
+func HydrateMediaProfiles(db *gorm.DB, media []FileMediaResponse, orgID string) []FileMediaResponse {
+	if len(media) == 0 || db == nil || orgID == "" {
+		return media
+	}
+
+	uIDs := make([]string, 0, len(media))
+	uMap := make(map[string]bool)
+	for _, m := range media {
+		if m.UserID != "" && !uMap[m.UserID] {
+			uMap[m.UserID] = true
+			uIDs = append(uIDs, m.UserID)
+		}
+	}
+	if len(uIDs) == 0 {
+		return media
+	}
+
+	var profModel Profile
+	if profs, err := profModel.GetOrCreateMultipleProfilesForOrg(db, uIDs, orgID); err == nil {
+		for i := range media {
+			if prof, ok := profs[media[i].UserID]; ok {
+				profCopy := prof
+				media[i].Profile = &profCopy
+			}
+		}
+	}
+
+	return media
 }
 
 func (u *UserChannels) GetChannelsWithMentions(db *gorm.DB, userID string) (map[string]time.Time, error) {
