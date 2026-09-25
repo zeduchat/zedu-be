@@ -291,12 +291,6 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	orgID := ids.OrganisationID
 	channelID := ids.ChannelID
 
-	if orgID == "" {
-		var targetChan Channels
-		_ = db.Select("organisation_id").Where("id = ?", channelID).First(&targetChan)
-		orgID = targetChan.OrganisationID
-	}
-
 	query := db.Model(&User{}).
 		Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
