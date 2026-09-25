@@ -133,6 +133,7 @@ type FileMediaResponse struct {
 	MimeType  string    `gorm:"column:mime_type; type:varchar(50); not null"   json:"mime_type"`
 	FileLink  string    `gorm:"column:file_link; type:text; not null" json:"file_link"`
 	UserID    string    `gorm:"column:user_id; type:uuid; not null" json:"user_id"`
+	Profile   *Profile  `json:"profile,omitempty"`
 	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"column:updated_at; not null; autoUpdateTime" json:"updated_at"`
 }

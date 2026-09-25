@@ -458,12 +458,20 @@ func (r *Channels) GetChannelByID(db *storage.Database, chanReq ChannelInfo) (Ge
 		var previewChannelUsers []User
 		err = db.Postgresql.Joins("JOIN user_channels ON user_channels.user_id = users.id").
 			Where("user_channels.channels_id = ?", channel.ID).
-			Preload("Profile").
 			Limit(10).
 			Find(&previewChannelUsers).Error
 
 		if err == nil {
+			userIDs := make([]string, len(previewChannelUsers))
+			for i, u := range previewChannelUsers {
+				userIDs[i] = u.ID
+			}
+			var profModel Profile
+			profsMap, _ := profModel.GetOrCreateMultipleProfilesForOrg(db.Postgresql, userIDs, channel.OrganisationID)
 			for _, u := range previewChannelUsers {
+				if prof, ok := profsMap[u.ID]; ok {
+					u.Profile = prof
+				}
 				isAdmin := u.ID == channel.OwnerId
 				previewUsers = append(previewUsers, NewParticipant(u, isAdmin, "user"))
 			}
@@ -1821,7 +1829,41 @@ func (c *Channels) GetPreviewMedia(db *storage.Database, limit int) ([]FileMedia
 		}
 	}
 
+	if db != nil {
+		allMedia = HydrateMediaProfiles(db.Postgresql, allMedia, c.OrganisationID)
+	}
+
 	return allMedia, len(allMedia), nil
+}
+
+func HydrateMediaProfiles(db *gorm.DB, media []FileMediaResponse, orgID string) []FileMediaResponse {
+	if len(media) == 0 || db == nil || orgID == "" {
+		return media
+	}
+
+	uIDs := make([]string, 0, len(media))
+	uMap := make(map[string]bool)
+	for _, m := range media {
+		if m.UserID != "" && !uMap[m.UserID] {
+			uMap[m.UserID] = true
+			uIDs = append(uIDs, m.UserID)
+		}
+	}
+	if len(uIDs) == 0 {
+		return media
+	}
+
+	var profModel Profile
+	if profs, err := profModel.GetOrCreateMultipleProfilesForOrg(db, uIDs, orgID); err == nil {
+		for i := range media {
+			if prof, ok := profs[media[i].UserID]; ok {
+				profCopy := prof
+				media[i].Profile = &profCopy
+			}
+		}
+	}
+
+	return media
 }
 
 func (u *UserChannels) GetChannelsWithMentions(db *gorm.DB, userID string) (map[string]time.Time, error) {
