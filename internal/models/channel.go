@@ -280,10 +280,31 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 
 	offset := (pagination.Page - 1) * pagination.Limit
 
-	if err := db.Preload("Profile").
+	search := ""
+	if c != nil {
+		search = strings.TrimSpace(c.Query("search"))
+		if search == "" {
+			search = strings.TrimSpace(c.Query("q"))
+		}
+	}
+
+	var targetChan Channels
+	_ = db.Select("organisation_id").Where("id = ?", channelId).First(&targetChan)
+
+	query := db.Model(&User{}).
+		Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Offset(offset).
+		Where("user_channels.channels_id = ?", channelId)
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", targetChan.OrganisationID).
+			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
+			Group("users.id")
+	}
+
+	if err := query.Offset(offset).
 		Limit(pagination.Limit).
 		Find(&users).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
@@ -315,10 +336,19 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 	}
 
 	var totalUsers int64
-	if err := db.Table("users").
+	countQuery := db.Table("users").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId).
-		Count(&totalUsers).Error; err != nil {
+		Where("user_channels.channels_id = ?", channelId)
+
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		countQuery = countQuery.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", targetChan.OrganisationID).
+			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
+				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
+			Select("COUNT(DISTINCT users.id)")
+	}
+
+	if err := countQuery.Count(&totalUsers).Error; err != nil {
 		return nil, postgresql.PaginationResponse{}, err
 	}
 
