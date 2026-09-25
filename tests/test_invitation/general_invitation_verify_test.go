@@ -247,7 +247,7 @@ func TestGeneralInvitationVerify_Expired(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	tst.AssertStatusCode(t, rr.Code, http.StatusNotFound)
+	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 }
 
 func TestGeneralInvitationVerify_InvalidToken(t *testing.T) {

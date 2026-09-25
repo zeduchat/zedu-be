@@ -331,10 +331,10 @@ func SearchChannelsByNames(db *gorm.DB, c *gin.Context, name string) ([]models.C
 	return channels, paginationResponse, nil
 }
 
-func GetUsersInChannel(channelID string, userId string, db *gorm.DB, c *gin.Context) ([]models.ChannelUserResponse, postgresql.PaginationResponse, error) {
+func GetUsersInChannel(ids models.IDS, db *gorm.DB, c *gin.Context) ([]models.ChannelUserResponse, postgresql.PaginationResponse, error) {
 	var channel models.Channels
 
-	users, paginationResponse, err := channel.GetUsersInChannel(c, db, channelID)
+	users, paginationResponse, err := channel.GetUsersInChannel(c, db, ids)
 
 	if err != nil {
 		return nil, postgresql.PaginationResponse{}, err

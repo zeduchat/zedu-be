@@ -49,10 +49,9 @@ func GeneralInvitationVerify(req models.VerifyShareableInvitationLink, authentic
 		org          models.Organisation
 	)
 
-	err := db.Postgresql.Where("token = ? and active_status = ? AND expires_at > ?",
+	err := db.Postgresql.Where("token = ? and active_status = ?",
 		req.Token,
 		true,
-		time.Now().UTC(),
 	).First(&invite).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

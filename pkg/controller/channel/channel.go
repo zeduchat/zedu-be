@@ -621,9 +621,16 @@ func (base *Controller) GetUsersInChannel(c *gin.Context) {
 		return
 	}
 	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
+	userId, _ := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
 
-	users, paginationResponse, err := channel.GetUsersInChannel(channelID, userId, base.Db.Postgresql, c)
+	ids := models.IDS{
+		ChannelID:      channelID,
+		UserID:         userId,
+		OrganisationID: orgId,
+	}
+
+	users, paginationResponse, err := channel.GetUsersInChannel(ids, base.Db.Postgresql, c)
 
 	if err != nil {
 		switch err.Error() {

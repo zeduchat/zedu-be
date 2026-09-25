@@ -274,7 +274,7 @@ func (r *Channels) GetChannelsUsersByID(db *gorm.DB, channelID string) ([]User, 
 	return users, nil
 }
 
-func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId string) ([]ChannelUserResponse, postgresql.PaginationResponse, error) {
+func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]ChannelUserResponse, postgresql.PaginationResponse, error) {
 	var users []User
 	pagination := postgresql.GetPagination(c)
 
@@ -288,17 +288,23 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 		}
 	}
 
-	var targetChan Channels
-	_ = db.Select("organisation_id").Where("id = ?", channelId).First(&targetChan)
+	orgID := ids.OrganisationID
+	channelID := ids.ChannelID
+
+	if orgID == "" {
+		var targetChan Channels
+		_ = db.Select("organisation_id").Where("id = ?", channelID).First(&targetChan)
+		orgID = targetChan.OrganisationID
+	}
 
 	query := db.Model(&User{}).
 		Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId)
+		Where("user_channels.channels_id = ?", channelID)
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		query = query.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", targetChan.OrganisationID).
+		query = query.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", orgID).
 			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
 				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
 			Group("users.id")
@@ -320,7 +326,7 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 		var ucs []UserChannels
 		db.Table("user_channels").
 			Select("user_id, restricted").
-			Where("channels_id = ? AND user_id IN ?", channelId, userIDs).
+			Where("channels_id = ? AND user_id IN ?", channelID, userIDs).
 			Find(&ucs)
 		for _, uc := range ucs {
 			restrictedMap[uc.UserID] = uc.Restricted
@@ -338,11 +344,11 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, channelId str
 	var totalUsers int64
 	countQuery := db.Table("users").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
-		Where("user_channels.channels_id = ?", channelId)
+		Where("user_channels.channels_id = ?", channelID)
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		countQuery = countQuery.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", targetChan.OrganisationID).
+		countQuery = countQuery.Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", orgID).
 			Where("(users.name ILIKE ? OR users.email ILIKE ? OR profiles.user_name ILIKE ? OR profiles.first_name ILIKE ? OR profiles.last_name ILIKE ? OR profiles.full_name ILIKE ? OR profiles.display_name ILIKE ?)",
 				searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm).
 			Select("COUNT(DISTINCT users.id)")
