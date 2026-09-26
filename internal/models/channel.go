@@ -1243,6 +1243,9 @@ func (uc *UserChannels) GetUserChannels(base *storage.Database, ids IDS) (GetUse
 			lastReadAt = &time.Time{}
 			return nil, fmt.Errorf("error fetching last read at: %w", err)
 		}
+		if lastReadAt == nil {
+			lastReadAt = &time.Time{}
+		}
 
 		unreadCount, err := GetChannelUnreadCount(base, chanResp[i].ID, ids.UserID, *lastReadAt)
 		if err != nil {
