@@ -168,8 +168,10 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 		return channel, http.StatusBadRequest, err
 	}
 
-	newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
-	_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+	if channel.ShowJoinedMessage {
+		newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
+		_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+	}
 
 	triggerNotif := models.Notification[models.TriggerNotification]
 	triggerNotif.SectionType = models.ChannelsSection
@@ -400,7 +402,7 @@ func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMem
 		newUsers = append(newUsers, models.UserMention{UserID: userId, Username: uName})
 	}
 
-	if len(newUsers) > 0 {
+	if len(newUsers) > 0 && ch.ShowJoinedMessage {
 		_ = thread.SaveOrMergeJoinSystemMessage(db, logger, ch.ID, ch.Name, ch.OrganisationID, newUsers, nil)
 	}
 
@@ -639,4 +641,29 @@ func RestrictAllUsers(db *gorm.DB, channelID, currentUserID string, restricted b
 	}
 
 	return http.StatusOK, nil
+}
+
+func ToggleUserJoinedMessage(db *gorm.DB, channelId string, req models.ToggleJoinedMessageRequest, userId string) (*models.Channels, int, error) {
+	var ch models.Channels
+
+	exists := postgresql.CheckExists(db, &ch, "id = ?", channelId)
+	if !exists {
+		return nil, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if !CanManageChannelRestrictions(db, ch, userId) {
+		return nil, http.StatusForbidden, errors.New("permission denied")
+	}
+
+	showJoinedMsg := true
+	if req.ShowJoinedMessage != nil {
+		showJoinedMsg = *req.ShowJoinedMessage
+	}
+
+	updated, err := ch.UpdateShowJoinedMessage(db, channelId, showJoinedMsg)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.New("failed to update channel setting: " + err.Error())
+	}
+
+	return updated, http.StatusOK, nil
 }

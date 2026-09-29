@@ -90,7 +90,7 @@ func main() {
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "check-buzz-warnings")
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "end-expired-buzzes")
-	dispatcher := np.NewDispatcher(0, 15, db, logger)
+	dispatcher := np.NewDispatcher(10, 15, db, logger)
 	dispatcher.Run()
 	go np.FeedDispatcher(dispatcher)
 

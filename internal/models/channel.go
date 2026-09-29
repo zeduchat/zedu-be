@@ -25,22 +25,27 @@ import (
 )
 
 type Channels struct {
-	ID             string    `gorm:"type:uuid;primary_key" json:"channels_id"`
-	Name           string    `gorm:"column:name; type:text; not null" json:"name"`
-	Description    string    `gorm:"column:description; type:text; not null" json:"description"`
-	Topic          string    `gorm:"column:topic; type:text; not null;default:'present'" json:"topic"`
-	OrganisationID string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
-	OwnerId        string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
-	OwnerName      string    `gorm:"-" json:"owner_name"`
-	Users          []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
-	UserCount      int64     `gorm:"-" json:"user_count,omitempty"`
-	MessageCount   int64     `gorm:"-" json:"-"`
-	Archived       bool      `gorm:"column:archived;null; default:false" json:"archived,omitempty"`
-	GroupID        *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
-	IsPrivate      bool      `gorm:"column:is_private;default:false" json:"is_private"`
-	IsRestricted   bool      `gorm:"column:is_restricted;default:false" json:"is_restricted"`
-	CreatedAt      time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-	DeletedAt      time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"-"`
+	ID                string    `gorm:"type:uuid;primary_key" json:"channels_id"`
+	Name              string    `gorm:"column:name; type:text; not null" json:"name"`
+	Description       string    `gorm:"column:description; type:text; not null" json:"description"`
+	Topic             string    `gorm:"column:topic; type:text; not null;default:'present'" json:"topic"`
+	OrganisationID    string    `gorm:"column:organisation_id; type:uuid;index" json:"organisation_id"`
+	OwnerId           string    `gorm:"column:owner_id; type:uuid;index" json:"owner_id"`
+	OwnerName         string    `gorm:"-" json:"owner_name"`
+	Users             []User    `gorm:"many2many:user_channels;" json:"users,omitempty"`
+	UserCount         int64     `gorm:"-" json:"user_count,omitempty"`
+	MessageCount      int64     `gorm:"-" json:"-"`
+	Archived          bool      `gorm:"column:archived;null; default:false" json:"archived,omitempty"`
+	GroupID           *string   `gorm:"column:group_id; type:uuid;index;" json:"-"`
+	IsPrivate         bool      `gorm:"column:is_private;default:false" json:"is_private"`
+	IsRestricted      bool      `gorm:"column:is_restricted;default:false" json:"is_restricted"`
+	ShowJoinedMessage bool      `gorm:"column:show_joined_message;default:true" json:"show_joined_message"`
+	CreatedAt         time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
+	DeletedAt         time.Time `gorm:"column: deleted_at; not null; autoDeleteTime" json:"-"`
+}
+
+type ToggleJoinedMessageRequest struct {
+	ShowJoinedMessage *bool `json:"show_joined_message" validate:"required"`
 }
 
 type UserChannels struct {
@@ -2039,4 +2044,16 @@ func (uc *UserChannels) IsUserRestricted(db *gorm.DB, channelID, userID string) 
 	}
 
 	return userChan.Restricted, nil
+}
+
+func (c *Channels) UpdateShowJoinedMessage(db *gorm.DB, channelID string, showJoinedMsg bool) (*Channels, error) {
+	if err := db.Model(&Channels{}).Where("id = ?", channelID).Update("show_joined_message", showJoinedMsg).Error; err != nil {
+		return nil, err
+	}
+
+	if err := db.Where("id = ?", channelID).First(c).Error; err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }

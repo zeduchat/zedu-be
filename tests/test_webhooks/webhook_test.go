@@ -183,3 +183,107 @@ func TestChannelsEndpoints(t *testing.T) {
 	}
 
 }
+
+func TestChangeWebhookStatus(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+	userSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("whuser%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "test",
+		LastName:    "user",
+		Password:    "password",
+		UserName:    fmt.Sprintf("wh_username%v", currUUID),
+	}
+	loginData := models.LoginRequestModel{
+		Email:    userSignUpData.Email,
+		Password: userSignUpData.Password,
+	}
+
+	authCtrl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	channelController := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	webhookCtrl := webhook.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	orgCtrl := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authCtrl, userSignUpData, false)
+	token := tst.GetLoginToken(t, r, authCtrl, loginData)
+
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("WHOrg%s", currUUID),
+		Description: "Org for webhook status test",
+		Email:       userSignUpData.Email,
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}
+
+	orgId, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, createOrgData, token)
+
+	createChannelsData := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("WHChan%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("whchan%s", utility.GenerateUUID()),
+		OrganisationID: orgId,
+		Description:    "Channel for webhook status test",
+	}
+
+	channelID, _ := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
+
+	defer func() {
+		_ = db.Postgresql.Where("channel_id = ?", channelID).Delete(&models.Webhook{}).Error
+		_ = db.Postgresql.Where("id = ?", channelID).Delete(&models.Channels{}).Error
+		_ = db.Postgresql.Where("id = ?", orgId).Delete(&models.Organisation{}).Error
+		_ = db.Postgresql.Where("email = ?", userSignUpData.Email).Delete(&models.User{}).Error
+		_ = tydb.DeleteCollection(db.TypeSense, channelID)
+	}()
+
+	// Query created webhook from db
+	var wh models.Webhook
+	err := db.Postgresql.Where("channel_id = ?", channelID).First(&wh).Error
+	if err != nil {
+		t.Fatalf("failed to find webhook for channel: %v", err)
+	}
+
+	rGroup := r.Group("/api/v1/webhooks", middleware.Authorize(db.Postgresql))
+	rGroup.PUT("/:channel_id/:webhook_id/change-status", webhookCtrl.ChangeWebhookStatus)
+
+	t.Run("Successfully Change Webhook Status", func(t *testing.T) {
+		body := map[string]string{
+			"webhook_status": "disabled",
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(body)
+
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/webhooks/%s/%s/change-status", channelID, wh.ID), &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+		data := tst.ParseResponse(rr)
+		tst.AssertResponseMessage(t, data["message"].(string), "webhook status updated successfully")
+	})
+
+	t.Run("Invalid Webhook ID Format Returns 400", func(t *testing.T) {
+		body := map[string]string{
+			"webhook_status": "disabled",
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(body)
+
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/webhooks/%s/invalid-uuid/change-status", channelID), &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusBadRequest)
+	})
+}

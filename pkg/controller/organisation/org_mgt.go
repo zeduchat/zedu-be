@@ -167,7 +167,7 @@ func (base *Controller) UpdateMember(c *gin.Context) {
 	resp, err := organisation.UpdateMember(base.Db.Postgresql, ownerId, orgId, userId, updateMemberRequest)
 	if err != nil {
 		base.Logger.Error("failed to update role", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to update role", err.Error(), nil)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to update role", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
@@ -594,7 +594,7 @@ func (base *Controller) UpdateMemberRole(c *gin.Context) {
 	code, err := organisation.UpdateMemberRole(base.Db.Postgresql, base.Db.Redis, base.Logger, ids)
 	if err != nil {
 		base.Logger.Error("failed to update role", err)
-		rd := utility.BuildErrorResponse(code, "error", "failed to update role", err.Error(), nil)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to update role", nil)
 		c.JSON(code, rd)
 		return
 	}

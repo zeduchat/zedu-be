@@ -4760,6 +4760,67 @@ paths:
                     type: object
                     example: {}
 
+  /channels/{channel_id}/toggle-user-joined-message:
+    put:
+      summary: Toggle user joined system message display for a channel
+      description: Enable or disable displaying automatic system messages when a user joins the channel.
+      tags:
+        - channels
+      parameters:
+        - name: channel_id
+          in: path
+          required: true
+          description: The ID of the channel to update.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                show_joined_message:
+                  type: boolean
+                  description: Set to `true` to display user joined system messages, `false` to hide them.
+              required:
+                - show_joined_message
+              example:
+                show_joined_message: false
+      responses:
+        "200":
+          description: Channel user joined message setting updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: channel user joined message setting updated successfully
+        "403":
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  status_code:
+                    type: integer
+                    example: 403
+                  message:
+                    type: string
+                    example: permission denied
+
   /channels/{channel_id}/export:
     post:
       summary: Export channel chat logs and media

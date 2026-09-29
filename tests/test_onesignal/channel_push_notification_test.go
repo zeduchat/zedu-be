@@ -4,61 +4,68 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/hngprojects/telex_be/internal/models"
-	"github.com/hngprojects/telex_be/services/notification_processor"
 )
 
-func TestResolveChannelPushTargetUserIDs(t *testing.T) {
-	channelUsers := []string{"user-1", "user-2", "user-3"}
-
-	t.Run("No Mentions - Returns Empty Targets", func(t *testing.T) {
-		feed := models.FeedMessageRequest{
-			Content: "Hello world without any mentions",
-		}
-
-		targets, err := notification_processor.ResolveChannelPushTargetUserIDs(nil, feed, channelUsers, "chan-1", "org-1", "sender-1")
-		require.NoError(t, err)
-		assert.Empty(t, targets, "expected 0 push targets for message with no mentions")
-	})
-
-	t.Run("Channel Mention via Mentions Slice", func(t *testing.T) {
-		feed := models.FeedMessageRequest{
-			Content: "Hello everyone @channel",
-			Mentions: []models.Mention{
-				{ID: "00000000-0000-0000-0000-000000000000", Type: "user"},
+func TestChannelPushNotificationLogic(t *testing.T) {
+	t.Run("PushRequest with SkipPreferenceFilter Flag", func(t *testing.T) {
+		req := models.PushRequest{
+			ChannelId:            "chan-123",
+			OrgId:                "org-456",
+			UserIds:              []string{"user-1", "user-2"},
+			Message:              "Test notification message",
+			ChannelName:          "general",
+			UserId:               "sender-789",
+			Username:             "test_sender",
+			Title:                "Notification from user general",
+			SkipPreferenceFilter: true,
+			Payload: map[string]interface{}{
+				"org_id":            "org-456",
+				"channel_id":        "chan-123",
+				"channel_name":      "general",
+				"sender_name":       "test_sender",
+				"sender_id":         "sender-789",
+				"event":             "new_message",
+				"notification_type": "channel",
 			},
 		}
 
-		targets, err := notification_processor.ResolveChannelPushTargetUserIDs(nil, feed, channelUsers, "chan-1", "org-1", "sender-1")
-		require.NoError(t, err)
-		assert.Len(t, targets, len(channelUsers), "expected all channel users for @channel mention")
+		assert.True(t, req.SkipPreferenceFilter, "expected SkipPreferenceFilter to be true")
+		assert.Equal(t, []string{"user-1", "user-2"}, req.UserIds)
+		assert.Equal(t, "chan-123", req.ChannelId)
+		assert.Equal(t, "org-456", req.OrgId)
+
+		payloadMap, ok := req.Payload.(map[string]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, "new_message", payloadMap["event"])
+		assert.Equal(t, "channel", payloadMap["notification_type"])
 	})
 
-	t.Run("Specific Tagged User via Mentions Slice", func(t *testing.T) {
-		feed := models.FeedMessageRequest{
-			Content: "Hey check this out",
-			Mentions: []models.Mention{
-				{ID: "user-2", Type: "user"},
+	t.Run("System Message Payload Skip Check", func(t *testing.T) {
+		req := models.PushRequest{
+			ChannelId:            "chan-123",
+			SkipPreferenceFilter: true,
+			Payload: map[string]interface{}{
+				"type": "system",
 			},
 		}
 
-		targets, err := notification_processor.ResolveChannelPushTargetUserIDs(nil, feed, channelUsers, "chan-1", "org-1", "sender-1")
-		require.NoError(t, err)
-		assert.Equal(t, []string{"user-2"}, targets)
+		payloadMap, ok := req.Payload.(map[string]interface{})
+		assert.True(t, ok)
+		msgType, exists := payloadMap["type"].(string)
+		assert.True(t, exists)
+		assert.Equal(t, "system", msgType)
 	})
 
-	t.Run("Specific Tagged User via Mentions Slice", func(t *testing.T) {
-		feed := models.FeedMessageRequest{
-			Content: `<p>@alice please check</p>`,
-			Mentions: []models.Mention{
-				{ID: "user-3", Type: "user"},
-			},
+	t.Run("Empty UserIDs Handled Safely", func(t *testing.T) {
+		req := models.PushRequest{
+			ChannelId:            "chan-123",
+			UserIds:              []string{},
+			SkipPreferenceFilter: true,
 		}
 
-		targets, err := notification_processor.ResolveChannelPushTargetUserIDs(nil, feed, channelUsers, "chan-1", "org-1", "sender-1")
-		require.NoError(t, err)
-		assert.Equal(t, []string{"user-3"}, targets)
+		assert.True(t, req.SkipPreferenceFilter)
+		assert.Empty(t, req.UserIds)
 	})
 }

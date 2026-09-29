@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -78,7 +80,17 @@ func ChangeWebhookStatus(req models.ChangeWebhookStatusRequest, db *gorm.DB) (mo
 
 	var (
 		resp models.Webhook
+		ch   models.Channels
 	)
+
+	exists := postgresql.CheckExists(db, &ch, "id = ?", req.ChannelID)
+	if !exists {
+		return resp, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if !channel.CanManageChannelRestrictions(db, ch, req.UserID) {
+		return resp, http.StatusForbidden, errors.New("permission denied")
+	}
 
 	resp, err := resp.UpdateWebhookStatus(db, req)
 

@@ -164,24 +164,22 @@ func (w *Webhook) UpdateWebhookStatus(db *gorm.DB, req ChangeWebhookStatusReques
 		webhook     Webhook
 	)
 
-	exist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", req.ChannelID, w.OwnerId)
+	exist := postgresql.CheckExists(db, &userChannel, "channels_id = ? AND user_id = ?", req.ChannelID, req.UserID)
 	if !exist {
 		return webhook, errors.New("user not in channel")
 	}
 
-	_, err := postgresql.SaveAllFields(db, &w)
-	if err != nil {
-		return webhook, err
+	exist = postgresql.CheckExists(db, &webhook, "channel_id = ? AND id = ?", req.ChannelID, req.WebhookID)
+	if !exist {
+		return webhook, errors.New("webhook does not exist")
 	}
 
-	_, err = postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND id = ?", req.ChannelID, req.WebhookID)
-
+	_, err := postgresql.UpdateFields(db, &webhook, req, "channel_id = ? AND id = ?", req.ChannelID, req.WebhookID)
 	if err != nil {
 		return webhook, err
 	}
 
 	webhook, err = webhook.GetWebhookByID(db, req.WebhookID, req.ChannelID)
-
 	if err != nil {
 		return webhook, err
 	}

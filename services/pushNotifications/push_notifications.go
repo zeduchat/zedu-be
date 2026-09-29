@@ -281,8 +281,8 @@ func PushOneSignalToUsers(req models.PushRequest, logger *utility.Logger, db *go
 		userArr = req.UserIds
 	}
 
-	// Filter users by preferences if ChannelId and OrgId provided
-	if req.ChannelId != "" && req.OrgId != "" {
+	// Filter users by preferences if ChannelId and OrgId provided and not already filtered
+	if !req.SkipPreferenceFilter && req.ChannelId != "" && req.OrgId != "" {
 		filteredUsers, err := notificationpref.FilterUsersByPreferences(db, userArr, req.ChannelId, req.OrgId, ResolveNotifType(req.Payload))
 		if err != nil {
 			logger.Error("failed to filter users by preferences: %v", err)

@@ -123,8 +123,8 @@ func (d *Dispatcher) ScaleWorkers(queueLength int) {
 	if desiredWorkers > d.MaxWorkers {
 		desiredWorkers = d.MaxWorkers
 	}
-	if desiredWorkers < 5 {
-		desiredWorkers = 5
+	if desiredWorkers < 10 {
+		desiredWorkers = 10
 	}
 
 	currentWorkers := len(d.Workers)

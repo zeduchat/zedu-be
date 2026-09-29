@@ -1118,3 +1118,44 @@ func (base *Controller) RestrictAllUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) ToggleUserJoinedMessage(c *gin.Context) {
+	channelId := c.Param("channelId")
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unauthorized", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	currentUserID, _ := userClaims["user_id"].(string)
+
+	var req models.ToggleJoinedMessageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	ch, code, err := channel.ToggleUserJoinedMessage(base.Db.Postgresql, channelId, req, currentUserID)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), nil, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "channel user joined message setting updated successfully", ch)
+	c.JSON(http.StatusOK, rd)
+}
+

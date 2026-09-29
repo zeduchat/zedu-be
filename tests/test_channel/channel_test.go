@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -305,4 +306,116 @@ func TestChannelsEndpoints(t *testing.T) {
 
 	}
 
+}
+
+func TestToggleUserJoinedMessage(t *testing.T) {
+	logger := tst.Setup()
+	gin.SetMode(gin.TestMode)
+
+	validatorRef := validator.New()
+	db := storage.Connection()
+	currUUID := utility.GenerateUUID()
+	userSignUpData := models.CreateUserRequestModel{
+		Email:       fmt.Sprintf("toggleuser%v@qa.team", currUUID),
+		PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+		FirstName:   "test",
+		LastName:    "user",
+		Password:    "password",
+		UserName:    fmt.Sprintf("toggle_username%v", currUUID),
+	}
+	loginData := models.LoginRequestModel{
+		Email:    userSignUpData.Email,
+		Password: userSignUpData.Password,
+	}
+
+	authCtrl := auth.Controller{Db: db, Validator: validatorRef, Logger: logger, ExtReq: request.ExternalRequest{Logger: logger, Test: true}}
+	channelController := channel.Controller{Db: db, Validator: validatorRef, Logger: logger}
+	orgCtrl := organisation.Controller{Db: db, Validator: validatorRef, Logger: logger}
+
+	r := gin.Default()
+	tst.SignupUser(t, r, authCtrl, userSignUpData, false)
+	token := tst.GetLoginToken(t, r, authCtrl, loginData)
+
+	createOrgData := models.CreateOrgRequestModel{
+		Name:        fmt.Sprintf("ToggleOrg%s", currUUID),
+		Description: "Org for toggle user joined message test",
+		Email:       userSignUpData.Email,
+		Type:        "type1",
+		Location:    "wakanda",
+		Country:     "wakanda",
+	}
+
+	orgId, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, createOrgData, token)
+
+	createChannelsData := models.CreateChannelsRequest{
+		Name:           fmt.Sprintf("ToggleChan%s", utility.GenerateUUID()),
+		Username:       fmt.Sprintf("togglechan%s", utility.GenerateUUID()),
+		OrganisationID: orgId,
+		Description:    "Channel for toggle user joined message test",
+	}
+
+	channelID, _ := tst.CreateChannels(t, r, channelController, db, createChannelsData, token)
+
+	defer func() {
+		_ = db.Postgresql.Where("id = ?", channelID).Delete(&models.Channels{}).Error
+		_ = db.Postgresql.Where("id = ?", orgId).Delete(&models.Organisation{}).Error
+		_ = db.Postgresql.Where("email = ?", userSignUpData.Email).Delete(&models.User{}).Error
+	}()
+
+	rGroup := r.Group("/api/v1/channels", middleware.Authorize(db.Postgresql))
+	rGroup.PUT("/:channelId/toggle-user-joined-message", channelController.ToggleUserJoinedMessage)
+	rGroup.POST("/:channelId/join", channelController.JoinChannels)
+
+	t.Run("Successfully Toggle User Joined Message to False and Verify No Join System Message Created", func(t *testing.T) {
+		show := false
+		body := models.ToggleJoinedMessageRequest{
+			ShowJoinedMessage: &show,
+		}
+		var b bytes.Buffer
+		json.NewEncoder(&b).Encode(body)
+
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/channels/%s/toggle-user-joined-message", channelID), &b)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+
+		rr := httptest.NewRecorder()
+		r.ServeHTTP(rr, req)
+
+		tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+		data := tst.ParseResponse(rr)
+		tst.AssertResponseMessage(t, data["message"].(string), "channel user joined message setting updated successfully")
+
+		// Create user 2 and join channel
+		currUUID2 := utility.GenerateUUID()
+		user2SignUp := models.CreateUserRequestModel{
+			Email:       fmt.Sprintf("toggleuser2_%v@qa.team", currUUID2),
+			PhoneNumber: fmt.Sprintf("+234%v", utility.GetRandomNumbersInRange(7000000000, 9099999999)),
+			FirstName:   "test2",
+			LastName:    "user2",
+			Password:    "password",
+			UserName:    fmt.Sprintf("toggle_user2_%v", currUUID2),
+		}
+		tst.SignupUser(t, r, authCtrl, user2SignUp, false)
+		token2 := tst.GetLoginToken(t, r, authCtrl, models.LoginRequestModel{Email: user2SignUp.Email, Password: user2SignUp.Password})
+
+		defer func() {
+			_ = db.Postgresql.Where("email = ?", user2SignUp.Email).Delete(&models.User{}).Error
+		}()
+
+		joinReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/channels/%s/join", channelID), strings.NewReader("{}"))
+		joinReq.Header.Set("Content-Type", "application/json")
+		joinReq.Header.Set("Authorization", "Bearer "+token2)
+
+		rrJoin := httptest.NewRecorder()
+		r.ServeHTTP(rrJoin, joinReq)
+
+		tst.AssertStatusCode(t, rrJoin.Code, http.StatusOK)
+
+		// Verify no join system message exists for channel
+		var count int64
+		_ = db.Postgresql.Model(&models.MessageDocument{}).Where("channels_id = ? AND content LIKE ?", channelID, "%joined this channel%").Count(&count).Error
+		if count != 0 {
+			t.Errorf("expected 0 join system messages when show_joined_message is false, got %d", count)
+		}
+	})
 }
