@@ -90,8 +90,10 @@ func main() {
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "send-notifications")
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "check-buzz-warnings")
 	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *storage.DB, "end-expired-buzzes")
-	dispatcher := np.NewDispatcher(10, 15, db, logger)
-	dispatcher.Run()
+	tracker := np.NewCountTracker(storage.DB.Mongo, logger)
+	go tracker.Run(ctx)
+	dispatcher := np.NewDispatcher(10, 15, db, logger, tracker)
+	dispatcher.Run(db.Redis, db.Postgresql)
 	go np.FeedDispatcher(dispatcher)
 
 	if configuration.Database.Migrate {

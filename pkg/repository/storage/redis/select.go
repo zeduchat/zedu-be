@@ -48,3 +48,19 @@ func PopFromNotificationQueue(rdb *redis.Client) (any, error) {
 
 	return response, nil
 }
+
+func PopFromRetryQueue(rdb *redis.Client) (any, error) {
+	var response any
+
+	jsonValue, err := rdb.RPop(Ctx, "notification-retry-queue").Result()
+	if err != nil {
+		return response, fmt.Errorf("could not pop from retry queue: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(jsonValue), &response)
+	if err != nil {
+		return response, fmt.Errorf("could not unmarshal JSON: %v", err)
+	}
+
+	return response, nil
+}
