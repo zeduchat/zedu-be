@@ -705,9 +705,7 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
-	recentDm := c.Query("recent_dm") == "true"
 	search := c.Query("search")
-	limit := 10
 
 	pagination := postgresql.GetPagination(c)
 
@@ -758,17 +756,8 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
-	if recentDm {
-		queryString += `
-			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
-		`
-		orderBy = "interacted_at"
-		order = "desc"
-		pagination.Limit = limit
-	} else {
-		orderBy = "created_at"
-		order = "desc"
-	}
+	orderBy = "COALESCE(dm_channels.interacted_at, dm_channels.created_at)"
+	order = "desc"
 
 	paginationResp, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db,
@@ -817,7 +806,7 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 		return 0
 	})
 
-	if len(dmChansResp) < 10 {
+	if pagination.Page == 1 && search == "" && len(dmChansResp) < 10 {
 		topUsers, err := dm.GetTopNUsersResponse(db, 20)
 		if err == nil {
 			existingParticipantIDs := make(map[string]bool)
@@ -834,10 +823,13 @@ func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmCha
 				}
 			}
 
-			paginationResp.TotalItems = int64(len(dmChansResp))
-			paginationResp.TotalPagesCount = 1
-			paginationResp.CurrentPage = 1
 			paginationResp.PageCount = len(dmChansResp)
+			if paginationResp.TotalItems < int64(len(dmChansResp)) {
+				paginationResp.TotalItems = int64(len(dmChansResp))
+			}
+			if paginationResp.TotalPagesCount == 0 && len(dmChansResp) > 0 {
+				paginationResp.TotalPagesCount = 1
+			}
 		}
 	}
 

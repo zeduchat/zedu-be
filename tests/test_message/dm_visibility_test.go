@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -209,4 +210,62 @@ func TestDmChannelVisibilityFlow(t *testing.T) {
 		}
 		assert.True(t, found, "DM channel should be restored to visible after new message")
 	})
+
+	t.Run("Channels are always ordered by recent activity without recent_dm param", func(t *testing.T) {
+		dmChannelID2 := utility.GenerateUUID()
+		pastTime := time.Now().Add(-24 * time.Hour)
+		recentTime := time.Now()
+
+		dmChanRecent := models.DmChannels{
+			ID:               utility.GenerateUUID(),
+			ChannelId:        dmChannelID2,
+			UserId:           user1.ID,
+			ParticipantId:    &user2.ID,
+			OrgId:            org.ID,
+			ChatType:         "user",
+			ChannelType:      "dm",
+			VisibilityStatus: &trueVal,
+			CreatedAt:        pastTime,
+			InteractedAt:     recentTime,
+		}
+		require.NoError(t, db.Postgresql.Create(&dmChanRecent).Error)
+
+		thread := models.ThreadDocument{
+			ID:         utility.GenerateUUID(),
+			ChannelsID: dmChannelID2,
+			Content:    "Hello recent message",
+			Type:       "message",
+			UserId:     user1.ID,
+			CreatedAt:  recentTime,
+		}
+		require.NoError(t, thread.CreateThread(db, logger))
+
+		req := httptest.NewRequest("GET", "/api/v1/organisations/"+org.ID+"/dms/visible", nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		data := response["data"].([]interface{})
+		require.GreaterOrEqual(t, len(data), 2)
+
+		firstChan := data[0].(map[string]interface{})
+		assert.Equal(t, dmChannelID2, firstChan["channel_id"], "Channel with recent interaction should appear first")
+	})
+
+	t.Run("Page 2 preserves current_page and does not corrupt pagination metadata", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/organisations/"+org.ID+"/dms/visible?page=2&limit=1", nil)
+		req.Header.Set("Authorization", "Bearer "+token1)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		pagination := response["pagination"].(map[string]interface{})
+		assert.Equal(t, float64(2), pagination["current_page"], "current_page should remain 2 on page 2")
+	})
 }
+
