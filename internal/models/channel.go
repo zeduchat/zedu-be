@@ -1672,27 +1672,23 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			mentionNotification.NotificationId = utility.GenerateUUID()
 		}
 
+		var entries []centrifuge.PublishEntry
+
 		for _, update := range res {
 			notification := Notification[UnReadThreadChange]
 			notification.SectionType = ChannelsSection
 			notification.Content = update
 			notification.NotificationId = utility.GenerateUUID()
 
-			err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), notification)
-			if err != nil {
-				logger.Error(fmt.Sprintf("Error Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
-				return
-			}
+			channel := fmt.Sprintf("%s/%s", c.OrgId, update.UserId)
+			entries = append(entries, centrifuge.PublishEntry{Channel: channel, Payload: notification})
 
 			if channelMention || userMention[update.UserId] {
-				err = centrifuge.PublishChannel(logger, fmt.Sprintf("%s/%s", c.OrgId, update.UserId), mentionNotification)
-				if err != nil {
-					logger.Error(fmt.Sprintf("Error mention message to Publishing to channelid: %s, with userid: %s error: %v", c.ChannelsID, update.UserId, err.Error()))
-					return
-				}
-				logger.Info("Published in-channel mention to user : %s", update.UserId)
+				entries = append(entries, centrifuge.PublishEntry{Channel: channel, Payload: mentionNotification})
 			}
 		}
+
+		centrifuge.PipePublishChannels(logger, entries)
 	}
 
 	logger.Info("user last read updated successfully")

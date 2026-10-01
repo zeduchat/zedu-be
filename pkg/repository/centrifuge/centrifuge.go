@@ -7,12 +7,22 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/centrifugal/gocent"
 
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/utility"
+)
+type PublishEntry struct {
+	Channel string
+	Payload any
+}
+
+const (
+	maxPipeBatchSize     = 250
+	maxConcurrentBatches = 20
 )
 
 func NewCentrifugoService(logger *utility.Logger, config config.Centrifuge) *gocent.Client {
@@ -144,3 +154,49 @@ func PublishLeaveBuzzEvent(logger *utility.Logger, channelID string, publishPayl
 	return nil
 
 }
+
+
+func PipePublishChannels(logger *utility.Logger, entries []PublishEntry) {
+	client := Client.C
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrentBatches)
+
+	for i := 0; i < len(entries); i += maxPipeBatchSize {
+		end := i + maxPipeBatchSize
+		if end > len(entries) {
+			end = len(entries)
+		}
+		batch := entries[i:end]
+
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(batch []PublishEntry) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			pipe := client.Pipe()
+			for _, e := range batch {
+				data, err := json.Marshal(e.Payload)
+				if err != nil {
+					logger.Error("Failed to marshal payload for channel %s: %v", e.Channel, err)
+					continue
+				}
+				pipe.AddPublish(e.Channel, data)
+			}
+
+			replies, err := client.SendPipe(context.Background(), pipe)
+			if err != nil {
+				logger.Error("Pipe send failed: %v", err)
+				for j, reply := range replies {
+					if reply.Error != nil {
+						logger.Error("Publish failed for channel %s: %v", batch[j].Channel, reply.Error)
+					}
+				}
+			}
+		}(batch)
+	}
+
+	wg.Wait()
+}
+
