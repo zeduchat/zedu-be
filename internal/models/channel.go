@@ -117,6 +117,11 @@ type GetChannelResp struct {
 	TotalUserCount int64               `json:"total_user_count"`
 }
 
+type MessagePayload struct {
+	Exist   bool                `json:"exist"`
+	Message *FeedMessageRequest `json:"message,omitempty"`
+}
+
 type GetUserChannelResp []struct {
 	Channels
 	WebhookUrl     string          `json:"webhook_url,omitempty"`
@@ -134,6 +139,7 @@ type GetUserChannelResp []struct {
 	PreviewMessage string          `json:"preview_message"`
 	LastReadAt     time.Time       `json:"last_read_at"`
 	Restricted     bool            `json:"restricted"`
+	Payload        *MessagePayload `gorm:"-" json:"payload,omitempty"`
 }
 
 type RestrictUserReq struct {
@@ -147,11 +153,12 @@ type ChannelUserResponse struct {
 
 type GetUserChannelsUnReadResp []struct {
 	Channels
-	UserId       string `json:"-"`
-	ThreadCount  int64  `json:"thread_count"`
-	Access       bool   `json:"access"`
-	MentionCount int64  `json:"mention_count"`
-	LastThreadId string `json:"last_thread_id"`
+	UserId       string          `json:"-"`
+	ThreadCount  int64           `json:"thread_count"`
+	Access       bool            `json:"access"`
+	MentionCount int64           `json:"mention_count"`
+	LastThreadId string          `json:"last_thread_id"`
+	Payload      *MessagePayload `gorm:"-" json:"payload,omitempty"`
 }
 
 type GetUserNotChannelResp []struct {
@@ -1611,6 +1618,11 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			return
 		}
 
+		res[0].Payload = &MessagePayload{
+			Exist:   false,
+			Message: nil,
+		}
+
 		notification := Notification[UnReadThreadChange]
 		notification.SectionType = ChannelsSection
 		notification.Content = res[0]
@@ -1672,9 +1684,26 @@ func (c *UserChannels) SendChannelUnReadUpdate(mu *sync.Mutex, logger *utility.L
 			mentionNotification.NotificationId = utility.GenerateUUID()
 		}
 
+		var payload *MessagePayload
+		if feed, ok := mentionMsg.Content.(FeedMessageRequest); ok {
+			payload = &MessagePayload{
+				Exist:   true,
+				Message: &feed,
+			}
+		} else if feedPtr, ok := mentionMsg.Content.(*FeedMessageRequest); ok && feedPtr != nil {
+			payload = &MessagePayload{
+				Exist:   true,
+				Message: feedPtr,
+			}
+		}
+
 		var entries []centrifuge.PublishEntry
 
 		for _, update := range res {
+			if payload != nil {
+				update.Payload = payload
+			}
+
 			notification := Notification[UnReadThreadChange]
 			notification.SectionType = ChannelsSection
 			notification.Content = update
