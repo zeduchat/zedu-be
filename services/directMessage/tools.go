@@ -4,45 +4,41 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
-	"github.com/hngprojects/telex_be/pkg/repository/openrouter/tools"
-	"github.com/hngprojects/telex_be/pkg/repository/openrouter/tools/capitalize"
+	agentruntime "github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
 
-var toolRegistry map[string]tools.ToolExecutor
-
-func InitializeTools() []models.Tool {
-	toolRegistry = make(map[string]tools.ToolExecutor)
-
-	capitalizeTool := capitalize.NewCapitalizeTool()
-	toolRegistry["capitalize_text"] = capitalizeTool
-
-	toolDefinitions := []models.Tool{}
-
-	for _, tool := range toolRegistry {
-		def := tool.GetDefinition()
-		toolDefinitions = append(toolDefinitions, models.Tool{
-			Type: def.Type,
-			Function: models.ToolFunction{
-				Name:        def.Function.Name,
-				Description: def.Function.Description,
-				Parameters: models.ToolFunctionParameter{
-					Type:       def.Function.Parameters["type"].(string),
-					Properties: def.Function.Parameters["properties"].(map[string]any),
-					Required:   def.Function.Parameters["required"].([]string),
-				},
-			},
-		})
-	}
-
-	return toolDefinitions
+type ToolExecutionRequest struct {
+	DB         *gorm.DB
+	BotRequest models.BotRequest
+	Logger     *utility.Logger
 }
 
-func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logger, req models.BotRequest) ([]external_models.TelexAIOpenRouterMessage, error) {
-	var results []external_models.TelexAIOpenRouterMessage
+func InitializeTools() []models.Tool {
+	return agentruntime.ToolDefinitions()
+}
+
+func ExecuteToolCalls(toolCalls []external_models.ToolCall, input ToolExecutionRequest) ([]external_models.TelexAIOpenRouterMessage, error) {
+	if input.Logger == nil {
+		return nil, fmt.Errorf("logger is not initialized")
+	}
+
+	registry := agentruntime.NewToolRegistry()
+	context := agentruntime.ToolExecutionContext{
+		DB:        input.DB,
+		AgentID:   input.BotRequest.AgentId,
+		OrgID:     input.BotRequest.OrgId,
+		UserID:    input.BotRequest.UserId,
+		ChannelID: input.BotRequest.ChannelID,
+		ThreadID:  input.BotRequest.ThreadId,
+	}
+
+	results := make([]external_models.TelexAIOpenRouterMessage, 0, len(toolCalls))
 
 	for _, toolCall := range toolCalls {
 		if toolCall.Function == nil {
@@ -50,15 +46,10 @@ func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logg
 		}
 
 		toolName := toolCall.Function.Name
-		executor, exists := toolRegistry[toolName]
-		if !exists {
-			logger.Error(fmt.Sprintf("Tool not found: %s", toolName))
-			continue
-		}
-
-		var arguments map[string]interface{}
+		var arguments map[string]any
 		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &arguments); err != nil {
-			logger.Error(fmt.Sprintf("Failed to parse tool arguments: %v", err))
+			input.Logger.Error(fmt.Sprintf("Failed to parse tool arguments for %s: %v", toolName, err))
+			results = append(results, toolErrorMessage(toolCall.ID, toolName, fmt.Errorf("invalid tool arguments: %w", err)))
 			continue
 		}
 
@@ -69,14 +60,12 @@ func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logg
 			Result:    nil,
 			Error:     nil,
 		}
+		input.BotRequest.BotNotification = models.AgentToolCallStarted
+		SendToolCallNotification(input.BotRequest, toolStartedData, input.Logger)
 
-		req.BotNotification = models.AgentToolCallStarted
-		SendToolCallNotification(req, toolStartedData, logger)
-
-		result, err := executor.Execute(arguments)
+		result, err := registry.Execute(context, toolName, arguments)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Tool execution failed for %s: %v", toolName, err))
-
+			input.Logger.Error(fmt.Sprintf("Tool execution failed for %s: %v", toolName, err))
 			errorMsg := err.Error()
 			toolErrorData := models.ToolCallNotification{
 				ToolName:  toolName,
@@ -85,14 +74,16 @@ func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logg
 				Result:    nil,
 				Error:     &errorMsg,
 			}
-			req.BotNotification = models.AgentErrorOccured
-			SendToolCallNotification(req, toolErrorData, logger)
+			input.BotRequest.BotNotification = models.AgentErrorOccured
+			SendToolCallNotification(input.BotRequest, toolErrorData, input.Logger)
+			results = append(results, toolErrorMessage(toolCall.ID, toolName, err))
 			continue
 		}
 
 		resultJSON, err := json.Marshal(result)
 		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to marshal tool result: %v", err))
+			input.Logger.Error(fmt.Sprintf("Failed to marshal tool result for %s: %v", toolName, err))
+			results = append(results, toolErrorMessage(toolCall.ID, toolName, fmt.Errorf("failed to serialize tool result: %w", err)))
 			continue
 		}
 
@@ -103,9 +94,8 @@ func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logg
 			Result:    result,
 			Error:     nil,
 		}
-
-		req.BotNotification = models.AgentToolCallCompleted
-		SendToolCallNotification(req, toolCompletedData, logger)
+		input.BotRequest.BotNotification = models.AgentToolCallCompleted
+		SendToolCallNotification(input.BotRequest, toolCompletedData, input.Logger)
 
 		results = append(results, external_models.TelexAIOpenRouterMessage{
 			Role:       "tool",
@@ -114,10 +104,25 @@ func ExecuteToolCalls(toolCalls []external_models.ToolCall, logger *utility.Logg
 			Name:       toolName,
 		})
 
-		logger.Info(fmt.Sprintf("Executed tool %s successfully", toolName))
+		input.Logger.Info(fmt.Sprintf("Executed tool %s successfully", toolName))
 	}
 
 	return results, nil
+}
+
+func toolErrorMessage(toolCallID, toolName string, err error) external_models.TelexAIOpenRouterMessage {
+	payload := map[string]string{"error": err.Error()}
+	content, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		content = []byte(fmt.Sprintf("{\"error\":%q}", err.Error()))
+	}
+
+	return external_models.TelexAIOpenRouterMessage{
+		Role:       "tool",
+		Content:    string(content),
+		ToolCallID: toolCallID,
+		Name:       toolName,
+	}
 }
 
 func SendToolCallNotification(req models.BotRequest, toolData models.ToolCallNotification, logger *utility.Logger) error {

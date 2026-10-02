@@ -493,7 +493,14 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	}
 
 	if req.Type == models.NewBotMessage {
-		fullMessage, err := ProcessBotStreamingResponse(req, orgAgent, channel, extReq, logger)
+		fullMessage, err := ProcessBotStreamingResponse(BotStreamingRequest{
+			Request:         req,
+			Agent:           orgAgent,
+			Channel:         channel,
+			DB:              db.Postgresql,
+			ExternalRequest: extReq,
+			Logger:          logger,
+		})
 		if err != nil {
 			logger.Error(fmt.Sprintf("Failed to process bot streaming response: %v", err))
 			return nil, http.StatusInternalServerError, fmt.Errorf("failed to process bot streaming response: %v", err)

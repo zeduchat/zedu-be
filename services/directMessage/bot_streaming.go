@@ -15,9 +15,26 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/openrouter"
 	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
 )
 
-func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.OrganisationIntegrations, channel models.DmChannels, extReq request.ExternalRequest, logger *utility.Logger) (string, error) {
+type BotStreamingRequest struct {
+	Request         models.BotRequest
+	Agent           models.OrganisationIntegrations
+	Channel         models.DmChannels
+	DB              *gorm.DB
+	ExternalRequest request.ExternalRequest
+	Logger          *utility.Logger
+}
+
+func ProcessBotStreamingResponse(input BotStreamingRequest) (string, error) {
+	req := input.Request
+	orgAgent := input.Agent
+	channel := input.Channel
+	extReq := input.ExternalRequest
+	logger := input.Logger
+	db := input.DB
+
 	req.BotNotification = models.AgentProcessingStarted
 	err := SendAgentNotification(req, logger)
 	if err != nil {
@@ -206,7 +223,11 @@ func ProcessBotStreamingResponse(req models.BotRequest, orgAgent models.Organisa
 	if len(toolCalls) > 0 {
 		logger.Info(fmt.Sprintf("Processing %d tool calls", len(toolCalls)))
 
-		toolResults, err := ExecuteToolCalls(toolCalls, logger, req)
+		toolResults, err := ExecuteToolCalls(toolCalls, ToolExecutionRequest{
+			DB:         db,
+			BotRequest: req,
+			Logger:     logger,
+		})
 		if err != nil {
 			logger.Error(fmt.Sprintf("Error executing tool calls: %v", err))
 			return fullContent.String(), nil
