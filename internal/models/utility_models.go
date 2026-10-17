@@ -17,4 +17,6 @@ type IDS struct {
 	Type           string `json:"type"`
 	WorkflowID     string `json:"workflow_id"`
 	Search         string `json:"search"`
+
+	ChannelIDs []string `json:"-"`
 }

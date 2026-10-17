@@ -33,6 +33,7 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 		channelUrl.POST("/:channelId/export", channel.ExportChannel)
 		channelUrl.POST("/:channelId/integration-channels", channel.AddIntegrationChannel)
 		channelUrl.POST("/:channelId/notification-preference", channel.UpdateDeviceNotification)
+		channelUrl.POST("/:channelId/star", channel.ToggleStarChannel)
 
 		// PUT routes
 		channelUrl.PUT("/:channelId/messages", channel.EditChannelsMsg)

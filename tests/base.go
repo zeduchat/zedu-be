@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sync"
 	"testing"
 
@@ -47,7 +48,13 @@ var (
 func Setup() *utility.Logger {
 	setupOnce.Do(func() {
 		logger = utility.NewLogger()
-		config := config.Setup(logger, "../../app")
+		configName := "../../app"
+		if _, err := os.Stat("../../app.env"); err != nil {
+			if _, err := os.Stat("../app.env"); err == nil {
+				configName = "../app"
+			}
+		}
+		config := config.Setup(logger, configName)
 
 		postgresql.ConnectToDatabase(logger, config.TestDatabase)
 		redis.ConnectToRedis(logger, config.Redis)

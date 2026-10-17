@@ -1188,7 +1188,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		"aggs": map[string]any{
 			"unique_thread_ids": map[string]any{
 				"terms": map[string]any{
-					"field": "thread_id.keyword",
+					"field": "thread_id",
 					"size":  limit,
 				},
 			},
@@ -1236,7 +1236,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	query = map[string]any{
 		"query": map[string]any{
 			"terms": map[string]any{
-				"thread_id.keyword": threadIDs,
+				"thread_id": threadIDs,
 			},
 		},
 		"from": from,
@@ -1585,7 +1585,6 @@ func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
 
 	return threads
 }
-
 
 func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, int, error) {
 	var (

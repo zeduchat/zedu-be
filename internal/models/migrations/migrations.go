@@ -14,6 +14,7 @@ func AuthMigrationModels() []any {
 		models.BroadcastNotificationLog{},
 		models.DmChannels{},
 		models.DmFavourite{},
+		models.ChannelStar{},
 		models.Group{},
 		models.BuzzInvitation{},
 		models.Waitlist{},
