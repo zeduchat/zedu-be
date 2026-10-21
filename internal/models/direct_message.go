@@ -1209,7 +1209,10 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 
 			exists := postgresql.CheckExists(db, &uc, query, c.ChannelId, c.UserId)
 
-			if exists && uc.LastThreadId == req.LastThreadId {
+			// Skip only when nothing would change. An unread count can still be
+			// above 0 for the latest thread (the increment from a new message
+			// can land after it was read), so reset it in that case.
+			if exists && uc.LastThreadId == req.LastThreadId && uc.ThreadCount == 0 {
 				return false
 			}
 
@@ -1238,7 +1241,10 @@ func (c *DmChannels) UpdateLastRead(db *gorm.DB, req UpdateLastRead, mu *sync.Mu
 
 			exists := postgresql.CheckExists(db, &uc, query, c.ChannelId, c.UserId)
 
-			if exists && uc.LastThreadId == req.LastThreadId {
+			// Skip only when nothing would change. An unread count can still be
+			// above 0 for the latest thread (the increment from a new message
+			// can land after it was read), so reset it in that case.
+			if exists && uc.LastThreadId == req.LastThreadId && uc.ThreadCount == 0 {
 				return false
 			}
 
