@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/stripe-go/v72/webhook"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/controller/subscriptions"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -20,8 +23,27 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+const testWebhookSecret = "whsec_test_secret"
+
+// setTestWebhookSecret points the handler at a known signing secret so the
+// tests can produce signatures Stripe would accept.
+func setTestWebhookSecret() {
+	if config.Config == nil {
+		config.Config = &config.Configuration{}
+	}
+	config.Config.Stripe.STRIPE_WEBHOOK_SECRET = testWebhookSecret
+}
+
+// stripeSignatureHeader builds the "t=<unix>,v1=<hex>" header Stripe sends.
+func stripeSignatureHeader(payload []byte) string {
+	ts := time.Now()
+	sig := webhook.ComputeSignature(ts, payload, testWebhookSecret)
+	return fmt.Sprintf("t=%d,v1=%x", ts.Unix(), sig)
+}
+
 func TestCreditTopupWebhook_Success(t *testing.T) {
 	_ = tst.Setup()
+	setTestWebhookSecret()
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 	validator := validator.New()
@@ -45,7 +67,7 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Stripe-Signature", "test_signature")
+	req.Header.Set("Stripe-Signature", stripeSignatureHeader(eventJSON))
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -76,6 +98,7 @@ func TestCreditTopupWebhook_Success(t *testing.T) {
 
 func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	_ = tst.Setup()
+	setTestWebhookSecret()
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 	validator := validator.New()
@@ -98,7 +121,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Stripe-Signature", "test_signature")
+	req.Header.Set("Stripe-Signature", stripeSignatureHeader(eventJSON))
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -119,6 +142,7 @@ func TestCreditTopupWebhook_InvalidPackageID(t *testing.T) {
 
 func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 	_ = tst.Setup()
+	setTestWebhookSecret()
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 	validator := validator.New()
@@ -142,7 +166,7 @@ func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Stripe-Signature", "test_signature")
+	req.Header.Set("Stripe-Signature", stripeSignatureHeader(eventJSON))
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -160,6 +184,7 @@ func TestCreditTopupWebhook_InvalidOrgID(t *testing.T) {
 
 func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	_ = tst.Setup()
+	setTestWebhookSecret()
 	gin.SetMode(gin.TestMode)
 	db := storage.Connection()
 	validator := validator.New()
@@ -186,7 +211,7 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	eventJSON, _ := json.Marshal(webhookEvent)
 	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Stripe-Signature", "test_signature")
+	req.Header.Set("Stripe-Signature", stripeSignatureHeader(eventJSON))
 
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -210,6 +235,48 @@ func TestCreditTopupWebhook_WithExistingCreditUsage(t *testing.T) {
 	err = db.Postgresql.Where("id = ?", orgID).First(&org).Error
 	assert.NoError(t, err)
 	assert.Equal(t, float64(550.00), org.CreditBalance)
+}
+
+func TestCreditTopupWebhook_RejectsInvalidSignature(t *testing.T) {
+	_ = tst.Setup()
+	setTestWebhookSecret()
+	gin.SetMode(gin.TestMode)
+	db := storage.Connection()
+	validator := validator.New()
+
+	orgID := CreateOrganizationWithCredit(t, db.Postgresql, 100.00)
+	packageID := CreateTestCreditPackage(t, db.Postgresql, 1000, 5.00)
+	sessionID := fmt.Sprintf("cs_test_%s", utility.GenerateUUID())
+
+	webhookController := subscriptions.Controller{
+		Db:        db,
+		Validator: validator,
+		Logger:    utility.NewLogger(),
+		ExtReq:    request.ExternalRequest{},
+	}
+
+	r := gin.New()
+	r.POST("/api/v1/subscriptions/webhook", webhookController.HandleStripeWebhook)
+
+	webhookEvent := CreateTestStripeWebhookEvent(orgID, packageID, sessionID, "https://zedu.chat/client/settings/organisation/billing?session_id="+sessionID, "https://zedu.chat/client/settings/organisation/billing")
+
+	eventJSON, _ := json.Marshal(webhookEvent)
+	req, _ := http.NewRequest(http.MethodPost, "/api/v1/subscriptions/webhook", bytes.NewBuffer(eventJSON))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Stripe-Signature", "t=1,v1=deadbeef")
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	t.Cleanup(func() {
+		CleanupSpecificTestData(db.Postgresql, "", []string{orgID})
+	})
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+
+	var transactionCount int64
+	db.Postgresql.Model(&models.CreditTransaction{}).Where("organisation_id = ?", orgID).Count(&transactionCount)
+	assert.Equal(t, int64(0), transactionCount)
 }
 
 func CreateTestStripeWebhookEvent(orgID, packageID, sessionID, successURL, cancelURL string) map[string]any {
