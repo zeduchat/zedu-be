@@ -380,7 +380,23 @@ func (base *Controller) DeleteChannel(c *gin.Context) {
 func (base *Controller) GetChannelsByName(c *gin.Context) {
 	name := c.Params.ByName("channelName")
 
-	respData, code, err := channel.GetChannelsByName(base.Db.Postgresql, name)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	orgID, _ := userClaims["org_id"].(string)
+	if orgID == "" {
+		base.Logger.Info("error getting organisation from claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organisation not found for user", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	respData, code, err := channel.GetChannelsByName(base.Db.Postgresql, name, orgID)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -586,7 +602,24 @@ func (base *Controller) CheckUser(c *gin.Context) {
 func (base *Controller) SearchChannelsByNames(c *gin.Context) {
 	name := c.Param("channelName")
 
-	channels, paginationResponse, err := channel.SearchChannelsByNames(base.Db.Postgresql, c, name)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+	if userID == "" || orgID == "" {
+		base.Logger.Info("error getting user or organisation from claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user or organisation not found for token", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	channels, paginationResponse, err := channel.SearchChannelsByNames(base.Db.Postgresql, c, name, orgID, userID)
 	if err != nil {
 		base.Logger.Info("error fetching channels")
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "failed to fetch channels", err, nil)

@@ -134,10 +134,10 @@ func GetChannel(db *storage.Database, ids models.IDS) (models.GetChannelResp, in
 	return chanresp, http.StatusOK, nil
 }
 
-func GetChannelsByName(db *gorm.DB, name string) ([]models.Channels, int, error) {
+func GetChannelsByName(db *gorm.DB, name, organisationID string) ([]models.Channels, int, error) {
 	var r models.Channels
 
-	channel, err := r.GetChannelsByName(db, name)
+	channel, err := r.GetChannelsByName(db, name, organisationID)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
@@ -324,11 +324,11 @@ func CheckUser(channelId, userID string, db *gorm.DB) (gin.H, int, error) {
 	return resp, http.StatusOK, nil
 }
 
-func SearchChannelsByNames(db *gorm.DB, c *gin.Context, name string) ([]models.Channels, postgresql.PaginationResponse, error) {
+func SearchChannelsByNames(db *gorm.DB, c *gin.Context, name, organisationID, userID string) ([]models.Channels, postgresql.PaginationResponse, error) {
 	var (
 		channel models.Channels
 	)
-	channels, paginationResponse, err := channel.SearchChannelssByName(db, c, name)
+	channels, paginationResponse, err := channel.SearchChannelssByName(db, c, name, organisationID, userID)
 
 	if err != nil {
 		return channels, paginationResponse, err
