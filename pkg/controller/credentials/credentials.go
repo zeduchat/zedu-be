@@ -102,14 +102,32 @@ func (base *Controller) GetSkillCredentials(c *gin.Context) {
 func (base *Controller) GetCredentialByID(c *gin.Context) {
 	var credentialId = c.Param("credential_id")
 
-	if _, err := uuid.Parse(credentialId); err != nil {
-		base.Logger.Info("invalid skill id format")
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid skill id format", err, nil)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Info("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	resp, code, err := credentials.GetCredentialByIDService(credentialId, base.Db.Postgresql)
+	userClaims := claims.(jwt.MapClaims)
+	userId, _ := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
+	if userId == "" || orgId == "" {
+		base.Logger.Info("missing user or org claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Invalid token claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	if _, err := uuid.Parse(credentialId); err != nil {
+		base.Logger.Info("invalid credential id format")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid credential id format", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	resp, code, err := credentials.GetCredentialByIDService(credentialId, orgId, userId, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error fetching credential", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
