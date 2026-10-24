@@ -19,12 +19,21 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
+const (
+	defaultTailLines = 100
+	maxTailLines     = 5000
+)
+
 func (base *Controller) GetTailLogs(c *gin.Context) {
 	linesParam := c.DefaultQuery("lines", "100")
 
 	lines, err := strconv.Atoi(linesParam)
 	if err != nil || lines <= 0 {
-		lines = 100
+		lines = defaultTailLines
+	}
+
+	if lines > maxTailLines {
+		lines = maxTailLines
 	}
 
 	result, err := recentLogs.TailLines("logs/app.log", lines)
