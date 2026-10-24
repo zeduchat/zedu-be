@@ -95,6 +95,9 @@ type PushNotificationRecord struct {
 	NotificationId      string              `json:"notification_id"`
 	UserIds             []string            `json:"user_ids"`
 	OrgId               string              `json:"org_id"`
+	RetryCount          int                 `json:"retry_count"`
+	MaxRetries          int                 `json:"max_retries"`
+	LastError           string              `json:"last_error"`
 }
 
 type NotificationProcessPayload struct {
@@ -147,9 +150,34 @@ func (n *PushNotificationRecord) PushToQueue(rdb *redis.Client) error {
 	return nil
 }
 
+func (n *PushNotificationRecord) PushToRetryQueue(rdb *redis.Client) error {
+	return dbRedis.PushToRetryQueue(rdb, &n)
+}
+
 func (n *PushNotificationRecord) PopFromQueue(rdb *redis.Client) (PushNotificationRecord, error) {
 	var rec PushNotificationRecord
 	res, err := dbRedis.PopFromNotificationQueue(rdb)
+
+	if err != nil {
+		return rec, err
+	}
+
+	resJSON, err := json.Marshal(res)
+	if err != nil {
+		return rec, fmt.Errorf("error marshaling map: %v", err)
+	}
+
+	err = json.Unmarshal(resJSON, &rec)
+	if err != nil {
+		return rec, fmt.Errorf("error unmarshaling JSON: %v", err)
+	}
+
+	return rec, nil
+}
+
+func (n *PushNotificationRecord) PopFromRetryQueue(rdb *redis.Client) (PushNotificationRecord, error) {
+	var rec PushNotificationRecord
+	res, err := dbRedis.PopFromRetryQueue(rdb)
 
 	if err != nil {
 		return rec, err

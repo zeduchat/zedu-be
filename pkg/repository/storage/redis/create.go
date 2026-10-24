@@ -64,3 +64,20 @@ func PushToNotificationQueue(rdb *redis.Client, value any) error {
 
 	return nil
 }
+
+func PushToRetryQueue(rdb *redis.Client, value any) error {
+	if rdb == nil || gin.Mode() == gin.TestMode || gin.Mode() == "test" {
+		return nil
+	}
+	jsonValue, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("could not marshal struct: %v", err)
+	}
+
+	err = rdb.LPush(Ctx, "notification-retry-queue", jsonValue).Err()
+	if err != nil {
+		fmt.Println("could not push to retry queue: ", err)
+	}
+
+	return nil
+}
