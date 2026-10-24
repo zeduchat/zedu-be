@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	service "github.com/hngprojects/telex_be/services/subscription"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/stripe/stripe-go/v72"
+	stripewebhook "github.com/stripe/stripe-go/v72/webhook"
 )
 
 func (base *Controller) HandleStripeWebhook(c *gin.Context) {
@@ -24,10 +26,21 @@ func (base *Controller) HandleStripeWebhook(c *gin.Context) {
 		return
 	}
 	// base.Logger.Info("DEBUG: Webhook body: %s\n", string(body))
-	var event stripe.Event
-	if err := json.Unmarshal(body, &event); err != nil {
-		base.Logger.Error("Error parsing event: " + err.Error())
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid event data", nil, nil)
+	secret := ""
+	if config.Config != nil {
+		secret = config.Config.Stripe.STRIPE_WEBHOOK_SECRET
+	}
+	if secret == "" {
+		base.Logger.Error("stripe webhook secret is not configured")
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Webhook is not configured", nil, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	event, err := stripewebhook.ConstructEvent(body, c.GetHeader("Stripe-Signature"), secret)
+	if err != nil {
+		base.Logger.Error("Error verifying webhook signature: " + err.Error())
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid webhook signature", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
