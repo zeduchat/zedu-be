@@ -263,7 +263,7 @@ func (cred *Credential) GetCredentialByID(db *gorm.DB) (*CredentialsResponse, in
 
 	var dbCredential Credential
 	err := db.Model(&Credential{}).
-		Where("id = ?", cred.ID).
+		Where("id = ? AND org_id = ? AND user_id = ?", cred.ID, cred.OrgId, cred.UserId).
 		First(&dbCredential).Error
 
 	if err != nil {
