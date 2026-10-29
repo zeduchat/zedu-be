@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
+func CreateBlog(req models.BlogCreateReq, db *gorm.DB, adminId string) error {
 	var blogCategory models.BlogCategory
 	blogCategory.ID = req.CategoryID
 
@@ -25,8 +25,19 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 		return err
 	}
 
+	var admin models.Admin
+	if err := db.First(&admin, "id = ?", adminId).Error; err != nil {
+		return errors.New("admin not found")
+	}
+
+	// Platform admins are created from existing Zedu users. Resolve that user
+	// by the shared email so the existing Blog.Author relationship remains
+	// valid while authorization is enforced with the admin session.
 	var user models.User
-	user, _ = user.GetUserWithProfile(db, userId)
+	if err := db.Where("LOWER(email) = ?", strings.ToLower(admin.Email)).First(&user).Error; err != nil {
+		return errors.New("admin user profile not found")
+	}
+	user, _ = user.GetUserWithProfile(db, user.ID)
 
 	frontMatter, markdownContent, err := blog_utility.ParseFrontMatter(req.Content)
 	if err != nil {
@@ -44,7 +55,7 @@ func CreateBlog(req models.BlogCreateReq, db *gorm.DB, userId string) error {
 		ImageURL:     frontMatter.Image,
 		PreviewImage: frontMatter.PreviewImage,
 		CategoryID:   req.CategoryID,
-		AuthorID:     userId,
+		AuthorID:     user.ID,
 		AuthorName:   user.Name,
 		AuthorAvatar: user.Profile.AvatarURL,
 		PublishedAt:  frontMatter.PublishedAt,
@@ -103,7 +114,7 @@ func GetBlogById(blogId string, db *gorm.DB) (models.Blog, error) {
 	return blog, nil
 }
 
-func DeleteBlog(blogId string, userId string, db *gorm.DB) error {
+func DeleteBlog(blogId string, db *gorm.DB) error {
 	var blog models.Blog
 	blog.ID = blogId
 
@@ -114,10 +125,6 @@ func DeleteBlog(blogId string, userId string, db *gorm.DB) error {
 			return errors.New("blog not found")
 		}
 		return err
-	}
-
-	if blog.AuthorID != userId {
-		return errors.New("user not authorised to delete blog")
 	}
 
 	return blog.Delete(db)

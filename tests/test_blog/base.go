@@ -33,7 +33,7 @@ func SetupBlogTestRouter() (*gin.Engine, *blog.Controller) {
 }
 
 func SetupBlogRoutes(r *gin.Engine, blogController *blog.Controller) {
-	blogAdminUrl := r.Group("/api/v1", middleware.Authorize(blogController.Db.Postgresql))
+	blogAdminUrl := r.Group("/api/v1", middleware.AdminAuthorize(blogController.Db.Postgresql))
 	blogUrl := r.Group("/api/v1")
 
 	blogAdminUrl.POST("/blogs", blogController.CreateBlog)

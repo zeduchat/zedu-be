@@ -16,7 +16,10 @@ func Blog(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	blogs := blog.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	blogsAdminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql))
+	// Blog mutations change public content and must only be available to
+	// authenticated platform administrators. Public read and feedback routes
+	// remain available through blogsUrl below.
+	blogsAdminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	blogsUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
 
 	{

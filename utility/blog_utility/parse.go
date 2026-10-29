@@ -32,6 +32,9 @@ func ParseFrontMatter(content string) (FrontMatter, string, error) {
 }
 
 func ConvertMarkdownToHTML(markdown string) string {
-	output := blackfriday.Run([]byte(markdown))
+	renderer := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
+		Flags: blackfriday.SkipHTML,
+	})
+	output := blackfriday.Run([]byte(markdown), blackfriday.WithRenderer(renderer))
 	return string(output)
 }

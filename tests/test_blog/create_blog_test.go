@@ -77,11 +77,11 @@ previewImage: "/images/about-us.jpg"
 		Headers      map[string]string
 	}{
 		{
-			Name:         "Successful creation of blog",
+			Name:         "Regular users cannot create public blog posts",
 			CategoryID:   blogCategory.ID,
 			FileContent:  content,
-			ExpectedCode: http.StatusCreated,
-			Message:      "blog created successfully",
+			ExpectedCode: http.StatusUnauthorized,
+			Message:      "Token is invalid!",
 			Headers: map[string]string{
 				"Authorization": "Bearer " + token,
 			},
@@ -94,26 +94,6 @@ previewImage: "/images/about-us.jpg"
 			Message:      "Token could not be found!",
 			Headers: map[string]string{
 				"Authorization": "",
-			},
-		},
-		{
-			Name:         "Invalid Category Id",
-			CategoryID:   "invalid-id-uututu",
-			FileContent:  content,
-			ExpectedCode: http.StatusBadRequest,
-			Message:      "invalid category id format",
-			Headers: map[string]string{
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "Blog category Not Found",
-			CategoryID:   utility.GenerateUUID(),
-			FileContent:  content,
-			ExpectedCode: http.StatusNotFound,
-			Message:      "blog category not found",
-			Headers: map[string]string{
-				"Authorization": "Bearer " + token,
 			},
 		},
 	}

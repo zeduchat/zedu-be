@@ -60,23 +60,18 @@ func (base *Controller) CreateBlog(c *gin.Context) {
 
 	content := string(contentBytes)
 
-	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	adminID, err := middleware.GetAdminClaims(c, base.Db.Postgresql, "admin_id")
 	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to create blog", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to create blog", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to create blog", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
-	userId := userID.(string)
+	adminId := adminID.(string)
 
 	err = service.CreateBlog(models.BlogCreateReq{
 		CategoryID: categoryID,
 		Content:    content,
-	}, base.Db.Postgresql, userId)
+	}, base.Db.Postgresql, adminId)
 
 	if err != nil {
 		if err.Error() == "blog category not found" {
@@ -155,27 +150,16 @@ func (base *Controller) DeleteBlog(c *gin.Context) {
 		return
 	}
 
-	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	_, err := middleware.GetAdminClaims(c, base.Db.Postgresql, "admin_id")
 	if err != nil {
-		if err.Error() == "user claims not found" {
-			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete blog", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "failed to delete blog", nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to delete blog", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
-	userId := userID.(string)
 
-	if err := service.DeleteBlog(blogID, userId, base.Db.Postgresql); err != nil {
+	if err := service.DeleteBlog(blogID, base.Db.Postgresql); err != nil {
 		if err.Error() == "blog not found" {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to delete blog", nil)
-			c.JSON(http.StatusNotFound, rd)
-			return
-		}
-		if err.Error() == "user not authorised to delete blog" {
-			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to delete blog", nil)
 			c.JSON(http.StatusNotFound, rd)
 			return
 		}
