@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -67,6 +68,16 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
+
+	links.IndexMessage(links.MessageSnapshot{
+		ChannelID:      threadDoc.ChannelsID,
+		ThreadID:       threadDoc.ID,
+		MessageID:      threadDoc.ID,
+		UserID:         threadDoc.UserId,
+		OrganisationID: threadDoc.OrganisationID,
+		Content:        threadDoc.Content,
+		CreatedAt:      threadDoc.CreatedAt,
+	})
 
 	feed := models.FeedWebHookRequest{
 		ChannelID:  webhook.ChannelId,
@@ -155,6 +166,16 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		logger.Error("failed to create webhook thread" + err.Error())
 		return nil, http.StatusInternalServerError, err
 	}
+
+	links.IndexMessage(links.MessageSnapshot{
+		ChannelID:      threadDoc.ChannelsID,
+		ThreadID:       threadDoc.ID,
+		MessageID:      threadDoc.ID,
+		UserID:         threadDoc.UserId,
+		OrganisationID: threadDoc.OrganisationID,
+		Content:        threadDoc.Content,
+		CreatedAt:      threadDoc.CreatedAt,
+	})
 
 	feed := models.FeedWebHookRequest{
 		ChannelID:  req.ChannelID,

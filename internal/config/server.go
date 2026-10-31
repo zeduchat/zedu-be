@@ -20,4 +20,5 @@ type App struct {
 	WebhookApiUrl         string
 	FRONTEND_URL          string
 	OpenRouterApiKey      string
+	LinksIndexing         bool
 }
