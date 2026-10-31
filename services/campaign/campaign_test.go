@@ -80,3 +80,20 @@ func TestReportAggregatesAttributedCohorts(t *testing.T) {
 		t.Fatal(rows, err)
 	}
 }
+
+func TestLeadRetryKeepsOriginalCampaign(t *testing.T) {
+	db, mock := mockDB(t)
+	a := sample()
+	a.Source = "later-campaign"
+	eventID := fmt.Sprintf("%x", sha256.Sum256([]byte("lead_submitted:"+a.VisitID)))
+	for i := 0; i < 2; i++ {
+		mock.ExpectBegin()
+		mock.ExpectExec(`INSERT INTO "campaign_events".*ON CONFLICT DO NOTHING`).WillReturnResult(sqlmock.NewResult(0, 0))
+		mock.ExpectQuery(`SELECT .*FROM "campaign_events"`).WillReturnRows(sqlmock.NewRows([]string{"id", "visit_id", "kind", "source", "medium", "campaign_name", "created_at"}).AddRow("visit:"+a.VisitID, a.VisitID, "visit", "email", "newsletter", "original", time.UnixMilli(a.CapturedAt)))
+		mock.ExpectExec(`INSERT INTO "campaign_events".*ON CONFLICT DO NOTHING`).WithArgs(eventID, a.VisitID, "lead_submitted", "email", "newsletter", "original", "", "", sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, int64(1-i)))
+		mock.ExpectCommit()
+		if err := Record(db, a, "lead_submitted", a.VisitID); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

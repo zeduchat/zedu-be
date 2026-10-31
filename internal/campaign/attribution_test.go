@@ -50,3 +50,39 @@ func TestDateRange(t *testing.T) {
 		}
 	}
 }
+
+func TestBrowserPayloadCompatibility(t *testing.T) {
+	now := time.Now()
+	wire := map[string]any{
+		"utm_source": " email ", "utm_medium": "", "utm_campaign": " launch ",
+		"utm_content": "hero", "utm_term": " ", "consent": true,
+		"visit_id":    "c83e7b18-3be2-4ea1-a2b3-0b1c2d3e4f56",
+		"captured_at": now.Add(-time.Minute).UnixMilli(), "unknown": "discard me",
+	}
+	payload, err := json.Marshal(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var a Attribution
+	if err := json.Unmarshal(payload, &a); err != nil {
+		t.Fatal(err)
+	}
+	if !a.Valid(now) || a.Source != "email" || a.Campaign != "launch" || a.Medium != "" || a.Term != "" {
+		t.Fatalf("browser/server normalization mismatch: %+v", a)
+	}
+	encoded, err := json.Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var canonical map[string]any
+	if err := json.Unmarshal(encoded, &canonical); err != nil {
+		t.Fatal(err)
+	}
+	if _, present := canonical["unknown"]; present {
+		t.Fatal("unknown fields retained")
+	}
+	a.VisitID += "\n"
+	if a.Valid(now) {
+		t.Fatal("corrupt visitor identity accepted")
+	}
+}

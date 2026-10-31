@@ -33,6 +33,9 @@ func (a *Attribution) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	*a = Attribution(value)
+	for _, field := range []*string{&a.Source, &a.Medium, &a.Campaign, &a.Content, &a.Term} {
+		*field = strings.TrimSpace(*field)
+	}
 	return nil
 }
 
