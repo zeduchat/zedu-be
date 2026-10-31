@@ -292,21 +292,21 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 			membersLeft = int(totalMembers)
 		}
 
-		var lastPostTime time.Time
+		var lastPostTime *time.Time
 
 		err := db.Postgresql.
 			Table("user_channels").
-			Where("channels_id = ?", chanResp[i].ID).
+			Where("channels_id = ? AND last_read_at IS NOT NULL", chanResp[i].ID).
 			Order("last_read_at DESC").
 			Limit(1).
 			Pluck("last_read_at", &lastPostTime).Error
 
 		if err != nil {
 			chanResp[i].LastPostTime = "Last post unavailable"
-		} else if lastPostTime.IsZero() {
+		} else if lastPostTime == nil || lastPostTime.IsZero() {
 			chanResp[i].LastPostTime = "No posts yet"
 		} else {
-			duration := time.Since(lastPostTime)
+			duration := time.Since(*lastPostTime)
 
 			switch {
 			case duration < time.Minute:
