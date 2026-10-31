@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/avatar"
+	"github.com/hngprojects/telex_be/internal/campaign"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -104,12 +105,13 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 
 	userID := utility.GenerateUUID()
 	user := models.User{
-		ID:             userID,
-		Name:           name,
-		Email:          email,
-		Password:       password,
-		ProfileUpdated: true,
-		IsOnboarded:    true,
+		CampaignVisitID: campaign.VisitID(req.Campaign),
+		ID:              userID,
+		Name:            name,
+		Email:           email,
+		Password:        password,
+		ProfileUpdated:  true,
+		IsOnboarded:     true,
 		Profile: models.Profile{
 			ID:        utility.GenerateUUID(),
 			FirstName: name,
@@ -241,6 +243,7 @@ func CreateUser(c *gin.Context, extReq request.ExternalRequest, req models.Creat
 		"access_token":       tokenData.AccessToken,
 		"notification_token": access_token.SubAccessToken,
 	}
+	responseData["is_new_user"] = true
 	return responseData, http.StatusCreated, nil
 }
 

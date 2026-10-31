@@ -19,6 +19,7 @@ import (
 	"github.com/hngprojects/telex_be/external/external_models"
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/avatar"
+	"github.com/hngprojects/telex_be/internal/campaign"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
@@ -142,6 +143,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		}
 
 		user = models.User{
+			CampaignVisitID: campaign.VisitID(req.Campaign),
 			ID:             utility.GenerateUUID(),
 			Name:           username,
 			Email:          formattedReq.Email,
@@ -256,6 +258,7 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
+	responseData["is_new_user"] = sendWelcome
 	return responseData, http.StatusCreated, nil
 }
 
@@ -369,6 +372,7 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 		logger.Info("Creating new user for email: %s", formattedReq.Email)
 
 		user = models.User{
+			CampaignVisitID: campaign.VisitID(req.Campaign),
 			ID:             utility.GenerateUUID(),
 			Name:           username,
 			Email:          formattedReq.Email,
@@ -481,5 +485,6 @@ func CreateAppleUser(req models.AppleRequestModel, db *gorm.DB, c *gin.Context, 
 
 	audit_utility.LogUserLogin(c, db, extReq, user.ID, tokenData.AccessUuid, user.Organisations)
 
+	responseData["is_new_user"] = sendWelcome
 	return responseData, http.StatusCreated, nil
 }

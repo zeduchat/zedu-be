@@ -111,6 +111,7 @@ func main() {
 	}
 
 	r := router.Setup(logger, validatorRef, db, &configuration.App)
+	cronjobs.StartCronJob(request.ExternalRequest{Logger: logger}, *db, "clean-campaign-events")
 
 	utility.LogAndPrint(logger, fmt.Sprintf("Server is starting at 127.0.0.1:%s", configuration.Server.Port))
 	log.Fatal(r.Run(":" + configuration.Server.Port))

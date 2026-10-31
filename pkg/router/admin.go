@@ -33,6 +33,7 @@ func Admin(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		adminAuthUrl.GET("/admins/invitations/dashboard", admin.GetInvitationDashboard)
 		adminAuthUrl.POST("/notifications/broadcast", admin.BroadcastNotification)
 		adminAuthUrl.GET("/dashboard/activity", admin.GetAppActivity)
+		adminAuthUrl.GET("/dashboard/campaigns", admin.CampaignReport)
 
 		// Billing management
 		adminAuthUrl.GET("/billing/stats", admin.GetSubscriptionBillingStats)

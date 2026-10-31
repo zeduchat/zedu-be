@@ -18,6 +18,7 @@ func Contact(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 	contactUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
 	{
 		contactUrl.POST("/contact", contact.AddToContactUs)
+		contactUrl.POST("/campaign/visits", contact.CampaignVisit)
 	}
 	return r
 }

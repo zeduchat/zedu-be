@@ -40,6 +40,7 @@ func (base *Controller) GoogleLogin(c *gin.Context) {
 	}
 
 	base.Logger.Info("user sign in successfully")
+	base.recordCampaign(req.Campaign, respData)
 
 	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {
@@ -80,6 +81,7 @@ func (base *Controller) AppleLogin(c *gin.Context) {
 	}
 
 	base.Logger.Info("user sign in successfully")
+	base.recordCampaign(req.Campaign, respData)
 
 	err = telexaudit.LoginAudit(base.Db, base.Logger, respData)
 	if err != nil {

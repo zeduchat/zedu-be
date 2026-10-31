@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/campaign"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
@@ -51,8 +52,9 @@ type ResetPasswordRequestModel struct {
 }
 
 type GoogleRequestModel struct {
-	Token           string `json:"grant_code" validate:"required"`
-	ApplicationType string `json:"application_type" validate:"omitempty,oneof=desktop"`
+	Campaign        *campaign.Attribution `json:"campaign" validate:"-"`
+	Token           string                `json:"grant_code" validate:"required"`
+	ApplicationType string                `json:"application_type" validate:"omitempty,oneof=desktop"`
 }
 
 type VerifyEmailRequestModel struct {
@@ -85,7 +87,8 @@ type FacebookRequestModel struct {
 }
 
 type AppleRequestModel struct {
-	Token string `json:"id_token" validate:"required"`
+	Campaign *campaign.Attribution `json:"campaign" validate:"-"`
+	Token    string                `json:"id_token" validate:"required"`
 }
 
 func (p *PasswordReset) CreatePasswordReset(db *gorm.DB) error {

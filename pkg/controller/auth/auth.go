@@ -60,6 +60,7 @@ func (base *Controller) RegisterUser(c *gin.Context) {
 	}
 
 	base.Logger.Info("user created successfully")
+	base.recordCampaign(req.Campaign, respData)
 
 	err = telexaudit.SignupAudit(base.Db, base.Logger, respData)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 
+	"github.com/hngprojects/telex_be/internal/campaign"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	rd "github.com/hngprojects/telex_be/pkg/repository/storage/redis"
@@ -16,6 +17,7 @@ import (
 )
 
 type User struct {
+	CampaignVisitID             string         `gorm:"size:36" json:"-"`
 	ID                          string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Name                        string         `gorm:"column:name; type:varchar(255)" json:"name"`
 	Email                       string         `gorm:"column:email; type:varchar(255)" json:"email"`
@@ -43,14 +45,15 @@ type User struct {
 }
 
 type CreateUserRequestModel struct {
-	Email       string `json:"email" validate:"required"`
-	Password    string `json:"password" validate:"required"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name" `
-	UserName    string `json:"username"`
-	PhoneNumber string `json:"phone_number"`
-	IsOnboarded bool   `json:"is_onboarded"`
-	AvatarUrl   string `json:"avatar_url"`
+	Campaign    *campaign.Attribution `json:"campaign" validate:"-"`
+	Email       string                `json:"email" validate:"required"`
+	Password    string                `json:"password" validate:"required"`
+	FirstName   string                `json:"first_name"`
+	LastName    string                `json:"last_name" `
+	UserName    string                `json:"username"`
+	PhoneNumber string                `json:"phone_number"`
+	IsOnboarded bool                  `json:"is_onboarded"`
+	AvatarUrl   string                `json:"avatar_url"`
 }
 
 type UpdateUserRequestModel struct {

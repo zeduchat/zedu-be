@@ -4,23 +4,27 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hngprojects/telex_be/internal/campaign"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/utility"
 	"gorm.io/gorm"
 )
 
 type ContactUs struct {
-	ID          string         `gorm:"type:uuid;primary_key;" json:"id"`
-	Name        string         `gorm:"type:varchar(100);not null" json:"name" validate:"required"`
-	Email       string         `gorm:"type:varchar(100);not null;index" json:"email" validate:"required,email"`
-	PhoneNumber string         `gorm:"type:varchar(20);not null" json:"phone_number" validate:"required"`
-	Message     string         `gorm:"type:text;not null" json:"message" validate:"required"`
-	CreatedAt   time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"created_at"`
-	UpdatedAt   time.Time      `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	CampaignVisitID string                `gorm:"size:36" json:"-"`
+	Campaign        *campaign.Attribution `gorm:"-" json:"campaign,omitempty" validate:"-"`
+	ID              string                `gorm:"type:uuid;primary_key;" json:"id"`
+	Name            string                `gorm:"type:varchar(100);not null" json:"name" validate:"required"`
+	Email           string                `gorm:"type:varchar(100);not null;index" json:"email" validate:"required,email"`
+	PhoneNumber     string                `gorm:"type:varchar(20);not null" json:"phone_number" validate:"required"`
+	Message         string                `gorm:"type:text;not null" json:"message" validate:"required"`
+	CreatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"created_at"`
+	UpdatedAt       time.Time             `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
+	DeletedAt       gorm.DeletedAt        `gorm:"index" json:"-"`
 }
 
 func (c *ContactUs) BeforeCreate(tx *gorm.DB) (err error) {
+	c.CampaignVisitID = campaign.VisitID(c.Campaign)
 
 	if c.ID == "" {
 		c.ID = utility.GenerateUUID()

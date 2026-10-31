@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/campaign"
 	service "github.com/hngprojects/telex_be/services/contact"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -48,6 +49,11 @@ func (base *Controller) AddToContactUs(c *gin.Context) {
 	}
 
 	base.Logger.Info("message sent successfully")
+	if req.Campaign != nil {
+		if err := campaign.Record(base.Db.Postgresql, req.Campaign, "lead_submitted", req.Campaign.VisitID); err != nil {
+			base.Logger.Error("campaign measurement unavailable", err)
+		}
+	}
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "Message sent successfully", nil)
 	c.JSON(http.StatusCreated, rd)
 
