@@ -72,6 +72,16 @@ type UpdateOrgRequestModel struct {
 	LogoURL     string `json:"logo_url"`
 }
 
+type DeleteOrganisationRequest struct {
+	Password string `json:"password" binding:"required"`
+}
+
+type DeleteOrganisationParams struct {
+	OrganisationID string
+	UserID         string
+	Password       string
+}
+
 type UserInOrgResponse struct {
 	ID               string    `json:"id"`
 	Email            string    `json:"email"`
@@ -95,7 +105,6 @@ type OrgMetricsResponse struct {
 	IsNewUser   bool     `json:"is_new_user"`
 	UserEmail   string   `json:"user_email,omitempty"`
 }
-
 
 type AddUserToOrgRequestModel struct {
 	UserId string `json:"user_id" validate:"required"`

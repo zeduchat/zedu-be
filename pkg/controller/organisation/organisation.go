@@ -253,8 +253,18 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	var req models.DeleteOrganisationRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Password == "" {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "password is required", "failed to delete organisation", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	if err := service.DeleteOrganisation(orgId, userId, base.Db.Postgresql); err != nil {
+	if err := service.DeleteOrganisation(models.DeleteOrganisationParams{
+		OrganisationID: orgId,
+		UserID:         userId,
+		Password:       req.Password,
+	}, base.Db.Postgresql); err != nil {
 		switch err.Error() {
 		case "failed to retrieve organisation: organisation not found":
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to delete organisation", nil)
@@ -262,6 +272,9 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 		case "user not authorised to delete this organisation":
 			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to delete organisation", nil)
 			c.JSON(http.StatusForbidden, rd)
+		case service.ErrInvalidDeletionPassword.Error():
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "password verification failed", "failed to delete organisation", nil)
+			c.JSON(http.StatusBadRequest, rd)
 		default:
 			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to delete organisation", err.Error(), nil)
 			c.JSON(http.StatusInternalServerError, rd)

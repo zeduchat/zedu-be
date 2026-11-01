@@ -127,7 +127,6 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
 		Name:           "general",
@@ -329,10 +328,14 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 	return res, http.StatusOK, nil
 }
 
-func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
+var ErrInvalidDeletionPassword = errors.New("password verification failed")
+
+func DeleteOrganisation(params models.DeleteOrganisationParams, db *gorm.DB) error {
 	var (
 		org models.Organisation
 	)
+	orgId := params.OrganisationID
+	userId := params.UserID
 
 	_, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
@@ -349,6 +352,14 @@ func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
 
 	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
 		return errors.New("user not authorised to delete this organisation")
+	}
+
+	var user models.User
+	if err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userId); err != nil {
+		return err
+	}
+	if user.Password == "" || !utility.CompareHash(params.Password, user.Password) {
+		return ErrInvalidDeletionPassword
 	}
 
 	org.ID = orgId
@@ -669,7 +680,6 @@ func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) 
 
 	return response, nil
 }
-
 
 func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStartedResponse, error) {
 	var (
