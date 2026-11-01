@@ -97,5 +97,5 @@ func TestUnsubscribeNewsletter_CanResubscribeAfterwards(t *testing.T) {
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
-	tst.AssertStatusCode(t, resp.Code, http.StatusCreated)
+	tst.AssertStatusCode(t, resp.Code, http.StatusOK)
 }

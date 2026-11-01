@@ -45,6 +45,33 @@ func (n NotificationObject) SendNewsletterMail() error {
 	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
 }
 
+func (n NotificationObject) SendNewsletterConfirmMail() error {
+	var (
+		notificationData     = models.SendNewsletterConfirmationMail{}
+		subject              = "Subject: Confirm your subscription to the Zedu newsletter"
+		templateFileName     = "newsletter_confirm.html"
+		baseTemplateFileName = ""
+		configData           = config.GetConfig()
+	)
+
+	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
+	if err != nil {
+		return fmt.Errorf("error decoding saved notification data, %v", err)
+	}
+
+	confirmUrl := utility.NewsletterConfirmLink(configData.App.FRONTEND_URL, notificationData.Email, configData.Server.Secret)
+
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":   thisOrThatStr(notificationData.Email, "there!"),
+		"confirm_url": confirmUrl,
+	})
+	if err != nil {
+		return fmt.Errorf("error converting data to map, %v", err)
+	}
+
+	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
+}
+
 func (n NotificationObject) SendWaitListletterMail() error {
 	var (
 		notificationData     = models.SendWaitlistletterSubscriptionMail{}

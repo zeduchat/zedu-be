@@ -35,10 +35,10 @@ func TestE2ENewsletterSubscription(t *testing.T) {
 
 	router.ServeHTTP(resp, req)
 
-	tst.AssertStatusCode(t, resp.Code, http.StatusCreated)
+	tst.AssertStatusCode(t, resp.Code, http.StatusOK)
 
 	response := tst.ParseResponse(resp)
-	tst.AssertResponseMessage(t, response["message"].(string), "email subscribed successfully")
+	tst.AssertResponseMessage(t, response["message"].(string), "check your inbox to confirm your subscription")
 }
 
 func TestPostNewsletter_ValidateEmail(t *testing.T) {
@@ -61,7 +61,7 @@ func TestPostNewsletter_ValidateEmail(t *testing.T) {
 	tst.AssertResponseMessage(t, response["message"].(string), "Validation failed")
 }
 
-func TestPostNewsletter_CheckDuplicateEmail(t *testing.T) {
+func TestPostNewsletter_DuplicateEmailGetsTheSameAnswer(t *testing.T) {
 	router, newsController := SetupNewsletterTestRouter()
 
 	currUUID := utility.GenerateUUID()
@@ -81,8 +81,8 @@ func TestPostNewsletter_CheckDuplicateEmail(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	response := tst.ParseResponse(resp)
-	tst.AssertStatusCode(t, resp.Code, http.StatusConflict)
-	tst.AssertResponseMessage(t, response["message"].(string), "email already subscribed")
+	tst.AssertStatusCode(t, resp.Code, http.StatusOK)
+	tst.AssertResponseMessage(t, response["message"].(string), "check your inbox to confirm your subscription")
 }
 
 func TestPostNewsletter_SaveData(t *testing.T) {
@@ -101,13 +101,16 @@ func TestPostNewsletter_SaveData(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	response := tst.ParseResponse(resp)
-	tst.AssertStatusCode(t, resp.Code, http.StatusCreated)
-	tst.AssertResponseMessage(t, response["message"].(string), "email subscribed successfully")
+	tst.AssertStatusCode(t, resp.Code, http.StatusOK)
+	tst.AssertResponseMessage(t, response["message"].(string), "check your inbox to confirm your subscription")
 
 	var newsletter models.NewsLetter
 	newsController.Db.Postgresql.First(&newsletter, "email = ?", fmt.Sprintf("testuser%v@qa.team", currUUID))
 	if newsletter.Email != fmt.Sprintf("testuser%v@qa.team", currUUID) {
 		t.Errorf("data not saved correctly to the database: expected email %s, got %s", fmt.Sprintf("testuser%v@qa.team", currUUID), newsletter.Email)
+	}
+	if !newsletter.Pending {
+		t.Error("a new signup must stay pending until the address is confirmed")
 	}
 }
 
@@ -127,6 +130,6 @@ func TestPostNewsletter_ResponseAndStatusCode(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	response := tst.ParseResponse(resp)
-	tst.AssertStatusCode(t, resp.Code, http.StatusCreated)
-	tst.AssertResponseMessage(t, response["message"].(string), "email subscribed successfully")
+	tst.AssertStatusCode(t, resp.Code, http.StatusOK)
+	tst.AssertResponseMessage(t, response["message"].(string), "check your inbox to confirm your subscription")
 }

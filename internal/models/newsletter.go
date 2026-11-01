@@ -17,6 +17,10 @@ type NewsLetter struct {
 	CreatedAt time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Pending is true until the owner of the address clicks the link in the
+	// confirmation email. Rows created before double opt-in stay false (confirmed).
+	Pending bool `gorm:"column:pending;not null;default:false" json:"-"`
 }
 
 func (n *NewsLetter) BeforeCreate(tx *gorm.DB) (err error) {
@@ -42,9 +46,21 @@ func (n *NewsLetter) CreateNewsLetter(db *gorm.DB, email string) error {
 	return nil
 }
 
+type ConfirmNewsLetterRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Token string `json:"token" validate:"required"`
+}
+
 type UnsubscribeNewsLetterRequest struct {
 	Email string `json:"email" validate:"required,email"`
 	Token string `json:"token" validate:"required"`
+}
+
+// ConfirmNewsLetterByEmail marks a pending subscriber as confirmed. It reports
+// whether a pending row was changed, so a repeated click does nothing.
+func (n *NewsLetter) ConfirmNewsLetterByEmail(db *gorm.DB, email string) (bool, error) {
+	tx := db.Model(&NewsLetter{}).Where("email = ? AND pending = ?", email, true).Update("pending", false)
+	return tx.RowsAffected > 0, tx.Error
 }
 
 // DeleteNewsLetterByEmail removes the subscriber for good so that the address

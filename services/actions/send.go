@@ -45,6 +45,9 @@ func Send(extReq request.ExternalRequest, db *gorm.DB, rdb *redis.Client, notifi
 		names.SendNewsletterMail: func() error {
 			return req.SendNewsletterMail()
 		},
+		names.SendNewsletterConfirmMail: func() error {
+			return req.SendNewsletterConfirmMail()
+		},
 		names.SendPasswordChangeConfirmationMail: func() error {
 			return req.SendPasswordChangeConfirmationMail()
 		},

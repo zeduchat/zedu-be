@@ -68,6 +68,10 @@ type SendContactUsMail struct {
 	Message     string `json:"message" validate:"required"`
 }
 
+type SendNewsletterConfirmationMail struct {
+	Email string `json:"email"  validate:"required"`
+}
+
 type SendNewsletterSubscriptionMail struct {
 	Email string `json:"email"  validate:"required"`
 }
