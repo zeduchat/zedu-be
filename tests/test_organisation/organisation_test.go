@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -456,12 +457,13 @@ func TestOrganisationDelete(t *testing.T) {
 	}
 
 	deleteRequest := func(authToken string, body any) *httptest.ResponseRecorder {
-		var requestBody *bytes.Buffer
+		var requestBody io.Reader
 		if body != nil {
-			requestBody = new(bytes.Buffer)
-			if err := json.NewEncoder(requestBody).Encode(body); err != nil {
+			buffer := new(bytes.Buffer)
+			if err := json.NewEncoder(buffer).Encode(body); err != nil {
 				t.Fatal(err)
 			}
+			requestBody = buffer
 		}
 		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/organisations/%s", orgID), requestBody)
 		if err != nil {
@@ -496,6 +498,7 @@ func TestOrganisationDelete(t *testing.T) {
 	}
 	assertOrganisationExists()
 
+	ownerPasswordHash := owner.Password
 	if err := db.Postgresql.Model(&owner).Update("password", "").Error; err != nil {
 		t.Fatal(err)
 	}
@@ -503,12 +506,15 @@ func TestOrganisationDelete(t *testing.T) {
 		t.Fatalf("account without local password: expected %d, got %d", http.StatusBadRequest, response.Code)
 	}
 	assertOrganisationExists()
-	if err := db.Postgresql.Model(&owner).Update("password", owner.Password).Error; err != nil {
+	if err := db.Postgresql.Model(&owner).Update("password", ownerPasswordHash).Error; err != nil {
 		t.Fatal(err)
 	}
 
+	if !utility.CompareHash("password", ownerPasswordHash) {
+		t.Fatal("test owner password hash does not match the signup password")
+	}
 	if response := deleteRequest(token, map[string]string{"password": "password"}); response.Code != http.StatusNoContent {
-		t.Fatalf("correct password: expected %d, got %d", http.StatusNoContent, response.Code)
+		t.Fatalf("correct password: expected %d, got %d: %s", http.StatusNoContent, response.Code, response.Body.String())
 	}
 }
 
