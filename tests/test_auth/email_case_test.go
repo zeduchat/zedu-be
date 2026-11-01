@@ -92,7 +92,7 @@ func TestAuthEmailIsCaseInsensitive(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			req, err := http.NewRequest(http.MethodPost, url.URL{Path: test.Path}.String(), &b)
+			req, err := http.NewRequest(http.MethodPost, (&url.URL{Path: test.Path}).String(), &b)
 			if err != nil {
 				t.Fatal(err)
 			}
