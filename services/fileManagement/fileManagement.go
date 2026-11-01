@@ -362,7 +362,26 @@ func GetFolders(db *gorm.DB, params models.GetFoldersParams) ([]models.Folder, p
 	return folders, paginationResponse, nil
 }
 
-func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
+var (
+	ErrFolderNotFound = errors.New("folder not found")
+	ErrFolderNotOwned = errors.New("unauthorized to delete this folder")
+)
+
+// DeleteFolder deletes a folder and its files, only for the user who owns it in their organisation.
+// A folder already in the trash can still be deleted permanently.
+func DeleteFolder(db *gorm.DB, folderID, userID, orgID string, permanent bool) error {
+	var folder models.Folder
+	err := db.Unscoped().Where("id = ? AND organisation_id = ?", folderID, orgID).First(&folder).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return ErrFolderNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if folder.UserID != userID {
+		return ErrFolderNotOwned
+	}
+
 	if permanent {
 		// hard delete folder and its files
 		err := db.Unscoped().Where("id = ?", folderID).Delete(&models.Folder{}).Error
@@ -374,7 +393,7 @@ func DeleteFolder(db *gorm.DB, folderID string, permanent bool) error {
 	}
 
 	// soft delete folder
-	err := db.Where("id = ?", folderID).Delete(&models.Folder{}).Error
+	err = db.Where("id = ?", folderID).Delete(&models.Folder{}).Error
 	if err != nil {
 		return err
 	}
@@ -521,13 +540,13 @@ func DeleteMultipleFiles(logger *utility.Logger, db *storage.Database, fileIDs [
 	return successCount, failureCount, errs
 }
 
-func DeleteMultipleFolders(db *gorm.DB, folderIDs []string, permanent bool) (int, int, []error) {
+func DeleteMultipleFolders(db *gorm.DB, folderIDs []string, userID, orgID string, permanent bool) (int, int, []error) {
 	successCount := 0
 	failureCount := 0
 	var errs []error
 
 	for _, folderID := range folderIDs {
-		err := DeleteFolder(db, folderID, permanent)
+		err := DeleteFolder(db, folderID, userID, orgID, permanent)
 		if err != nil {
 			failureCount++
 			errs = append(errs, fmt.Errorf("failed to delete folder %s: %v", folderID, err))
