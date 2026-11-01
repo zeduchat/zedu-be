@@ -106,6 +106,45 @@ func (base *Controller) UploadFolderWithFiles(c *gin.Context) {
 
 }
 
+// canReadFile checks that the caller may read the file and writes the error
+// response when not. Only the owner and members of the file's organisation it is
+// public or shared with can read it. Other organisations, missing files and
+// deleted files get a 404, so the id is not confirmed to exist.
+func (base *Controller) canReadFile(c *gin.Context, fileId string) bool {
+	userClaims := common.GetAllUserClaims(c)
+	if userClaims == nil {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return false
+	}
+
+	userID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+	if userID == "" || orgID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid user claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return false
+	}
+
+	if _, _, err := services.CheckFileAccess(base.Db.Postgresql, fileId, userID, orgID); err != nil {
+		switch {
+		case errors.Is(err, services.ErrFileShareNotFound):
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "File not found", nil)
+			c.JSON(http.StatusNotFound, rd)
+		case errors.Is(err, services.ErrAccessDenied):
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have access to this file", nil)
+			c.JSON(http.StatusForbidden, rd)
+		default:
+			base.Logger.Error("failed to check file access", err)
+			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to verify access", nil, nil)
+			c.JSON(http.StatusInternalServerError, rd)
+		}
+		return false
+	}
+
+	return true
+}
+
 func (base *Controller) GetFileInfo(c *gin.Context) {
 	fileId := c.Param("id")
 	if !utility.IsValidUUID(fileId) {
@@ -113,6 +152,11 @@ func (base *Controller) GetFileInfo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	if !base.canReadFile(c, fileId) {
+		return
+	}
+
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
@@ -198,36 +242,7 @@ func (base *Controller) GetFileDetailsByID(c *gin.Context) {
 		return
 	}
 
-	userClaims := common.GetAllUserClaims(c)
-	if userClaims == nil {
-		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
-		c.JSON(http.StatusUnauthorized, rd)
-		return
-	}
-
-	userID, _ := userClaims["user_id"].(string)
-	orgID, _ := userClaims["org_id"].(string)
-	if userID == "" || orgID == "" {
-		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "Invalid user claims", nil)
-		c.JSON(http.StatusUnauthorized, rd)
-		return
-	}
-
-	// Only the owner and members of the file's organisation it is public or shared
-	// with can read it. Other organisations and deleted files get a 404.
-	if _, _, err := services.CheckFileAccess(base.Db.Postgresql, fileId, userID, orgID); err != nil {
-		switch {
-		case errors.Is(err, services.ErrFileShareNotFound):
-			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "File not found", nil)
-			c.JSON(http.StatusNotFound, rd)
-		case errors.Is(err, services.ErrAccessDenied):
-			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You do not have access to this file", nil)
-			c.JSON(http.StatusForbidden, rd)
-		default:
-			base.Logger.Error("failed to check file access", err)
-			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to verify access", nil, nil)
-			c.JSON(http.StatusInternalServerError, rd)
-		}
+	if !base.canReadFile(c, fileId) {
 		return
 	}
 

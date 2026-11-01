@@ -69,9 +69,19 @@ func createAccessTestFile(t *testing.T, db *gorm.DB, ownerID, orgID, accessType 
 
 func getFileByID(t *testing.T, fileID, token string) *httptest.ResponseRecorder {
 	t.Helper()
+	return getFilePath(t, fmt.Sprintf("/api/v1/files/file/%s", fileID), token)
+}
+
+func getFileInfoByID(t *testing.T, fileID, token string) *httptest.ResponseRecorder {
+	t.Helper()
+	return getFilePath(t, fmt.Sprintf("/api/v1/files/file/%s/info", fileID), token)
+}
+
+func getFilePath(t *testing.T, path, token string) *httptest.ResponseRecorder {
+	t.Helper()
 	r, _, _, _ := SetupFileManagementTestRouter()
 
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/files/file/%s", fileID), nil)
+	req, _ := http.NewRequest(http.MethodGet, path, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
@@ -167,6 +177,69 @@ func TestGetFileDetailsByID_AccessControl(t *testing.T) {
 
 		if rr.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+}
+
+func TestGetFileInfo_AccessControl(t *testing.T) {
+	_, _, _, db := SetupFileManagementTestRouter()
+
+	owner := signUpFileAccessUser(t, "infoowner")
+	outsider := signUpFileAccessUser(t, "infooutsider")
+
+	t.Run("owner can read the info of their own file", func(t *testing.T) {
+		file := createAccessTestFile(t, db.Postgresql, owner.ID, owner.OrgID, "private")
+
+		rr := getFileInfoByID(t, file.ID, owner.Token)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("a user from another organisation gets a 404", func(t *testing.T) {
+		file := createAccessTestFile(t, db.Postgresql, owner.ID, owner.OrgID, "private")
+
+		rr := getFileInfoByID(t, file.ID, outsider.Token)
+
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("a public file is still not readable from another organisation", func(t *testing.T) {
+		file := createAccessTestFile(t, db.Postgresql, owner.ID, owner.OrgID, "public")
+
+		rr := getFileInfoByID(t, file.ID, outsider.Token)
+
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("a private file of a colleague is forbidden, a public one is readable", func(t *testing.T) {
+		colleagueID := uuid.New().String()
+		private := createAccessTestFile(t, db.Postgresql, colleagueID, owner.OrgID, "private")
+		public := createAccessTestFile(t, db.Postgresql, colleagueID, owner.OrgID, "public")
+
+		if rr := getFileInfoByID(t, private.ID, owner.Token); rr.Code != http.StatusForbidden {
+			t.Fatalf("private file: expected 403, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+		if rr := getFileInfoByID(t, public.ID, owner.Token); rr.Code != http.StatusOK {
+			t.Fatalf("public file: expected 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("a deleted file is not returned, even to its owner", func(t *testing.T) {
+		file := createAccessTestFile(t, db.Postgresql, owner.ID, owner.OrgID, "private")
+		if err := db.Postgresql.Delete(&file).Error; err != nil {
+			t.Fatalf("Failed to soft delete file: %v", err)
+		}
+
+		rr := getFileInfoByID(t, file.ID, owner.Token)
+
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d. Response: %s", rr.Code, rr.Body.String())
 		}
 	})
 }
