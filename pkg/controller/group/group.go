@@ -1,6 +1,7 @@
 package group
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -77,12 +78,29 @@ func (base *Controller) GetGroup(c *gin.Context) {
 		return
 	}
 
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("error getting claims")
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId := userClaims["user_id"].(string)
+
 	ids := map[string]string{
 		"organisation_id": org_id,
 		"group_id":        group_id,
+		"user_id":         userId,
 	}
 
 	groups, err := group.GetGroup(base.Db, ids)
+	if errors.Is(err, group.ErrNotOrganisationMember) {
+		base.Logger.Error("User is not a member of the organisation")
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "user is not a member of this organisation", nil, nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
 	if err != nil {
 		base.Logger.Error("Failed to get group", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Error", "Failed to get group", err.Error(), nil)

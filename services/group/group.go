@@ -1,10 +1,14 @@
 package group
 
 import (
+	"errors"
+
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+var ErrNotOrganisationMember = errors.New("user is not a member of this organisation")
 
 func CreateGroup(db *storage.Database, req models.CreateGroupRequest) (*models.Group, error) {
 
@@ -31,6 +35,11 @@ func GetGroup(db *storage.Database, ids map[string]string) (models.Group, error)
 	_, err := org.CheckOrgExists(ids["organisation_id"], db.Postgresql)
 	if err != nil {
 		return models.Group{}, err
+	}
+
+	isMember, err := org.CheckUserIsMemberOfOrg(ids["user_id"], ids["organisation_id"], db.Postgresql)
+	if err != nil || !isMember {
+		return models.Group{}, ErrNotOrganisationMember
 	}
 
 	response, err := g.GetGroup(db.Postgresql, ids)
