@@ -33,6 +33,8 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 		config    = config.GetConfig()
 	)
 
+	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
+
 	magicExist, err := magicLink.GetMagicLinkByEmail(db, userEmail)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err
