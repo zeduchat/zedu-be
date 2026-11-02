@@ -489,11 +489,15 @@ func TestOrganisationDelete(t *testing.T) {
 		t.Fatalf("missing password: expected %d, got %d", http.StatusBadRequest, response.Code)
 	}
 	assertOrganisationExists()
-	if response := deleteRequest(token, map[string]string{"password": "incorrect"}); response.Code != http.StatusBadRequest {
+	if response := deleteRequest(token, map[string]any{"password": "incorrect", "include_profile_in_deletion_mail": true}); response.Code != http.StatusBadRequest {
 		t.Fatalf("incorrect password: expected %d, got %d", http.StatusBadRequest, response.Code)
 	}
 	assertOrganisationExists()
-	if response := deleteRequest(outsiderToken, map[string]string{"password": "password"}); response.Code != http.StatusForbidden {
+	if response := deleteRequest(token, map[string]string{"password": "password"}); response.Code != http.StatusBadRequest {
+		t.Fatalf("missing deletion-mail consent: expected %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	assertOrganisationExists()
+	if response := deleteRequest(outsiderToken, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusForbidden {
 		t.Fatalf("unauthorised user: expected %d, got %d", http.StatusForbidden, response.Code)
 	}
 	assertOrganisationExists()
@@ -502,7 +506,7 @@ func TestOrganisationDelete(t *testing.T) {
 	if err := db.Postgresql.Model(&owner).Update("password", "").Error; err != nil {
 		t.Fatal(err)
 	}
-	if response := deleteRequest(token, map[string]string{"password": "password"}); response.Code != http.StatusBadRequest {
+	if response := deleteRequest(token, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusBadRequest {
 		t.Fatalf("account without local password: expected %d, got %d", http.StatusBadRequest, response.Code)
 	}
 	assertOrganisationExists()
@@ -513,7 +517,7 @@ func TestOrganisationDelete(t *testing.T) {
 	if !utility.CompareHash("password", ownerPasswordHash) {
 		t.Fatal("test owner password hash does not match the signup password")
 	}
-	if response := deleteRequest(token, map[string]string{"password": "password"}); response.Code != http.StatusNoContent {
+	if response := deleteRequest(token, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusNoContent {
 		t.Fatalf("correct password: expected %d, got %d: %s", http.StatusNoContent, response.Code, response.Body.String())
 	}
 }

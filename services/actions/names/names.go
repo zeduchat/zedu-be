@@ -25,6 +25,7 @@ const (
 	SendMassPushNotification           NotificationName = "send_mass_push_notification"
 	SendWaitListLetterMail             NotificationName = "send_wait_list_letter"
 	SendBuzzInvitationEmail            NotificationName = "send_buzz_invitation_email"
+	SendOrganisationDeletedMail        NotificationName = "send_organisation_deleted_mail"
 )
 
 func Check() {

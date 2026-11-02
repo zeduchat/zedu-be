@@ -56,6 +56,9 @@ func Send(extReq request.ExternalRequest, db *gorm.DB, rdb *redis.Client, notifi
 		names.SendBuzzInvitationEmail: func() error {
 			return req.SendBuzzInvitationEmail()
 		},
+		names.SendOrganisationDeletedMail: func() error {
+			return req.SendOrganisationDeletedMail()
+		},
 	}
 
 	err = callEmailFunc[name]()

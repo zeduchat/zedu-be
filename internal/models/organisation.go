@@ -73,13 +73,23 @@ type UpdateOrgRequestModel struct {
 }
 
 type DeleteOrganisationRequest struct {
-	Password string `json:"password" binding:"required"`
+	Password                     string `json:"password" binding:"required"`
+	IncludeProfileInDeletionMail bool   `json:"include_profile_in_deletion_mail"`
 }
 
 type DeleteOrganisationParams struct {
-	OrganisationID string
-	UserID         string
-	Password       string
+	OrganisationID               string
+	UserID                       string
+	Password                     string
+	IncludeProfileInDeletionMail bool
+}
+
+type OrganisationDeletionMail struct {
+	Recipients                   []string `json:"recipients"`
+	OrganisationName             string   `json:"organisation_name"`
+	DeletedByName                string   `json:"deleted_by_name"`
+	DeletedByAvatarURL           string   `json:"deleted_by_avatar_url"`
+	IncludeProfileInDeletionMail bool     `json:"include_profile_in_deletion_mail"`
 }
 
 type UserInOrgResponse struct {
