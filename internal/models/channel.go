@@ -374,18 +374,19 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	return channelUsers, paginationResponse, nil
 }
 
-func (r *Channels) GetChannelsByName(db *gorm.DB, name, organisationID string) ([]Channels, error) {
+func (r *Channels) GetChannelsByName(db *gorm.DB, name, organisationID, userID string) ([]Channels, error) {
 	var (
 		channels []Channels
 		ur       UserChannels
 	)
 
-	exists := postgresql.CheckExists(db, &channels, "name = ? AND organisation_id = ?", name, organisationID)
+	accessFilter := "name = ? AND organisation_id = ? AND archived = FALSE AND id IN (SELECT channels_id FROM user_channels WHERE user_id = ?)"
+	exists := postgresql.CheckExists(db, &channels, accessFilter, name, organisationID, userID)
 	if !exists {
 		return channels, errors.New("channel not found")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &channels, "name = ? AND organisation_id = ?", name, organisationID)
+	err := postgresql.SelectAllFromDb(db, "", &channels, accessFilter, name, organisationID, userID)
 	if err != nil {
 		return channels, errors.New("could not get channel by name")
 	}
@@ -1160,7 +1161,7 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name, orga
 		"desc",
 		pagination,
 		&channels,
-		"channels.organisation_id = ? AND channels.archived = FALSE AND (channels.is_private = FALSE OR channels.id IN (SELECT channels_id FROM user_channels WHERE user_id = ?)) AND channels.name ILIKE ?",
+		"channels.organisation_id = ? AND channels.archived = FALSE AND channels.id IN (SELECT channels_id FROM user_channels WHERE user_id = ?) AND channels.name ILIKE ?",
 		organisationID,
 		userID,
 		"%"+escapedName+"%",

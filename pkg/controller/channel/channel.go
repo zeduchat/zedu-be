@@ -387,15 +387,16 @@ func (base *Controller) GetChannelsByName(c *gin.Context) {
 		return
 	}
 	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
 	orgID, _ := userClaims["org_id"].(string)
-	if orgID == "" {
-		base.Logger.Info("error getting organisation from claims")
-		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organisation not found for user", nil, nil)
+	if orgID == "" || userID == "" {
+		base.Logger.Info("error getting user or organisation from claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user or organisation not found for user", nil, nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 
-	respData, code, err := channel.GetChannelsByName(base.Db.Postgresql, name, orgID)
+	respData, code, err := channel.GetChannelsByName(base.Db.Postgresql, name, orgID, userID)
 	if err != nil {
 		base.Logger.Info("error getting channel")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -1191,4 +1192,3 @@ func (base *Controller) ToggleUserJoinedMessage(c *gin.Context) {
 	rd := utility.BuildSuccessResponse(http.StatusOK, "channel user joined message setting updated successfully", ch)
 	c.JSON(http.StatusOK, rd)
 }
-

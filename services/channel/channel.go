@@ -134,10 +134,10 @@ func GetChannel(db *storage.Database, ids models.IDS) (models.GetChannelResp, in
 	return chanresp, http.StatusOK, nil
 }
 
-func GetChannelsByName(db *gorm.DB, name, organisationID string) ([]models.Channels, int, error) {
+func GetChannelsByName(db *gorm.DB, name, organisationID, userID string) ([]models.Channels, int, error) {
 	var r models.Channels
 
-	channel, err := r.GetChannelsByName(db, name, organisationID)
+	channel, err := r.GetChannelsByName(db, name, organisationID, userID)
 	if err != nil {
 		return channel, http.StatusBadRequest, err
 	}
