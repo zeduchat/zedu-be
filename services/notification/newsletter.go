@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/services/send"
+	"github.com/hngprojects/telex_be/utility"
 )
 
 func (n NotificationObject) SendNewsletterMail() error {
@@ -27,7 +28,7 @@ func (n NotificationObject) SendNewsletterMail() error {
 	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
 	blogUrl := fmt.Sprintf("%v/blogs", configData.App.FRONTEND_URL)
 	contactUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
-	unsubscribeUrl := fmt.Sprintf("%v/contact", configData.App.FRONTEND_URL)
+	unsubscribeUrl := utility.NewsletterUnsubscribeLink(configData.App.FRONTEND_URL, notificationData.Email, configData.Server.Secret)
 
 	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
 		"firstname":       thisOrThatStr(notificationData.Email, "there!"),
@@ -39,6 +40,33 @@ func (n NotificationObject) SendNewsletterMail() error {
 
 	if err != nil {
 		return fmt.Errorf("error converting data to map, %v, %v", err, strings.Join([]string{err.Error()}, ", "))
+	}
+
+	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
+}
+
+func (n NotificationObject) SendNewsletterConfirmMail() error {
+	var (
+		notificationData     = models.SendNewsletterConfirmationMail{}
+		subject              = "Subject: Confirm your subscription to the Zedu newsletter"
+		templateFileName     = "newsletter_confirm.html"
+		baseTemplateFileName = ""
+		configData           = config.GetConfig()
+	)
+
+	err := json.Unmarshal([]byte(n.Notification.Data), &notificationData)
+	if err != nil {
+		return fmt.Errorf("error decoding saved notification data, %v", err)
+	}
+
+	confirmUrl := utility.NewsletterConfirmLink(configData.App.FRONTEND_URL, notificationData.Email, configData.Server.Secret)
+
+	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
+		"firstname":   thisOrThatStr(notificationData.Email, "there!"),
+		"confirm_url": confirmUrl,
+	})
+	if err != nil {
+		return fmt.Errorf("error converting data to map, %v", err)
 	}
 
 	return send.SendEmail(n.ExtReq, notificationData.Email, subject, templateFileName, baseTemplateFileName, data)
