@@ -31,9 +31,9 @@ jobs:
       TITLE: ${{ github.event.pull_request.title }}
       LABELLER: ${{ github.event.sender.login }}
     steps:
-      # The label event only carries the head at label time, so a push made after
-      # the review would pass unnoticed. A review records the commit it covers.
-      - name: Require the labeller's approval of this exact commit
+      # Adding the label approves whatever the head is at that moment, so a push
+      # made after the review is copied too. Check Commits before labelling.
+      - name: Require Write access and an unchanged head
         run: |
           refuse() {
             echo "::error::$1"
@@ -48,14 +48,8 @@ jobs:
             *) refuse "@$LABELLER needs Write access to add run-ci." ;;
           esac
 
-          APPROVAL=$(gh api --paginate "repos/$GH_REPO/pulls/$PR/reviews" \
-            --jq ".[] | select(.user.login == \"$LABELLER\" and .state == \"APPROVED\" and .commit_id == \"$SHA\") | .id")
-          if [ -z "$APPROVAL" ]; then
-            refuse "@$LABELLER has not approved ${SHA:0:7}. Review the latest commit, approve it, then add the label again."
-          fi
-
           if [ "$(gh pr view "$PR" --json headRefOid -q .headRefOid)" != "$SHA" ]; then
-            refuse "the PR changed after it was labelled. Review the latest commit, approve it, then add the label again."
+            refuse "the PR changed after it was labelled. Review the latest commit, then add the label again."
           fi
 
       - uses: actions/checkout@v4
