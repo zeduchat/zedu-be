@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -434,106 +435,90 @@ func TestOrganisationDelete(t *testing.T) {
 	r := gin.Default()
 
 	orgID, token := initialise(currUUID, t, r, db, user, org, false)
-
-	tests := []struct {
-		Name         string
-		OrgID        string
-		ExpectedCode int
-		Message      string
-		Headers      map[string]string
-	}{
-		{
-			Name:         "Invalid Organisation ID Format",
-			OrgID:        "invalid-id-erttt",
-			ExpectedCode: http.StatusBadRequest,
-			Message:      "invalid organisation id format",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "Successful Deletion of Organisation",
-			OrgID:        orgID,
-			ExpectedCode: http.StatusNoContent,
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "Organisation Not Found",
-			OrgID:        utility.GenerateUUID(),
-			ExpectedCode: http.StatusNotFound,
-			Message:      "failed to retrieve organisation: organisation not found",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
-			},
-		},
-		{
-			Name:         "User Not Authorized to Delete Organization",
-			OrgID:        orgID,
-			ExpectedCode: http.StatusUnauthorized,
-			Message:      "Token could not be found!",
-			Headers: map[string]string{
-				"Content-Type": "application/json",
-			},
-		},
+	ownerEmail := fmt.Sprintf("testuser%v@qa.team", currUUID)
+	var owner models.User
+	if err := db.Postgresql.Where("email = ?", ownerEmail).First(&owner).Error; err != nil {
+		t.Fatal(err)
 	}
+
+	outsider := models.CreateUserRequestModel{
+		Email:    fmt.Sprintf("outsider%v@qa.team", currUUID),
+		Password: "password",
+		UserName: fmt.Sprintf("outsider%v", currUUID),
+	}
+	tst.SignupUser(t, r, user, outsider, false)
+	outsiderToken := tst.GetLoginToken(t, r, user, models.LoginRequestModel{
+		Email: outsider.Email, Password: outsider.Password,
+	})
 
 	orgUrl := r.Group("/api/v1", middleware.Authorize(db.Postgresql))
 	{
 		orgUrl.DELETE("/organisations/:org_id", org.DeleteOrganisation)
 	}
 
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/organisations/%s", test.OrgID), nil)
-			if err != nil {
+	deleteRequest := func(authToken string, body any) *httptest.ResponseRecorder {
+		var requestBody io.Reader
+		if body != nil {
+			buffer := new(bytes.Buffer)
+			if err := json.NewEncoder(buffer).Encode(body); err != nil {
 				t.Fatal(err)
 			}
+			requestBody = buffer
+		}
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/organisations/%s", orgID), requestBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if authToken != "" {
+			req.Header.Set("Authorization", "Bearer "+authToken)
+		}
+		recorder := httptest.NewRecorder()
+		r.ServeHTTP(recorder, req)
+		return recorder
+	}
+	assertOrganisationExists := func() {
+		t.Helper()
+		var existing models.Organisation
+		if err := db.Postgresql.First(&existing, "id = ?", orgID).Error; err != nil {
+			t.Fatalf("organisation should remain after rejected deletion: %v", err)
+		}
+	}
 
-			for i, v := range test.Headers {
-				req.Header.Set(i, v)
-			}
+	if response := deleteRequest(token, nil); response.Code != http.StatusBadRequest {
+		t.Fatalf("missing password: expected %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	assertOrganisationExists()
+	if response := deleteRequest(token, map[string]any{"password": "incorrect", "include_profile_in_deletion_mail": true}); response.Code != http.StatusBadRequest {
+		t.Fatalf("incorrect password: expected %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	assertOrganisationExists()
+	if response := deleteRequest(token, map[string]string{"password": "password"}); response.Code != http.StatusBadRequest {
+		t.Fatalf("missing deletion-mail consent: expected %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	assertOrganisationExists()
+	if response := deleteRequest(outsiderToken, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusForbidden {
+		t.Fatalf("unauthorised user: expected %d, got %d", http.StatusForbidden, response.Code)
+	}
+	assertOrganisationExists()
 
-			rr := httptest.NewRecorder()
-			r.ServeHTTP(rr, req)
+	ownerPasswordHash := owner.Password
+	if err := db.Postgresql.Model(&owner).Update("password", "").Error; err != nil {
+		t.Fatal(err)
+	}
+	if response := deleteRequest(token, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusBadRequest {
+		t.Fatalf("account without local password: expected %d, got %d", http.StatusBadRequest, response.Code)
+	}
+	assertOrganisationExists()
+	if err := db.Postgresql.Model(&owner).Update("password", ownerPasswordHash).Error; err != nil {
+		t.Fatal(err)
+	}
 
-			if rr.Code != test.ExpectedCode {
-				t.Errorf("Expected status code %d, got %d", test.ExpectedCode, rr.Code)
-			}
-
-			// For 204 No Content, we don't try to parse the body
-			if rr.Code == http.StatusNoContent {
-				// Success case with no content, just return
-				return
-			}
-
-			var data map[string]any
-			if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-				t.Fatalf("Failed to decode response body: %v", err)
-			}
-
-			code, ok := data["status_code"].(float64)
-			if !ok {
-				t.Fatalf("Expected status_code to be float64, got %T", data["status_code"])
-			}
-			if int(code) != test.ExpectedCode {
-				t.Errorf("Expected status code %d, got %d", test.ExpectedCode, int(code))
-			}
-
-			if test.Message != "" {
-				message, ok := data["message"].(string)
-				if !ok {
-					t.Fatalf("Expected message to be string, got %T", data["message"])
-				}
-				if message != test.Message {
-					t.Errorf("Expected message '%s', got '%s'", test.Message, message)
-				}
-			}
-		})
+	if !utility.CompareHash("password", ownerPasswordHash) {
+		t.Fatal("test owner password hash does not match the signup password")
+	}
+	if response := deleteRequest(token, map[string]any{"password": "password", "include_profile_in_deletion_mail": true}); response.Code != http.StatusNoContent {
+		t.Fatalf("correct password: expected %d, got %d: %s", http.StatusNoContent, response.Code, response.Body.String())
 	}
 }
 

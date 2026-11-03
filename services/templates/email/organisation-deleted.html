@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <body style="font-family: Arial, sans-serif; color: #101828; line-height: 1.5">
+    <h1>Organisation deleted</h1>
+    <p>The organisation <strong>{{.organisation_name}}</strong> has been deleted.</p>
+    <p>The deletion was confirmed by:</p>
+    <p>
+      <img
+        src="{{.deleted_by_avatar}}"
+        alt="{{.deleted_by_name}}"
+        width="48"
+        height="48"
+        style="border-radius: 50%; vertical-align: middle"
+      />
+      <strong>{{.deleted_by_name}}</strong>
+    </p>
+  </body>
+</html>

@@ -12,13 +12,14 @@ import (
 )
 
 type EmailRequest struct {
-	ExtReq         request.ExternalRequest
-	To             []string `json:"to"`
-	Subject        string   `json:"subject"`
-	Body           string   `json:"body"`
-	AttachmentName string
-	Attachment     []byte
-	BaseURL        string `json:"base_url"`
+	ExtReq          request.ExternalRequest
+	To              []string `json:"to"`
+	Subject         string   `json:"subject"`
+	Body            string   `json:"body"`
+	AttachmentName  string
+	Attachment      []byte
+	BaseURL         string `json:"base_url"`
+	BlindCarbonCopy bool   `json:"-"`
 }
 
 func NewEmailRequest(extReq request.ExternalRequest, to []string, subject, templateFileName, baseTemplateFileName string, templateData map[string]any) (*EmailRequest, error) {
@@ -116,8 +117,12 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 	subject := e.Subject
 	From := fmt.Sprintf("%s <%s>", "Zedu.chat", "notifications@zedu.chat")
 	recipients := e.To
+	toHeader := recipients[0]
+	if e.BlindCarbonCopy && len(recipients) > 1 {
+		toHeader = "undisclosed-recipients:;"
+	}
 	mime := "\nMIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", From, recipients[0], subject, mime, e.Body))
+	body := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\n%s%s%s", From, toHeader, subject, mime, e.Body))
 
 	conn, err := net.Dial("tcp", mailConfig.Server+":"+mailConfig.Port)
 	if err != nil {
@@ -147,9 +152,14 @@ func (e *EmailRequest) sendEmailViaSMTP() error {
 		return fmt.Errorf("failed to set the sender: %v", err)
 	}
 
-	if err = client.Rcpt(recipients[0]); err != nil {
-		return fmt.Errorf("failed to set the recipient: %v", err)
-
+	rcptRecipients := recipients[:1]
+	if e.BlindCarbonCopy {
+		rcptRecipients = recipients
+	}
+	for _, recipient := range rcptRecipients {
+		if err = client.Rcpt(recipient); err != nil {
+			return fmt.Errorf("failed to set the recipient: %v", err)
+		}
 	}
 
 	writer, err := client.Data()

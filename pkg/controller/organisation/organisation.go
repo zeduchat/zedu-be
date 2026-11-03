@@ -11,6 +11,8 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware/common"
+	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/actions/names"
 	"github.com/hngprojects/telex_be/services/organisation"
 	service "github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
@@ -253,8 +255,20 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
+	var req models.DeleteOrganisationRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Password == "" || !req.IncludeProfileInDeletionMail {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "password and deletion-mail profile consent are required", "failed to delete organisation", nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	if err := service.DeleteOrganisation(orgId, userId, base.Db.Postgresql); err != nil {
+	mailData, err := service.DeleteOrganisation(models.DeleteOrganisationParams{
+		OrganisationID:               orgId,
+		UserID:                       userId,
+		Password:                     req.Password,
+		IncludeProfileInDeletionMail: req.IncludeProfileInDeletionMail,
+	}, base.Db.Postgresql)
+	if err != nil {
 		switch err.Error() {
 		case "failed to retrieve organisation: organisation not found":
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "failed to delete organisation", nil)
@@ -262,6 +276,12 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 		case "user not authorised to delete this organisation":
 			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "failed to delete organisation", nil)
 			c.JSON(http.StatusForbidden, rd)
+		case service.ErrInvalidDeletionPassword.Error():
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "password verification failed", "failed to delete organisation", nil)
+			c.JSON(http.StatusBadRequest, rd)
+		case service.ErrDeletionMailConsentRequired.Error():
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete organisation", nil)
+			c.JSON(http.StatusBadRequest, rd)
 		default:
 			rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to delete organisation", err.Error(), nil)
 			c.JSON(http.StatusInternalServerError, rd)
@@ -270,6 +290,11 @@ func (base *Controller) DeleteOrganisation(c *gin.Context) {
 	}
 
 	base.Logger.Info("organisation deleted successfully")
+	if len(mailData.Recipients) > 0 {
+		if queueErr := actions.AddNotificationToQueue(base.Db.Redis, names.SendOrganisationDeletedMail, mailData); queueErr != nil {
+			base.Logger.Error("failed to queue organisation deletion confirmation email: " + queueErr.Error())
+		}
+	}
 	var actorEmail string
 	var user models.User
 	if actor, err := user.GetUserByID(base.Db.Postgresql, userId); err == nil {

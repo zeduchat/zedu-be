@@ -127,7 +127,6 @@ func CreateOrganisation(req models.CreateOrgRequestModel, db *gorm.DB, userId st
 		return nil, err
 	}
 
-
 	channel := models.Channels{
 		ID:             utility.GenerateUUID(),
 		Name:           "general",
@@ -329,35 +328,99 @@ func UpdateOrganisation(orgId string, userId string, updateReq models.UpdateOrgR
 	return res, http.StatusOK, nil
 }
 
-func DeleteOrganisation(orgId string, userId string, db *gorm.DB) error {
+var ErrInvalidDeletionPassword = errors.New("password verification failed")
+var ErrDeletionMailConsentRequired = errors.New("deletion mail profile consent is required")
+
+func DeleteOrganisation(params models.DeleteOrganisationParams, db *gorm.DB) (models.OrganisationDeletionMail, error) {
 	var (
 		org models.Organisation
 	)
+	orgId := params.OrganisationID
+	userId := params.UserID
+	if !params.IncludeProfileInDeletionMail {
+		return models.OrganisationDeletionMail{}, ErrDeletionMailConsentRequired
+	}
 
-	_, err := org.CheckOrgExists(orgId, db)
+	org, err := org.CheckOrgExists(orgId, db)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "organisation not found" {
-			return errors.New("failed to retrieve organisation: organisation not found")
+			return models.OrganisationDeletionMail{}, errors.New("failed to retrieve organisation: organisation not found")
 		}
-		return err
+		return models.OrganisationDeletionMail{}, err
 	}
 
 	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, db)
 	if err != nil || !isMember {
-		return errors.New("user not authorised to delete this organisation")
+		return models.OrganisationDeletionMail{}, errors.New("user not authorised to delete this organisation")
 	}
 
 	if !userCanOrOwner(db, userId, orgId, models.PermManageOrganization) {
-		return errors.New("user not authorised to delete this organisation")
+		return models.OrganisationDeletionMail{}, errors.New("user not authorised to delete this organisation")
+	}
+
+	var user models.User
+	if err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", userId); err != nil {
+		return models.OrganisationDeletionMail{}, err
+	}
+	if user.Password == "" || !utility.CompareHash(params.Password, user.Password) {
+		return models.OrganisationDeletionMail{}, ErrInvalidDeletionPassword
+	}
+
+	mailData, err := organisationDeletionMailData(db, org, user)
+	if err != nil {
+		return models.OrganisationDeletionMail{}, err
 	}
 
 	org.ID = orgId
 	err = org.ClearOrganisationResources(db)
 	if err != nil {
-		return err
+		return models.OrganisationDeletionMail{}, err
 	}
 
-	return org.Delete(db, orgId)
+	if err := org.Delete(db, orgId); err != nil {
+		return models.OrganisationDeletionMail{}, err
+	}
+	return mailData, nil
+}
+
+func organisationDeletionMailData(db *gorm.DB, org models.Organisation, actor models.User) (models.OrganisationDeletionMail, error) {
+	var recipients []string
+	if err := db.Model(&models.User{}).
+		Select("DISTINCT users.email").
+		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
+		Where("user_organisations.organisation_id = ? AND users.email <> ''", org.ID).
+		Pluck("users.email", &recipients).Error; err != nil {
+		return models.OrganisationDeletionMail{}, err
+	}
+
+	var profile models.Profile
+	dbErr := db.Where("userid = ? AND organisation_id = ?", actor.ID, org.ID).First(&profile).Error
+	if errors.Is(dbErr, gorm.ErrRecordNotFound) {
+		dbErr = db.Where("userid = ? AND organisation_id IS NULL", actor.ID).First(&profile).Error
+	}
+	if dbErr != nil && !errors.Is(dbErr, gorm.ErrRecordNotFound) {
+		return models.OrganisationDeletionMail{}, dbErr
+	}
+
+	name := strings.TrimSpace(profile.FullName)
+	if name == "" {
+		name = strings.TrimSpace(strings.Join([]string{profile.FirstName, profile.LastName}, " "))
+	}
+	if name == "" {
+		name = strings.TrimSpace(actor.Name)
+	}
+	avatarURL := profile.AvatarURL
+	if avatarURL == "" {
+		avatarURL = avatar.GenerateDefaultAvatarURL(actor.ID)
+	}
+
+	return models.OrganisationDeletionMail{
+		Recipients:                   recipients,
+		OrganisationName:             org.Name,
+		DeletedByName:                name,
+		DeletedByAvatarURL:           avatarURL,
+		IncludeProfileInDeletionMail: true,
+	}, nil
 }
 
 func AddUserToOrganisation(orgId string, req models.AddUserToOrgRequestModel, db *gorm.DB) error {
@@ -669,7 +732,6 @@ func LoadOrganisationMetrics(orgId string, invitationToken string, db *gorm.DB) 
 
 	return response, nil
 }
-
 
 func FetchGetStarted(db *storage.Database, ids models.IDS) (models.OrgGetStartedResponse, error) {
 	var (
