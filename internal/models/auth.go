@@ -53,6 +53,7 @@ type ResetPasswordRequestModel struct {
 type GoogleRequestModel struct {
 	Token           string `json:"grant_code" validate:"required"`
 	ApplicationType string `json:"application_type" validate:"omitempty,oneof=desktop"`
+	RedirectURI     string `json:"redirect_uri" validate:"omitempty,url"`
 }
 
 type VerifyEmailRequestModel struct {
