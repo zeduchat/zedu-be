@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"html"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -77,16 +78,21 @@ type UserMention struct {
 	Username string `json:"username"`
 }
 
+func formatNoticeMention(user UserMention) string {
+	label := html.EscapeString(user.Username)
+	return fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, html.EscapeString(user.UserID), label, label)
+}
+
 func FormatMergedChannelJoinMessage(users []UserMention, adder *UserMention, channelName string) string {
 	if len(users) == 0 {
 		return ""
 	}
 
-	firstUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[0].UserID, users[0].Username, users[0].Username)
+	firstUser := formatNoticeMention(users[0])
 
 	var base string
 	if adder != nil && adder.UserID != "" {
-		adderMention := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, adder.UserID, adder.Username, adder.Username)
+		adderMention := formatNoticeMention(*adder)
 		base = fmt.Sprintf("%s has been added to this channel by %s", firstUser, adderMention)
 	} else {
 		base = fmt.Sprintf("%s joined this channel", firstUser)
@@ -96,7 +102,7 @@ func FormatMergedChannelJoinMessage(users []UserMention, adder *UserMention, cha
 		return fmt.Sprintf("<p>%s</p><p></p>", base)
 	}
 
-	secondUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[1].UserID, users[1].Username, users[1].Username)
+	secondUser := formatNoticeMention(users[1])
 
 	if len(users) == 2 {
 		return fmt.Sprintf("<p>%s. %s also joined.</p><p></p>", base, secondUser)
@@ -114,11 +120,11 @@ func FormatMergedChannelLeaveMessage(users []UserMention, remover *UserMention, 
 		return ""
 	}
 
-	firstUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[0].UserID, users[0].Username, users[0].Username)
+	firstUser := formatNoticeMention(users[0])
 
 	var base string
 	if remover != nil && remover.UserID != "" {
-		removerMention := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, remover.UserID, remover.Username, remover.Username)
+		removerMention := formatNoticeMention(*remover)
 		base = fmt.Sprintf("%s was removed from this channel by %s", firstUser, removerMention)
 	} else {
 		base = fmt.Sprintf("%s left this channel", firstUser)
@@ -128,7 +134,7 @@ func FormatMergedChannelLeaveMessage(users []UserMention, remover *UserMention, 
 		return fmt.Sprintf("<p>%s</p><p></p>", base)
 	}
 
-	secondUser := fmt.Sprintf(`<span class="mention" data-type="mention" data-id="%s" data-label="%s" data-mention-suggestion-char="@">@%s</span>`, users[1].UserID, users[1].Username, users[1].Username)
+	secondUser := formatNoticeMention(users[1])
 
 	if len(users) == 2 {
 		return fmt.Sprintf("<p>%s. %s also left.</p><p></p>", base, secondUser)

@@ -59,10 +59,18 @@ func CreateGoogleUser(req models.GoogleRequestModel, db *gorm.DB, c *gin.Context
 		userClaims = resp.Claims
 	} else {
 		// Authorization code exchange flow (traditional OAuth 2.0)
+		redirectURL := config.Config.Google.REDIRECT_URI
+		if req.ApplicationType == "desktop" {
+			if req.RedirectURI == "" {
+				return responseData, http.StatusBadRequest, fmt.Errorf("redirect_uri is required for desktop authorization code exchange")
+			}
+			redirectURL = req.RedirectURI
+		}
+
 		googleOAuthConfig := &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
-			RedirectURL:  config.Config.Google.REDIRECT_URI,
+			RedirectURL:  redirectURL,
 			Scopes:       []string{"openid", "email", "profile"},
 			Endpoint:     google.Endpoint,
 		}

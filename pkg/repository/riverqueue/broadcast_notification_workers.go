@@ -45,7 +45,7 @@ func (w *BroadcastNotificationWorker) Work(ctx context.Context, job *river.Job[m
 	for {
 		var users []models.User
 		if err := w.db.Where("is_active = ?", true).
-			Select("id", "onesignal_subscription_id").
+			Select("id").
 			Offset(offset).
 			Limit(batchSize).
 			Find(&users).Error; err != nil {
@@ -65,28 +65,23 @@ func (w *BroadcastNotificationWorker) Work(ctx context.Context, job *river.Job[m
 			break
 		}
 
-		// Build subscription IDs and user IDs for this batch
-		subscriptionIDs := make([]string, 0, len(users))
 		userIDs := make([]string, 0, len(users))
 		for _, user := range users {
-			if user.OneSignalSubscriptionID != "" {
-				subscriptionIDs = append(subscriptionIDs, user.OneSignalSubscriptionID)
-				userIDs = append(userIDs, user.ID)
-			}
+			userIDs = append(userIDs, user.ID)
 		}
 
-		if len(subscriptionIDs) > 0 {
+		if len(userIDs) > 0 {
 			pushReq := models.PushRequest{
 				Title:     args.Title,
 				Message:   args.Message,
 				AvatarUrl: args.AvatarUrl,
 			}
 
-			if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, w.logger, w.db, subscriptionIDs, userIDs); err != nil {
+			if err := push_notifications.PushOneSignalToUsersForBroadcast(pushReq, w.logger, w.db, userIDs); err != nil {
 				w.logger.Error("Failed to send broadcast notification batch: %s", err.Error())
-				totalFailed += len(subscriptionIDs)
+				totalFailed += len(userIDs)
 			} else {
-				totalSent += len(subscriptionIDs)
+				totalSent += len(userIDs)
 			}
 		}
 

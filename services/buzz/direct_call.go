@@ -15,8 +15,8 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/agora"
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/apns"
-	"github.com/hngprojects/telex_be/pkg/repository/pushNotifications/onesignal"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	push_notifications "github.com/hngprojects/telex_be/services/pushNotifications"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/lib/pq"
 )
@@ -671,36 +671,20 @@ func handleDirectCallCancellation(db *storage.Database, logger *utility.Logger, 
 }
 
 func sendDirectCallOneSignal(db *storage.Database, logger *utility.Logger, userIDs []string, req models.PushRequest, payload models.CallPushPayload) {
-	var users []models.User
-	if err := db.Postgresql.Where("id IN ?", userIDs).
-		Select("id", "onesignal_subscription_id").
-		Find(&users).Error; err != nil {
-		logger.Error("sendDirectCallOneSignal: failed to fetch users: %v", err)
-		return
-	}
-
-	subscriptionIDs := make([]string, 0, len(users))
-	for _, u := range users {
-		if u.OneSignalSubscriptionID != "" {
-			subscriptionIDs = append(subscriptionIDs, u.OneSignalSubscriptionID)
-		}
-	}
-
-	if len(subscriptionIDs) == 0 {
-		return
-	}
-
-	callData := map[string]interface{}{
+	req.Payload = map[string]interface{}{
 		"buzz_id":            payload.BuzzID,
+		"buzz_code":          utility.ExtractBuzzCode(payload.BuzzID),
 		"channel_id":         payload.ChannelID,
 		"caller_name":        payload.CallerName,
 		"caller_id":          payload.CallerID,
+		"host_id":            payload.CallerID,
 		"avatar_url":         payload.AvatarURL,
 		"default_avatar_url": payload.DefaultAvatarURL,
 		"event":              payload.Event,
+		"notification_type":  payload.Event,
 	}
 
-	if err := onesignal.SendDirectCallNotification(logger, subscriptionIDs, req, callData, db.Postgresql, userIDs); err != nil {
+	if err := push_notifications.PushFCMToUserIDs(logger, db.Postgresql, userIDs, req); err != nil {
 		logger.Error("sendDirectCallOneSignal: failed to send notification: %v", err)
 	}
 }

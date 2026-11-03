@@ -60,7 +60,40 @@ func (base *Controller) CreateFcmToken(c *gin.Context) {
 	}
 
 	base.Logger.Info("fcmtoken created for user successfully")
-	rd := utility.BuildSuccessResponse(http.StatusCreated, "fcmtoken created for user successfully", nil)
+	rd := utility.BuildSuccessResponse(http.StatusCreated, "fcmtoken created for user successfully", gin.H{"provider": "firebase"})
+	c.JSON(code, rd)
+}
+
+func (base *Controller) DeleteFcmToken(c *gin.Context) {
+	var req models.DeleteFcmTokenRequest
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userID := claims.(jwt.MapClaims)["user_id"].(string)
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	code, err := fcmtokens.DeleteFcmToken(userID, req.FcmToken, base.Db.Postgresql)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", "error deleting fcmtoken for user", err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "fcmtoken deleted for user successfully", nil)
 	c.JSON(code, rd)
 }
 

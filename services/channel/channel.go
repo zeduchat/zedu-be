@@ -169,8 +169,12 @@ func JoinChannels(db *storage.Database, req models.JoinChannelsRequest, logger *
 	}
 
 	if channel.ShowJoinedMessage {
-		newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
-		_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+		newUser, mentionErr := models.NewChannelJoinMention(db.Postgresql, req.UserID, channel.OrganisationID)
+		if mentionErr != nil || newUser.Username == "" {
+			logger.Error("failed to resolve join notice label, skipping join system message", "user_id", req.UserID, "channel_id", channel.ID, "error", mentionErr)
+		} else {
+			_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+		}
 	}
 
 	triggerNotif := models.Notification[models.TriggerNotification]
@@ -356,8 +360,12 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 		return channel, err
 	}
 
-	newUser := models.UserMention{UserID: req.UserID, Username: req.Username}
-	_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+	newUser, mentionErr := models.NewChannelJoinMention(db.Postgresql, req.UserID, channel.OrganisationID)
+	if mentionErr != nil || newUser.Username == "" {
+		logger.Error("failed to resolve join notice label, skipping join system message", "user_id", req.UserID, "channel_id", channel.ID, "error", mentionErr)
+	} else {
+		_ = thread.SaveOrMergeJoinSystemMessage(db, logger, channel.ID, channel.Name, channel.OrganisationID, []models.UserMention{newUser}, nil)
+	}
 
 	triggerNotif := models.Notification[models.TriggerNotification]
 	triggerNotif.SectionType = models.ChannelsSection
@@ -377,29 +385,16 @@ func AddMembersToChannel(db *storage.Database, req models.JoinChannelsRequest, l
 }
 
 func AddMultipleMembersToChannel(db *storage.Database, req models.AddMultipleMembersRequest, logger *utility.Logger) error {
-	var (
-		ch   models.Channels
-		user models.User
-	)
+	var ch models.Channels
 
 	validUserIds, err := ch.AddMultipleUsersToChannel(db.Postgresql, req)
 	if err != nil {
 		return err
 	}
 
-	var newUsers []models.UserMention
-	for _, userId := range validUserIds {
-		userDetails, err := user.GetUserByID(db.Postgresql, userId, ch.OrganisationID)
-		if err != nil {
-			logger.Error("Failed to get user %s username", userId)
-			continue
-		}
-
-		uName := userDetails.Profile.UserName
-		if uName == "" {
-			uName = utility.SplitEmailString(userDetails.Email)
-		}
-		newUsers = append(newUsers, models.UserMention{UserID: userId, Username: uName})
+	newUsers, mentionErr := models.BuildChannelJoinMentions(db.Postgresql, validUserIds, ch.OrganisationID)
+	if mentionErr != nil {
+		logger.Error("failed to resolve join notice participants, skipping system message: %v", mentionErr)
 	}
 
 	if len(newUsers) > 0 && ch.ShowJoinedMessage {
@@ -666,4 +661,62 @@ func ToggleUserJoinedMessage(db *gorm.DB, channelId string, req models.ToggleJoi
 	}
 
 	return updated, http.StatusOK, nil
+}
+
+func ToggleStarChannel(req models.ChannelStarRequest, db *gorm.DB) (bool, int, error) {
+	var channel models.Channels
+	exists := postgresql.CheckExists(db, &channel, "id = ?", req.ChannelId)
+	if !exists {
+		return false, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if !models.IsUserInChannel(db, req.ChannelId, req.UserId) {
+		return false, http.StatusForbidden, errors.New("you are not a member of this channel")
+	}
+
+	var star models.ChannelStar
+	isStarred := star.IsStarChannel(db, req)
+
+	if isStarred {
+		err := star.RemoveFromStars(db, req)
+		if err != nil {
+			return false, http.StatusInternalServerError, err
+		}
+		return false, http.StatusOK, nil
+	}
+
+	star.ID = utility.GenerateUUID()
+	err := star.AddToStars(db, req)
+	if err != nil {
+		return false, http.StatusInternalServerError, err
+	}
+	return true, http.StatusOK, nil
+}
+
+func GetStarredChannels(db *storage.Database, ids models.IDS) (models.GetUserChannelResp, int, error) {
+	var org models.Organisation
+	if err, _ := postgresql.SelectOneFromDb(db.Postgresql, &org, "id = ?", ids.OrganisationID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, http.StatusNotFound, errors.New("organisation not found")
+		}
+		return nil, http.StatusInternalServerError, err
+	}
+
+	starredChannelIds, err := models.GetUserStarredChannelIds(db.Postgresql, ids.UserID, ids.OrganisationID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	if len(starredChannelIds) == 0 {
+		return models.GetUserChannelResp{}, http.StatusOK, nil
+	}
+
+	ids.ChannelIDs = starredChannelIds
+	var uc models.UserChannels
+	userChannels, err := uc.GetUserChannels(db, ids)
+	if err != nil {
+		return nil, http.StatusInternalServerError, err
+	}
+
+	return userChannels, http.StatusOK, nil
 }

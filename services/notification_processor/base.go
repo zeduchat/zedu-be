@@ -183,6 +183,8 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 				"sender_id":         feed.UserId,
 				"avatar_url":        feed.AvatarURL,
 				"content":           msgText,
+				"message_id":        feed.MessageId,
+				"thread_id":         feed.ThreadId,
 				"type":              feed.Type,
 				"event":             "new_message",
 				"notification_type": "channel",
@@ -193,8 +195,9 @@ func ChannelNotification(db *gorm.DB, notifPayload models.NotificationProcessPay
 		err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
 		if err != nil {
 			logger.Error("failed to send OneSignal notification to channel users, Err: %v", err.Error())
+		} else {
+			logger.Info("sent OneSignal push notification to %d channel user(s)", len(filteredUserIDs))
 		}
-		logger.Info("sent OneSignal push notification to %d channel user(s)", len(filteredUserIDs))
 
 	} else {
 		logger.Info("skipped OneSignal push notification for channel message")
@@ -253,6 +256,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"sender_id":         feed.UserId,
 					"avatar_url":        feed.AvatarURL,
 					"content":           msgText,
+					"message_id":        feed.MessageId,
+					"thread_id":         feed.ThreadId,
 					"type":              feed.Type,
 					"event":             "new_message",
 					"notification_type": "dm",
@@ -330,6 +335,8 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 					"sender_id":         feed.UserId,
 					"avatar_url":        feed.AvatarURL,
 					"content":           msgText,
+					"message_id":        feed.MessageId,
+					"thread_id":         feed.ThreadId,
 					"type":              feed.Type,
 					"event":             "new_message",
 					"notification_type": "group_dm",
@@ -341,9 +348,9 @@ func DMNotification(db *gorm.DB, notifPayload models.NotificationProcessPayload,
 			err = push_notifications.PushOneSignalToUsers(pushReq, logger, db)
 			if err != nil {
 				logger.Error("failed to send OneSignal notification to users %s: %v", userIDs, err)
+			} else {
+				logger.Info("sent fcm push notification to channel users")
 			}
-
-			logger.Info("sent fcm push notification to channel users")
 
 			return nil
 		},
@@ -425,6 +432,7 @@ func ThreadNotification(db *gorm.DB, notifPayload models.NotificationProcessPayl
 				"sender_name":       feed.UserName,
 				"sender_id":         feed.UserId,
 				"thread_id":         feed.ThreadId,
+				"message_id":        feed.MessageId,
 				"content":           msgText,
 				"type":              feed.Type,
 				"event":             "new_message",

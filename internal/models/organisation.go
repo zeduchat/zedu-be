@@ -593,6 +593,11 @@ func (o *Organisation) GetOrganisationInvites(c *gin.Context, db *gorm.DB, ids I
 		return invitations, postgresql.PaginationResponse{}, errors.New("user not found")
 	}
 
+	isMember, err := o.CheckUserIsMemberOfOrg(ids.UserID, ids.OrganisationID, db)
+	if err != nil || !isMember {
+		return invitations, postgresql.PaginationResponse{}, errors.New("user not a member of organisation")
+	}
+
 	pagination := postgresql.GetPagination(c)
 	offset := (pagination.Page - 1) * pagination.Limit
 

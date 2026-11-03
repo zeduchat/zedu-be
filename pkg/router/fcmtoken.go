@@ -21,6 +21,7 @@ func FcmToken(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 
 	{
 		fcmtokenUrl.POST("", fcm.CreateFcmToken)
+		fcmtokenUrl.DELETE("", fcm.DeleteFcmToken)
 	}
 
 	wnsConfigUrl := r.Group(fmt.Sprintf("%v/wnstoken", ApiVersion), middleware.Authorize(db.Postgresql))

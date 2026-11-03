@@ -32,6 +32,15 @@ func SaveOrMergeJoinSystemMessage(db *storage.Database, logger *utility.Logger, 
 						},
 					},
 					{
+						"bool": map[string]any{
+							"should": []map[string]any{
+								{"match_phrase": map[string]any{"message": "joined this channel"}},
+								{"match_phrase": map[string]any{"message": "has been added to this channel"}},
+							},
+							"minimum_should_match": 1,
+						},
+					},
+					{
 						"range": map[string]any{
 							"created_at": map[string]any{
 								"gte": oneHourAgo,
@@ -66,7 +75,10 @@ func SaveOrMergeJoinSystemMessage(db *storage.Database, logger *utility.Logger, 
 
 							if threadID != "" {
 								// Extract existing joined users & adder from stored metadata or payload
-								existingUsers := extractUsersFromSource(db, source, orgID)
+								existingUsers, err := extractUsersFromSource(db, source, orgID)
+								if err != nil {
+									return err
+								}
 								combinedUsers := mergeUserMentions(existingUsers, newUsers)
 
 								activeAdder := adder
@@ -91,7 +103,9 @@ func SaveOrMergeJoinSystemMessage(db *storage.Database, logger *utility.Logger, 
 									"updated_at": time.Now().UTC(),
 								}
 
-								_ = elastic.UpdateDocument(db.Elastic, models.ThreadIndexName, threadID, updateFields)
+								if err := elastic.UpdateDocument(db.Elastic, models.ThreadIndexName, threadID, updateFields); err != nil {
+									return err
+								}
 
 								feed := models.FeedMessageRequest{
 									ChannelID:   channelID,
@@ -140,41 +154,43 @@ func SaveOrMergeJoinSystemMessage(db *storage.Database, logger *utility.Logger, 
 	return err
 }
 
-func extractUsersFromSource(db *storage.Database, source map[string]any, orgID string) []models.UserMention {
+func extractUsersFromSource(db *storage.Database, source map[string]any, orgID string) ([]models.UserMention, error) {
 	var users []models.UserMention
 	seen := make(map[string]bool)
 
 	if mentionsArray, ok := source["mentions"].([]any); ok {
+		ids := make([]string, 0, len(mentionsArray))
 		for _, m := range mentionsArray {
 			if mMap, ok := m.(map[string]any); ok {
 				uID := utility.GetString(mMap, "id")
 				mType := utility.GetString(mMap, "type")
 				if uID != "" && mType == "user" && !seen[uID] {
 					seen[uID] = true
-					var u models.User
-					uDetails, err := u.GetUserByID(db.Postgresql, uID, orgID)
-					uName := uID
-					if err == nil {
-						uName = uDetails.Profile.UserName
-						if uName == "" {
-							uName = utility.SplitEmailString(uDetails.Email)
-						}
-					}
-					users = append(users, models.UserMention{UserID: uID, Username: uName})
+					ids = append(ids, uID)
 				}
 			}
 		}
+		// Re-resolve every stored participant ID against the server-side
+		// profile so merged notices always show current display names.
+		// Lookup failures must not erase participants from an existing notice.
+		resolved, err := models.BuildChannelJoinMentions(db.Postgresql, ids, orgID)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, resolved...)
 	}
 
 	if len(users) == 0 {
-		uID := utility.GetString(source, "user_id")
-		uName := utility.GetString(source, "username")
-		if uID != "" {
-			users = append(users, models.UserMention{UserID: uID, Username: uName})
+		if uID := utility.GetString(source, "user_id"); uID != "" {
+			resolved, err := models.BuildChannelJoinMentions(db.Postgresql, []string{uID}, orgID)
+			if err != nil {
+				return nil, err
+			}
+			users = append(users, resolved...)
 		}
 	}
 
-	return users
+	return users, nil
 }
 
 func extractAdderFromSource(source map[string]any) *models.UserMention {
@@ -257,7 +273,10 @@ func SaveOrMergeLeaveSystemMessage(db *storage.Database, logger *utility.Logger,
 
 							msgContent := utility.GetString(source, "message")
 							if threadID != "" && (strings.Contains(strings.ToLower(msgContent), "left") || strings.Contains(strings.ToLower(msgContent), "removed")) {
-								existingUsers := extractUsersFromSource(db, source, orgID)
+								existingUsers, err := extractUsersFromSource(db, source, orgID)
+								if err != nil {
+									return err
+								}
 								combinedUsers := mergeUserMentions(existingUsers, leftUsers)
 
 								activeRemover := remover

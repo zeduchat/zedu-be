@@ -1,10 +1,29 @@
 package test_channel
 
 import (
+	"html"
+	"strings"
 	"testing"
 
 	"github.com/hngprojects/telex_be/internal/models"
 )
+
+func TestNoticeLabelsAreEscaped(t *testing.T) {
+	label := `"><img src=x onerror=alert(1)>&'`
+	users := []models.UserMention{{UserID: "u1", Username: label}, {UserID: "u2", Username: label}}
+	actor := &models.UserMention{UserID: "actor", Username: label}
+	for _, message := range []string{
+		models.FormatMergedChannelJoinMessage(users, actor, "general"),
+		models.FormatMergedChannelLeaveMessage(users, actor, "general"),
+	} {
+		if strings.Contains(message, label) || strings.Contains(message, "<img") {
+			t.Fatalf("unsafe profile HTML reached a notice: %s", message)
+		}
+		if strings.Count(message, html.EscapeString(label)) != 6 {
+			t.Fatalf("all participant and actor attribute/text labels must be escaped: %s", message)
+		}
+	}
+}
 
 func TestMergedChannelJoinAndLeaveMessages(t *testing.T) {
 	users := []models.UserMention{
@@ -85,6 +104,26 @@ func TestMergedChannelJoinAndLeaveMessages(t *testing.T) {
 		expected := `<p><span class="mention" data-type="mention" data-id="u1" data-label="elizabeth" data-mention-suggestion-char="@">@elizabeth</span> left this channel. <span class="mention" data-type="mention" data-id="u2" data-label="Godwin" data-mention-suggestion-char="@">@Godwin</span> and 2 others also left.</p><p></p>`
 		if got != expected {
 			t.Errorf("got %q, want %q", got, expected)
+		}
+	})
+}
+
+func TestMergedJoinNoticePreservesResolvedDisplayNames(t *testing.T) {
+	users := []models.UserMention{
+		{UserID: "u1", Username: "Lynn B"},
+		{UserID: "u2", Username: "Godwin"},
+	}
+
+	t.Run("merged notice keeps each participant display name and id", func(t *testing.T) {
+		got := models.FormatMergedChannelJoinMessage(users, nil, "general")
+		if !strings.Contains(got, `data-id="u1"`) || !strings.Contains(got, "@Lynn B") {
+			t.Errorf("expected first participant display name and id preserved, got %q", got)
+		}
+		if !strings.Contains(got, `data-id="u2"`) || !strings.Contains(got, "@Godwin") {
+			t.Errorf("expected second participant display name and id preserved, got %q", got)
+		}
+		if strings.Contains(got, "Pauline Banye") {
+			t.Errorf("expected no full name in merged notice, got %q", got)
 		}
 	})
 }

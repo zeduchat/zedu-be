@@ -41,9 +41,10 @@ func TestVerifyPayment_InvalidSession(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	stripeKey := config.Config.Stripe.STRIPE_KEY
-	if stripeKey != "" {
-		stripe.Key = stripeKey
+	if stripeKey == "" {
+		t.Skip("STRIPE_KEY not set, skipping test")
 	}
+	stripe.Key = stripeKey
 
 	r, authCtl, _, _, db := SetupCreditTestRouter()
 
