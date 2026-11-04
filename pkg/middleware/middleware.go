@@ -30,6 +30,7 @@ func CORS() gin.HandlerFunc {
 		"ziki.chat",
 		"ziki.im",
 		"telex.im",
+		"zeduchat.vercel.app",
 	}
 
 	return func(c *gin.Context) {

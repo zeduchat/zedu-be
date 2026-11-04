@@ -24,10 +24,11 @@ func TestGoogleDesktopValidation(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Valid request with desktop application_type",
+			name: "Valid request with desktop redirect URI",
 			request: models.GoogleRequestModel{
 				Token:           "some-valid-token",
 				ApplicationType: "desktop",
+				RedirectURI:     "http://127.0.0.1:8000",
 			},
 			expectedError: false,
 		},
@@ -44,6 +45,16 @@ func TestGoogleDesktopValidation(t *testing.T) {
 			request: models.GoogleRequestModel{
 				Token:           "",
 				ApplicationType: "desktop",
+				RedirectURI:     "http://127.0.0.1:8000",
+			},
+			expectedError: true,
+		},
+		{
+			name: "Invalid request with malformed redirect URI",
+			request: models.GoogleRequestModel{
+				Token:           "some-valid-token",
+				ApplicationType: "desktop",
+				RedirectURI:     "://invalid",
 			},
 			expectedError: true,
 		},

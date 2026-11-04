@@ -461,8 +461,27 @@ func (base *Controller) DeleteFolder(c *gin.Context) {
 		return
 	}
 	permanent, _ := strconv.ParseBool(c.Query("permanent"))
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
 
-	err := services.DeleteFolder(base.Db.Postgresql, folderID, permanent)
+	err := services.DeleteFolder(base.Db.Postgresql, folderID, userID, orgID, permanent)
+	if errors.Is(err, services.ErrFolderNotFound) {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "Failed to delete folder", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+	if errors.Is(err, services.ErrFolderNotOwned) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", err.Error(), "Failed to delete folder", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to delete folder", nil)
 		c.JSON(http.StatusInternalServerError, rd)
@@ -521,7 +540,17 @@ func (base *Controller) DeleteMultipleFolders(c *gin.Context) {
 		return
 	}
 
-	successCount, failureCount, errs := services.DeleteMultipleFolders(base.Db.Postgresql, req.IDs, req.Permanent)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID := userClaims["user_id"].(string)
+	orgID := userClaims["org_id"].(string)
+
+	successCount, failureCount, errs := services.DeleteMultipleFolders(base.Db.Postgresql, req.IDs, userID, orgID, req.Permanent)
 
 	responseMsg := fmt.Sprintf("Bulk delete completed. Success: %d, Failed: %d", successCount, failureCount)
 	responseData := map[string]interface{}{

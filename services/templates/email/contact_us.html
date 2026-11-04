@@ -36,6 +36,26 @@
             {{ .message }}
           </p>
 
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="{{ .demo_url }}" style="background-color: #7b6cf2; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 99px; font-weight: bold; font-size: 14px; display: inline-block;">
+              Explore the Live Workspace Demo &rarr;
+            </a>
+          </div>
+
+          <div style="background-color: #f7f6fd; border: 1px solid #e2def8; border-radius: 12px; padding: 18px 20px; margin: 20px 0;">
+            <h3 style="margin: 0 0 8px; font-size: 15px; color: #1d1478;">
+              Setting up a cohort or community?
+            </h3>
+            <p style="margin: 0; font-size: 13px; color: #49466e; line-height: 1.5;">
+              Don&apos;t plan alone. Share this fast-track invite link with your co-organizers or instructors to test the workspace together:
+            </p>
+            <p style="margin: 10px 0 0;">
+              <a href="{{ .invite_url }}" style="display: inline-block; background: #ffffff; border: 1px dashed #7b6cf2; padding: 8px 12px; border-radius: 6px; color: #5b3fd6; text-decoration: none; word-break: break-all; font-family: monospace; font-size: 12px;">
+                {{ .invite_url }}
+              </a>
+            </p>
+          </div>
+
           <p style="color: #666666; font-size: 14px; line-height: 1.5;">
             If you need immediate assistance, please visit our
             <a href="{{.help_center_url}}" style="color: #7c50f8; text-decoration: underline;">Help Center</a>.
