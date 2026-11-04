@@ -15,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -282,6 +283,8 @@ func DeleteChannel(db *storage.Database, channelId, userId string) (int, error) 
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
+
+	links.DeleteChannelLinks(channelId)
 
 	return http.StatusOK, nil
 }

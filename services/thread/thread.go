@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/elastic"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/services/user"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -428,6 +429,10 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 	}
 	committed = true
 
+	if chanExist {
+		links.DeleteThreadLinks(threadID)
+	}
+
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ThreadSection
 	notification.ModificationDetails = &models.ModificationDetails{
@@ -490,6 +495,18 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 	if err != nil {
 		return threadResp, http.StatusInternalServerError, err
+	}
+
+	if chanExist {
+		links.IndexMessage(links.MessageSnapshot{
+			ChannelID:      threadResp.ChannelsID,
+			ThreadID:       threadResp.ID,
+			MessageID:      threadResp.ID,
+			UserID:         threadResp.UserId,
+			OrganisationID: threadResp.OrganisationID,
+			Content:        threadResp.Content,
+			CreatedAt:      threadResp.CreatedAt,
+		})
 	}
 
 	feed := models.FeedMessageRequest{

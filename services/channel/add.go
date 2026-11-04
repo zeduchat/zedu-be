@@ -20,6 +20,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
@@ -110,6 +111,16 @@ func SaveChannelsMsg(req models.CreateMessageRequest, db *storage.Database,
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
+
+	links.IndexMessage(links.MessageSnapshot{
+		ChannelID:      messageDoc.ChannelsID,
+		ThreadID:       messageDoc.ThreadID.String(),
+		MessageID:      messageDoc.ID,
+		UserID:         messageDoc.UserID,
+		OrganisationID: messageDoc.OrganisationID,
+		Content:        messageDoc.Content,
+		CreatedAt:      messageDoc.CreatedAt,
+	})
 
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsId,
@@ -273,6 +284,18 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		return nil, http.StatusInternalServerError, err
 	}
 
+	if chanExist {
+		links.IndexMessage(links.MessageSnapshot{
+			ChannelID:      newMsg.ChannelsID,
+			ThreadID:       newMsg.ThreadID.String(),
+			MessageID:      newMsg.ID,
+			UserID:         newMsg.UserID,
+			OrganisationID: newMsg.OrganisationID,
+			Content:        newMsg.Content,
+			CreatedAt:      newMsg.CreatedAt,
+		})
+	}
+
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsId,
 		CreatedAt:        newMsg.CreatedAt.String(),
@@ -386,6 +409,10 @@ func DeleteChannelsMsg(req models.EditMessageRequest, db *gorm.DB, logger *utili
 		return nil, http.StatusInternalServerError, err
 	}
 	committed = true
+
+	if chanExist {
+		links.DeleteMessageLinks(newMsg.ID)
+	}
 
 	notification := models.Notification[models.Deleted]
 	notification.SectionType = models.ReplySection
