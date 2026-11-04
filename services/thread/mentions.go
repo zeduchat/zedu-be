@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	tydb "github.com/hngprojects/telex_be/pkg/repository/storage/typesense"
 	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/channels_utility"
@@ -113,6 +114,16 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 	if err != nil {
 		return nil, err
 	}
+
+	links.IndexMessage(links.MessageSnapshot{
+		ChannelID:      threadDoc.ChannelsID,
+		ThreadID:       threadDoc.ID,
+		MessageID:      threadDoc.ID,
+		UserID:         threadDoc.UserId,
+		OrganisationID: threadDoc.OrganisationID,
+		Content:        threadDoc.Content,
+		CreatedAt:      threadDoc.CreatedAt,
+	})
 
 	feed := models.FeedMessageRequest{
 		ChannelID:        req.ChannelsID,
