@@ -1163,9 +1163,6 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name, orga
 
 	pagination := postgresql.GetPagination(c)
 
-	// Escape LIKE wildcards so a search term such as "%" cannot match every channel.
-	escapedName := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(name)
-
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		db,
 		"created_at",
@@ -1175,7 +1172,7 @@ func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name, orga
 		"channels.organisation_id = ? AND channels.archived = FALSE AND channels.id IN (SELECT channels_id FROM user_channels WHERE user_id = ?) AND channels.name ILIKE ?",
 		organisationID,
 		userID,
-		"%"+escapedName+"%",
+		"%"+escapeLikePattern(name)+"%",
 	)
 
 	if err != nil {
