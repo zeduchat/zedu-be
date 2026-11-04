@@ -62,7 +62,11 @@ func TestChannelSearchAccessAndNameLookup(t *testing.T) {
 					orgIDs = append(orgIDs, otherOrgID)
 				}
 				cleanup(db.Postgresql.Where("user_id = ? AND organisation_id IN ?", userID, orgIDs).Delete(&models.OrgUserManagement{}).Error)
-				cleanup(db.Postgresql.Exec("DELETE FROM user_organisations WHERE user_id = ? AND organisation_id IN ?", userID, orgIDs).Error)
+				// user_organisations is a many2many join with OnDelete:SET NULL, so
+				// delete every row for this test user, not only the test orgs: deleting
+				// the user with rows left over nulls user_id and violates its NOT NULL
+				// constraint.
+				cleanup(db.Postgresql.Exec("DELETE FROM user_organisations WHERE user_id = ?", userID).Error)
 			}
 		}
 		if len(fixtureChannelIDs) > 0 {
@@ -210,7 +214,10 @@ func TestChannelSearchAccessAndNameLookup(t *testing.T) {
 	} {
 		special := special
 		t.Run("LIKE metacharacter "+special.literal+" is literal", func(t *testing.T) {
-			rr, body := requestChannels("/api/v1/channels/search/" + url.PathEscape(prefix+"-"+special.literal))
+			// Search the bare metacharacter: unescaped, "%" and "_" match every
+			// channel the user belongs to and "\" breaks the pattern, so only the
+			// literal one may come back.
+			rr, body := requestChannels("/api/v1/channels/search/" + url.PathEscape(special.literal))
 			tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 			assertFound(t, body, prefix+"-"+special.expected)
 			assertAbsent(t, body, prefix+"-"+special.similar)
