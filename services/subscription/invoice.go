@@ -21,18 +21,12 @@ var (
 
 func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.Client, orgID string) (gin.H, error) {
 
-	userIdVal, err := middleware.GetUserClaims(c, db, "user_id")
+	claimOrgVal, err := middleware.GetUserClaims(c, db, "org_id")
 	if err != nil {
-		return gin.H{}, errors.New("user context required")
+		return gin.H{}, errors.New("organization context required")
 	}
-	userID, ok := userIdVal.(string)
-	if !ok || userID == "" {
-		return gin.H{}, errors.New("invalid user context")
-	}
-
-	var org models.Organisation
-	isMember, err := org.CheckUserIsMemberOfOrg(userID, orgID, db)
-	if err != nil || !isMember {
+	claimOrgID, ok := claimOrgVal.(string)
+	if !ok || claimOrgID == "" || claimOrgID != orgID {
 		return gin.H{}, ErrNotOrgMember
 	}
 
