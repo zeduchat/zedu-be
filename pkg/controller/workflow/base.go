@@ -24,6 +24,25 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
+// requireOrgMembership authorises the caller against the organisation named in
+// the path. The workflow services scope their queries by the org_id they are
+// handed and never check it, so without this guard any authenticated user could
+// read or mutate another organisation's workflows just by knowing its id. It
+// writes the 403 itself and reports whether the handler should continue.
+func (base *Controller) requireOrgMembership(c *gin.Context, userId, orgId string) bool {
+	var org models.Organisation
+
+	isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, base.Db.Postgresql)
+	if err != nil || !isMember {
+		base.Logger.Info("user is not a member of organisation " + orgId)
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "user is not a member of this organisation", err, nil)
+		c.JSON(http.StatusForbidden, rd)
+		return false
+	}
+
+	return true
+}
+
 func (base *Controller) CreateWorkflow(c *gin.Context) {
 	var req models.WorkFlowRequest
 
@@ -43,6 +62,10 @@ func (base *Controller) CreateWorkflow(c *gin.Context) {
 		base.Logger.Info("invalid organization id format")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid organisation id format", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if !base.requireOrgMembership(c, req.UserId, req.OrgId) {
 		return
 	}
 
@@ -93,6 +116,10 @@ func (base *Controller) GetAllWorkflowsByOrg(c *gin.Context) {
 		return
 	}
 
+	if !base.requireOrgMembership(c, req.UserId, req.OrgId) {
+		return
+	}
+
 	resp, code, err := workflow.ListWorkflowsService(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -132,6 +159,10 @@ func (base *Controller) GetWorkflowByID(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
+
+	if !base.requireOrgMembership(c, req.UserId, req.OrgId) {
+		return
+	}
 
 	resp, code, err := workflow.GetWorkflowByIDService(req, base.Db.Postgresql)
 	if err != nil {
@@ -205,6 +236,10 @@ func (base *Controller) UpdateWorkflow(c *gin.Context) {
 	if _, err := uuid.Parse(req.OrgId); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation ID format", errors.New("invalid org ID"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if !base.requireOrgMembership(c, req.UserId, req.OrgId) {
 		return
 	}
 
