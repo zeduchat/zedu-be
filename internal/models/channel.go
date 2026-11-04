@@ -376,18 +376,19 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	return channelUsers, paginationResponse, nil
 }
 
-func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {
+func (r *Channels) GetChannelsByName(db *gorm.DB, name, organisationID, userID string) ([]Channels, error) {
 	var (
 		channels []Channels
 		ur       UserChannels
 	)
 
-	exists := postgresql.CheckExists(db, &channels, "name= ?", name)
+	accessFilter := "name = ? AND organisation_id = ? AND archived = FALSE AND id IN (SELECT channels_id FROM user_channels WHERE user_id = ?)"
+	exists := postgresql.CheckExists(db, &channels, accessFilter, name, organisationID, userID)
 	if !exists {
 		return channels, errors.New("channel not found")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &channels, "name= ?", name)
+	err := postgresql.SelectAllFromDb(db, "", &channels, accessFilter, name, organisationID, userID)
 	if err != nil {
 		return channels, errors.New("could not get channel by name")
 	}
@@ -1157,19 +1158,24 @@ func (r *UserChannels) CheckUser(db *gorm.DB, userID, channelID string) (bool, s
 	return true, "user in channel"
 }
 
-func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name string) ([]Channels, postgresql.PaginationResponse, error) {
+func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name, organisationID, userID string) ([]Channels, postgresql.PaginationResponse, error) {
 	var channels []Channels
 
 	pagination := postgresql.GetPagination(c)
 
+	// Escape LIKE wildcards so a search term such as "%" cannot match every channel.
+	escapedName := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(name)
+
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db.Preload("Users"),
+		db,
 		"created_at",
 		"desc",
 		pagination,
 		&channels,
-		"name LIKE ?",
-		"%"+name+"%",
+		"channels.organisation_id = ? AND channels.archived = FALSE AND channels.id IN (SELECT channels_id FROM user_channels WHERE user_id = ?) AND channels.name ILIKE ?",
+		organisationID,
+		userID,
+		"%"+escapedName+"%",
 	)
 
 	if err != nil {
