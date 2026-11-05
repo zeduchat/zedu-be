@@ -99,10 +99,19 @@ func ProcessSlashCommand(db *gorm.DB, req models.ProcessSlashCommandRequest) (in
 		return nil, err
 	}
 
-	// Route to appropriate handler
+	// Route to appropriate handler. Carry the authenticated organisation
+	// context into the handlers so a command in one organisation resolves
+	// only channels that belong to it.
+	orgID := ""
+	if req.Context != nil {
+		if id, ok := req.Context["org_id"].(string); ok {
+			orgID = id
+		}
+	}
+
 	switch commandType {
 	case "add-to-channel":
-		return handleAddToChannel(db, args)
+		return handleAddToChannel(db, args, orgID)
 	case "remove-from-channel":
 		return handleRemoveFromChannel(db, args)
 	case "banish-from-channel":
@@ -221,8 +230,11 @@ func getUserByUsername(db *gorm.DB, username string) (*models.User, error) {
 	return &user, nil
 }
 
-// handleAddToChannel adds users to a channel
-func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChannelResponse, error) {
+// handleAddToChannel adds users to a channel belonging to the invoker's
+// organisation only. The channel lookup is scoped with an organisation
+// predicate so a same-named channel in another organisation is never touched.
+// Org context comes from ProcessSlashCommand (req.Context["org_id"]).
+func handleAddToChannel(db *gorm.DB, args map[string]string, orgID string) (models.AddToChannelResponse, error) {
 	channelName := args["target_channel"]
 	usersStr := args["users"]
 
@@ -233,17 +245,10 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChanne
 		return models.AddToChannelResponse{}, fmt.Errorf("at least one user is required")
 	}
 
-	// Get channel
-	var channel models.Channels
-	exists := postgresql.CheckExists(db, &channel, "name = ?", channelName)
-	if !exists {
-		return models.AddToChannelResponse{}, fmt.Errorf("channel not found: %s", channelName)
-	}
-
-	// Get channel details
-	err := db.Where("name = ?", channelName).First(&channel).Error
+	// Resolve the target channel scoped to the invoker's organisation.
+	channel, err := getChannelByName(db, channelName, orgID)
 	if err != nil {
-		return models.AddToChannelResponse{}, fmt.Errorf("failed to get channel: %v", err)
+		return models.AddToChannelResponse{}, err
 	}
 
 	users := strings.Split(usersStr, ",")
