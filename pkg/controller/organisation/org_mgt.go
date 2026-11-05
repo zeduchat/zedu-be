@@ -37,6 +37,30 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 		return
 	}
 
+	// Membership gate: only a member (or owner/admin) of the requested
+	// organisation may read its member metrics. An unknown organisation gets 404,
+	// a non-member gets 403. This stops any authenticated caller from reading
+	// another organisation's member counts.
+	orgExists, err := models.CheckOrgExists(orgId, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to check organisation existence", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch metrics", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	if orgExists.ID == "" {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "organisation not found", "organisation not found", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	isMember, err := models.CheckUserIsMemberOfOrg(userId, orgId, base.Db.Postgresql)
+	if err != nil || !isMember {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "not a member of this organisation", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	countMetricsData, err := organisation.CountMetrics(base.Db.Postgresql, userId, orgId)
 	if err != nil {
 		base.Logger.Error("failed to fetch metrics", err)

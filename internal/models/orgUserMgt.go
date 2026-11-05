@@ -144,7 +144,12 @@ func (o *OrgUserManagement) GetOrgUserManagement(db *gorm.DB, users []UserInOrgR
 	return response, nil
 }
 
-func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetricsResponse, error) {
+func (o *OrgUserManagement) CountMetrics(db *gorm.DB, userID, orgID string) (OrgUserMetricsResponse, error) {
+	// Ownership gate: only members of the organisation may read its metrics.
+	if !isUserMemberOfOrganisation(db, userID, orgID) {
+		return OrgUserMetricsResponse{}, &MemberMetricError{orgID: orgID, userId: userID}
+	}
+
 	var (
 		inv Invitation
 	)
@@ -166,6 +171,24 @@ func (o *OrgUserManagement) CountMetrics(db *gorm.DB, orgID string) (OrgUserMetr
 		TotalGuests:   totalGuests,
 	}
 	return countData, nil
+}
+
+// MemberMetricError is returned when a caller is not a member of the
+// organisation they are trying to read metrics for.
+type MemberMetricError struct {
+	orgID  string
+	userId string
+}
+
+func (e *MemberMetricError) Error() string {
+	return fmt.Sprintf("user %s is not a member of organisation %s", e.userId, e.orgID)
+}
+
+// isUserMemberOfOrganisation reports whether userID is a member of orgID.
+func isUserMemberOfOrganisation(db *gorm.DB, userID, orgID string) bool {
+	var oum models.OrgUserManagement
+	_, err := oum.GetByIDs(db, userID, orgID)
+	return err == nil
 }
 
 func (o *OrgUserManagement) GetByIDs(db *gorm.DB, userID, orgID string) (OrgUserManagement, error) {
