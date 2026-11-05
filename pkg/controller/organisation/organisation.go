@@ -143,6 +143,28 @@ func (base *Controller) GetAllChannelssInOrganisation(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
 
+	// Membership gate: non-members cannot enumerate another organisation's
+	// public channels. Unknown org gets 404; non-member gets 403.
+	orgExists, err := models.CheckOrgExists(orgID, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to check organisation existence", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch channels", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	if orgExists.ID == "" {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "organisation not found", "organisation not found", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	isMember, err := models.CheckUserIsMemberOfOrg(userId, orgID, base.Db.Postgresql)
+	if err != nil || !isMember {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "not a member of this organisation", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	ids := models.IDS{
 		UserID:         userId,
 		OrganisationID: orgID,
