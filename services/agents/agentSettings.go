@@ -14,6 +14,25 @@ import (
 func AddAgentSettings(db *gorm.DB, ids map[string]string, req models.AddIntegrationSettingsRequest) error {
 	orgID := ids["org_id"]
 
+	// 1. The requested organisation must exist.
+	exists := postgresql.CheckExists(db, &models.Organisation{}, "id = ?", orgID)
+	if !exists {
+		return fmt.Errorf("organisation does not exist")
+	}
+
+	// 2. The requested agent must exist.
+	exists = postgresql.CheckExists(db, &models.Integrations{}, "id = ?", ids["agent_id"])
+	if !exists {
+		return fmt.Errorf("agent does not exist")
+	}
+
+	// 3. The agent must be an active integration of the requested organisation;
+	// otherwise creation would produce an orphaned or cross-tenant settings row.
+	exists = postgresql.CheckExists(db, &models.OrganisationIntegrations{}, "org_id = ? AND integration_id = ? AND is_active = true", orgID, ids["agent_id"])
+	if !exists {
+		return fmt.Errorf("agent is not an active integration of this organisation")
+	}
+
 	is := models.IntegrationSettings{
 		ID:             utility.GenerateUUID(),
 		OrgID:          &orgID,
