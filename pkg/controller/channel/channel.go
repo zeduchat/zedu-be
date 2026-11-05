@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/channel"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
@@ -1159,3 +1160,102 @@ func (base *Controller) ToggleUserJoinedMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, rd)
 }
 
+func (base *Controller) ToggleStarChannel(c *gin.Context) {
+	channelId := c.Param("channelId")
+
+	if _, err := uuid.Parse(channelId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		base.Logger.Error("unable to get user claims")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", errors.New("user not authorized"), nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId, _ := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	var ch models.Channels
+	exists = postgresql.CheckExists(base.Db.Postgresql, &ch, "id = ?", channelId)
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "channel not found", errors.New("channel not found"), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	if ch.OrganisationID != orgId {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "channel not found", errors.New("channel not found in organisation"), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	req := models.ChannelStarRequest{
+		UserId:    userId,
+		ChannelId: channelId,
+		OrgId:     orgId,
+	}
+
+	isStarred, code, err := channel.ToggleStarChannel(req, base.Db.Postgresql)
+	if err != nil {
+		base.Logger.Error("failed to toggle channel star", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	message := "Channel unstarred successfully"
+	if isStarred {
+		message = "Channel starred successfully"
+	}
+
+	base.Logger.Info(message)
+	rd := utility.BuildSuccessResponse(code, message, map[string]any{
+		"is_starred": isStarred,
+		"channel_id": channelId,
+	})
+	c.JSON(code, rd)
+}
+
+func (base *Controller) GetStarredChannels(c *gin.Context) {
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unauthorized", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId, _ := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
+
+	if _, err := uuid.Parse(orgId); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	ids := models.IDS{
+		UserID:         userId,
+		OrganisationID: orgId,
+	}
+
+	starredChannels, code, err := channel.GetStarredChannels(base.Db, ids)
+	if err != nil {
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(code, "starred channels retrieved successfully", starredChannels)
+	c.JSON(code, rd)
+}

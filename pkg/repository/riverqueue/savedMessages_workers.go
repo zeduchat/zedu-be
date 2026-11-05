@@ -60,17 +60,32 @@ func (w *SavedMessagesRemainderWorker) Work(ctx context.Context, job *river.Job[
 
 	logger.Info("Successfully Published Remainder Notification to channelid: %s, with userid: %s", c.ChannelsID, content.UserId)
 
-	resolveChannelName := func(db *gorm.DB, channelID string) string {
+	resolveChannelName := func(db *gorm.DB, channelID string) (string, bool) {
 		var dmchan models.DmChannels
 		if postgresql.CheckExists(db, &dmchan, "channel_id = ?", channelID) {
-			return "Direct Message"
+			return "Direct Message", true
 		}
 		var ch models.Channels
 		if postgresql.CheckExists(db, &ch, "id = ?", channelID) {
-			return ch.Name
+			return ch.Name, false
 		}
 
-		return "unknown"
+		return "unknown", false
+	}
+
+	messageID := ""
+	if c.MessageID != nil {
+		messageID = *c.MessageID
+	}
+	channelName, isDM := resolveChannelName(w.db, c.ChannelsID)
+	section := string(models.ReplySection)
+	notificationType := "channel"
+	if isDM {
+		notificationType = "dm"
+	}
+	if c.Type == "thread" {
+		section = string(models.ThreadSection)
+		notificationType = "thread"
 	}
 
 	//send push notification
@@ -78,10 +93,21 @@ func (w *SavedMessagesRemainderWorker) Work(ctx context.Context, job *river.Job[
 		ChannelId:   c.ChannelsID,
 		OrgId:       c.OrgId,
 		UserId:      content.UserId,
-		ChannelName: resolveChannelName(w.db, c.ChannelsID),
+		ChannelName: channelName,
 		Message:     "You have a saved message reminder.",
 		Title:       "Saved Messages Reminder",
-		Payload:     notification,
+		Payload: map[string]interface{}{
+			"org_id":            c.OrgId,
+			"channel_id":        c.ChannelsID,
+			"channel_name":      channelName,
+			"thread_id":         c.ThreadID,
+			"message_id":        messageID,
+			"sender_id":         c.UserID,
+			"event":             "saved_message_reminder",
+			"notification_type": notificationType,
+			"section":           section,
+			"type":              c.Type,
+		},
 	}
 
 	err = push_notifications.PushOneSignalToUser(pushRequest, logger, w.db)

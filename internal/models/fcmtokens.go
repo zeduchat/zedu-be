@@ -33,6 +33,7 @@ type VoIPTokenRequest struct {
 type CreateFcmTokenRequest struct {
 	UserId   string `json:"user_id"`
 	FcmToken string `json:"fcm_token" validate:"required"`
+	Platform string `json:"platform"`
 }
 
 type CreateWebPushTokenRequest struct {

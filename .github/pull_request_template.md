@@ -1,76 +1,86 @@
-## Ticket
-<!-- Mandatory. The ticket/issue this PR addresses, e.g. ZED-142 -->
-Ticket:
+## Type of Change
+<!-- Check the type(s) that apply to this PR -->
 
-## Summary
-<!-- What does this PR do, and why? Keep it short and specific. -->
+- [ ] **feat**: A new feature
+- [ ] **fix**: A bug fix
+- [ ] **docs**: Documentation only changes
+- [ ] **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- [ ] **refactor**: A code change that neither fixes a bug nor adds a feature
+- [ ] **perf**: A code change that improves performance
+- [ ] **test**: Adding missing tests or correcting existing tests
+- [ ] **build**: Changes that affect the build system or external dependencies
+- [ ] **ci**: Changes to CI configuration files and scripts
+- [ ] **chore**: Other changes that don't modify src or test files
+- [ ] **revert**: Reverts a previous commit
 
-## Type of change
-<!-- choice -->
-- [ ] `feat` — new feature
-- [ ] `fix` — bug fix
-- [ ] `docs` — documentation only
-- [ ] `refactor` — no behaviour change
-- [ ] `test` — tests only
-- [ ] `perf` — performance
-- [ ] `ci` — CI/workflows
-- [ ] `chore` — maintenance
-- [ ] `style` — formatting only
-- [ ] `build` — build system/dependencies
-- [ ] `revert` — revert of a previous change
-<!-- /choice -->
+## Description
+<!-- Provide a clear and concise description of what this PR does -->
 
-## Related issue
-<!-- e.g. Closes #123 -->
-Closes #
 
-## How has this been tested?
-<!-- Give the exact commands and paste evidence (logs, curl output, screenshots). -->
 
-<!-- choice -->
-- [ ] Manual
-- [ ] Unit
-- [ ] Integration
-<!-- /choice -->
+## Related Issue
+<!-- Link to the issue this PR addresses (if applicable) -->
+<!-- Example: Closes #123, Fixes #456, Resolves #789 -->
 
-**Environment**
-- Go version:
-- Database:
-- OS:
+
+
+## Motivation and Context
+<!-- Why is this change required? What problem does it solve? -->
+
+
+
+## How Has This Been Tested?
+<!-- Describe the tests you ran to verify your changes -->
+<!-- Include details of your testing environment, and the tests you ran -->
+
+- [ ] Manual testing
+- [ ] Unit tests
+- [ ] Integration tests
+- [ ] End-to-end tests
+
+**Testing Environment:**
+- Go version: 
+- Database: 
+- OS: 
+
+## Screenshots (if appropriate)
+<!-- Add screenshots, Postman results, or other visual evidence here -->
+
+
 
 ## Checklist
-- [ ] This PR is small and atomic (one feature or bug fix)
-- [ ] Branch name follows `<type>/<TICKET-ID>-<short-desc>`
-- [ ] PR title follows conventional commits (`type(scope): description`)
-- [ ] I have only this one open PR (one open PR per author)
-- [ ] New user-facing behaviour is wrapped in a feature flag, default **OFF**
-- [ ] Database changes follow **expand -> contract**
-- [ ] Tests added or updated under `tests/test_<feature>/`
-- [ ] `go build ./...` passes locally
-- [ ] `go test ./tests/... -p 1 -timeout 600s` passes locally
-- [ ] No secrets, keys or `app.env` values are included
+<!-- Check all that apply -->
 
-## Feature flag
-<!-- Name and default, or "N/A" -->
-Flag:
-Default: OFF
+- [ ] My code follows the code style of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Any dependent changes have been merged and published
 
-## Database / migrations
-<!-- Migration files, backfill notes and rollback plan, or "N/A" -->
+## Breaking Changes
+<!-- Does this PR introduce any breaking changes? If yes, describe them -->
 
-## Protected files
-<!--
-Changing any of .github/, Dockerfile*, docker-compose*.yml, .air.toml, Makefile, AGENTS.md,
-AGENT.md, CONTRIBUTING.md or internal/config/ requires lead approval. List them here.
+- [ ] Yes, this PR introduces breaking changes
+- [ ] No breaking changes
+
+**If yes, describe the breaking changes:**
+
+
+
+## Additional Notes
+<!-- Any additional information that reviewers should know -->
+
+
+
+---
+<!-- 
+💡 Tips for a great PR:
+- Keep PRs focused and small when possible
+- Write clear commit messages following conventional commits format
+- Update relevant documentation
+- Add tests for new functionality
+- Ensure all CI checks pass before requesting review
 -->
-
-## Screenshots / evidence
-<!-- Postman results, terminal output, logs, etc. -->
-
-## Breaking changes
-<!-- choice -->
-- [ ] No
-- [ ] Yes — described below
-<!-- /choice -->
-
-**If yes, describe the breaking changes and migration path:**

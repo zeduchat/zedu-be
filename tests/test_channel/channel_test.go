@@ -347,6 +347,10 @@ func TestToggleUserJoinedMessage(t *testing.T) {
 
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, orgCtrl, createOrgData, token)
 
+	// The user's current org is now the created org; re-issue the token so its
+	// org_id claim matches the org the channel lives in.
+	token = tst.GetLoginToken(t, r, authCtrl, loginData)
+
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("ToggleChan%s", utility.GenerateUUID()),
 		Username:       fmt.Sprintf("togglechan%s", utility.GenerateUUID()),
@@ -417,5 +421,44 @@ func TestToggleUserJoinedMessage(t *testing.T) {
 		if count != 0 {
 			t.Errorf("expected 0 join system messages when show_joined_message is false, got %d", count)
 		}
+	})
+
+	t.Run("Star and Unstar Channel", func(t *testing.T) {
+		rStar := gin.Default()
+		rStar.POST("/api/v1/channels/:channelId/star", middleware.Authorize(db.Postgresql), channelController.ToggleStarChannel)
+		rStar.GET("/api/v1/organisations/:org_id/channels/starred", middleware.Authorize(db.Postgresql), channelController.GetStarredChannels)
+
+		starReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/channels/%s/star", channelID), nil)
+		starReq.Header.Set("Authorization", "Bearer "+token)
+
+		rrStar := httptest.NewRecorder()
+		rStar.ServeHTTP(rrStar, starReq)
+
+		tst.AssertStatusCode(t, rrStar.Code, http.StatusOK)
+		starData := tst.ParseResponse(rrStar)
+		tst.AssertResponseMessage(t, starData["message"].(string), "Channel starred successfully")
+
+		starredReq, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/channels/starred", orgId), nil)
+		starredReq.Header.Set("Authorization", "Bearer "+token)
+
+		rrStarred := httptest.NewRecorder()
+		rStar.ServeHTTP(rrStarred, starredReq)
+
+		tst.AssertStatusCode(t, rrStarred.Code, http.StatusOK)
+		starredData := tst.ParseResponse(rrStarred)
+		starredList, ok := starredData["data"].([]any)
+		if !ok || len(starredList) != 1 {
+			t.Fatalf("expected 1 starred channel, got %v", starredData["data"])
+		}
+
+		unstarReq, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/channels/%s/star", channelID), nil)
+		unstarReq.Header.Set("Authorization", "Bearer "+token)
+
+		rrUnstar := httptest.NewRecorder()
+		rStar.ServeHTTP(rrUnstar, unstarReq)
+
+		tst.AssertStatusCode(t, rrUnstar.Code, http.StatusOK)
+		unstarData := tst.ParseResponse(rrUnstar)
+		tst.AssertResponseMessage(t, unstarData["message"].(string), "Channel unstarred successfully")
 	})
 }

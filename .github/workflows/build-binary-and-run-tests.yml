@@ -3,27 +3,20 @@ name: Build Golang Binary and Run Tests
 on:
   pull_request:
     branches:
-      - dev
+      - staging
       - central-staging
   push:
     branches:
       - testing
-
-permissions:
-  contents: read
-
-concurrency:
-  group: build-tests-${{ github.ref }}
-  cancel-in-progress: true
+      - central-staging
 
 jobs:
   build_and_test:
-    name: Build and test
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    # Fork PRs get no secrets; maintainers run them through copy-fork-pr.yml.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Validate swagger.yaml
@@ -31,98 +24,102 @@ jobs:
         with:
           files: ./static/swagger.yaml
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Start dependency services
+      - name: Generate randomized environment values
         run: |
-          docker compose -f docker-compose.dev.yml up -d postgres redis minio centrifugo
-          docker run -d --name elasticsearch-ci -p 9200:9200 \
-            -e discovery.type=single-node \
-            -e xpack.security.enabled=false \
-            -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
-            elastic/elasticsearch:8.11.0
+          RANDOM_SUFFIX="${GITHUB_RUN_NUMBER}_$(date +%s)"
+          BINARY_NAME="telex_be_${RANDOM_SUFFIX}"
+          DB_NAME="telex_be_test_${RANDOM_SUFFIX}"
+          
+          echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_ENV
+          echo "TEST_DB_NAME=${DB_NAME}" >> $GITHUB_ENV
 
-      - name: Wait for dependencies
+      - name: Verify APP_ENV secret is set
         run: |
-          wait_for() {
-            local name="$1" attempts="$2" interval="$3"
-            shift 3
-            for i in $(seq 1 "${attempts}"); do
-              if "$@"; then
-                echo "${name} is ready"
-                return 0
-              fi
-              sleep "${interval}"
-            done
-            echo "::error::${name} did not become ready"
-            return 1
-          }
+          if [ -z "${{ secrets.APP_ENV }}" ]; then
+            echo "::error::secrets.APP_ENV is empty or unset"
+            exit 1
+          fi
 
-          wait_for postgres 60 2 docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U postgres
-          wait_for redis 60 2 docker compose -f docker-compose.dev.yml exec -T redis redis-cli ping
-          wait_for elasticsearch 60 3 curl -sf --max-time 5 -o /dev/null http://localhost:9200
-          wait_for minio 60 2 curl -sf --max-time 5 -o /dev/null http://localhost:9000/minio/health/live
-          wait_for centrifugo 60 2 curl -sf --max-time 5 -o /dev/null http://localhost:8000/health
-
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Generate test database name
-        run: echo "TEST_DB_NAME=telex_be_test_${GITHUB_RUN_NUMBER}_$(date +%s)" >> "$GITHUB_ENV"
-
-      - name: Write app.env
+      - name: Create fresh test database
         run: |
-          cp app-sample.env app.env
-          sed -i "s|^DB_HOST=.*|DB_HOST=localhost|" app.env
-          sed -i "s|^DB_PORT=.*|DB_PORT=5432|" app.env
-          sed -i "s|^DB_NAME=.*|DB_NAME=${TEST_DB_NAME}|" app.env
-          sed -i "s|^USERNAME=.*|USERNAME=postgres|" app.env
-          sed -i "s|^PASSWORD=.*|PASSWORD=password|" app.env
-          sed -i "s|^SSLMODE=.*|SSLMODE=disable|" app.env
-          sed -i "s|^TEST_DB_HOST=.*|TEST_DB_HOST=localhost|" app.env
-          sed -i "s|^TEST_DB_PORT=.*|TEST_DB_PORT=5432|" app.env
-          sed -i "s|^TEST_DB_NAME=.*|TEST_DB_NAME=${TEST_DB_NAME}|" app.env
-          sed -i "s|^TEST_USERNAME=.*|TEST_USERNAME=postgres|" app.env
-          sed -i "s|^TEST_PASSWORD=.*|TEST_PASSWORD=password|" app.env
-          sed -i "s|^TEST_SSLMODE=.*|TEST_SSLMODE=disable|" app.env
-          sed -i "s|^SERVER_ENCKEY=.*|SERVER_ENCKEY=someGeneric32LengthKeyLikeThat12|" app.env
-          sed -i "s|^REDIS_HOST=.*|REDIS_HOST=localhost|" app.env
-          sed -i "s|^REDIS_PORT=.*|REDIS_PORT=6379|" app.env
-          sed -i "s|^ELASTIC_URL=.*|ELASTIC_URL=http://localhost:9200|" app.env
-          sed -i "s|^MINIO_ENDPOINT=.*|MINIO_ENDPOINT=localhost:9000|" app.env
-          sed -i "s|^MINIO_USE_SSL=.*|MINIO_USE_SSL=false|" app.env
-          sed -i "s|^BUCKET_NAME=.*|BUCKET_NAME=dev-bucket|" app.env
-          sed -i "s|^BUCKET_ACCESS_KEY=.*|BUCKET_ACCESS_KEY=minio_access_key|" app.env
-          sed -i "s|^BUKCET_SECRET_KEY=.*|BUKCET_SECRET_KEY=minio_secret_key|" app.env
-          sed -i "s|^CENTRIFUGE_URL=.*|CENTRIFUGE_URL=http://localhost:8000|" app.env
-          sed -i "s|^CENTRIFUGE_API_KEY=.*|CENTRIFUGE_API_KEY=generic_centrifuge_api_key|" app.env
-          sed -i "s|^HMAC_SECRET=.*|HMAC_SECRET=DoHardThingsGenericSecret|" app.env
-          sed -i "s|^AGORA_APP_ID=.*|AGORA_APP_ID=0123456789abcdef0123456789abcdef|" app.env
-          sed -i "s|^AGORA_APP_CERTIFICATE=.*|AGORA_APP_CERTIFICATE=0123456789abcdef0123456789abcdef|" app.env
-          sed -i "s|^STRIPE_KEY=.*|STRIPE_KEY=|" app.env
-          echo "DB_URL=postgresql://postgres:password@localhost:5432/${TEST_DB_NAME}?sslmode=disable" >> app.env
+          set -e -o pipefail
+          echo "Creating clean test database: ${TEST_DB_NAME}"
+          psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "CREATE DATABASE \"${TEST_DB_NAME}\";"
 
-      - name: Create test database
+      - name: Setup app.env
+        run: | 
+          SERVER_PORT=$((40000 + GITHUB_RUN_NUMBER % 10000))
+          echo "SERVER_PORT=${SERVER_PORT}" >> $GITHUB_ENV
+          echo "${{ secrets.APP_ENV }}" > app.env
+          
+          # Inject clean test DB connection strings
+          sed -i "s|^DB_URL=.*|DB_URL=postgresql://actionsdeployer@127.0.0.1:5432/${TEST_DB_NAME}?sslmode=disable|" app.env
+          sed -i "s/^SERVER_PORT=.*/SERVER_PORT=${SERVER_PORT}/" app.env
+          sed -i "s/^TEST_DB_NAME=.*/TEST_DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s/^TEST_USERNAME=.*/TEST_USERNAME=actionsdeployer/" app.env
+          sed -i "s/^TEST_PASSWORD=.*/TEST_PASSWORD=\"\"/" app.env
+          sed -i "s/^DB_NAME=.*/DB_NAME=${TEST_DB_NAME}/" app.env
+          sed -i "s/^USERNAME=.*/USERNAME=actionsdeployer/" app.env
+          sed -i "s/^PASSWORD=.*/PASSWORD=\"\"/" app.env
+
+      - name: Build the application
+        run: go build -o ${BINARY_NAME}
+
+      - name: Run the application in background
         run: |
-          PGPASSWORD=password psql -h localhost -U postgres -d postgres \
-            -c "CREATE DATABASE \"${TEST_DB_NAME}\";"
+          ./${BINARY_NAME} > app.log 2>&1 &
+          echo "APP_PID=$!" >> $GITHUB_ENV
 
-      - name: Build
-        run: go build ./...
-
-      - name: Run tests
+      - name: Wait for application readiness
         run: |
-          mkdir -p logs tests/logs
-          mkdir -p "${RUNNER_TEMP}/gotmp"
-          export GOTMPDIR="${RUNNER_TEMP}/gotmp"
+          for i in {1..30}; do
+            curl -s http://localhost:${SERVER_PORT} && break || true
+            sleep 1
+          done
+
+      - name: Run DB migrations
+        run: |
+          echo "Running DB migrations..."
+          yes | make migrate-safe-up || true
+
+      - name: Run Go Tests
+        run: |
+          mkdir -p .gotmp
+          export GOTMPDIR="$(pwd)/.gotmp"
+          
+          # Executing -p 1 to enforce sequential package execution and avoid GORM auto-migrate deadlocks
           go test -v -p 1 ./tests/... -timeout 600s
 
-      - name: Stop dependency services
+      - name: Stop background application
         if: always()
         run: |
-          docker compose -f docker-compose.dev.yml down -v
-          docker rm -f elasticsearch-ci || true
+          if [ -n "${APP_PID}" ]; then
+            echo "Stopping background app PID: ${APP_PID}"
+            kill -9 ${APP_PID} || true
+          fi
+
+      - name: Terminate active database sessions
+        if: always()
+        run: |
+          if [ -n "${TEST_DB_NAME}" ]; then
+            psql -n -h 127.0.0.1 -U actionsdeployer -d postgres -c "
+              SELECT pg_terminate_backend(pid)
+              FROM pg_stat_activity
+              WHERE datname = '${TEST_DB_NAME}'
+                AND pid <> pg_backend_pid();
+            " || true
+          fi
+
+      - name: Cleanup test database
+        if: always()
+        run: |
+          if [ -n "${TEST_DB_NAME}" ]; then
+            dropdb -h 127.0.0.1 -U actionsdeployer "${TEST_DB_NAME}" || true
+          fi
+
+      - name: Cleanup workspace artifacts
+        if: always()
+        run: |
+          rm -rf .gotmp
+          rm -f ${BINARY_NAME}
+          rm -f app.log

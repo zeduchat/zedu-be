@@ -25,8 +25,11 @@ func (n NotificationObject) SendContactUsMail() error {
 		return fmt.Errorf("error decoding saved notification data, %v", err)
 	}
 
-	helpCenterUrl := fmt.Sprintf("%v/help", configData.App.FRONTEND_URL)
-	loginUrl := fmt.Sprintf("%v/auth/login", configData.App.FRONTEND_URL)
+	frontendUrl := strings.TrimRight(configData.App.FRONTEND_URL, "/")
+	helpCenterUrl := fmt.Sprintf("%v/help", frontendUrl)
+	loginUrl := fmt.Sprintf("%v/auth/login", frontendUrl)
+	demoUrl := fmt.Sprintf("%v/?utm_source=reachout_email&utm_medium=email&utm_campaign=autoresponder_lead_capture&utm_content=primary_demo_cta", frontendUrl)
+	inviteUrl := fmt.Sprintf("%v/invite?ref=contact_autoresponder&utm_source=reachout_email&utm_medium=email&utm_campaign=referral_loop", frontendUrl)
 
 	data, err := ConvertToMapAndAddExtraData(notificationData, map[string]any{
 		"firstname":       thisOrThatStr(notificationData.Name, notificationData.Email),
@@ -35,6 +38,8 @@ func (n NotificationObject) SendContactUsMail() error {
 		"message":         notificationData.Message,
 		"help_center_url": helpCenterUrl,
 		"login_url":       loginUrl,
+		"demo_url":        demoUrl,
+		"invite_url":      inviteUrl,
 	})
 
 	if err != nil {

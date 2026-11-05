@@ -30,13 +30,13 @@ config.yaml
 _ignore/
 app.env
 tmp/
+.gotmp/
 .idea/
 playground/
 blankPage.md
 build-errors.log
 *.toml
 !.air.toml
-!.gitleaks.toml
 
 temp
 telex_be

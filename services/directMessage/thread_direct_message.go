@@ -598,16 +598,32 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 		ChannelId:   req.ChannelID,
 		OrgId:       channel.OrgId,
 		ChannelName: feed.UserName,
-		UserId:      *channel.ParticipantId,
+		UserId:      channel.UserId,
+		Username:    feed.UserName,
 		Message:     req.Content,
 		TimeStamp:   threadDoc.CreatedAt.String(),
 		AvatarUrl:   feed.AvatarURL,
 		Title:       fmt.Sprintf("Notification from user %s", feed.UserName),
+		Payload: map[string]interface{}{
+			"org_id":            channel.OrgId,
+			"channel_id":        req.ChannelID,
+			"channel_name":      feed.UserName,
+			"sender_name":       feed.UserName,
+			"sender_id":         feed.UserId,
+			"avatar_url":        feed.AvatarURL,
+			"content":           req.Content,
+			"message_id":        req.ThreadId,
+			"thread_id":         req.ThreadId,
+			"type":              feed.Type,
+			"event":             "new_message",
+			"notification_type": "dm",
+			"section":           string(notification.SectionType),
+		},
 	}
 
 	err = push_notifications.PushOneSignalToUser(pushReq, logger, db.Postgresql)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", *channel.ParticipantId, err))
+		logger.Error(fmt.Sprintf("Failed to send push notification to user %s: %v", channel.UserId, err))
 	}
 
 	creditUsed := models.CalculateCreditCost(len(req.Content), 0)

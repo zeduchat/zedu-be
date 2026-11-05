@@ -1,0 +1,89 @@
+name: Copy fork PR into zeduchat
+
+# Fork PRs can't read repo secrets, so CI skips them. Adding the run-ci label
+# pushes the approved commit to fork-pr/<n> and opens a copy PR that CI can run on.
+#
+# This job only moves commits around and must never run contributor code:
+# keep it on the checkout of the default branch and never build the PR here.
+
+on:
+  pull_request_target:
+    types: [labeled, closed]
+
+permissions: {}
+
+env:
+  GH_TOKEN: ${{ secrets.RC_SYNC_TOKEN }}
+  GH_REPO: ${{ github.repository }}
+  PR: ${{ github.event.pull_request.number }}
+
+jobs:
+  copy:
+    if: >
+      github.event.action == 'labeled' &&
+      github.event.label.name == 'run-ci' &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    env:
+      SHA: ${{ github.event.pull_request.head.sha }}
+      BASE: ${{ github.event.pull_request.base.ref }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+      TITLE: ${{ github.event.pull_request.title }}
+      LABELLER: ${{ github.event.sender.login }}
+    steps:
+      # Adding the label approves whatever the head is at that moment, so a push
+      # made after the review is copied too. Check Commits before labelling.
+      - name: Require Write access and an unchanged head
+        run: |
+          refuse() {
+            echo "::error::$1"
+            gh pr comment "$PR" --body "run-ci refused: $1"
+            exit 1
+          }
+
+          # Triage is enough to add a label, so check for Write explicitly.
+          PERMISSION=$(gh api "repos/$GH_REPO/collaborators/$LABELLER/permission" --jq .permission)
+          case "$PERMISSION" in
+            admin|write) ;;
+            *) refuse "@$LABELLER needs Write access to add run-ci." ;;
+          esac
+
+          if [ "$(gh pr view "$PR" --json headRefOid -q .headRefOid)" != "$SHA" ]; then
+            refuse "the PR changed after it was labelled. Review the latest commit, then add the label again."
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RC_SYNC_TOKEN }}
+          fetch-depth: 0
+
+      - name: Copy the approved commit
+        run: |
+          git fetch origin "pull/$PR/head"
+          git push --force origin "$SHA:refs/heads/fork-pr/$PR"
+
+      - name: Open or update the copy PR
+        run: |
+          COPY=$(gh pr list --head "fork-pr/$PR" --state open --json number -q '.[0].number')
+          if [ -z "$COPY" ]; then
+            gh pr view "$PR" --json body -q .body > body.md
+            printf '\n\n---\nCI-only copy of #%s by @%s. Review and merge on #%s; this PR closes with it.\n' "$PR" "$AUTHOR" "$PR" >> body.md
+            COPY_URL=$(gh pr create --base "$BASE" --head "fork-pr/$PR" --title "$TITLE" --body-file body.md)
+            gh pr comment "$PR" --body "Thanks @$AUTHOR. CI can't use our secrets on fork PRs, so your commit was copied to $COPY_URL to run the checks. Keep pushing fixes here; a maintainer will re-run the copy after reviewing."
+          else
+            gh pr comment "$PR" --body "Copy #$COPY updated to ${SHA:0:7}."
+          fi
+
+      - name: Remove the label
+        if: always()
+        run: gh pr edit "$PR" --remove-label run-ci
+
+  cleanup:
+    if: >
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      # Deleting the branch also closes the copy PR. Most fork PRs never had one.
+      - name: Delete the copy branch
+        run: gh api -X DELETE "repos/$GH_REPO/git/refs/heads/fork-pr/$PR" || true

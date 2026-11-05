@@ -2,7 +2,7 @@
 
 set -e
 
-export BRANCH="central-staging"
+export BRANCH="dev"
 export APP_NAME="telex_be"
 export APPROOT=~/deployments/telex_be
 export PATH=$PATH:~/.nvm/versions/node/v20.15.1/bin

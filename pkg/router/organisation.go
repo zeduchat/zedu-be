@@ -47,6 +47,8 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 		organisationUrl.GET("/:org_id/user-channels", channelCtrl.GetUserChannels)
 		organisationUrl.GET("/:org_id/user-not-channels", channelCtrl.GetUserNotInChannels)
 		organisationUrl.GET("/:org_id/channels/archived", channelCtrl.GetArchivedChannels)
+		organisationUrl.GET("/:org_id/channels/starred", channelCtrl.GetStarredChannels)
+		organisationUrl.POST("/:org_id/channels/:channelId/star", channelCtrl.ToggleStarChannel)
 		organisationUrl.PUT("/:org_id/archive-channel", channelCtrl.ArchiveChannel)
 
 		// User management routes

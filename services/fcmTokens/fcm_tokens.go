@@ -1,7 +1,9 @@
 package fcmtokens
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -10,22 +12,31 @@ import (
 )
 
 func CreateFcmToken(req models.CreateFcmTokenRequest, db *gorm.DB) (int, error) {
+	platform := strings.ToLower(strings.TrimSpace(req.Platform))
+	if platform == "" {
+		platform = "web"
+	}
+	if platform != "web" && platform != "android" && platform != "ios" {
+		return http.StatusUnprocessableEntity, errors.New("platform must be web, android, or ios")
+	}
 
-	var ft models.FcmTokens
-
-	ft.FcmToken = req.FcmToken
-	ft.UserId = req.UserId
-	ft.IsLive = true
-	ft.ID = utility.GenerateUUID()
-
-	err := ft.CreateFcmToken(db)
-
-	if err != nil {
+	token := models.UserDeviceToken{
+		UserId:   req.UserId,
+		Token:    strings.TrimSpace(req.FcmToken),
+		Platform: platform,
+	}
+	if err := token.Upsert(db); err != nil {
 		return http.StatusInternalServerError, err
 	}
 
 	return http.StatusCreated, nil
+}
 
+func DeleteFcmToken(userID, token string, db *gorm.DB) (int, error) {
+	if err := models.DeleteDeviceToken(db, userID, token); err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return http.StatusOK, nil
 }
 
 func CreateWnsConfig(req models.CreateWnsTokenRequest, db *gorm.DB) (int, error) {
@@ -50,19 +61,15 @@ func CreateWnsConfig(req models.CreateWnsTokenRequest, db *gorm.DB) (int, error)
 }
 
 func GetFcmTokenByUserId(userId string, db *gorm.DB) (string, bool, error) {
-
-	var ft models.FcmTokens
-
-	ft.UserId = userId
-
-	exists, err := ft.GetFcmTokenByUserId(db)
-
+	var token models.UserDeviceToken
+	err := db.Where("user_id = ? AND token <> ''", userId).Order("updated_at desc").First(&token).Error
 	if err != nil {
-		return ft.FcmToken, exists, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", false, nil
+		}
+		return "", false, err
 	}
-
-	return ft.FcmToken, exists, nil
-
+	return token.Token, true, nil
 }
 
 func GetWebPushTokenByUserId(userId string, db *gorm.DB) (*models.SubsPayload, bool, error) {
@@ -82,21 +89,15 @@ func GetWebPushTokenByUserId(userId string, db *gorm.DB) (*models.SubsPayload, b
 }
 
 func GetFcmTokenByUserIds(userIds []string, db *gorm.DB) (*[]string, error) {
-
-	var ft models.FcmTokens
-	fcmtokens := []string{}
-
-	resp, err := ft.GetFcmTokenByUserIds(db, userIds)
-
+	tokens, err := models.ListDeviceTokensByUserIDs(db, userIds)
 	if err != nil {
-		return &fcmtokens, err
+		return nil, err
 	}
-
-	for _, ft := range *resp {
-		fcmtokens = append(fcmtokens, ft.FcmToken)
+	result := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		result = append(result, t.Token)
 	}
-
-	return &fcmtokens, nil
+	return &result, nil
 }
 
 func CreateWebPushToken(req models.CreateWebPushTokenRequest, db *gorm.DB) (int, error) {

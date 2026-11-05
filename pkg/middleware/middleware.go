@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -10,44 +11,77 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var allowedOrigins = map[string]bool{
+	"https://staging.telex.im":      true,
+	"https://panel.telex.im":        true,
+	"https://telex.im":              true,
+	"https://www.telex.im":          true,
+	"http://localhost:3000":         true,
+	"http://localhost:3001":         true,
+	"http://localhost:3002":         true,
+	"https://telex-auth.vercel.app": true,
+}
+
+var allowedOriginDomains = []string{
+	"zedu.chat",
+	"ziki.chat",
+	"ziki.im",
+	"telex.im",
+	"zeduchat.vercel.app",
+}
+
+// isAllowedOrigin matches the parsed host, not a raw suffix, so look-alike
+// origins such as evilzedu.chat and plain-http subdomains are refused.
+func isAllowedOrigin(raw string) bool {
+	if raw == "" {
+		return false
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+
+	https := strings.EqualFold(parsed.Scheme, "https")
+	hostname := strings.ToLower(parsed.Hostname())
+
+	if https && allowedOrigins[strings.ToLower(raw)] {
+		return true
+	}
+
+	if !https && !strings.EqualFold(parsed.Scheme, "http") {
+		return false
+	}
+
+	// Local development on any port.
+	if hostname == "localhost" || hostname == "127.0.0.1" {
+		return true
+	}
+
+	if !https {
+		return false
+	}
+
+	for _, domain := range allowedOriginDomains {
+		if hostname == domain || strings.HasSuffix(hostname, "."+domain) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func CORS() gin.HandlerFunc {
-
-	origin := "http://localhost*"
-
-	allowList := map[string]bool{
-		"https://staging.telex.im":      true,
-		"https://panel.telex.im":        true,
-		"https://telex.im":              true,
-		"https://www.telex.im":          true,
-		"http://localhost:3000":         true,
-		"http://localhost:3001":         true,
-		"http://localhost:3002":         true,
-		"https://telex-auth.vercel.app": true,
-	}
-
-	wildcards := []string{
-		"zedu.chat",
-		"ziki.chat",
-		"ziki.im",
-		"telex.im",
-	}
-
 	return func(c *gin.Context) {
 		reqOrigin := c.Request.Header.Get("Origin")
 
-		if allowList[reqOrigin] {
-			origin = reqOrigin
-		} else {
-			for _, w := range wildcards {
-				if strings.HasSuffix(reqOrigin, w) {
-					origin = reqOrigin
-					break
-				}
-			}
+		c.Writer.Header().Add("Vary", "Origin")
+
+		if isAllowedOrigin(reqOrigin) {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", reqOrigin)
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		}
 
-		c.Writer.Header().Add("Access-Control-Allow-Origin", origin)
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, X-Notification-Token")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 		if c.Request.Method == "OPTIONS" {

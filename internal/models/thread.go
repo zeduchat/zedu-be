@@ -158,7 +158,15 @@ var Thread_mapping = map[string]any{
 			"channels_id": map[string]string{"type": "keyword"},
 			"user_id":     map[string]string{"type": "keyword"},
 			"org_id":      map[string]string{"type": "keyword"},
-			"thread_id":   map[string]string{"type": "keyword"},
+			"thread_id": map[string]any{
+				"type": "text",
+				"fields": map[string]any{
+					"keyword": map[string]any{
+						"type":         "keyword",
+						"ignore_above": 256,
+					},
+				},
+			},
 			"edited":      map[string]string{"type": "boolean"},
 			"event_name":  map[string]string{"type": "text"},
 			"username":    map[string]string{"type": "keyword"},
@@ -562,7 +570,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 					},
 					"thread_count": map[string]any{
 						"value_count": map[string]any{
-							"field": "thread_id",
+							"field": "thread_id.keyword",
 						},
 					},
 					"success_count": map[string]any{
@@ -1188,7 +1196,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		"aggs": map[string]any{
 			"unique_thread_ids": map[string]any{
 				"terms": map[string]any{
-					"field": "thread_id",
+					"field": "thread_id.keyword",
 					"size":  limit,
 				},
 			},
@@ -1236,7 +1244,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	query = map[string]any{
 		"query": map[string]any{
 			"terms": map[string]any{
-				"thread_id": threadIDs,
+				"thread_id.keyword": threadIDs,
 			},
 		},
 		"from": from,
@@ -1585,7 +1593,6 @@ func HydrateThreadsStructList(db *gorm.DB, threads []Threads) []Threads {
 
 	return threads
 }
-
 
 func (t *Threads) GetAllGroupThreadsByChannelID(c *gin.Context, db *gorm.DB, channelID string, timeRange time.Time) ([]Threads, *elastic.PaginationResponse, int, error) {
 	var (

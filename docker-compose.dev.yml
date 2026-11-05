@@ -118,11 +118,9 @@ services:
       mongodb:
         condition: service_healthy
   minio:
-    image: cgr.dev/chainguard/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: minio_telex
     restart: unless-stopped
-    # Chainguard image runs as non-root by default; the named volume is root-owned
-    user: "0"
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -133,7 +131,12 @@ services:
       - minio_data:/minio_data
     networks:
       - telex_be
-    command: server /minio_data --console-address ":9001"
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   centrifugo:
     image: centrifugo/centrifugo:v6
     container_name: centrifugo
@@ -221,7 +224,6 @@ services:
 
       # Minio
       MINIO_ENDPOINT: "minio:9000"
-      MINIO_USE_SSL: "false"
       BUCKET_NAME: "dev-bucket"
       BUCKET_ACCESS_KEY: "minio_access_key"
       BUKCET_SECRET_KEY: "minio_secret_key"
