@@ -77,6 +77,7 @@ func SetupSubscriptionRoutes(r *gin.Engine, subscriptionController *subscription
 	{
 		subscriptionUrl.POST("/create", subscriptionController.CreateSubscription)
 		subscriptionUrl.GET("/plans", subscriptionController.GetSubscriptionPlans)
+		subscriptionUrl.GET("/invoice/download/:session_id/:org_id", subscriptionController.DownloadInvoice)
 	}
 }
 
