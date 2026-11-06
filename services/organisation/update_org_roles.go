@@ -54,7 +54,7 @@ func UpdateOrgRoles(req models.UpdateOrgRoleRequest, orgID, roleID string, db *g
 	}
 
 	if roleData.IsDefault {
-		return nil, http.StatusForbidden, errors.New("cant update a default role")
+		return nil, http.StatusForbidden, errors.New("can't update a default role")
 	}
 
 	roleData.Name = req.Name
@@ -120,7 +120,7 @@ func UpdateOrgPermissions(req models.UpdateOrgPermissionsRequest, orgID, roleID 
 	}
 
 	if roleData.IsDefault {
-		return http.StatusForbidden, errors.New("cant update a default permission")
+		return http.StatusForbidden, errors.New("can't update a default permission")
 	}
 
 	permData, err = perm.GetAOrgPermission(db, roleID)

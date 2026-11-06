@@ -245,7 +245,7 @@ func (r *Channels) CreateChannel(db *gorm.DB) error {
 
 	err := postgresql.CreateOneRecord(db, &r)
 	if err != nil {
-		return errors.New("could not create channel an error occured: " + err.Error())
+		return errors.New("could not create channel, an error occurred: " + err.Error())
 	}
 
 	query := `

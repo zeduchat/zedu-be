@@ -214,7 +214,7 @@ func SendAgentApiKey(ids map[string]string, req models.ChangeAgentStatus, db *go
 
 	if err != nil {
 		extReq.Logger.Error("An error occured: %v", response)
-		return errors.New("failed to activate agent, an error occured")
+		return errors.New("failed to activate agent, an error occurred")
 	}
 
 	extReq.Logger.Info("Request sent to agent: %v", response)

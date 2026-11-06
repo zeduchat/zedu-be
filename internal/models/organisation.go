@@ -375,7 +375,7 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 
 	var totalRes int64
 	if err := query.Count(&totalRes).Error; err != nil {
-		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("an error occured while counting")
+		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("an error occurred while counting")
 	}
 
 	totalPages := int(math.Ceil(float64(totalRes) / float64(pagination.Limit)))
