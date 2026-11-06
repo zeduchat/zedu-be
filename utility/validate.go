@@ -113,13 +113,6 @@ func SplitEmailString(email string) string {
 	return name[:p+1]
 }
 
-func ArchiveValidator(archived bool) error {
-	if !archived && archived {
-		return errors.New("archived field must be provided")
-	}
-	return nil
-}
-
 func ValidateDocument(doc map[string]any) error {
 	if len(doc) == 0 {
 		return errors.New("document cannot be empty")
