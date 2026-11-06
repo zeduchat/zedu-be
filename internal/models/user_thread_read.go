@@ -96,3 +96,16 @@ func GetUnseenThreadCountForUser(db *gorm.DB, userID, orgID string) (int64, erro
 		Count(&count).Error
 	return count, err
 }
+
+// GetUnseenThreadIDsForUser returns the ids of the threads in the organisation
+// that have replies the user has not opened.
+func GetUnseenThreadIDsForUser(db *gorm.DB, userID, orgID string) ([]string, error) {
+	if !utility.IsValidUUID(userID) || !utility.IsValidUUID(orgID) {
+		return nil, nil
+	}
+	var ids []string
+	err := db.Model(&UserThreadRead{}).
+		Where("user_id = ? AND org_id = ? AND has_unseen = ?", userID, orgID, true).
+		Pluck("thread_id", &ids).Error
+	return ids, err
+}
