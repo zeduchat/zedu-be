@@ -4264,7 +4264,7 @@ paths:
       tags:
         - organisation
       summary: Retrieve archived channels
-      description: Fetch all archived channels for a specific organisation.
+      description: Fetch the archived channels of an organisation the user belongs to. Private channels are included only for their members.
       parameters:
         - name: organisation_id
           in: path
@@ -4930,6 +4930,12 @@ paths:
                   error:
                     type: object
                     example: {}
+        "403":
+          description: The signed-in user is not the channel owner, the organisation owner or a member whose role can manage channels.
+        "404":
+          description: Channel does not exist.
+        "422":
+          description: The archived field is missing.
 
   /channels/{channel_id}/toggle-user-joined-message:
     put:
