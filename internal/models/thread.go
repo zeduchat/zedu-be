@@ -373,6 +373,8 @@ type ThreadWithMessagesResponse struct {
 	SenderDefaultAvatarURL string           `json:"sender_default_avatar_url"`
 	ChannelType            string           `json:"channel_type"`
 	ThreadId               string           `json:"thread_id"`
+	// HasUnseen is true while the thread has replies the user has not opened.
+	HasUnseen bool `json:"has_unseen"`
 }
 
 type UserOrgThreadsResponse struct {
@@ -1116,67 +1118,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 	channelIDs = append(channelIDs, dmChannelIds...)
 
 	query := map[string]any{
-		"query": map[string]any{
-			"bool": map[string]any{
-				"must": []map[string]any{
-					{
-						"terms": map[string]any{
-							"channels_id": channelIDs,
-						},
-					},
-				},
-				"should": []map[string]any{
-					{
-						"term": map[string]any{
-							"user_id": userId,
-						},
-					},
-					{
-						"nested": map[string]any{
-							"path": "mentions",
-							"query": map[string]any{
-								"match": map[string]any{
-									"mentions.id": userId,
-								},
-							},
-						},
-					},
-					{
-						"nested": map[string]any{
-							"path": "mentions",
-							"query": map[string]any{
-								"match": map[string]any{
-									"mentions.id.keyword": userId,
-								},
-							},
-						},
-					},
-					{
-						"nested": map[string]any{
-							"path": "messages",
-							"query": map[string]any{
-								"term": map[string]any{
-									"messages.user_id": userId,
-								},
-							},
-						},
-					},
-				},
-				"minimum_should_match": 1,
-				"filter": []map[string]any{
-					{
-						"nested": map[string]any{
-							"path": "messages",
-							"query": map[string]any{
-								"exists": map[string]any{
-									"field": "messages.id",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+		"query": userThreadsVisibilityQuery(userId, channelIDs),
 
 		"sort": []map[string]any{
 			{
@@ -1273,6 +1215,13 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 
 	if err != nil {
 		return UserOrgThreadsResponse{}, pagR, err
+	}
+
+	unseenThreadIDs := make(map[string]bool)
+	if ids, idsErr := GetUnseenThreadIDsForUser(db, userId, organisationID); idsErr == nil {
+		for _, id := range ids {
+			unseenThreadIDs[id] = true
+		}
 	}
 
 	dmChannelNames := GetDmChannelNames(db, dmChannelIds, userId)
@@ -1374,6 +1323,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 			SenderAvatarURL:        thread.AvatarURL,
 			SenderDefaultAvatarURL: avatar.GenerateDefaultAvatarURL(thread.UserId),
 			ChannelType:            channelType,
+			HasUnseen:              unseenThreadIDs[threadDoc.ID],
 		})
 	}
 
@@ -1392,7 +1342,7 @@ func (t *Threads) GetUserThreadsByOrganization(c *gin.Context, db *gorm.DB, logg
 		return timeI.After(timeJ)
 	})
 
-	unseenCount, _ := GetUnseenThreadCountForUser(db, userId, organisationID)
+	unseenCount, _ := countVisibleUnseenThreads(db, logger, userId, organisationID, channelIDs)
 
 	resp := UserOrgThreadsResponse{
 		UnseenThreadCount: unseenCount,
@@ -1905,4 +1855,171 @@ func GetDmChannelNames(db *gorm.DB, dmChannelIds []string, userId string) map[st
 		}
 	}
 	return dmChannelNames
+}
+
+// userThreadsVisibilityQuery is the query clause that decides which threads
+// appear in a user's Threads list. The unseen badge count uses the same clause,
+// so the badge can only count threads the user can actually find and open.
+func userThreadsVisibilityQuery(userId string, channelIDs []string) map[string]any {
+	return map[string]any{
+		"bool": map[string]any{
+			"must": []map[string]any{
+				{
+					"terms": map[string]any{
+						"channels_id": channelIDs,
+					},
+				},
+			},
+			"should": []map[string]any{
+				{
+					"term": map[string]any{
+						"user_id": userId,
+					},
+				},
+				{
+					"nested": map[string]any{
+						"path": "mentions",
+						"query": map[string]any{
+							"match": map[string]any{
+								"mentions.id": userId,
+							},
+						},
+					},
+				},
+				{
+					"nested": map[string]any{
+						"path": "mentions",
+						"query": map[string]any{
+							"match": map[string]any{
+								"mentions.id.keyword": userId,
+							},
+						},
+					},
+				},
+				{
+					"nested": map[string]any{
+						"path": "messages",
+						"query": map[string]any{
+							"term": map[string]any{
+								"messages.user_id": userId,
+							},
+						},
+					},
+				},
+			},
+			"minimum_should_match": 1,
+			"filter": []map[string]any{
+				{
+					"nested": map[string]any{
+						"path": "messages",
+						"query": map[string]any{
+							"exists": map[string]any{
+								"field": "messages.id",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// countVisibleUnseenThreads returns how many of the user's unseen threads the
+// Threads list can show. An unseen mark can outlive the user's access to its
+// thread (they left the channel, the thread was deleted, or it falls outside
+// the list's visibility rules); counting those kept the badge above zero with
+// nothing left to open. Falls back to the raw count if Elasticsearch fails.
+func countVisibleUnseenThreads(db *gorm.DB, logger *utility.Logger, userId, organisationID string, channelIDs []string) (int64, error) {
+	unseenIDs, err := GetUnseenThreadIDsForUser(db, userId, organisationID)
+	if err != nil {
+		return 0, err
+	}
+	if len(unseenIDs) == 0 || len(channelIDs) == 0 {
+		return 0, nil
+	}
+
+	visibleIDs, err := uniqueThreadIDs(ThreadIndexName+","+MessageIndexName, map[string]any{
+		"bool": map[string]any{
+			"must": []map[string]any{userThreadsVisibilityQuery(userId, channelIDs)},
+			"filter": []map[string]any{
+				{"terms": map[string]any{"thread_id": unseenIDs}},
+			},
+		},
+	}, len(unseenIDs))
+	if err != nil {
+		if logger != nil {
+			logger.Error("failed to count visible unseen threads for user %s: %v", userId, err)
+		}
+		return GetUnseenThreadCountForUser(db, userId, organisationID)
+	}
+	if len(visibleIDs) == 0 {
+		return 0, nil
+	}
+
+	// The list only shows threads whose root still exists in the threads index.
+	existingIDs, err := uniqueThreadIDs(ThreadIndexName, map[string]any{
+		"terms": map[string]any{"thread_id": visibleIDs},
+	}, len(visibleIDs))
+	if err != nil {
+		if logger != nil {
+			logger.Error("failed to check unseen thread roots for user %s: %v", userId, err)
+		}
+		return int64(len(visibleIDs)), nil
+	}
+
+	return int64(len(existingIDs)), nil
+}
+
+// uniqueThreadIDs returns the distinct thread_id values of the documents that
+// match query in the given comma-separated indices.
+func uniqueThreadIDs(indices string, query map[string]any, size int) ([]string, error) {
+	if storage.DB == nil || storage.DB.Elastic == nil {
+		return nil, fmt.Errorf("elasticsearch is not configured")
+	}
+
+	var data any
+	err := elastic.SelectAll(storage.DB.Elastic, indices, map[string]any{
+		"query": query,
+		"size":  0,
+		"aggs": map[string]any{
+			"unique_thread_ids": map[string]any{
+				"terms": map[string]any{"field": "thread_id", "size": size},
+			},
+		},
+	}, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseUniqueThreadIDs(data)
+}
+
+// parseUniqueThreadIDs reads the unique_thread_ids aggregation buckets from a
+// raw search response.
+func parseUniqueThreadIDs(data any) ([]string, error) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	var res struct {
+		Aggregations struct {
+			UniqueThreadIDs struct {
+				Buckets []struct {
+					Key string `json:"key"`
+				} `json:"buckets"`
+			} `json:"unique_thread_ids"`
+		} `json:"aggregations"`
+	}
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, 0, len(res.Aggregations.UniqueThreadIDs.Buckets))
+	for _, bucket := range res.Aggregations.UniqueThreadIDs.Buckets {
+		if bucket.Key != "" {
+			ids = append(ids, bucket.Key)
+		}
+	}
+	return ids, nil
 }

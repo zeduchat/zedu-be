@@ -663,6 +663,35 @@ func TestGetOrgThreadsUnseenCountBeforeAndAfterRead(t *testing.T) {
 	if unseenAfter != 1 {
 		t.Errorf("Expected unseen_thread_count AFTER reading thread 1 replies to be 1, got %d", unseenAfter)
 	}
+
+	// Each thread reports whether it still has unopened replies.
+	hasUnseen := map[string]bool{}
+	for _, item := range dataAfter["threads"].([]interface{}) {
+		threadItem := item.(map[string]interface{})
+		hasUnseen[threadItem["thread_id"].(string)] = threadItem["has_unseen"].(bool)
+	}
+	if hasUnseen[thread1ID] {
+		t.Errorf("Expected thread 1 to have has_unseen=false after reading it")
+	}
+	if !hasUnseen[thread2ID] {
+		t.Errorf("Expected thread 2 to have has_unseen=true before reading it")
+	}
+
+	// An unseen mark for a thread the Threads list cannot show (deleted, or in a
+	// channel the user left) must not keep the badge above zero (issue #1139).
+	hiddenThreadID := utility.GenerateUUID()
+	_ = serviceThread.ProcessThreadUnseenForParticipants(db.Postgresql, logger, orgId, hiddenThreadID, []string{userIDA})
+
+	reqHidden, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/threads/organisations/%s", orgId), nil)
+	reqHidden.Header.Set("Authorization", "Bearer "+tokenA)
+	rrHidden := httptest.NewRecorder()
+	r.ServeHTTP(rrHidden, reqHidden)
+
+	tst.AssertStatusCode(t, rrHidden.Code, http.StatusOK)
+	dataHidden := tst.ParseResponse(rrHidden)["data"].(map[string]interface{})
+	if unseenHidden := int64(dataHidden["unseen_thread_count"].(float64)); unseenHidden != 1 {
+		t.Errorf("Expected unseen_thread_count to ignore a thread missing from the list and stay 1, got %d", unseenHidden)
+	}
 }
 
 func TestGetUserOrgThreads_SortedByLastReply(t *testing.T) {
