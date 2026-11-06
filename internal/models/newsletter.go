@@ -42,6 +42,17 @@ func (n *NewsLetter) CreateNewsLetter(db *gorm.DB, email string) error {
 	return nil
 }
 
+type UnsubscribeNewsLetterRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Token string `json:"token" validate:"required"`
+}
+
+// DeleteNewsLetterByEmail removes the subscriber for good so that the address
+// can subscribe again later without hitting the unique email constraint.
+func (n *NewsLetter) DeleteNewsLetterByEmail(db *gorm.DB, email string) error {
+	return postgresql.HardDeleteSpecificRecord(db, &NewsLetter{}, "email = ?", email)
+}
+
 func (n *NewsLetter) GetNewsLetterById(db *gorm.DB, ID string) (NewsLetter, error) {
 	var newsletter NewsLetter
 
