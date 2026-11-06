@@ -1,6 +1,7 @@
 package newsletter
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -54,4 +55,36 @@ func (base *Controller) SubscribeNewsLetter(c *gin.Context) {
 	base.Logger.Info("email subscribed successfully")
 	rd := utility.BuildSuccessResponse(http.StatusCreated, "email subscribed successfully", nil)
 	c.JSON(http.StatusCreated, rd)
+}
+
+func (base *Controller) UnsubscribeNewsLetter(c *gin.Context) {
+	var req models.UnsubscribeNewsLetterRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	if err := base.Validator.Struct(&req); err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "Validation failed",
+			utility.ValidationResponse(err, base.Validator), nil)
+		c.JSON(http.StatusUnprocessableEntity, rd)
+		return
+	}
+
+	if err := service.NewsLetterUnsubscribe(&req, base.Db.Postgresql); err != nil {
+		if errors.Is(err, service.ErrInvalidUnsubscribeToken) {
+			rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to unsubscribe email", nil)
+			c.JSON(http.StatusBadRequest, rd)
+			return
+		}
+		base.Logger.Error("failed to unsubscribe email", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to unsubscribe email", err, nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "email unsubscribed successfully", nil)
+	c.JSON(http.StatusOK, rd)
 }
