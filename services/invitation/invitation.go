@@ -221,6 +221,10 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 		return 500, fmt.Errorf("failed to fetch users: %w", err)
 	}
 
+	if len(invites) == 0 {
+		return http.StatusNotFound, errors.New("no pending invitations matched the supplied criteria")
+	}
+
 	successful_reinvites := []string{}
 
 	err, _ = postgresql.SelectOneFromDb(db, &user, "id = ?", invites[0].InvitedBy)

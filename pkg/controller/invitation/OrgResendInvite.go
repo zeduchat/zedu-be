@@ -35,8 +35,8 @@ func (base *Controller) AdminResend(c *gin.Context) {
 
 	code, err := invitation.AdminResend(base.Db.Postgresql, base.Logger, req, url)
 	if err != nil {
-		base.Logger.Error("Request Validation failed", err)
-		rd := utility.BuildErrorResponse(code, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		base.Logger.Error("Admin resend failed", err)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}
