@@ -18,6 +18,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/channel"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/utility"
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
@@ -439,6 +440,50 @@ func (base *Controller) GetChannelFiles(c *gin.Context) {
 	}
 
 	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel files fetched successfully", files, paginationData)
+	c.JSON(http.StatusOK, rd)
+}
+
+func (base *Controller) GetChannelLinks(c *gin.Context) {
+	channelID := c.Param("channelId")
+
+	if !utility.IsValidUUID(channelID) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid channel ID format", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+
+	if !models.IsUserInChannel(base.Db.Postgresql, channelID, userID) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "User is not a member of this channel", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
+	pagination := postgresql.GetPagination(c)
+
+	channelLinks, paginationResp, err := links.GetChannelLinks(base.Db.Postgresql, channelID, pagination)
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to fetch channel links", err.Error(), nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+
+	paginationData := map[string]any{
+		"current_page": paginationResp.CurrentPage,
+		"total_pages":  paginationResp.TotalPagesCount,
+		"page_size":    paginationResp.PageCount,
+		"total_items":  paginationResp.TotalItems,
+	}
+
+	rd := utility.BuildSuccessResponse(http.StatusOK, "Channel links fetched successfully", channelLinks, paginationData)
 	c.JSON(http.StatusOK, rd)
 }
 

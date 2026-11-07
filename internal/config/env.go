@@ -156,6 +156,8 @@ type BaseConfig struct {
 	ONESIGNAL_APP_ID       string `mapstructure:"ONESIGNAL_APP_ID"`
 	ONESIGNAL_REST_API_KEY string `mapstructure:"ONESIGNAL_REST_API_KEY"`
 	ONESIGNAL_ENABLED      bool   `mapstructure:"ONESIGNAL_ENABLED"`
+
+	LINKS_INDEXING_ENABLED bool `mapstructure:"LINKS_INDEXING_ENABLED"`
 }
 
 func (config *BaseConfig) SetupConfigurationn() *Configuration {
@@ -186,6 +188,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			WebhookApiUrl:         config.WEBHOOK_API_URL,
 			FRONTEND_URL:          config.FRONTEND_URL,
 			OpenRouterApiKey:      config.OPENROUTER_API_KEY,
+			LinksIndexing:         config.LINKS_INDEXING_ENABLED,
 		},
 		Database: Database{
 			DB_HOST:       config.DB_HOST,

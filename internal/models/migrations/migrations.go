@@ -8,6 +8,7 @@ import (
 func AuthMigrationModels() []any {
 	return []any{
 		models.UserDeviceToken{},
+		models.ChannelLink{},
 		models.ChannelExport{},
 		models.UserThreadRead{},
 		models.BuzzRecording{},

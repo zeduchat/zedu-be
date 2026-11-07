@@ -13,6 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
+	"github.com/hngprojects/telex_be/services/links"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -242,6 +243,16 @@ func ForwardReplyMessageToChannel(db *storage.Database, originalMsg models.Messa
 	if err := threadDoc.CreateThread(db, logger); err != nil {
 		return nil, err
 	}
+
+	links.IndexMessage(links.MessageSnapshot{
+		ChannelID:      threadDoc.ChannelsID,
+		ThreadID:       threadDoc.ID,
+		MessageID:      threadDoc.ID,
+		UserID:         threadDoc.UserId,
+		OrganisationID: threadDoc.OrganisationID,
+		Content:        threadDoc.Content,
+		CreatedAt:      threadDoc.CreatedAt,
+	})
 
 	feed := models.FeedMessageRequest{
 		ChannelID:        channelToForwardToID,
