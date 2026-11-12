@@ -13,6 +13,8 @@ import (
 var (
 	defaultPage  = 1
 	defaultLimit = 20
+	// maxLimit keeps one request from reading a whole table; clients ask for up to 1000.
+	maxLimit = 1000
 )
 
 type Pagination struct {
@@ -44,15 +46,30 @@ func GetPagination(c *gin.Context) Pagination {
 		}
 	}
 
-	if page != nil && limit != nil {
-		return Pagination{Page: *page, Limit: *limit}
-	} else if page == nil && limit != nil {
-		return Pagination{Page: defaultPage, Limit: *limit}
-	} else if page != nil && limit == nil {
-		return Pagination{Page: *page, Limit: defaultLimit}
-	} else {
-		return Pagination{Page: defaultPage, Limit: defaultLimit}
+	p := Pagination{Page: defaultPage, Limit: defaultLimit}
+	if page != nil {
+		p.Page = *page
 	}
+	if limit != nil {
+		p.Limit = *limit
+	}
+	return NormalizePagination(p)
+}
+
+// NormalizePagination replaces a page below 1 with the first page and a limit
+// below 1 with the default, and caps the limit at maxLimit, so page counts never
+// divide by zero.
+func NormalizePagination(p Pagination) Pagination {
+	if p.Page <= 0 {
+		p.Page = defaultPage
+	}
+	if p.Limit <= 0 {
+		p.Limit = defaultLimit
+	}
+	if p.Limit > maxLimit {
+		p.Limit = maxLimit
+	}
+	return p
 }
 
 func SelectAllFromDb(db *gorm.DB, order string, receiver any, query any, args ...any) error {
@@ -84,6 +101,7 @@ func SelectAllFromDbOrderBy(db *gorm.DB, orderBy, order string, receiver any, qu
 
 func SelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, receiver any, query any, groupColumn string, args ...any) (PaginationResponse, error) {
 
+	*pagination = NormalizePagination(*pagination)
 	if order == "" {
 		order = "desc"
 	}
@@ -118,6 +136,7 @@ func SelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagina
 
 func RawSelectAllFromByGroup(db *gorm.DB, orderBy, order string, pagination *Pagination, model any, receiver any, groupColumn string, selectQuery string, query string, args ...any) (PaginationResponse, error) {
 
+	*pagination = NormalizePagination(*pagination)
 	if order == "" {
 		order = "desc"
 	}
@@ -158,12 +177,7 @@ func SelectAllFromDbOrderByPaginated(db *gorm.DB, orderBy, order string, paginat
 	if orderBy == "" {
 		orderBy = "id"
 	}
-	if pagination.Page <= 0 {
-		pagination.Page = defaultPage
-	}
-	if pagination.Limit < 0 {
-		pagination.Limit = defaultLimit
-	}
+	pagination = NormalizePagination(pagination)
 
 	var count int64
 	err := db.Model(receiver).Where(query, args...).Count(&count).Error
