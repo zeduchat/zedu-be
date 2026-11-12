@@ -19,6 +19,7 @@ func Newsletter(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 
 	{
 		newsletterUrl.POST("/newsletter", newsletter.SubscribeNewsLetter)
+		newsletterUrl.POST("/newsletter/unsubscribe", newsletter.UnsubscribeNewsLetter)
 	}
 
 	return r
