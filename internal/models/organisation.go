@@ -229,17 +229,14 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	pagination := postgresql.GetPagination(c)
 	paginationResponse := postgresql.PaginationResponse{}
 
-	query := db.Postgresql.Table("channels").
-		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
-			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
-			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
-		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
-		Where("channels.organisation_id = ?", ids.OrganisationID).
-		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
-		Where("channels.archived = FALSE")
+	query := orgChannelListQuery(db.Postgresql, ids)
 
-	if ids.Search != "" {
-		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	// The total must reflect every matching row, so count the unpaginated query:
+	// a Count run after Offset/Limit only sees one page (0 rows from page 2 on),
+	// which made total_pages and total_items come back 0 (#2706).
+	var totalRes int64
+	if err := orgChannelListQuery(db.Postgresql, ids).Count(&totalRes).Error; err != nil {
+		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("an error occured while counting")
 	}
 
 	query = query.Order("channels.created_at").
@@ -357,27 +354,6 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 		}
 		chanResp[i].PreviewMessage = previewMessage
 	}
-	query = db.Postgresql.Table("channels").
-		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
-			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
-			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
-		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
-		Where("channels.organisation_id = ?", ids.OrganisationID).
-		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)")
-
-	if ids.Search != "" {
-		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
-	}
-
-	query = query.Order("channels.created_at").
-		Offset((pagination.Page - 1) * pagination.Limit).
-		Limit(pagination.Limit)
-
-	var totalRes int64
-	if err := query.Count(&totalRes).Error; err != nil {
-		return chanResp, paginationResponse, http.StatusInternalServerError, errors.New("an error occured while counting")
-	}
-
 	totalPages := int(math.Ceil(float64(totalRes) / float64(pagination.Limit)))
 	paginationResponse = postgresql.PaginationResponse{
 		CurrentPage:     pagination.Page,
@@ -387,6 +363,28 @@ func (o *Organisation) GetAllChannelssInOrganisation(db *storage.Database, c *gi
 	}
 
 	return chanResp, paginationResponse, http.StatusOK, nil
+}
+
+// orgChannelListQuery is the single source of the organisation channel list
+// query. The paged list and the total count must carry exactly the same
+// Select, join and filters (archived channels included): the parked page-2
+// count of 0 and the archived over-count both came from a hand-maintained
+// second copy of these conditions that had drifted.
+func orgChannelListQuery(tx *gorm.DB, ids IDS) *gorm.DB {
+	query := tx.Table("channels").
+		Select(`channels.id, channels.name, channels.description, channels.organisation_id,
+			channels.is_private, channels.owner_id, channels.archived, channels.group_id,
+			channels.created_at, uc.last_thread_id, (CASE WHEN uc.user_id IS NOT NULL THEN true ELSE false END) AS access`).
+		Joins("LEFT JOIN user_channels AS uc ON uc.channels_id = channels.id AND uc.user_id = ?", ids.UserID).
+		Where("channels.organisation_id = ?", ids.OrganisationID).
+		Where("(channels.is_private = FALSE OR uc.user_id IS NOT NULL)").
+		Where("channels.archived = FALSE")
+
+	if ids.Search != "" {
+		query = query.Where("channels.name ILIKE ?", "%"+ids.Search+"%")
+	}
+
+	return query
 }
 
 func (u *Organisation) GetOrganisationsByUserID(db *gorm.DB, userID string) ([]Organisation, error) {
