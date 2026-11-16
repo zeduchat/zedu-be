@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/agents"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -33,6 +34,22 @@ func (base *Controller) AddAgentSetting(c *gin.Context) {
 		return
 	}
 
+	// The organisation comes from the path, so the caller must be shown to
+	// belong to it before settings are written against it.
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", err.Error(), nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	callerID, _ := userID.(string)
+	var org models.Organisation
+	if isMember, err := org.CheckUserIsMemberOfOrg(callerID, org_id, base.Db.Postgresql); err != nil || !isMember {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "not a member of this organisation", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Error("Invalid request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Invalid request body", err, nil)
@@ -45,7 +62,7 @@ func (base *Controller) AddAgentSetting(c *gin.Context) {
 		"agent_id": agent_id,
 	}
 
-	err := agents.AddAgentSettings(base.Db.Postgresql, ids, req)
+	err = agents.AddAgentSettings(base.Db.Postgresql, ids, req)
 	if err != nil {
 		base.Logger.Error("Failed to add agent settings", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to add agent settings", err.Error(), nil)
