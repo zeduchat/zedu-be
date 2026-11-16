@@ -39,8 +39,9 @@ func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.C
 		return gin.H{}, err
 	}
 
-	sessionOrgID := sesh.Metadata["org_id"]
-	if sessionOrgID != "" && sessionOrgID != orgID {
+	// Every checkout session this service creates carries its org_id, so a
+	// session without one cannot be shown to belong to the caller's organisation.
+	if sesh.Metadata["org_id"] != orgID {
 		return gin.H{}, ErrSessionOrgMismatch
 	}
 
