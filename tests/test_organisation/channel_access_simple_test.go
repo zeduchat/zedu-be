@@ -94,6 +94,13 @@ func TestChannelAccessInOrganisation(t *testing.T) {
 	tst.SignupUser(t, gin.Default(), authController, userCData, false)
 	tokenC := tst.GetLoginToken(t, gin.Default(), authController, models.LoginRequestModel{Email: userCData.Email, Password: userCData.Password})
 
+	// Listing an organisation's channels is members-only, so B and C join it.
+	for _, memberID := range []string{userBId, tst.GetUserIDFromToken(t, tokenC, db)} {
+		if err := db.Postgresql.Exec("INSERT INTO user_organisations (user_id, organisation_id) VALUES (?, ?)", memberID, orgId).Error; err != nil {
+			t.Fatalf("Failed to add user to organisation: %v", err)
+		}
+	}
+
 	userChannel := models.UserChannels{
 		ChannelsID: pubId,
 		UserID:     userBId,
