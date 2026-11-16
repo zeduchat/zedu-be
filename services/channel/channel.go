@@ -485,14 +485,15 @@ func RemoveMultipleMembersFromChannel(db *storage.Database, req models.RemoveMul
 
 func ArchiveChannel(db *gorm.DB, channelId string, req models.ArchiveChannelRequest) (bool, int, error) {
 	var channel models.Channels
+	archived := *req.Archived
 
 	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
 	if !exists {
-		return req.Archived, http.StatusNotFound, errors.New("channel does not exist")
+		return archived, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
 	if !CanManageChannelRestrictions(db, channel, req.UserId) {
-		return req.Archived, http.StatusForbidden, errors.New("unauthorized, only channel owner or channel manager can perform this operation")
+		return archived, http.StatusForbidden, errors.New("unauthorized, only channel owner or channel manager can perform this operation")
 	}
 
 	status, err := channel.ArchiveChannel(db, channelId, req)
@@ -511,6 +512,10 @@ func GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]models.Channels,
 	exists := postgresql.CheckExists(db, &org, "id = ?", ids["organisation_id"])
 	if !exists {
 		return nil, http.StatusBadRequest, errors.New("organisation not found")
+	}
+
+	if isMember, _ := org.CheckUserIsMemberOfOrg(ids["user_id"], ids["organisation_id"], db); !isMember {
+		return nil, http.StatusForbidden, errors.New("user not a member of organisation")
 	}
 
 	channels, err := channel.GetArchivedChannels(db, ids)

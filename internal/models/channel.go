@@ -227,8 +227,9 @@ type RemoveMultipleMembersRequest struct {
 }
 
 type ArchiveChannelRequest struct {
-	Archived bool   `json:"archived"`
-	UserId   string `json:"user_id" `
+	Archived *bool `json:"archived" validate:"required"`
+	// UserId is the caller, set from the access token; the body cannot supply it.
+	UserId string `json:"-"`
 }
 
 type MentionMessage struct {
@@ -668,34 +669,35 @@ func (r *Channels) AddUserToChannel(db *gorm.DB, req JoinChannelsRequest) (Chann
 
 func (c *Channels) ArchiveChannel(db *gorm.DB, channelId string, req ArchiveChannelRequest) (bool, error) {
 	var channel Channels
+	archived := *req.Archived
 
 	exists := postgresql.CheckExists(db, &channel, "id = ?", channelId)
 	if !exists {
-		return req.Archived, errors.New("channel does not exist")
+		return archived, errors.New("channel does not exist")
 	}
 
 	err := db.Raw("SELECT id, COALESCE(archived, false) as archived FROM channels WHERE id = ?", channelId).Scan(&channel).Error
 	if err != nil {
-		return req.Archived, errors.New("could not fetch current channel state")
+		return archived, errors.New("could not fetch current channel state")
 	}
 
-	if channel.Archived == req.Archived {
-		return req.Archived, errors.New("channel is already in the requested state")
+	if channel.Archived == archived {
+		return archived, errors.New("channel is already in the requested state")
 	}
 
-	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", req.Archived).Error
+	err = db.Model(&channel).Where("id = ?", channelId).Update("archived", archived).Error
 	if err != nil {
-		return req.Archived, errors.New("could not update the archived status of the channel")
+		return archived, errors.New("could not update the archived status of the channel")
 	}
 
-	if req.Archived {
+	if archived {
 		err = db.Model(&channel).Where("id = ?", channelId).Update("group_id", nil).Error
 		if err != nil {
-			return req.Archived, errors.New("could not remove channel from group")
+			return archived, errors.New("could not remove channel from group")
 		}
 	}
 
-	return req.Archived, nil
+	return archived, nil
 }
 
 func (r *Channels) AddMultipleUsersToChannel(db *gorm.DB, req AddMultipleMembersRequest) ([]string, error) {
@@ -792,7 +794,10 @@ func (r *Channels) RemoveMultipleUsersFromChannel(db *gorm.DB, req RemoveMultipl
 func (r *Channels) GetArchivedChannels(db *gorm.DB, ids map[string]string) ([]Channels, error) {
 	var channels []Channels
 
-	err := postgresql.SelectAllFromDb(db, "", &channels, "organisation_id = ? AND archived = ?", ids["organisation_id"], true)
+	// Private channels are listed only to their members.
+	err := postgresql.SelectAllFromDb(db, "", &channels,
+		"organisation_id = ? AND archived = ? AND (is_private = FALSE OR id IN (SELECT channels_id FROM user_channels WHERE user_id = ?))",
+		ids["organisation_id"], true, ids["user_id"])
 	if err != nil {
 		return channels, errors.New("could not get archived channels")
 	}
