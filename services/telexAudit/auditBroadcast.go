@@ -19,9 +19,23 @@ func SignupAudit(db *storage.Database, logger *utility.Logger, data gin.H) error
 		req models.CreateWebhookHistoryRequest
 	)
 
-	email := data["user"].(map[string]any)["email"]
-
-	channelID := config.Config.Channels.Signup
+	// Guard: malformed payloads must be rejected non-fatally instead of
+	// panicking on the unchecked nested type assertion.
+	userRaw, ok := data["user"]
+	if !ok {
+		logger.Info("signup audit: missing user payload; ignoring")
+		return nil
+	}
+	userMap, ok := userRaw.(map[string]any)
+	if !ok {
+		logger.Info("signup audit: user payload is not an object; ignoring")
+		return nil
+	}
+	email, ok := userMap["email"].(string)
+	if !ok {
+		logger.Info("signup audit: user.email missing or not a string; ignoring")
+		return nil
+	}
 
 	if _, err := uuid.Parse(channelID); err != nil {
 		logger.Info("error parsing channel id")
@@ -49,9 +63,23 @@ func LoginAudit(db *storage.Database, logger *utility.Logger, data gin.H) error 
 		req models.CreateWebhookHistoryRequest
 	)
 
-	email := data["user"].(map[string]any)["email"]
-
-	channelID := config.Config.Channels.Login
+	// Guard: malformed payloads must be rejected non-fatally instead of
+	// panicking on the unchecked nested type assertion.
+	userRaw, ok := data["user"]
+	if !ok {
+		logger.Info("login audit: missing user payload; ignoring")
+		return nil
+	}
+	userMap, ok := userRaw.(map[string]any)
+	if !ok {
+		logger.Info("login audit: user payload is not an object; ignoring")
+		return nil
+	}
+	email, ok := userMap["email"].(string)
+	if !ok {
+		logger.Info("login audit: user.email missing or not a string; ignoring")
+		return nil
+	}
 
 	if _, err := uuid.Parse(channelID); err != nil {
 		logger.Info("error parsing channel id")
