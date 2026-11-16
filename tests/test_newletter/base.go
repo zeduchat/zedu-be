@@ -35,5 +35,6 @@ func SetupNewsletterRoutes(r *gin.Engine, newsletterController *newsletter.Contr
 	newsletterUrl := r.Group("/api/v1")
 
 	newsletterUrl.POST("/newsletter", newsletterController.SubscribeNewsLetter)
+	newsletterUrl.POST("/newsletter/unsubscribe", newsletterController.UnsubscribeNewsLetter)
 
 }
