@@ -11,6 +11,7 @@ import (
 )
 
 func TestDownloadInvoice_NonMemberForbidden(t *testing.T) {
+	_ = tst.Setup()
 	r, authController, _, _, db := SetupSubscriptionTestRouter()
 
 	// User A with Org A
