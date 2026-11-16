@@ -11,9 +11,24 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
+)
+
+var (
+	ErrNotOrgMember       = errors.New("user is not a member of this organisation")
+	ErrSessionOrgMismatch = errors.New("stripe session does not belong to this organisation")
 )
 
 func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.Client, orgID string) (gin.H, error) {
+
+	claimOrgVal, err := middleware.GetUserClaims(c, db, "org_id")
+	if err != nil {
+		return gin.H{}, errors.New("organization context required")
+	}
+	claimOrgID, ok := claimOrgVal.(string)
+	if !ok || claimOrgID == "" || claimOrgID != orgID {
+		return gin.H{}, ErrNotOrgMember
+	}
 
 	req := models.CompleteSubscriptionRequest{
 		StripeSessionID: sessionID,
@@ -22,6 +37,16 @@ func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.C
 	sesh, err := session.Get(req.StripeSessionID, nil)
 	if err != nil {
 		return gin.H{}, err
+	}
+
+	// Every checkout session this service creates carries its org_id, so a
+	// session without one cannot be shown to belong to the caller's organisation.
+	if sesh.Metadata["org_id"] != orgID {
+		return gin.H{}, ErrSessionOrgMismatch
+	}
+
+	if sesh.Subscription == nil || sesh.Subscription.ID == "" {
+		return gin.H{}, errors.New("no subscription ID found for this session")
 	}
 
 	params := &stripe.InvoiceListParams{
@@ -34,6 +59,10 @@ func DownloadInvoice(sessionID string, c *gin.Context, db *gorm.DB, rdb *redis.C
 
 	for i.Next() {
 		invoiceItems = append(invoiceItems, i.Invoice())
+	}
+
+	if len(invoiceItems) == 0 {
+		return gin.H{}, errors.New("no invoices found for this subscription")
 	}
 
 	pdfURL := invoiceItems[0].InvoicePDF
