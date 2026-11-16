@@ -22,6 +22,9 @@ import (
 )
 
 func TestChannelSearchAccessAndNameLookup(t *testing.T) {
+	// Registration skips the MX lookup only in test mode; without it the
+	// example.test address is rejected when this test runs on its own.
+	gin.SetMode(gin.TestMode)
 	logger := tst.Setup()
 	db := storage.Connection()
 	validatorRef := validator.New()
@@ -219,7 +222,8 @@ func TestChannelSearchAccessAndNameLookup(t *testing.T) {
 			// literal one may come back.
 			rr, body := requestChannels("/api/v1/channels/search/" + url.PathEscape(special.literal))
 			tst.AssertStatusCode(t, rr.Code, http.StatusOK)
-			assertFound(t, body, prefix+"-"+special.expected)
+			// The body is raw JSON, where a backslash in a name is written twice.
+			assertFound(t, body, prefix+"-"+strings.ReplaceAll(special.expected, `\`, `\\`))
 			assertAbsent(t, body, prefix+"-"+special.similar)
 		})
 	}
