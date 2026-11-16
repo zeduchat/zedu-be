@@ -53,7 +53,7 @@ func (base *Controller) CreateFcmToken(c *gin.Context) {
 
 	code, err := fcmtokens.CreateFcmToken(req, base.Db.Postgresql)
 	if err != nil {
-		base.Logger.Error("error creating fcmtoken for user", err)
+		base.Logger.Error("error creating fcmtoken for user: " + err.Error())
 		rd := utility.BuildErrorResponse(code, "error", "error creating fcmtoken for user", err, nil)
 		c.JSON(code, rd)
 		return

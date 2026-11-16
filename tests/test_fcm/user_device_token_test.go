@@ -160,6 +160,36 @@ func TestUserDeviceToken_ReassignUser(t *testing.T) {
 	assert.Equal(t, tokenVal, tokensAfterB[0].Token)
 }
 
+func TestUserDeviceToken_ReassignUserWithExistingToken(t *testing.T) {
+	tst.Setup()
+	db := storage.Connection()
+
+	t.Cleanup(func() {
+		tst.Cleanup(db)
+	})
+
+	userA := CreateTestUser(t, db)
+	userB := CreateTestUser(t, db)
+	sharedToken := "fcm_device_token_" + utility.GenerateUUID()
+	oldTokenB := "fcm_device_token_" + utility.GenerateUUID()
+
+	require.NoError(t, (&models.UserDeviceToken{UserId: userA.ID, Token: sharedToken, Platform: "android"}).Upsert(db.Postgresql))
+	require.NoError(t, (&models.UserDeviceToken{UserId: userB.ID, Token: oldTokenB, Platform: "android"}).Upsert(db.Postgresql))
+
+	// User B signs in on the device user A used: B already has a row for the
+	// platform and the token is still stored against A.
+	require.NoError(t, (&models.UserDeviceToken{UserId: userB.ID, Token: sharedToken, Platform: "android"}).Upsert(db.Postgresql))
+
+	tokensA, err := models.ListDeviceTokensByUserIDs(db.Postgresql, []string{userA.ID})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(tokensA), "token should no longer belong to user A")
+
+	tokensB, err := models.ListDeviceTokensByUserIDs(db.Postgresql, []string{userB.ID})
+	require.NoError(t, err)
+	require.Equal(t, 1, len(tokensB), "user B should keep one token for the platform")
+	assert.Equal(t, sharedToken, tokensB[0].Token)
+}
+
 func TestUserDeviceToken_DeleteDeviceToken_SpecificDeviceOnly(t *testing.T) {
 	tst.Setup()
 	db := storage.Connection()
