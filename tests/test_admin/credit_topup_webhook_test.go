@@ -281,9 +281,11 @@ func TestCreditTopupWebhook_RejectsInvalidSignature(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
+	// CreateOrganizationWithCredit seeds one transaction for the opening
+	// balance; a rejected webhook must not add another.
 	var transactionCount int64
 	db.Postgresql.Model(&models.CreditTransaction{}).Where("organisation_id = ?", orgID).Count(&transactionCount)
-	assert.Equal(t, int64(0), transactionCount)
+	assert.Equal(t, int64(1), transactionCount)
 
 	var org models.Organisation
 	assert.NoError(t, db.Postgresql.Where("id = ?", orgID).First(&org).Error)
