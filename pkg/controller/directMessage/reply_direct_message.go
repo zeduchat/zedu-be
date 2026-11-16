@@ -109,8 +109,9 @@ func (base *Controller) EditThreadDm(c *gin.Context) {
 
 	response, code, err := channel.EditChannelsMsg(req, base.Db.Postgresql, c, base.Logger)
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		status := models.EditFailureStatus(err)
+		rd := utility.BuildErrorResponse(status, "error", err.Error(), err, nil)
+		c.JSON(status, rd)
 		return
 	}
 
