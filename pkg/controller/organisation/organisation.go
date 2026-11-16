@@ -97,8 +97,11 @@ func (base *Controller) GetOrganisation(c *gin.Context) {
 
 	userClaims := claims.(jwt.MapClaims)
 	userId := userClaims["user_id"].(string)
-	orgId = userClaims["org_id"].(string)
 
+	// The organisation id comes from the path, not the caller's org_id claim.
+	// GetOrganisation authorises the caller against the id it is given, so
+	// overriding it with the claim made every request return the caller's own
+	// organisation and never the one that was asked for.
 	orgData, err := service.GetOrganisation(orgId, userId, base.Db.Postgresql)
 
 	if err != nil {
