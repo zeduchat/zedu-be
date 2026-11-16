@@ -246,6 +246,19 @@ func EditChannelsMsg(req models.EditMessageRequest, db *gorm.DB, c *gin.Context,
 		return &newMsg, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
+	var stored models.MessageDocument
+	if err := stored.GetMessageById(db, req.MessageId); err != nil {
+		return &newMsg, http.StatusNotFound, errors.New("message not found")
+	}
+
+	locked, err := models.RepliedToByOthers(stored.ThreadID.String(), stored.UserID, stored.CreatedAt)
+	if err != nil {
+		return &newMsg, http.StatusInternalServerError, err
+	}
+	if locked {
+		return &newMsg, http.StatusConflict, models.ErrEditLockedByReplies
+	}
+
 	message.ID = req.MessageId
 
 	updateKey := map[string]any{
