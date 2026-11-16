@@ -250,12 +250,18 @@ func IncrementShareAccess(db *gorm.DB, logger *utility.Logger, shareID string) e
 func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, error) {
 	var file models.File
 
-	// First check if file exists
+	// First check if file exists. Soft-deleted files are not found.
 	if err := db.Where("id = ?", fileID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, "file_not_found", ErrFileShareNotFound
 		}
 		return false, "database_error", err
+	}
+
+	// A file never leaves its organisation. Answer the same as for a missing
+	// file, so a caller from another organisation cannot tell the id exists.
+	if file.OrganisationID != orgID {
+		return false, "other_organisation", ErrFileShareNotFound
 	}
 
 	// Check if user owns the file
@@ -268,20 +274,52 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 		return true, "public", nil
 	}
 
-	// Check if user has explicit share
+	// A file posted in a channel or DM is readable by that conversation's members.
+	if file.ChannelID != nil && *file.ChannelID != "" {
+		inConversation, err := isMemberOfFileConversation(db, *file.ChannelID, userID)
+		if err != nil {
+			return false, "database_error", err
+		}
+		if inConversation {
+			return true, "conversation_member", nil
+		}
+	}
+
+	// Shares carry no recipient list. Only an organisation-wide ("public") share
+	// opens the file by id; a private share is reached through its share link.
 	var shareCount int64
 	if err := db.Model(&models.FileShare{}).
-		Where("file_id = ? AND (expires_at IS NULL OR expires_at > ?)", fileID, time.Now().UTC()).
+		Where("file_id = ? AND organisation_id = ? AND access_type = ? AND (expires_at IS NULL OR expires_at > ?)", fileID, orgID, "public", time.Now().UTC()).
 		Count(&shareCount).Error; err != nil {
 		return false, "database_error", err
 	}
 
 	if shareCount > 0 {
-		// Need to verify specific user access through share mechanism
 		return true, "shared", nil
 	}
 
 	return false, "no_access", ErrAccessDenied
+}
+
+// isMemberOfFileConversation reports whether userID belongs to the channel or
+// DM a file was posted in. A file's channel_id may name either kind.
+func isMemberOfFileConversation(db *gorm.DB, conversationID, userID string) (bool, error) {
+	var count int64
+	if err := db.Model(&models.UserChannels{}).
+		Where("channels_id = ? AND user_id = ?", conversationID, userID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+
+	if err := db.Model(&models.DmChannels{}).
+		Where("(channel_id = ? OR id = ?) AND (user_id = ? OR participant_id = ?)", conversationID, conversationID, userID, userID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // CheckFileEditPermission determines if a user can edit a file
