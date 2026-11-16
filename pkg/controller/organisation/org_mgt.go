@@ -41,21 +41,22 @@ func (base *Controller) GetOrganisationCountMetrics(c *gin.Context) {
 	// organisation may read its member metrics. An unknown organisation gets 404,
 	// a non-member gets 403. This stops any authenticated caller from reading
 	// another organisation's member counts.
-	orgExists, err := models.CheckOrgExists(orgId, base.Db.Postgresql)
-	if err != nil {
+	var org models.Organisation
+	if _, err := org.CheckOrgExists(orgId, base.Db.Postgresql); err != nil {
+		if err.Error() == "organisation not found" {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "organisation not found", "organisation not found", nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
 		base.Logger.Error("failed to check organisation existence", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to fetch metrics", err.Error(), nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
-	if orgExists.ID == "" {
-		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "organisation not found", "organisation not found", nil)
-		c.JSON(http.StatusNotFound, rd)
-		return
-	}
 
-	isMember, err := models.CheckUserIsMemberOfOrg(userId, orgId, base.Db.Postgresql)
-	if err != nil || !isMember {
+	// CheckUserIsMemberOfOrg reports a non-member as an error, so both outcomes
+	// are a 403.
+	if isMember, err := org.CheckUserIsMemberOfOrg(userId, orgId, base.Db.Postgresql); err != nil || !isMember {
 		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "not a member of this organisation", "forbidden", nil)
 		c.JSON(http.StatusForbidden, rd)
 		return
