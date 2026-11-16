@@ -159,6 +159,54 @@ func TestGetFileDetailsByID_AccessControl(t *testing.T) {
 		}
 	})
 
+	t.Run("a share opens a colleague's private file by id only when it is organisation-wide", func(t *testing.T) {
+		colleagueID := uuid.New().String()
+		for accessType, want := range map[string]int{"private": http.StatusForbidden, "public": http.StatusOK} {
+			file := createAccessTestFile(t, db.Postgresql, colleagueID, owner.OrgID, "private")
+			share := models.FileShare{
+				ID:             uuid.New().String(),
+				FileID:         file.ID,
+				SharedByUserID: colleagueID,
+				OrganisationID: owner.OrgID,
+				AccessType:     accessType,
+				PermissionType: "view",
+				ShareLink:      uuid.New().String(),
+			}
+			if err := db.Postgresql.Create(&share).Error; err != nil {
+				t.Fatalf("Failed to create share: %v", err)
+			}
+
+			if rr := getFileByID(t, file.ID, owner.Token); rr.Code != want {
+				t.Fatalf("%s share: expected %d, got %d. Response: %s", accessType, want, rr.Code, rr.Body.String())
+			}
+		}
+	})
+
+	t.Run("a private file posted in a channel is readable by its members only", func(t *testing.T) {
+		colleagueID := uuid.New().String()
+		channelID := uuid.New().String()
+		file := createAccessTestFile(t, db.Postgresql, colleagueID, owner.OrgID, "private")
+		if err := db.Postgresql.Model(&file).Update("channel_id", channelID).Error; err != nil {
+			t.Fatalf("Failed to attach file to channel: %v", err)
+		}
+
+		if rr := getFileByID(t, file.ID, owner.Token); rr.Code != http.StatusForbidden {
+			t.Fatalf("non-member: expected 403, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+
+		membership := models.UserChannels{ChannelsID: channelID, UserID: owner.ID}
+		if err := db.Postgresql.Create(&membership).Error; err != nil {
+			t.Fatalf("Failed to add user to channel: %v", err)
+		}
+		t.Cleanup(func() {
+			db.Postgresql.Unscoped().Where("channels_id = ? AND user_id = ?", channelID, owner.ID).Delete(&models.UserChannels{})
+		})
+
+		if rr := getFileByID(t, file.ID, owner.Token); rr.Code != http.StatusOK {
+			t.Fatalf("member: expected 200, got %d. Response: %s", rr.Code, rr.Body.String())
+		}
+	})
+
 	t.Run("a deleted file is not returned, even to its owner", func(t *testing.T) {
 		file := createAccessTestFile(t, db.Postgresql, owner.ID, owner.OrgID, "private")
 		if err := db.Postgresql.Delete(&file).Error; err != nil {
