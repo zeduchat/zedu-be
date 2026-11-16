@@ -202,6 +202,10 @@ func (base *Controller) DeleteWorkflow(c *gin.Context) {
 	userClaims := claims.(jwt.MapClaims)
 	req.UserId = userClaims["user_id"].(string)
 
+	if !base.requireOrgMembership(c, req.UserId, req.OrgId) {
+		return
+	}
+
 	code, err := workflow.DeleteWorkflowService(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -355,10 +359,15 @@ func (base *Controller) GetChannelWorkflows(c *gin.Context) {
 		return
 	}
 
-	_, exists := c.Get("userClaims")
+	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+	userId, _ := claims.(jwt.MapClaims)["user_id"].(string)
+
+	if !base.requireOrgMembership(c, userId, OrgId) {
 		return
 	}
 
