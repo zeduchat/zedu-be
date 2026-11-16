@@ -82,6 +82,8 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 		config    = config.GetConfig()
 	)
 
+	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
+
 	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err

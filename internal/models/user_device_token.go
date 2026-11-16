@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -27,24 +26,26 @@ type DeleteFcmTokenRequest struct {
 	FcmToken string `json:"fcm_token" validate:"required"`
 }
 
+// Upsert registers a device token for a user. The token is the identity: it
+// belongs to whoever registered it last, so a token still stored against
+// another user or platform is moved rather than duplicated. A user keeps one
+// token per platform.
 func (token *UserDeviceToken) Upsert(db *gorm.DB) error {
-	var existing UserDeviceToken
-	err := db.Where("user_id = ? AND platform = ?", token.UserId, token.Platform).First(&existing).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if token.ID == "" {
-			token.ID = utility.GenerateUUID()
+	if token.ID == "" {
+		token.ID = utility.GenerateUUID()
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ? AND platform = ? AND token <> ?", token.UserId, token.Platform, token.Token).
+			Delete(&UserDeviceToken{}).Error; err != nil {
+			return err
 		}
-		return db.Clauses(clause.OnConflict{
+
+		return tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "token"}},
 			DoUpdates: clause.AssignmentColumns([]string{"user_id", "platform", "updated_at"}),
 		}).Create(token).Error
-	}
-	if err != nil {
-		return err
-	}
-
-	token.ID = existing.ID
-	return db.Model(&existing).Update("token", token.Token).Error
+	})
 }
 
 func ListDeviceTokensByUserIDs(db *gorm.DB, userIDs []string) ([]UserDeviceToken, error) {

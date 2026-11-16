@@ -251,7 +251,9 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 		org          models.Organisation
 	)
 
-	exists := postgresql.CheckExists(db, &user, "email = ?", req.Email)
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	exists := postgresql.CheckExists(db, &user, "email = ?", email)
 	if !exists {
 		return responseData, 400, fmt.Errorf("invalid credentials")
 	}

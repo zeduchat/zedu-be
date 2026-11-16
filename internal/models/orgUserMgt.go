@@ -414,9 +414,10 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
 
 	query := db.Table("users").
 		Select(`
+            DISTINCT ON (users.id)
             users.id,
             users.email,
-            profiles.user_name AS username,
+            profiles.user_name AS user_name,
             profiles.phone AS phone_number,
             profiles.avatar_url AS avatar_url,
             users.name,
@@ -436,7 +437,8 @@ func (o *OrgUserManagement) SearchUsersInOrganisation(db *gorm.DB, orgID, search
             users.email ILIKE ? OR 
             profiles.user_name ILIKE ? OR 
             profiles.phone ILIKE ?
-        `, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%")
+        `, "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%", "%"+searchTerm+"%").
+		Order("users.id, (COALESCE(profiles.user_name, '') <> '') DESC, (profiles.organisation_id IS NOT NULL) DESC, profiles.updated_at DESC NULLS LAST")
 
 	if err := query.Scan(&users).Error; err != nil {
 		return nil, fmt.Errorf("failed to search users in organisation: %v", err)
