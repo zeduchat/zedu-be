@@ -19,6 +19,7 @@ const (
 	SendContactUsMail                  NotificationName = "send_contact_us"
 	SendInvitationLink                 NotificationName = "send_invitation"
 	SendNewsletterMail                 NotificationName = "send_newsletter"
+	SendNewsletterConfirmMail          NotificationName = "send_newsletter_confirm"
 	SendPasswordChangeConfirmationMail NotificationName = "send_password_change_confirmation_mail"
 	SendLoginAlertMail                 NotificationName = "send_login_Alert_mail"
 	SendPushNotification               NotificationName = "send_push_notification"
