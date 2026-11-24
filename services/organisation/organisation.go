@@ -439,6 +439,8 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 		likeTerm     = "%" + searchTerm + "%"
 	)
 
+	excludeDeactivated, _ := queryParams["exclude_deactivated"].(bool)
+
 	// --- User query ---
 	queryBuilder.WriteString(`
 		SELECT 
@@ -477,6 +479,10 @@ func fetchUsersBotsWithOrgManagement(orgId, userId string, db *gorm.DB, c *gin.C
 	if roleFilter != "" {
 		queryBuilder.WriteString(" AND org.name ILIKE ?")
 		args = append(args, "%"+roleFilter+"%")
+	}
+
+	if excludeDeactivated {
+		queryBuilder.WriteString(" AND COALESCE(o.is_deactivated, false) = false AND COALESCE(p.is_deactivated, false) = false")
 	}
 
 	// --- Optionally add bot query ---

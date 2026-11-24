@@ -142,7 +142,9 @@ func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logg
 
 	dataByte, _ := json.Marshal(feed)
 
-	if req.Type != "system" {
+	if req.Type != "system" && req.UserId == "WEBHOOK" {
+		QueueWebhookNotification(feed, logger)
+	} else if req.Type != "system" {
 		isChannelMention := false
 		var mentionedUserIDs []string
 		senderID := req.UserId

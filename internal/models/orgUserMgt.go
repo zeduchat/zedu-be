@@ -478,3 +478,51 @@ func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, ids IDS) boo
 
 	return postgresql.CheckExists(db, &orgUserManagement, query, ids.OrganisationID, ids.OwnerID)
 }
+
+func NotDeactivatedInOrgClause(userColumn string) string {
+	return fmt.Sprintf(`NOT EXISTS (
+		SELECT 1 FROM org_user_managements dum
+		WHERE dum.user_id = %[1]s AND dum.organisation_id = ? AND dum.is_deactivated = true
+	) AND NOT EXISTS (
+		SELECT 1 FROM profiles dpr
+		WHERE dpr.userid = %[1]s AND dpr.organisation_id = ? AND dpr.is_deactivated = true
+	)`, userColumn)
+}
+
+func FilterActiveUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, error) {
+	active := []string{}
+	if len(userIDs) == 0 {
+		return active, nil
+	}
+	err := db.Table("users").
+		Where("users.id IN ?", userIDs).
+		Where(NotDeactivatedInOrgClause("users.id"), orgID, orgID).
+		Pluck("users.id", &active).Error
+	return active, err
+}
+
+func DeactivatedUserIDs(db *gorm.DB, orgID string, userIDs []string) (map[string]bool, error) {
+	deactivated := map[string]bool{}
+	valid := make([]string, 0, len(userIDs))
+	for _, id := range userIDs {
+		if _, err := uuid.FromString(id); err == nil {
+			valid = append(valid, id)
+		}
+	}
+	if len(valid) == 0 {
+		return deactivated, nil
+	}
+
+	var ids []string
+	err := db.Table("users").
+		Where("users.id IN ?", valid).
+		Where("NOT ("+NotDeactivatedInOrgClause("users.id")+")", orgID, orgID).
+		Pluck("users.id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		deactivated[id] = true
+	}
+	return deactivated, nil
+}

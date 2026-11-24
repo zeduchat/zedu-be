@@ -378,10 +378,12 @@ func (base *Controller) GetUserStatus(c *gin.Context) {
 	}
 	orgID, _ := userClaims["org_id"].(string)
 
-	if _, err := profile.IsSameOrganization(base.Db.Postgresql, orgID, loggedUserID, userID); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "target user not in the same organization", err, nil)
-		c.JSON(http.StatusForbidden, rd)
-		return
+	if loggedUserID != userID {
+		if _, err := profile.IsSameOrganization(base.Db.Postgresql, orgID, loggedUserID, userID); err != nil {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "target user not in the same organization", err, nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
 	}
 
 	status, code, err := profile.GetUserStatus(userID, base.Db.Postgresql, orgID)

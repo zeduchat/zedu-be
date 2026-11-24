@@ -384,6 +384,7 @@ func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	if c.Query("include_bots") == "true" {
 		includeBots = true
 	}
+	excludeDeactivated := c.Query("exclude_deactivated") == "true"
 
 	if _, err := uuid.Parse(orgId); err != nil {
 		base.Logger.Error("error parsing org id")
@@ -404,9 +405,10 @@ func (base *Controller) GetUsersBotsInOrganisation(c *gin.Context) {
 	userId := userClaims["user_id"].(string)
 
 	queryParams := map[string]any{
-		"query":        query,
-		"include_bots": includeBots,
-		"role":         role,
+		"query":               query,
+		"include_bots":        includeBots,
+		"role":                role,
+		"exclude_deactivated": excludeDeactivated,
 	}
 
 	users, paginationResponse, err := service.GetUsersBotsInOrganisation(orgId, userId, base.Db.Postgresql, c, queryParams)
