@@ -295,20 +295,37 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	search := ""
+	excludeDeactivated := false
 	if c != nil {
 		search = strings.TrimSpace(c.Query("search"))
 		if search == "" {
 			search = strings.TrimSpace(c.Query("q"))
 		}
+		excludeDeactivated = c.Query("exclude_deactivated") == "true"
 	}
 
 	orgID := ids.OrganisationID
 	channelID := ids.ChannelID
 
+	channelOrgID := orgID
+	if excludeDeactivated {
+		var chOrg []string
+		if err := db.Table("channels").Where("id = ?", channelID).Limit(1).Pluck("organisation_id", &chOrg).Error; err != nil {
+			return nil, postgresql.PaginationResponse{}, err
+		}
+		if len(chOrg) > 0 && chOrg[0] != "" {
+			channelOrgID = chOrg[0]
+		}
+	}
+
 	query := db.Model(&User{}).
 		Preload("Profile").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
 		Where("user_channels.channels_id = ?", channelID)
+
+	if excludeDeactivated {
+		query = query.Where(NotDeactivatedInOrgClause("users.id"), channelOrgID, channelOrgID)
+	}
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
@@ -353,6 +370,10 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	countQuery := db.Table("users").
 		Joins("JOIN user_channels ON user_channels.user_id = users.id").
 		Where("user_channels.channels_id = ?", channelID)
+
+	if excludeDeactivated {
+		countQuery = countQuery.Where(NotDeactivatedInOrgClause("users.id"), channelOrgID, channelOrgID)
+	}
 
 	if search != "" {
 		searchTerm := "%" + search + "%"

@@ -16,6 +16,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
+	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -91,6 +92,8 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		utility.LogAndPrint(logger, fmt.Sprintf("Error Publishing to channelid: %s, error: %v", webhook.ChannelId, err.Error()))
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
+
+	thread.QueueWebhookNotification(webhookFeedMessage(threadDoc, req), logger)
 
 	// increase unread count for channel users
 	userChan.ChannelsID = webhook.ChannelId
@@ -180,9 +183,25 @@ func PostFeedWebhook(db *storage.Database, logger *utility.Logger, req models.Cr
 		return nil, http.StatusBadRequest, errors.New("failed to publish webhook data: " + err.Error())
 	}
 
+	thread.QueueWebhookNotification(webhookFeedMessage(threadDoc, req), logger)
+
 	(*utility.Logger).Info(logger, fmt.Sprintf("Publishing to channelid: %s", req.ChannelID))
 
 	return resp, http.StatusOK, nil
+}
+
+func webhookFeedMessage(threadDoc models.ThreadDocument, req models.CreateWebhookHistoryRequest) models.FeedMessageRequest {
+	return models.FeedMessageRequest{
+		ChannelID:   threadDoc.ChannelsID,
+		ChannelName: threadDoc.ChannelName,
+		OrgId:       threadDoc.OrganisationID,
+		ThreadId:    threadDoc.ID,
+		UserName:    utility.ThisOrThat(req.UserName, req.EventName),
+		AvatarURL:   req.AvatarURL,
+		Content:     req.Message,
+		CreatedAt:   threadDoc.CreatedAt.Format(time.RFC3339),
+		Type:        "message",
+	}
 }
 
 func PostWebhookQueue(db *gorm.DB, logger *utility.Logger, req models.CreateWebhookHistoryRequest) error {

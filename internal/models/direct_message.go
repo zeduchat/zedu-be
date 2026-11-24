@@ -556,6 +556,7 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	dmchans := []DmChannels{}
 	dmChansResp := []DmChannelsResponse{}
 	recentDm := c.Query("recent_dm") == "true"
+	excludeDeactivated := c.Query("exclude_deactivated") == "true"
 	search := c.Query("search") // this search enters username, firstname, lastname or part of email
 	limit := 10
 
@@ -608,6 +609,11 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		args = append(args, dm.UserId, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
+	if excludeDeactivated {
+		queryString += ` AND (dm_channels.channel_type = 'group_dm' OR (` + NotDeactivatedInOrgClause("dm_channels.participant_id") + `))`
+		args = append(args, dm.OrgId, dm.OrgId)
+	}
+
 	if recentDm {
 		queryString += `
 			AND dm_channels.interacted_at >= NOW() - INTERVAL '10 days'
@@ -650,6 +656,13 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 		dmChansResp = append(dmChansResp, resp)
 	}
 
+	if excludeDeactivated {
+		dmChansResp, err = excludeDeactivatedFromDmResponses(db, dm.OrgId, dmChansResp)
+		if err != nil {
+			return nil, paginationResp, err
+		}
+	}
+
 	slices.SortStableFunc(dmChansResp, func(a, b DmChannelsResponse) int {
 		if a.ThreadCount != b.ThreadCount {
 			return cmp.Compare(b.ThreadCount, a.ThreadCount)
@@ -671,6 +684,9 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 
 	if len(dmChansResp) < 10 {
 		topUsers, err := dm.GetTopNUsersResponse(db, 20)
+		if err == nil && excludeDeactivated {
+			topUsers, err = excludeDeactivatedFromDmResponses(db, dm.OrgId, topUsers)
+		}
 		if err == nil {
 			existingParticipantIDs := make(map[string]bool)
 			for _, resp := range dmChansResp {
@@ -694,6 +710,42 @@ func (dm *DmChannels) GetDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsRe
 	}
 
 	return dmChansResp, paginationResp, nil
+}
+
+func excludeDeactivatedFromDmResponses(db *gorm.DB, orgID string, resps []DmChannelsResponse) ([]DmChannelsResponse, error) {
+	ids := []string{}
+	for _, r := range resps {
+		if r.ParticipantId != "" {
+			ids = append(ids, r.ParticipantId)
+		}
+		for _, p := range r.Participants {
+			ids = append(ids, p.UserId)
+		}
+	}
+
+	deactivated, err := DeactivatedUserIDs(db, orgID, ids)
+	if err != nil {
+		return nil, err
+	}
+	if len(deactivated) == 0 {
+		return resps, nil
+	}
+
+	filtered := make([]DmChannelsResponse, 0, len(resps))
+	for _, r := range resps {
+		if r.ChannelType != "group_dm" && deactivated[r.ParticipantId] {
+			continue
+		}
+		participants := make([]Participant, 0, len(r.Participants))
+		for _, p := range r.Participants {
+			if !deactivated[p.UserId] {
+				participants = append(participants, p)
+			}
+		}
+		r.Participants = participants
+		filtered = append(filtered, r)
+	}
+	return filtered, nil
 }
 
 func (dm *DmChannels) GetVisibleDmChannels(db *gorm.DB, c *gin.Context) ([]DmChannelsResponse, postgresql.PaginationResponse, error) {

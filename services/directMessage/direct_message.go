@@ -166,6 +166,8 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		return resp, http.StatusBadRequest, err
 	}
 
+	excludeDeactivated := c != nil && c.Query("exclude_deactivated") == "true"
+
 	IsFavourite := favourite.IsFavouriteChannel(db.Postgresql, models.DmFavouriteRequest{
 		UserId:    req.UserId,
 		OrgId:     req.OrgId,
@@ -219,7 +221,7 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		var participantsWithProfile []ParticipantWithProfile
 
 		// Custom SQL query joining channel_participants with profiles and users
-		err := db.Postgresql.Table("channel_participants cp").
+		participantQuery := db.Postgresql.Table("channel_participants cp").
 			Select(`
 				cp.user_id,
 				COALESCE(p.title, '') as title,
@@ -230,8 +232,13 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 			`).
 			Joins("JOIN users u ON u.id = cp.user_id").
 			Joins("LEFT JOIN profiles p ON p.userid = cp.user_id AND (p.organisation_id IS NULL OR p.organisation_id = ?)", dmchannel.OrgId).
-			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchannel.ChannelId).
-			Scan(&participantsWithProfile).Error
+			Where("cp.channel_id = ? AND cp.deleted_at IS NULL", dmchannel.ChannelId)
+
+		if excludeDeactivated {
+			participantQuery = participantQuery.Where(models.NotDeactivatedInOrgClause("cp.user_id"), dmchannel.OrgId, dmchannel.OrgId)
+		}
+
+		err := participantQuery.Scan(&participantsWithProfile).Error
 
 		if err != nil {
 			return resp, http.StatusInternalServerError, fmt.Errorf("failed to fetch group DM participants: %w", err)
@@ -258,6 +265,16 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		)
 
 		resp.GroupsInCommon = groupsInCommon
+
+		if excludeDeactivated {
+			active, err := models.FilterActiveUserIDs(db.Postgresql, dmchannel.OrgId, []string{*dmchannel.ParticipantId})
+			if err != nil {
+				return resp, http.StatusInternalServerError, err
+			}
+			if len(active) == 0 {
+				break
+			}
+		}
 
 		resp.Participants = append(resp.Participants, models.NewParticipant(userDetails, false, "user"))
 
