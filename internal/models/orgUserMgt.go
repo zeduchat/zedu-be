@@ -478,3 +478,25 @@ func (oum *OrgUserManagement) CheckIsOrganisationAdmin(db *gorm.DB, ids IDS) boo
 
 	return postgresql.CheckExists(db, &orgUserManagement, query, ids.OrganisationID, ids.OwnerID)
 }
+
+func NotDeactivatedInOrgClause(userColumn string) string {
+	return fmt.Sprintf(`NOT EXISTS (
+		SELECT 1 FROM org_user_managements dum
+		WHERE dum.user_id = %[1]s AND dum.organisation_id = ? AND dum.is_deactivated = true
+	) AND NOT EXISTS (
+		SELECT 1 FROM profiles dpr
+		WHERE dpr.userid = %[1]s AND dpr.organisation_id = ? AND dpr.is_deactivated = true
+	)`, userColumn)
+}
+
+func FilterActiveUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string, error) {
+	active := []string{}
+	if len(userIDs) == 0 {
+		return active, nil
+	}
+	err := db.Table("users").
+		Where("users.id IN ?", userIDs).
+		Where(NotDeactivatedInOrgClause("users.id"), orgID, orgID).
+		Pluck("users.id", &active).Error
+	return active, err
+}

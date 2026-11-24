@@ -141,4 +141,35 @@ func TestGetUsersInChannelSearch(t *testing.T) {
 			t.Errorf("Expected 0 matching users, got %d", len(usersData))
 		}
 	})
+
+	t.Run("Deactivated user excluded when exclude_deactivated=true", func(t *testing.T) {
+		db.Postgresql.Model(&models.OrgUserManagement{}).
+			Where("user_id = ? AND organisation_id = ?", user1Model.ID, orgId).
+			Update("is_deactivated", true)
+
+		fetch := func(query string) []interface{} {
+			req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/channels/%s/users?page=1&limit=20&search=saviour%s", channelID, query), nil)
+			req.Header.Set("Authorization", "Bearer "+ownerToken)
+			rr := httptest.NewRecorder()
+			r.ServeHTTP(rr, req)
+			tst.AssertStatusCode(t, rr.Code, http.StatusOK)
+			usersData, _ := tst.ParseResponse(rr)["data"].([]interface{})
+			return usersData
+		}
+
+		if users := fetch(""); len(users) != 1 {
+			t.Errorf("Expected 1 user without filter, got %d", len(users))
+		}
+		if users := fetch("&exclude_deactivated=true"); len(users) != 0 {
+			t.Errorf("Expected 0 users with exclude_deactivated, got %d", len(users))
+		}
+
+		active, err := models.FilterActiveUserIDs(db.Postgresql, orgId, []string{user1Model.ID})
+		if err != nil {
+			t.Fatalf("FilterActiveUserIDs failed: %v", err)
+		}
+		if len(active) != 0 {
+			t.Errorf("Expected deactivated user to be filtered out, got %v", active)
+		}
+	})
 }
