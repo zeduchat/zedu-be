@@ -3620,6 +3620,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: exclude_deactivated
+          in: query
+          required: false
+          description: Exclude users deactivated in the channel's organisation
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Users retrieved successfully
@@ -4430,6 +4437,13 @@ paths:
             type: boolean
             default: true
           description: Whether to include Agents in the response (default is true)
+        - name: exclude_deactivated
+          in: query
+          required: false
+          description: Exclude users deactivated in the organisation
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: List of users and optionally bots retrieved successfully
@@ -14485,6 +14499,13 @@ paths:
           description: Search DM channels by participant details (email, username, first name, last name).
           schema:
             type: string
+        - name: exclude_deactivated
+          in: query
+          required: false
+          description: Exclude DMs with deactivated users and remove deactivated members from group DM participants
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: Dm channels retrieved successfully
@@ -14782,6 +14803,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: exclude_deactivated
+          in: query
+          required: false
+          description: Exclude deactivated users from the participants list
+          schema:
+            type: boolean
+            default: false
 
       responses:
         "200":
