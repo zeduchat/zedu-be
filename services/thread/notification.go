@@ -57,3 +57,39 @@ func TrackThreadNotification(
 
 	logger.Info("added thread notification to queue for channel %s", channelsId)
 }
+
+const webhookSenderID = "00000000-0000-0000-0000-000000000000"
+
+func BuildWebhookNotificationRecord(feed models.FeedMessageRequest) models.PushNotificationRecord {
+	feed.UserId = webhookSenderID
+	if feed.UserName == "" {
+		feed.UserName = "Webhook"
+	}
+	if feed.Type == "" {
+		feed.Type = "message"
+	}
+	dataByte, _ := json.Marshal(feed)
+
+	return models.PushNotificationRecord{
+		ChannelType: models.Channel,
+		Data:        string(dataByte),
+		Sent:        false,
+		ChannelId:   feed.ChannelID,
+		Section:     models.ThreadSection,
+		Type:        models.NewMessage,
+	}
+}
+
+func QueueWebhookNotification(feed models.FeedMessageRequest, logger *utility.Logger) {
+	if storage.DB == nil || storage.DB.Redis == nil {
+		return
+	}
+
+	err := actions.AddPushNotificationToQueue(storage.DB.Redis, BuildWebhookNotificationRecord(feed))
+	if err != nil {
+		logger.Error("Error adding webhook notification to channelid: %s, error: %v", feed.ChannelID, err.Error())
+		return
+	}
+
+	logger.Info("added webhook notification to queue for channel %s", feed.ChannelID)
+}
