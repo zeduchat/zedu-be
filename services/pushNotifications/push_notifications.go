@@ -309,9 +309,16 @@ func deliverFCM(logger *utility.Logger, db *gorm.DB, userIDs []string, title, bo
 		return nil
 	}
 
-	pushTitle := truncateRunes(strings.TrimSpace(title), 120)
+	orgName := resolveOrgName(db, orgID)
+	pushTitle := truncateRunes(FormatTitleWithOrg(orgName, title), 120)
 	pushBody := truncateRunes(strings.TrimSpace(body), 240)
 	data := payloadToData(payload)
+	if orgName != "" {
+		if data == nil {
+			data = map[string]string{}
+		}
+		data["org_name"] = orgName
+	}
 	if content, ok := data["content"]; ok {
 		data["content"] = truncateRunes(content, 240)
 	}
@@ -518,4 +525,32 @@ func ResolvePushBody(username, message string) string {
 		return fmt.Sprintf("(%s): %s", uname, msg)
 	}
 	return msg
+}
+
+func FormatTitleWithOrg(orgName, title string) string {
+	orgName = strings.TrimSpace(orgName)
+	title = strings.TrimSpace(title)
+	if orgName == "" {
+		return title
+	}
+	if title == "" || strings.EqualFold(title, orgName) {
+		return orgName
+	}
+	prefix := orgName + " - "
+	if strings.HasPrefix(title, prefix) {
+		return title
+	}
+	return prefix + title
+}
+
+func resolveOrgName(db *gorm.DB, orgID string) string {
+	orgID = strings.TrimSpace(orgID)
+	if db == nil || orgID == "" {
+		return ""
+	}
+	var names []string
+	if err := db.Model(&models.Organisation{}).Where("id = ?", orgID).Limit(1).Pluck("name", &names).Error; err != nil || len(names) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(names[0])
 }
