@@ -171,5 +171,13 @@ func TestGetUsersInChannelSearch(t *testing.T) {
 		if len(active) != 0 {
 			t.Errorf("Expected deactivated user to be filtered out, got %v", active)
 		}
+
+		deactivated, err := models.DeactivatedUserIDs(db.Postgresql, orgId, []string{user1Model.ID, "not-a-uuid"})
+		if err != nil {
+			t.Fatalf("DeactivatedUserIDs failed: %v", err)
+		}
+		if !deactivated[user1Model.ID] || len(deactivated) != 1 {
+			t.Errorf("Expected only user1 to be deactivated, got %v", deactivated)
+		}
 	})
 }

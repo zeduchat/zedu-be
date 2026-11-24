@@ -500,3 +500,29 @@ func FilterActiveUserIDs(db *gorm.DB, orgID string, userIDs []string) ([]string,
 		Pluck("users.id", &active).Error
 	return active, err
 }
+
+func DeactivatedUserIDs(db *gorm.DB, orgID string, userIDs []string) (map[string]bool, error) {
+	deactivated := map[string]bool{}
+	valid := make([]string, 0, len(userIDs))
+	for _, id := range userIDs {
+		if _, err := uuid.FromString(id); err == nil {
+			valid = append(valid, id)
+		}
+	}
+	if len(valid) == 0 {
+		return deactivated, nil
+	}
+
+	var ids []string
+	err := db.Table("users").
+		Where("users.id IN ?", valid).
+		Where("NOT ("+NotDeactivatedInOrgClause("users.id")+")", orgID, orgID).
+		Pluck("users.id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		deactivated[id] = true
+	}
+	return deactivated, nil
+}
