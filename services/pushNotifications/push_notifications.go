@@ -536,7 +536,7 @@ func FormatTitleWithOrg(orgName, title string) string {
 	if title == "" || strings.EqualFold(title, orgName) {
 		return orgName
 	}
-	prefix := orgName + " - "
+	prefix := orgName + " - message from "
 	if strings.HasPrefix(title, prefix) {
 		return title
 	}

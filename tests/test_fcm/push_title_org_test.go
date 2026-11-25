@@ -15,11 +15,11 @@ func TestFormatTitleWithOrg(t *testing.T) {
 		title    string
 		expected string
 	}{
-		{"dm title", "Acme", "john_doe", "Acme - john_doe"},
-		{"channel title", "Acme", "#general", "Acme - #general"},
+		{"dm title", "Acme", "john_doe", "Acme - message from john_doe"},
+		{"channel title", "Acme", "#general", "Acme - message from #general"},
 		{"no org name", "", "#general", "#general"},
 		{"empty title", "Acme", "", "Acme"},
-		{"already prefixed", "Acme", "Acme - john_doe", "Acme - john_doe"},
+		{"already prefixed", "Acme", "Acme - message from john_doe", "Acme - message from john_doe"},
 		{"title equals org", "Acme", "acme", "Acme"},
 	}
 
