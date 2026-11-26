@@ -83,10 +83,6 @@ func ReplyChannelDMMessage(req models.CreateMessageRequest, db *storage.Database
 		return nil, http.StatusInternalServerError, errors.New("failed to save message, error: " + err.Error())
 	}
 
-	if err := thread.DetectAndAddMentions(messageDoc.ID, req.Content, db.Postgresql); err != nil {
-		return &messageDoc, http.StatusBadRequest, err
-	}
-
 	username := utility.ThisOrThat(profile.UserName, utility.ThisOrThat(profile.FullName, user.Email))
 
 	feed := models.FeedMessageRequest{

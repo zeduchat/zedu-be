@@ -341,13 +341,6 @@ type FeedMessageRequest struct {
 	Edited                   bool                      `json:"edited"`
 }
 
-type Mentions struct {
-	ID        string    `gorm:"type:uuid;primary_key" json:"id"`
-	MessageID string    `gorm:"type:uuid;index" json:"message_id"`
-	UserID    string    `gorm:"type:uuid;index" json:"user_id"`
-	CreatedAt time.Time `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
-}
-
 type TriggerTickRequest struct {
 	ChannelID      string `gorm:"type:uuid" json:"channel_id" validate:"required"`
 	OrganisationID string `gorm:"type:uuid" json:"organisation_id" validate:"required"`
@@ -764,15 +757,6 @@ func (c *Threads) ClearThreadsByChannelID(db *gorm.DB) (*Threads, error) {
 	}
 
 	return c, nil
-}
-
-func (m *Mentions) CreateMention(db *gorm.DB) error {
-
-	err := postgresql.CreateOneRecord(db, m)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (t *ThreadDocument) GetThreadById(threadID string) error {
