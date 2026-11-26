@@ -20,7 +20,6 @@ import (
 	"github.com/hngprojects/telex_be/services/actions"
 	"github.com/hngprojects/telex_be/services/rabbitmq"
 	"github.com/hngprojects/telex_be/utility"
-	"github.com/hngprojects/telex_be/utility/channels_utility"
 )
 
 func SaveThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, logger *utility.Logger) (*models.ThreadDocument, error) {
@@ -320,30 +319,6 @@ func CreateThreadMessage(req models.CreateThreadMsgReq, db *storage.Database, lo
 	}
 
 	return threadResp, nil
-}
-
-func DetectAndAddMentions(messageID string, content string, db *gorm.DB) error {
-	mentions := channels_utility.DetectMentions(content)
-
-	for _, username := range mentions {
-		var user models.Profile
-		user, err := user.GetUserByUsername(db, username)
-		if err != nil {
-			continue
-		}
-
-		mention := models.Mentions{
-			ID:        utility.GenerateUUID(),
-			MessageID: messageID,
-			UserID:    user.ID,
-		}
-
-		if err := mention.CreateMention(db); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func SearchChannel(channelID, searchWords string, db *gorm.DB, c *gin.Context, typesenseDb *typesense.Client) (*[]map[string]any, int, error) {
