@@ -475,6 +475,19 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 		return threadResp, http.StatusBadRequest, errors.New("failed to get user")
 	}
 
+	var stored models.ThreadDocument
+	if err := stored.GetThreadById(req.ThreadId); err != nil {
+		return threadResp, http.StatusNotFound, errors.New("thread not found")
+	}
+
+	locked, err := models.RepliedToByOthers(req.ThreadId, stored.UserId, time.Time{})
+	if err != nil {
+		return threadResp, http.StatusInternalServerError, err
+	}
+	if locked {
+		return threadResp, http.StatusConflict, models.ErrEditLockedByReplies
+	}
+
 	thread.ID = req.ThreadId
 
 	updateKey := map[string]any{
