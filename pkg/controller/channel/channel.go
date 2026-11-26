@@ -855,10 +855,19 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 	var req models.ArchiveChannelRequest
 
 	if _, err := uuid.Parse(channelId); err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", "failed to retrieve users", nil)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	currentUserID, _ := userClaims["user_id"].(string)
 
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
@@ -868,13 +877,15 @@ func (base *Controller) ArchiveChannel(c *gin.Context) {
 		return
 	}
 
-	err = utility.ArchiveValidator(req.Archived)
-	if err != nil {
+	if err := base.Validator.Struct(&req); err != nil {
 		base.Logger.Info("validation failed")
-		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", err.Error(), err, nil)
+		rd := utility.BuildErrorResponse(http.StatusUnprocessableEntity, "error", "validation failed", utility.ValidationResponse(err, base.Validator), nil)
 		c.JSON(http.StatusUnprocessableEntity, rd)
 		return
 	}
+
+	// The permission check runs against the signed-in user, never a body field.
+	req.UserId = currentUserID
 
 	status, statusCode, err := channel.ArchiveChannel(base.Db.Postgresql, channelId, req)
 	if err != nil {
@@ -915,7 +926,7 @@ func (base *Controller) GetArchivedChannels(c *gin.Context) {
 	if err != nil {
 		base.Logger.Info("error getting archived channels")
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		c.JSON(code, rd)
 		return
 	}
 
