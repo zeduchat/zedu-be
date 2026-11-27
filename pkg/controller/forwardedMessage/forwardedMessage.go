@@ -63,14 +63,26 @@ func (base *Controller) ForwardThreadMessage(c *gin.Context) {
 	}
 
 	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
-	req.OrgId = userClaims["org_id"].(string)
+	userId, idOk := userClaims["user_id"].(string)
+	orgId, orgOk := userClaims["org_id"].(string)
+	if !idOk || !orgOk || userId == "" {
+		base.Logger.Error("User claims missing user_id or org_id")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unauthorized", errors.New("invalid token claims"), nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	req.OrgId = orgId
 	req.ChannelsId = channelID
 	req.UserId = userId
 
 	threadData, err := forwardedMessage.ForwardThreadMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
 		base.Logger.Error(fmt.Sprintf("An error occurred while forwarding thread message: %v", err))
+		if errors.Is(err, forwardedMessage.ErrForwardNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), nil, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
@@ -120,13 +132,25 @@ func (base *Controller) ForwardReplyMessage(c *gin.Context) {
 		return
 	}
 	userClaims := claims.(jwt.MapClaims)
-	userId := userClaims["user_id"].(string)
+	userId, idOk := userClaims["user_id"].(string)
+	orgId, orgOk := userClaims["org_id"].(string)
+	if !idOk || !orgOk || userId == "" {
+		base.Logger.Error("User claims missing user_id or org_id")
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unauthorized", errors.New("invalid token claims"), nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
 	req.UserId = userId
-	req.OrgId = userClaims["org_id"].(string)
+	req.OrgId = orgId
 
 	response, err := forwardedMessage.ForwardReplyMessage(base.Db, req, base.Logger, userId)
 	if err != nil {
 		base.Logger.Error(fmt.Sprintf("An error occurred while forwarding reply message: %v", err))
+		if errors.Is(err, forwardedMessage.ErrForwardNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
