@@ -246,7 +246,11 @@ func IncrementShareAccess(db *gorm.DB, logger *utility.Logger, shareID string) e
 	return nil
 }
 
-// CheckFileAccess determines if a user can access a file
+// CheckFileAccess determines if a user can read a file: its owner, anyone in the file's
+// organisation when the file is public, or a member of the channel or DM it was posted in.
+// Share links are not per-user (FileShare has no recipient), so an existing share does not
+// grant access here; link holders go through the share-link endpoint. Trashed files are
+// excluded by the default scope.
 func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, error) {
 	var file models.File
 
@@ -268,17 +272,15 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 		return true, "public", nil
 	}
 
-	// Check if user has explicit share
-	var shareCount int64
-	if err := db.Model(&models.FileShare{}).
-		Where("file_id = ? AND (expires_at IS NULL OR expires_at > ?)", fileID, time.Now().UTC()).
-		Count(&shareCount).Error; err != nil {
-		return false, "database_error", err
-	}
-
-	if shareCount > 0 {
-		// Need to verify specific user access through share mechanism
-		return true, "shared", nil
+	// Files posted in a channel or DM are visible to its members.
+	if file.ChannelID != nil && *file.ChannelID != "" {
+		ok, err := models.UserCanAccessChannel(db, *file.ChannelID, userID)
+		if err != nil {
+			return false, "database_error", err
+		}
+		if ok {
+			return true, "channel", nil
+		}
 	}
 
 	return false, "no_access", ErrAccessDenied
