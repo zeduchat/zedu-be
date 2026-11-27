@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	_ "strings"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +24,12 @@ import (
 	"github.com/hngprojects/telex_be/services/thread"
 	"github.com/hngprojects/telex_be/utility"
 )
+
+// normaliseInviteEmail matches how registration and social sign-in store
+// addresses, so invitation lookups find the same user whatever case was typed.
+func normaliseInviteEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
 
 func CreateInvitation(email, token, status string, isTelexUser bool, ids models.IDS) models.Invitation {
 	return models.Invitation{
@@ -49,6 +55,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 
 	for _, email := range emails {
 		var existingInvite models.Invitation
+		email = normaliseInviteEmail(email)
 		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", email)
 
 		// Send regardless of membership; VerifyInvitation resolves the
@@ -62,7 +69,7 @@ func InvitationLinkGenerator(base *storage.Database, inviteReq models.Invitation
 
 		// If a pending invitation already exists for this org/email, rotate the
 		// token and refresh the expiry so the resend produces a working link.
-		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited'", email, inviteReq.OrganisationID)
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "LOWER(email) = ? AND organisation_id = ? AND status = 'invited'", email, inviteReq.OrganisationID)
 		if invitationExists {
 			existingInvite.Token = token
 			existingInvite.ExpiresAt = time.Now().Add(48 * time.Hour).UTC()
@@ -95,6 +102,7 @@ func InviteFewLinkGenerator(base *storage.Database, req models.InvitationCreateF
 
 	for _, invite := range inviteReq {
 		var existingInvite models.Invitation
+		invite.Email = normaliseInviteEmail(invite.Email)
 
 		isTelexUser := postgresql.CheckExists(base.Postgresql, &user, "email = ?", invite.Email)
 
@@ -107,7 +115,7 @@ func InviteFewLinkGenerator(base *storage.Database, req models.InvitationCreateF
 			continue
 		}
 
-		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "email = ? AND organisation_id = ? AND status = 'invited'", invite.Email, org_id)
+		invitationExists := postgresql.CheckExists(base.Postgresql, &existingInvite, "LOWER(email) = ? AND organisation_id = ? AND status = 'invited'", invite.Email, org_id)
 		if invitationExists {
 			existingInvite.Token = token
 			existingInvite.ExpiresAt = time.Now().Add(48 * time.Hour).UTC()
@@ -298,10 +306,12 @@ func getGeneralChannel(db *gorm.DB, orgID string) (models.Channels, error) {
 func getOrCreateUser(invitation models.Invitation, db *gorm.DB) (models.User, error) {
 	var user models.User
 
-	exists := postgresql.CheckExists(db, &user, "email = ?", invitation.Email)
+	// Users are stored lowercased; older invitations may not be.
+	email := normaliseInviteEmail(invitation.Email)
+	exists := postgresql.CheckExists(db, &user, "email = ?", email)
 	if exists {
 		var err error
-		user, err = user.GetUserByEmail(db, invitation.Email)
+		user, err = user.GetUserByEmail(db, email)
 		if err != nil {
 			return user, errors.New("unable to fetch user")
 		}
