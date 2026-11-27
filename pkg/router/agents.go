@@ -70,9 +70,9 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.GET("/:org_id/agents/:agent_id", agentsCtrl.FetchCustomAgent)
 		organisationUrl.DELETE("/:org_id/agents/:agent_id", agentsCtrl.DeleteCustomAgentApp)
 
-		organisationUrl.GET("/:org_id/agents/:agent_id/settings", agentsCtrl.GetCustomAgentSettings)
-		organisationUrl.GET("/:org_id/agents/:agent_id/status", agentsCtrl.GetCustomAgentStatus)
-		organisationUrl.PUT("/:org_id/agents/:agent_id/settings", agentsCtrl.UpdateCustomAgentSettings)
+		organisationUrl.GET("/:org_id/agents/:agent_id/settings", middleware.RequireOrgMember(db.Postgresql), agentsCtrl.GetCustomAgentSettings)
+		organisationUrl.GET("/:org_id/agents/:agent_id/status", middleware.RequireOrgMember(db.Postgresql), agentsCtrl.GetCustomAgentStatus)
+		organisationUrl.PUT("/:org_id/agents/:agent_id/settings", middleware.RequireOrgMember(db.Postgresql), agentsCtrl.UpdateCustomAgentSettings)
 
 		// Channel agents routes
 		organisationUrl.GET("/:org_id/channels/:channel_id/agents", agentsCtrl.GetOrganisationChannelAgents)

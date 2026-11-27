@@ -816,16 +816,25 @@ func (base *Controller) UpdateCustomAgentSettings(c *gin.Context) {
 		return
 	}
 
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	callerID, _ := userID.(string)
+	if err != nil || callerID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": agent_id,
+		"user_id":  callerID,
 	}
 
-	err := agents.UpdateCustomAgentSettings(ids, req, base.Db.Postgresql, base.ExtReq)
+	code, err := agents.UpdateCustomAgentSettings(ids, req, base.Db.Postgresql, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Failed to update custom agent settings", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "Failed to update custom agent settings", nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "Failed to update custom agent settings", nil)
+		c.JSON(code, rd)
 		return
 	}
 
@@ -899,9 +908,18 @@ func (base *Controller) GetCustomAgentSettings(c *gin.Context) {
 		return
 	}
 
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	callerID, _ := userID.(string)
+	if err != nil || callerID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": agent_id,
+		"user_id":  callerID,
 	}
 
 	integration_setting, code, err := agents.GetCustomAgentSettings(ids, base.Db.Postgresql, base.ExtReq)

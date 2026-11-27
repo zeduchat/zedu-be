@@ -23,6 +23,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -577,16 +578,29 @@ func CheckAgentIsActive(ids map[string]string, db *gorm.DB) (gin.H, error) {
 	return res, nil
 }
 
-func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) error {
+func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrationSettingRequest, db *gorm.DB, extReq request.ExternalRequest) (int, error) {
 
 	var (
 		orgIntegration models.OrganisationIntegrations
 		ucis           models.CustomIntegrationsSetting
 	)
 
+	// The route also runs RequireOrgMember; this keeps the service safe for
+	// callers that wire the controller without it.
+	if isMember, _ := (&models.Organisation{}).CheckUserIsMemberOfOrg(ids["user_id"], ids["org_id"], db); !isMember {
+		return http.StatusForbidden, errors.New("you are not a member of this organisation")
+	}
+
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
-		return errors.New("organisation does not exist or have that agent")
+		return http.StatusNotFound, errors.New("organisation does not exist or have that agent")
+	}
+
+	// Only the agent's owner, or someone who can manage agents in the org,
+	// may change its settings.
+	if ids["user_id"] != orgIntegration.OwnerID &&
+		!organisation.UserCanOrOwner(db, ids["user_id"], ids["org_id"], models.PermManageAgents) {
+		return http.StatusForbidden, errors.New("you do not have permission to update this agent's settings")
 	}
 
 	settings := req.SettingEntry
@@ -594,13 +608,13 @@ func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrati
 	_, ok := settings["settings"]
 	if !ok {
 
-		return fmt.Errorf("settings field is required")
+		return http.StatusBadRequest, fmt.Errorf("settings field is required")
 
 	}
 	settingJsonData, err := json.Marshal(settings)
 
 	if err != nil {
-		return fmt.Errorf("error serializing to JSON: %v", err)
+		return http.StatusBadRequest, fmt.Errorf("error serializing to JSON: %v", err)
 	}
 
 	serialized_settings := string(settingJsonData)
@@ -609,10 +623,10 @@ func UpdateCustomAgentSettings(ids map[string]string, req models.CustomIntegrati
 	err = ucis.UpdateCustomIntegrationSettings(db, req, ids)
 
 	if err != nil {
-		return err
+		return http.StatusBadRequest, err
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
 
 func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.ExternalRequest) (map[string]any, int, error) {
@@ -624,6 +638,12 @@ func GetCustomAgentSettings(ids map[string]string, db *gorm.DB, extReq request.E
 		deserialize_settings map[string]any
 		resp                 map[string]any
 	)
+
+	// The route also runs RequireOrgMember; this keeps the service safe for
+	// callers that wire the controller without it.
+	if isMember, _ := (&models.Organisation{}).CheckUserIsMemberOfOrg(ids["user_id"], ids["org_id"], db); !isMember {
+		return deserialize_settings, http.StatusForbidden, errors.New("you are not a member of this organisation")
+	}
 
 	exists := postgresql.CheckExists(db, &orgIntegration, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
 	if !exists {
