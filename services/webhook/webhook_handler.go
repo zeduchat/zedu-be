@@ -36,11 +36,16 @@ func PostWebhook(db *storage.Database, logger *utility.Logger, req models.Create
 		return nil, http.StatusNotFound, errors.New("invalid webhook")
 	}
 
-	ch, err := channel.CheckChannelExists(db.Postgresql, webhook.ChannelId)
-
-	if !ch || err != nil {
-		logger.Error("invalid webhook" + err.Error())
-		return nil, http.StatusInternalServerError, errors.New("channel does not exist")
+	// Look the channel up directly so a missing channel (404) and a database
+	// failure (500) are told apart, and neither path dereferences a nil error.
+	err = db.Postgresql.Where("id = ?", webhook.ChannelId).First(&channel).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Error("webhook " + webhook.ID + " points at a missing channel " + webhook.ChannelId)
+		return nil, http.StatusNotFound, errors.New("channel does not exist")
+	}
+	if err != nil {
+		logger.Error("failed to load webhook channel: " + err.Error())
+		return nil, http.StatusInternalServerError, errors.New("failed to load channel")
 	}
 
 	threadDoc := models.ThreadDocument{
