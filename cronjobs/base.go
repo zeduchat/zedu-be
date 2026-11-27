@@ -107,9 +107,19 @@ func StartCronJob(extReq request.ExternalRequest, db storage.Database, jobName s
 	}
 }
 
-func StopCronJob(jobName string) {
+// StopCronJob stops a running cron job. It returns ErrCronJobNotRunning
+// instead of blocking when the job was never started or is already stopped.
+func StopCronJob(jobName string) error {
 	jobName = strings.ToLower(jobName)
-	stopSignals[jobName] <- true
+	stop, ok := stopSignals[jobName]
+	if !ok {
+		return ErrCronJobNotRunning
+	}
+	stop <- true
+	// The scheduler has received the signal and returned, so nothing listens
+	// on this channel any more.
+	delete(stopSignals, jobName)
+	return nil
 }
 
 func RestartCronJob(extReq request.ExternalRequest, db storage.Database, jobName string) {
