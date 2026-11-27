@@ -623,8 +623,23 @@ func (base *Controller) MoveFile(c *gin.Context) {
 		return
 	}
 
-	file, err := services.MoveFile(base.Db.Postgresql, fileID, req.FolderID)
+	file, err := services.MoveFile(base.Db.Postgresql, fileID, req.FolderID, userID, orgID)
 	if err != nil {
+		if errors.Is(err, services.ErrFileNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		if errors.Is(err, services.ErrFolderNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Folder not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		if errors.Is(err, services.ErrFolderNotOwned) {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Forbidden", "You can only move files into your own folders", nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to move file", nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
