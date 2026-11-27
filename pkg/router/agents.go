@@ -57,7 +57,6 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 	{
 		// Organisation agents routes
 		organisationUrl.GET("/:org_id/agents/system", agentsCtrl.GetAllAgentApp)
-		organisationUrl.PATCH("/:org_id/agents/system/:agent_id", agentsCtrl.UpdateAgentApp)
 		organisationUrl.DELETE("/:org_id/agents/system/:agent_id", agentsCtrl.DeleteAgentApp)
 		organisationUrl.PATCH("/:org_id/agents/change_status", agentsCtrl.ChangeAgentStatus)
 		organisationUrl.PATCH("/:org_id/agents/:agent_id/updatejson", agentsCtrl.UpdateJSONSchema)
