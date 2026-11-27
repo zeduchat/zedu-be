@@ -10,6 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -53,10 +54,24 @@ func ListWorkflowsService(req models.WorkFlowRequest, db *gorm.DB) ([]models.Wor
 	return wfs, http.StatusOK, nil
 }
 
+// canManageWorkflows reports whether userID owns orgID or holds can_manage_workflows in it.
+func canManageWorkflows(db *gorm.DB, userID, orgID string) (int, error) {
+	if !organisation.UserCanOrOwner(db, userID, orgID, models.PermManageWorkflows) {
+		return http.StatusForbidden, errors.New("user does not have permission to manage workflows in this organisation")
+	}
+	return http.StatusOK, nil
+}
+
 func DeleteWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (int, error) {
-	err := models.DeleteWorkflow(db, req)
+	if code, err := canManageWorkflows(db, req.UserId, req.OrgId); err != nil {
+		return code, err
+	}
+	n, err := models.DeleteWorkflow(db, req)
 	if err != nil {
 		return http.StatusInternalServerError, err
+	}
+	if n == 0 {
+		return http.StatusNotFound, errors.New("workflow not found")
 	}
 	return http.StatusOK, nil
 }
