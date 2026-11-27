@@ -49,8 +49,9 @@ func (s *Shares) GetUserShares(db *gorm.DB, c *gin.Context, userID string) ([]Sh
 	return shares, paginationResponse, nil
 }
 
-func (s *Shares) DeleteShares(db *gorm.DB, id string) error {
-	err := db.Where("id = ?", id).First(&s).Error
+// DeleteShares deletes the holding with the given id only when it belongs to userID.
+func (s *Shares) DeleteShares(db *gorm.DB, id, userID string) error {
+	err := db.Where("id = ? AND user_id = ?", id, userID).First(&s).Error
 	if err != nil {
 		return err
 	}
@@ -61,9 +62,10 @@ func (s *Shares) DeleteShares(db *gorm.DB, id string) error {
 	return nil
 }
 
-func (s *Shares) GetByID(db *gorm.DB, id string) (Shares, error) {
+// GetByID returns the holding with the given id only when it belongs to userID.
+func (s *Shares) GetByID(db *gorm.DB, id, userID string) (Shares, error) {
 	var share Shares
-	err, _ := postgresql.SelectOneFromDb(db, &share, "id = ?", id)
+	err, _ := postgresql.SelectOneFromDb(db, &share, "id = ? AND user_id = ?", id, userID)
 	if err != nil {
 		return share, err
 	}

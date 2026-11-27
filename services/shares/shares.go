@@ -31,14 +31,14 @@ func GetUserShares(db *gorm.DB, c *gin.Context, userID string) ([]models.Shares,
 	return shares, paginationResponse, nil
 }
 
-func GetShareByID(db *gorm.DB, id string) (models.Shares, error) {
+func GetShareByID(db *gorm.DB, id, userID string) (models.Shares, error) {
 	var share models.Shares
-	return share.GetByID(db, id)
+	return share.GetByID(db, id, userID)
 }
 
-func DeleteShares(db *gorm.DB, id string) error {
+func DeleteShares(db *gorm.DB, id, userID string) error {
 	var share models.Shares
-	return share.DeleteShares(db, id)
+	return share.DeleteShares(db, id, userID)
 }
 
 // GetSharePerformance calculates the user's portfolio performance
