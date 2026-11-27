@@ -913,18 +913,22 @@ func (i *OrganisationIntegrations) DeleteCustomAgent(db *gorm.DB, logger utility
 		}
 	}()
 
-	exists := postgresql.CheckExists(tx, &org_integration, "integration_id = ?", ids.AgentID)
+	if ids.OrganisationID == "" {
+		return errors.New("organisation id is required"), http.StatusBadRequest
+	}
+
+	exists := postgresql.CheckExists(tx, &org_integration, "org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID)
 	if !exists {
-		return errors.New("agent app does not exist"), http.StatusBadRequest
+		return errors.New("agent app does not exist"), http.StatusNotFound
 	}
 
 	//also delete entries for the agent in the organisation agents table
-	err := tx.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids.AgentID).Error
+	err := tx.Delete(&OrganisationIntegrations{}, "org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete organisation integration: %w", err), http.StatusInternalServerError
 	}
 
-	err = tx.Delete(&CustomIntegrationsSetting{}, "integration_id = ?", ids.AgentID).Error
+	err = tx.Delete(&CustomIntegrationsSetting{}, "org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete custom integration settings: %w", err), http.StatusInternalServerError
 	}

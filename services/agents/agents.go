@@ -23,6 +23,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/minio"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/services/telexai"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -137,6 +138,21 @@ func DeleteAgentApp(ids map[string]string, db *gorm.DB) error {
 // Delete Org Custom Integration
 func DeleteCustomAgentApp(db *gorm.DB, logger utility.Logger, ids models.IDS) (error, int) {
 	var org_agent models.OrganisationIntegrations
+
+	// Only a member of the path organisation may delete its agents, and only
+	// the member who installed the agent or someone who can manage agents there.
+	if isMember, _ := (&models.Organisation{}).CheckUserIsMemberOfOrg(ids.UserID, ids.OrganisationID, db); !isMember {
+		return errors.New("you are not a member of this organisation"), http.StatusForbidden
+	}
+
+	if !postgresql.CheckExists(db, &org_agent, "org_id = ? AND integration_id = ?", ids.OrganisationID, ids.AgentID) {
+		return errors.New("agent app does not exist"), http.StatusNotFound
+	}
+
+	if ids.UserID != org_agent.OwnerID &&
+		!organisation.UserCanOrOwner(db, ids.UserID, ids.OrganisationID, models.PermManageAgents) {
+		return errors.New("you do not have permission to delete this agent"), http.StatusForbidden
+	}
 
 	err, code := org_agent.DeleteCustomAgent(db, logger, ids)
 	if err != nil {

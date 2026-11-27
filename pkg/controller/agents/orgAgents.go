@@ -160,9 +160,18 @@ func (base *Controller) DeleteCustomAgentApp(c *gin.Context) {
 		return
 	}
 
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	callerID, _ := userID.(string)
+	if err != nil || callerID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", "unauthorized user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
 	ids := models.IDS{
 		OrganisationID: org_id,
 		AgentID:        agent_id,
+		UserID:         callerID,
 	}
 
 	err, code := agents.DeleteCustomAgentApp(base.Db.Postgresql, *base.Logger, ids)
