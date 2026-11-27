@@ -66,7 +66,7 @@ func TestSearchUsersInOrganisationReturnsDeterministicUsername(t *testing.T) {
 	require.NoError(t, db.Postgresql.Create(&populated).Error)
 
 	r.Group("/api/v1", middleware.Authorize(db.Postgresql)).
-		GET("/organisations/:org_id/users/search", orgController.SearchUsersInOrganisation)
+		GET("/organisations/:org_id/users/search", middleware.RequireOrgMember(db.Postgresql), orgController.SearchUsersInOrganisation)
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/users/search?query=divine", orgID), nil)
 	require.NoError(t, err)
@@ -192,7 +192,7 @@ func TestSearchUsersInOrganisationWithSimilarUsernames(t *testing.T) {
 
 	// Search for "john" - should match user1 (john doe) and user2 (john smith)
 	r.Group("/api/v1", middleware.Authorize(db.Postgresql)).
-		GET("/organisations/:org_id/users/search", orgController.SearchUsersInOrganisation)
+		GET("/organisations/:org_id/users/search", middleware.RequireOrgMember(db.Postgresql), orgController.SearchUsersInOrganisation)
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/users/search?query=john", orgID), nil)
 	require.NoError(t, err)
@@ -327,7 +327,7 @@ func TestSearchUsersInOrganisationOrdering(t *testing.T) {
 
 	// Search with a query that matches all three (search by "user" in email or name)
 	r.Group("/api/v1", middleware.Authorize(db.Postgresql)).
-		GET("/organisations/:org_id/users/search", orgController.SearchUsersInOrganisation)
+		GET("/organisations/:org_id/users/search", middleware.RequireOrgMember(db.Postgresql), orgController.SearchUsersInOrganisation)
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/organisations/%s/users/search?query=user", orgID), nil)
 	require.NoError(t, err)

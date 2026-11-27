@@ -528,11 +528,24 @@ func (base *Controller) SearchUsersInOrganisation(c *gin.Context) {
 		return
 	}
 
-	users, err := organisation.SearchUsersInOrganisation(base.Db.Postgresql, orgId, query)
+	userId, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	callerId, _ := userId.(string)
+	if callerId == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", "Unauthorized", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	users, code, err := organisation.SearchUsersInOrganisation(base.Db.Postgresql, orgId, callerId, query)
 	if err != nil {
 		base.Logger.Error("failed to search users in organisation", err)
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to search users in organisation", err.Error(), nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		if code == http.StatusInternalServerError {
+			rd := utility.BuildErrorResponse(code, "error", "failed to search users in organisation", err.Error(), nil)
+			c.JSON(code, rd)
+			return
+		}
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), "failed to search users in organisation", nil)
+		c.JSON(code, rd)
 		return
 	}
 

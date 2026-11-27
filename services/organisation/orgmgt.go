@@ -190,24 +190,24 @@ func ChangeMemberActiveStatus(db *gorm.DB, rdb *redis.Client, logger *utility.Lo
 	return http.StatusOK, nil
 }
 
-func SearchUsersInOrganisation(db *gorm.DB, orgID, searchTerm string) ([]models.UserInOrgResponse, error) {
+// SearchUsersInOrganisation searches orgID's members for userID. Non-members get
+// 403, and so does a missing org, so the response doesn't reveal whether it exists.
+func SearchUsersInOrganisation(db *gorm.DB, orgID, userID, searchTerm string) ([]models.UserInOrgResponse, int, error) {
 	var (
 		o   models.Organisation
 		oum models.OrgUserManagement
 	)
 
-	_, err := o.CheckOrgExists(orgID, db)
-	if err != nil {
-		return nil, err
+	if isMember, _ := o.CheckUserIsMemberOfOrg(userID, orgID, db); !isMember {
+		return nil, http.StatusForbidden, errors.New("you are not a member of this organisation")
 	}
 
 	users, err := oum.SearchUsersInOrganisation(db, orgID, searchTerm)
-
 	if err != nil {
-		return nil, err
+		return nil, http.StatusInternalServerError, err
 	}
 
-	return users, nil
+	return users, http.StatusOK, nil
 }
 
 func UpdateMemberRole(db *gorm.DB, rdb *redis.Client, logger *utility.Logger, ids models.IDS) (int, error) {
