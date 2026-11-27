@@ -287,8 +287,9 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 // CheckFileEditPermission determines if a user can edit a file
 // Returns true if user:
 // - Is the file owner, OR
-// - Has role permission to delete any file, OR
-// - Has at least one active share with edit permission
+// - Has role permission to delete any file in the file's organisation, OR
+// - Received at least one active share with edit permission
+// Files of another organisation than orgID return ErrFileNotFound.
 func CheckFileEditPermission(db *gorm.DB, fileID, userID, orgID string) (bool, error) {
 	// Check if file exists (include soft-deleted files for permanent delete operations)
 	var file models.File
@@ -309,32 +310,45 @@ func CheckFileEditPermission(db *gorm.DB, fileID, userID, orgID string) (bool, e
 		return true, nil
 	}
 
-	// Check if user has role-based permission to edit/delete any file
-	var user models.User
-	if err := db.Where("id = ?", userID).First(&user).Error; err == nil {
-		if user.OrgRoleID != nil {
-			var permission models.Permission
-			if err := db.Where("role_id = ?", *user.OrgRoleID).First(&permission).Error; err == nil {
-				if permission.PermissionList.CanDeleteAnyFile {
-					return true, nil
-				}
+	// Files of another organisation are not visible through this token
+	if file.OrganisationID != orgID {
+		return false, ErrFileNotFound
+	}
+
+	// Role-based permission, resolved from the caller's membership in the file's organisation
+	var membership models.OrgUserManagement
+	if err := db.Where("user_id = ? AND organisation_id = ?", userID, file.OrganisationID).First(&membership).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to fetch membership: %w", err)
+	}
+	if membership.IsDeactivated {
+		return false, nil
+	}
+	if membership.RoleID != "" {
+		var permission models.Permission
+		if err := db.Where("role_id = ?", membership.RoleID).First(&permission).Error; err == nil {
+			if permission.PermissionList.CanDeleteAnyFile {
+				return true, nil
 			}
 		}
 	}
 
-	// Check for active shares with edit permission
+	// Active edit shares that were delivered to this user
 	var shareCount int64
 	err := db.Model(&models.FileShare{}).
-		Where("file_id = ? AND organisation_id = ?", fileID, orgID).
-		Where("permission_type = ?", "edit").
-		Where("(expires_at IS NULL OR expires_at > ?)", time.Now().UTC()).
+		Joins("JOIN file_share_recipients fsr ON fsr.file_share_id = file_shares.id").
+		Where("file_shares.file_id = ? AND file_shares.organisation_id = ?", fileID, file.OrganisationID).
+		Where("fsr.user_id = ?", userID).
+		Where("file_shares.permission_type = ?", "edit").
+		Where("(file_shares.expires_at IS NULL OR file_shares.expires_at > ?)", time.Now().UTC()).
 		Count(&shareCount).Error
 
 	if err != nil {
 		return false, fmt.Errorf("failed to check file shares: %w", err)
 	}
 
-	// User has edit permission if any share grants it (OR logic)
 	return shareCount > 0, nil
 }
 
@@ -588,6 +602,10 @@ func ShareFileWithUsers(db *storage.Database, logger *utility.Logger, extReq req
 		for _, r := range recipients {
 			if r.Success {
 				response.DMsSent = append(response.DMsSent, r.UserID)
+				rec := models.FileShareRecipient{FileShareID: fileShare.ID, UserID: r.UserID}
+				if err := db.Postgresql.FirstOrCreate(&rec, rec).Error; err != nil {
+					logger.Error("Failed to record file share recipient", "error", err)
+				}
 			}
 		}
 	}

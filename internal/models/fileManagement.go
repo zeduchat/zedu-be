@@ -422,6 +422,15 @@ func (fs *FileShare) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+// FileShareRecipient records a user a file share was delivered to.
+type FileShareRecipient struct {
+	FileShareID string    `gorm:"column:file_share_id;type:uuid;primaryKey" json:"file_share_id"`
+	UserID      string    `gorm:"column:user_id;type:uuid;primaryKey" json:"user_id"`
+	CreatedAt   time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+}
+
+func (FileShareRecipient) TableName() string { return "file_share_recipients" }
+
 // Update existing File struct to include new fields
 type FileWithSharing struct {
 	ID             string         `gorm:"column:id; type:uuid; not null; primaryKey; unique;" json:"id"`
