@@ -435,8 +435,11 @@ func (wf *AgentWorkflow) DeleteWorkflow(db *gorm.DB) (error, int) {
 	return nil, http.StatusOK
 }
 
-func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) error {
-	return db.Where("id = ?", req.Id).Delete(&Workflow{}).Error
+// DeleteWorkflow deletes the workflow only when it belongs to req.OrgId and
+// reports how many rows it removed, so callers can return 404 on a miss.
+func DeleteWorkflow(db *gorm.DB, req WorkFlowRequest) (int64, error) {
+	res := db.Where("id = ? AND org_id = ?", req.Id, req.OrgId).Delete(&Workflow{})
+	return res.RowsAffected, res.Error
 }
 
 func ListWorkflows(db *gorm.DB, req WorkFlowRequest) ([]WorkflowSummary, error) {
