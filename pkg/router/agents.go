@@ -59,8 +59,8 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.GET("/:org_id/agents/system", agentsCtrl.GetAllAgentApp)
 		organisationUrl.PATCH("/:org_id/agents/system/:agent_id", agentsCtrl.UpdateAgentApp)
 		organisationUrl.DELETE("/:org_id/agents/system/:agent_id", agentsCtrl.DeleteAgentApp)
-		organisationUrl.PATCH("/:org_id/agents/change_status", agentsCtrl.ChangeAgentStatus)
-		organisationUrl.PATCH("/:org_id/agents/:agent_id/updatejson", agentsCtrl.UpdateJSONSchema)
+		organisationUrl.PATCH("/:org_id/agents/change_status", middleware.RequireOrgMember(db.Postgresql), agentsCtrl.ChangeAgentStatus)
+		organisationUrl.PATCH("/:org_id/agents/:agent_id/updatejson", agentsCtrl.RequireAgentManager, agentsCtrl.UpdateJSONSchema)
 		organisationUrl.GET("/:org_id/agents/output", agentsCtrl.FetchOutputAgents)
 
 		// Organization Custom Agents
