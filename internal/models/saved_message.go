@@ -238,7 +238,9 @@ func (m *SavedMessage) GetSavedMessageByID(db *gorm.DB, ids SavedMessageIds) err
 
 	fmt.Println(ids.SavedMessageID)
 
-	err, _ = postgresql.SelectOneFromDb(db, &m, "id = ?", ids.SavedMessageID)
+	// Only the owner's own saved message in this organisation may be read or
+	// deleted; anyone else's id is treated as not found.
+	err, _ = postgresql.SelectOneFromDb(db, &m, "id = ? AND user_id = ? AND org_id = ?", ids.SavedMessageID, ids.UserID, ids.OrgID)
 	if err != nil {
 		return err
 	}
