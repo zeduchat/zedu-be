@@ -141,8 +141,11 @@ func (i *Invitation) GetInvitationByID(db *gorm.DB, id string) (Invitation, erro
 	return invitation, nil
 }
 
-func (i *Invitation) DeleteInvitation(db *gorm.DB, id string) error {
-	result := db.Where("id = ?", id).Delete(&Invitation{})
+func (i *Invitation) DeleteInvitation(db *gorm.DB, id, orgID string) error {
+	result := db.Where("id = ? AND organisation_id = ?", id, orgID).Delete(&Invitation{})
+	if result.Error != nil {
+		return result.Error
+	}
 	if result.RowsAffected == 0 {
 		return errors.New("no record found")
 	}

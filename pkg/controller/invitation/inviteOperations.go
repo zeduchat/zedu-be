@@ -1,6 +1,7 @@
 package invitation
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -97,6 +98,11 @@ func (base *Controller) CancelInvitation(c *gin.Context) {
 
 	err = invitation.CancelInvitation(base.Db.Postgresql, inviteID, userId)
 
+	if errors.Is(err, invitation.ErrInvitationNotFound) {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "invitation not found", "failed to cancel invitation", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
 	if err != nil {
 		base.Logger.Error("failed to cancel invitation", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "failed to cancel invitation", err.Error(), nil)
