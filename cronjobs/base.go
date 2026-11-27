@@ -79,13 +79,20 @@ func UpdateCronJobInterval(extReq request.ExternalRequest, db storage.Database, 
 }
 
 func Scheduler(extReq request.ExternalRequest, db storage.Database, mutex *sync.Mutex, jobName string, cronJob CronJob, interval time.Duration) {
+	run := func() {
+		mutex.Lock()
+		defer mutex.Unlock()
+		cronJob(extReq, db)
+	}
+	// Wait on a ticker instead of sleeping so a stop signal is received
+	// straight away rather than after a full interval.
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	run()
 	for {
 		select {
-		default:
-			mutex.Lock()
-			cronJob(extReq, db)
-			mutex.Unlock()
-			time.Sleep(interval)
+		case <-ticker.C:
+			run()
 		case <-stopSignals[jobName]:
 			// The stop signal has been received
 			utility.LogAndPrint(extReq.Logger, fmt.Sprintf("%v cronjob has been stopped", jobName))
@@ -95,8 +102,8 @@ func Scheduler(extReq request.ExternalRequest, db storage.Database, mutex *sync.
 }
 
 func StartCronJob(extReq request.ExternalRequest, db storage.Database, jobName string) {
-	mutex := &sync.Mutex{}
 	jobName = strings.ToLower(jobName)
+	mutex := jobMutex(jobName)
 	cronJob, ok := cronJobs[jobName]
 	if ok {
 		stopSignals[jobName] = make(chan bool)
@@ -122,7 +129,6 @@ func SetupCronJobs(extReq request.ExternalRequest, db storage.Database, selected
 	for _, v := range selectedJobs {
 		jobName := strings.ToLower(v)
 		StartCronJob(extReq, db, jobName)
-		RestartCronJob(extReq, db, jobName)
 		// StopCronJob(jobName)
 	}
 	select {}
