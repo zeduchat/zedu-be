@@ -16,6 +16,11 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+// ErrForwardNotFound is returned when the caller cannot read the source channel, cannot
+// post into the destination, or the forwarded item does not belong to the source channel.
+// The controller maps it to 404 so the existence of other channels and messages does not leak.
+var ErrForwardNotFound = errors.New("channel or message not found")
+
 func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageRequest, logger *utility.Logger, userID string) (*models.ThreadDocument, error) {
 	var (
 		originalMsg            models.ThreadDocument
@@ -31,7 +36,10 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
 	dmChanExists, _ := dmChannels.CheckChannelExists(db.Postgresql, req.ChannelsId, userID)
 	if !(chanExist || dmChanExists) {
-		return nil, errors.New("channel does not exist")
+		return nil, ErrForwardNotFound
+	}
+	if ok, err := models.UserCanAccessChannel(db.Postgresql, req.ChannelsId, userID); err != nil || !ok {
+		return nil, ErrForwardNotFound
 	}
 
 	if dmChanExists {
@@ -51,14 +59,20 @@ func ForwardThreadMessage(db *storage.Database, req models.ForwardThreadMessageR
 		return nil, userErr
 	}
 
-	if err := originalMsg.GetThreadById(req.ThreadId); err != nil {
-		return nil, err
-	}
-
 	fwdChanExist := postgresql.CheckExists(db.Postgresql, &fwdChannels, "id = ?", channelToForwardToID)
 	fwdDmChanExist, _ := dmChannels.CheckChannelExists(db.Postgresql, channelToForwardToID, userID)
 	if !(fwdChanExist || fwdDmChanExist) {
-		return nil, errors.New("forwarded channel does not exist")
+		return nil, ErrForwardNotFound
+	}
+	if ok, err := models.UserCanAccessChannel(db.Postgresql, channelToForwardToID, userID); err != nil || !ok {
+		return nil, ErrForwardNotFound
+	}
+
+	if err := originalMsg.GetThreadById(req.ThreadId); err != nil {
+		return nil, err
+	}
+	if originalMsg.ChannelsID != req.ChannelsId {
+		return nil, ErrForwardNotFound
 	}
 
 	if fwdChanExist {

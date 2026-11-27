@@ -30,7 +30,10 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 	chanExist := postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId)
 	dmChanExist, _ := dmChannels.CheckChannelExists(db.Postgresql, req.ChannelsId, userID)
 	if !(chanExist || dmChanExist) {
-		return nil, errors.New("channel does not exist")
+		return nil, ErrForwardNotFound
+	}
+	if ok, err := models.UserCanAccessChannel(db.Postgresql, req.ChannelsId, userID); err != nil || !ok {
+		return nil, ErrForwardNotFound
 	}
 
 	if err := profile.GetProfileByUserId(db.Postgresql, userID, req.OrgId); err != nil {
@@ -42,14 +45,20 @@ func ForwardReplyMessage(db *storage.Database, req models.ForwardReplyMessageReq
 		return nil, errors.New("failed to get user")
 	}
 
-	if err := originalMsg.GetMessageById(db.Postgresql, req.MessageId); err != nil {
-		return nil, errors.New("failed to get reply message details")
-	}
-
 	fwdChanExist := postgresql.CheckExists(db.Postgresql, &fwdChannels, "id = ?", channelToForwardToID)
 	fwdDmChanExist, _ := dmChannels.CheckChannelExists(db.Postgresql, channelToForwardToID, userID)
 	if !(fwdChanExist || fwdDmChanExist) {
-		return nil, errors.New("forwarded channel does not exist")
+		return nil, ErrForwardNotFound
+	}
+	if ok, err := models.UserCanAccessChannel(db.Postgresql, channelToForwardToID, userID); err != nil || !ok {
+		return nil, ErrForwardNotFound
+	}
+
+	if err := originalMsg.GetMessageById(db.Postgresql, req.MessageId); err != nil {
+		return nil, errors.New("failed to get reply message details")
+	}
+	if originalMsg.ChannelsID != req.ChannelsId || originalMsg.ThreadID.String() != req.ThreadId {
+		return nil, ErrForwardNotFound
 	}
 
 	if fwdChanExist {
