@@ -11,6 +11,25 @@ import (
 	"github.com/hngprojects/telex_be/utility"
 )
 
+// callerOrgID returns the org_id from the caller's token, the same org the
+// task list route scopes by. On failure it writes a 401 and returns false.
+func (base *Controller) callerOrgID(c *gin.Context) (string, bool) {
+	claims, exists := c.Get("userClaims")
+	userClaims, ok := claims.(jwt.MapClaims)
+	if !exists || !ok {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "unable to get user claims", "unable to get user claims", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return "", false
+	}
+	orgID, ok := userClaims["org_id"].(string)
+	if !ok || orgID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "organisation context required", "unable to get organisation from token", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return "", false
+	}
+	return orgID, true
+}
+
 func (base *Controller) CreateAgentTasks(c *gin.Context) {
 	var req models.CreateAgentTasksRequest
 
@@ -98,9 +117,15 @@ func (base *Controller) UpdateAgentTasks(c *gin.Context) {
 		return
 	}
 
+	orgID, ok := base.callerOrgID(c)
+	if !ok {
+		return
+	}
+
 	ids := models.IDS{
-		AgentID: agentID,
-		TaskID:  taskID,
+		AgentID:        agentID,
+		TaskID:         taskID,
+		OrganisationID: orgID,
 	}
 
 	code, err := agents.UpdateAgentTasks(base.Db.Postgresql, base.Logger, req, ids)
@@ -165,9 +190,15 @@ func (base *Controller) DeleteAgentTasks(c *gin.Context) {
 		return
 	}
 
+	orgID, ok := base.callerOrgID(c)
+	if !ok {
+		return
+	}
+
 	ids := models.IDS{
-		AgentID: agentID,
-		TaskID:  taskID,
+		AgentID:        agentID,
+		TaskID:         taskID,
+		OrganisationID: orgID,
 	}
 
 	code, err := agents.DeleteAgentTasks(c, base.Db.Postgresql, base.Logger, ids)

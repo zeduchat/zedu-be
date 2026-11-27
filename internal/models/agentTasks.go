@@ -62,12 +62,12 @@ func (t *Task) UpdateAgentTasks(db *gorm.DB, req UpdateAgentTasksRequest, ids ID
 		task Task
 	)
 
-	exists := postgresql.CheckExists(db, &task, "id = ? AND agent_id = ?", ids.TaskID, ids.AgentID)
+	exists := postgresql.CheckExists(db, &task, "id = ? AND agent_id = ? AND organisation_id = ?", ids.TaskID, ids.AgentID, ids.OrganisationID)
 	if !exists {
 		return http.StatusNotFound, errors.New("task not found for the agent")
 	}
 
-	res, err := postgresql.UpdateFields(db, &task, req, "id = ?", ids.TaskID)
+	res, err := postgresql.UpdateFields(db, &task, req, "id = ? AND organisation_id = ?", ids.TaskID, ids.OrganisationID)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
@@ -84,12 +84,12 @@ func (t *Task) DeleteAgentTasks(db *gorm.DB, ids IDS) (int, error) {
 		task Task
 	)
 
-	exists := postgresql.CheckExists(db, &task, "id = ? AND agent_id = ?", ids.TaskID, ids.AgentID)
+	exists := postgresql.CheckExists(db, &task, "id = ? AND agent_id = ? AND organisation_id = ?", ids.TaskID, ids.AgentID, ids.OrganisationID)
 	if !exists {
 		return http.StatusNotFound, errors.New("task not found for the agent")
 	}
 
-	err := postgresql.HardDeleteSpecificRecord(db, &task, "id = ? AND agent_id = ?", ids.TaskID, ids.AgentID)
+	err := postgresql.HardDeleteSpecificRecord(db, &task, "id = ? AND agent_id = ? AND organisation_id = ?", ids.TaskID, ids.AgentID, ids.OrganisationID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return http.StatusNotFound, err
