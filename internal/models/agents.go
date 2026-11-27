@@ -1736,6 +1736,12 @@ func ValidateAgentData(data_r map[string]any) error {
 		return errors.New("Failed to save agent, invalid agent card: url field does not exist or is empty")
 	}
 
+	// Callers read description with a plain type assertion, so a missing or
+	// non-string value must be rejected here.
+	if _, ok := data_r["description"].(string); !ok {
+		return errors.New("Failed to save agent, invalid agent card: description field does not exist or is not a string")
+	}
+
 	skills, ok := data_r["skills"]
 	if !ok {
 		return errors.New("Failed to save agent, skills field does not exist or is empty")
