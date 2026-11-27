@@ -213,7 +213,9 @@ func (i *Invitation) GetInvitationLinkByToken(db *gorm.DB, token string, logger 
 
 func (i *Invitation) UpdateInvitation(db *gorm.DB) error {
 
-	result, err := postgresql.UpdateFields(db, i, i, "email = ? AND organisation_id = ?", i.Email, i.OrganisationID)
+	// Key on the row itself: matching by email touched every invitation for
+	// the address (and wrote this row's id onto them).
+	result, err := postgresql.UpdateFields(db, i, i, "id = ?", i.ID)
 	if err != nil {
 		return err
 	}
