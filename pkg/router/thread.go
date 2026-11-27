@@ -35,7 +35,7 @@ func Threads(r *gin.Engine, ApiVersion string, validator *validator.Validate, db
 		channelUrl.POST("/:channelId/messages", channel.ReplyThreadMessage) //reply thread message
 
 		threadUrl.GET("/channels/:channel_id/:searching", thread.SearchChannel)
-		threadUrl.GET("/organisations/:org_id/metrics", thread.GetChannelCountInfo)
+		threadUrl.GET("/organisations/:org_id/metrics", middleware.RequireOrgMember(db.Postgresql), thread.GetChannelCountInfo)
 	}
 
 	return r
