@@ -1988,6 +1988,22 @@ func GetAgentsByOwner(db *gorm.DB, user_id string) ([]OrganisationIntegrations, 
 	return agents, nil
 }
 
+// Columns the back-office agent lists may sort by. Keys are client sort_by
+// values, values are the SQL column names.
+var systemAgentSortColumns = map[string]string{
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"name":       "name",
+	"app_name":   "name",
+}
+
+var customAgentSortColumns = map[string]string{
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"name":       "app_name",
+	"app_name":   "app_name",
+}
+
 func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 	db *gorm.DB,
 	c *gin.Context,
@@ -2015,8 +2031,11 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 		query = query.Where("is_active = ?", false)
 	}
 
-	if sortBy == "" || sortBy == "credit_used" {
-		sortBy = "created_at"
+	// sort_by comes from the query string, so only allow-listed columns reach
+	// ORDER BY. "credit_used" is sorted in memory below; unknown values fall back.
+	orderColumn, ok := systemAgentSortColumns[sortBy]
+	if !ok {
+		orderColumn = "created_at"
 	}
 	if sortOrder != "asc" && sortOrder != "desc" {
 		sortOrder = "desc"
@@ -2024,7 +2043,7 @@ func (i *PartialOrganisationIntegration) GetAllSystemAgent(
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		sortBy,
+		orderColumn,
 		sortOrder,
 		pagination,
 		&results,
@@ -2117,8 +2136,11 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 		query = query.Where("is_active = ?", false)
 	}
 
-	if sortBy == "" || sortBy == "credit_used" {
-		sortBy = "created_at"
+	// sort_by comes from the query string, so only allow-listed columns reach
+	// ORDER BY. "credit_used" is sorted in memory below; unknown values fall back.
+	orderColumn, ok := customAgentSortColumns[sortBy]
+	if !ok {
+		orderColumn = "created_at"
 	}
 	if sortOrder != "asc" && sortOrder != "desc" {
 		sortOrder = "desc"
@@ -2126,7 +2148,7 @@ func (i *PartialOrganisationIntegration) GetAllCustomAgent(
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
 		query,
-		sortBy,
+		orderColumn,
 		sortOrder,
 		pagination,
 		&results,
