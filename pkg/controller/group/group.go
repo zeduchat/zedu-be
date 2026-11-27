@@ -155,6 +155,7 @@ func (base *Controller) UpdateGroup(c *gin.Context) {
 		base.Logger.Error("Invalid group id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid group id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -202,6 +203,7 @@ func (base *Controller) DeleteGroup(c *gin.Context) {
 		base.Logger.Error("Invalid group id", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "Invalid request", "Invalid group id", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
 	}
 
 	ids := map[string]string{
