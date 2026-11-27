@@ -1272,7 +1272,7 @@ func (oci *OrganisationChannelsIntegrations) ChangeSendBackStatus(db *gorm.DB, r
 		return errors.New("organisation does not exist")
 	}
 
-	channelExists := postgresql.CheckExists(db, &channel, "id = ?", ids["channel_id"])
+	channelExists := postgresql.CheckExists(db, &channel, "id = ? AND organisation_id = ?", ids["channel_id"], ids["org_id"])
 	if !channelExists {
 		return errors.New("channel does not exist")
 	}
