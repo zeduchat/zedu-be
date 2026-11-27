@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	service "github.com/hngprojects/telex_be/services/auth"
 	"github.com/hngprojects/telex_be/utility"
@@ -30,7 +31,7 @@ func (base *Controller) RequestMagicLink(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	respData, code, err := service.MagicLinkRequest(req.Email, url, base.Db.Postgresql)
 	if err != nil {

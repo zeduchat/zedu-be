@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 type ServerConfiguration struct {
 	Port                      string
 	Secret                    string
@@ -20,4 +22,14 @@ type App struct {
 	WebhookApiUrl         string
 	FRONTEND_URL          string
 	OpenRouterApiKey      string
+}
+
+// FrontendBaseURL returns FRONTEND_URL with exactly one trailing slash.
+// Use it for every user-facing link; never use request headers.
+func FrontendBaseURL() string {
+	cfg := GetConfig()
+	if cfg == nil {
+		return ""
+	}
+	return strings.TrimRight(cfg.App.FRONTEND_URL, "/") + "/"
 }

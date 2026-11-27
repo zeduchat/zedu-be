@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -24,13 +25,7 @@ type Controller struct {
 func (base *Controller) PurchaseCredits(c *gin.Context) {
 
 	var req models.CreditTopUpRequest
-	var url = c.Request.Header.Get("Referer")
-
-	if url == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing URL", "missing URL", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
+	var url = config.FrontendBaseURL()
 
 	err := c.ShouldBind(&req)
 	if err != nil {

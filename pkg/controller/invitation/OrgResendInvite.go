@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
@@ -23,7 +24,7 @@ func (base *Controller) AdminResend(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -72,7 +73,7 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 
 	userId := userID.(string)
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	emails := []string{req.Email}
 

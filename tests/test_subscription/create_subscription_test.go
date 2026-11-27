@@ -3,6 +3,7 @@ package test_subscription
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -138,7 +139,9 @@ func TestCreateSubscription_Unauthorized(t *testing.T) {
 	assert.NotEqual(t, "success", response["status"])
 }
 
-func TestCreateSubscription_MissingReferer(t *testing.T) {
+// The checkout redirect URLs come from FRONTEND_URL, so a request without a
+// Referer header must no longer be rejected with "missing URL".
+func TestCreateSubscription_NoRefererNeeded(t *testing.T) {
 	_ = tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -173,8 +176,6 @@ func TestCreateSubscription_MissingReferer(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
 	response := tst.ParseResponse(rr)
-	assert.NotEqual(t, "success", response["status"])
+	assert.NotContains(t, fmt.Sprintf("%v", response["message"]), "missing URL")
 }

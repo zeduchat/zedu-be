@@ -41,6 +41,9 @@ func main() {
 	logger := utility.NewLogger() //Warning !!!!! Do not recreate this action anywhere on the apps
 
 	configuration := config.Setup(logger, "./app")
+	if configuration.App.FRONTEND_URL == "" {
+		log.Fatalf("FRONTEND_URL must be set")
+	}
 	stripe.Key = configuration.Stripe.STRIPE_KEY
 	postgresql.ConnectToDatabase(logger, configuration.Database)
 	redis.ConnectToRedis(logger, configuration.Redis)

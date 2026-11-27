@@ -188,7 +188,9 @@ func TestPurchaseCredits_Unauthorized(t *testing.T) {
 	assert.NotEqual(t, "success", response["status"])
 }
 
-func TestPurchaseCredits_MissingReferer(t *testing.T) {
+// The checkout redirect URLs come from FRONTEND_URL, so a request without a
+// Referer header must no longer be rejected with "missing URL".
+func TestPurchaseCredits_NoRefererNeeded(t *testing.T) {
 	_ = tst.Setup()
 	gin.SetMode(gin.TestMode)
 
@@ -223,11 +225,8 @@ func TestPurchaseCredits_MissingReferer(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	assert.Equal(t, http.StatusBadRequest, rr.Code)
-
 	response := tst.ParseResponse(rr)
-	assert.NotEqual(t, "success", response["status"])
-	assert.Contains(t, fmt.Sprintf("%v", response["message"]), "missing URL")
+	assert.NotContains(t, fmt.Sprintf("%v", response["message"]), "missing URL")
 }
 
 func TestPurchaseCredits_MissingOrgContext(t *testing.T) {
