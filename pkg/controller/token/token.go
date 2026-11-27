@@ -79,8 +79,8 @@ func (base *Controller) GetSubToken(c *gin.Context) {
 	respData, code, err := token.GetSubToken(userId, req, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("An error occured while getting subscription token, error: %v", err)
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, fmt.Sprintf("an error occured: %v", err.Error()), err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, fmt.Sprintf("an error occured: %v", err.Error()), err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
 
@@ -154,6 +154,7 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 	}
 	accessToken := models.AccessToken{}
 	accessToken.SubAccessToken = SubToken
+	var widgetChannelID string
 
 	{
 		var userUnAuth models.UnauthenticatedUser
@@ -172,6 +173,10 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 
 		if valid {
 			accessToken.OwnerID = "00000000-0000-0000-0000-000000000000"
+			var row models.UnauthenticatedUser
+			if err := base.Db.Postgresql.Where("user_identifier = ? AND subtoken = ?", claims.(string), SubToken).First(&row).Error; err == nil {
+				widgetChannelID = row.ChannelID
+			}
 		}
 
 	}
@@ -197,10 +202,21 @@ func (base *Controller) GetSubTokenUnAuth(c *gin.Context) {
 		return
 	}
 
-	respData, code, err := token.GetSubToken(accessToken.OwnerID, req, base.Db.Postgresql)
+	var respData gin.H
+	if accessToken.OwnerID == "00000000-0000-0000-0000-000000000000" {
+		// Widget visitors may follow only the channel tied to their widget row.
+		if widgetChannelID == "" || req.Channel != widgetChannelID {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "you do not have access to this channel", errors.New("you do not have access to this channel"), nil)
+			c.JSON(http.StatusForbidden, rd)
+			return
+		}
+		respData, code, err = token.SignSubToken(accessToken.OwnerID, req.Channel)
+	} else {
+		respData, code, err = token.GetSubToken(accessToken.OwnerID, req, base.Db.Postgresql)
+	}
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
+		c.JSON(code, rd)
 		return
 	}
 
