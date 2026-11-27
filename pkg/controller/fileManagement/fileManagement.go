@@ -113,9 +113,28 @@ func (base *Controller) GetFileInfo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
+	orgID, _ := userClaims["org_id"].(string)
+
 	file, err := services.GetFileDetailsByID(base.Db.Postgresql, fileId)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", err.Error(), nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
+
+	// Only callers who may read the file get its owner and channel info; denials return
+	// the same 404 as a missing file.
+	if allowed, _, _ := services.CheckFileAccess(base.Db.Postgresql, fileId, userID, orgID); !allowed {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File not found", "record not found", nil)
 		c.JSON(http.StatusNotFound, rd)
 		return
 	}
