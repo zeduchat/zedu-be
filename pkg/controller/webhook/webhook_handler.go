@@ -134,7 +134,7 @@ func (base *Controller) GetSlugWebhook(c *gin.Context) {
 	req.Status = c.Query("status")
 	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
-	req.AvatarURL = c.Param("avatar_url")
+	req.AvatarURL = c.Query("avatar_url")
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -169,7 +169,7 @@ func (base *Controller) GetSlugWebhookQueue(c *gin.Context) {
 	req.Status = c.Query("status")
 	req.Message = c.Query("message")
 	req.WebhookSlug = c.Param("webhook_slug")
-	req.AvatarURL = c.Param("avatar_url")
+	req.AvatarURL = c.Query("avatar_url")
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
