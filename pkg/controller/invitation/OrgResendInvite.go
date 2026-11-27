@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -79,6 +80,15 @@ func (base *Controller) ResendInvitation(c *gin.Context) {
 	ids := models.IDS{
 		OrganisationID: req.OrganisationID,
 		UserID:         userId,
+	}
+
+	// Only the owner, or a member who may invite, can resend. Everyone else
+	// gets the same 404 as a missing organisation, so the route neither rotates
+	// the token nor reveals whether an invitation exists.
+	if !organisation.UserCanOrOwner(base.Db.Postgresql, userId, req.OrganisationID, models.PermInviteMembers) {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Invalid Organisation ID", "organisation not found", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
 	}
 
 	statusCode, msg, err := invitation.CheckerValidator(base.Db, emails, &ids, base.Logger)
