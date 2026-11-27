@@ -112,7 +112,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
-				ChannelsID: ids.ChannelID,
+				ChannelsID: react.ChannelsID,
 			}
 
 			if err := react.DeleteThreadReaction(db.Postgresql); err != nil {
@@ -149,7 +149,7 @@ func DeleteReaction(db *storage.Database, logger *utility.Logger, ids models.IDS
 				ThreadID:   react.ThreadID,
 				Expression: -1,
 				Type:       ids.Type,
-				ChannelsID: ids.ChannelID,
+				ChannelsID: react.ChannelsID,
 			}
 
 			if err := react.DeleteReplyReaction(db.Postgresql); err != nil {
