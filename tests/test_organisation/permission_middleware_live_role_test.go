@@ -65,6 +65,14 @@ func TestPermissionMiddleware_DemotedAdminLosesRoleImmediately(t *testing.T) {
 	rr := callUpdateMemberRole(t, db, orgCtrl, orgID, memberUserID, adminRoleID, ownerToken)
 	tst.AssertStatusCode(t, rr.Code, http.StatusOK)
 
+	// Switching current org copies the membership role into users.org_role_id
+	// (services/user/user.go SwitchUserOrg), and login puts that value in the
+	// token's role_id claim. UpdateMemberRole does not touch it, so it goes stale.
+	if err := db.Postgresql.Model(&models.User{}).Where("id = ?", memberUserID).
+		Update("org_role_id", adminRoleID).Error; err != nil {
+		t.Fatalf("failed to set org_role_id: %v", err)
+	}
+
 	var member models.User
 	if err := db.Postgresql.Where("id = ?", memberUserID).First(&member).Error; err != nil {
 		t.Fatalf("failed to load member: %v", err)
