@@ -1481,7 +1481,7 @@ func UnmarshalThreadResponse(threadData any) (threads []Threads, err error) {
 					},
 				},
 			}
-			msg, _, _ := message.GetAllMessagesByThreadID(messageCtx, threads[i].ID)
+			msg, _, _ := message.GetAllMessagesByThreadID(messageCtx, threads[i].ID, threads[i].ChannelsID)
 			threads[i].PreviewReply = msg
 		}
 	}

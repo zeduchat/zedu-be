@@ -264,6 +264,26 @@ func GetChannelThreads(channelID string, db *gorm.DB, c *gin.Context, logger *ut
 	return accessResp, paginationResponse, http.StatusOK, nil
 }
 
+// checkThreadAccess requires that userID can access channelID and that threadID
+// belongs to that channel. Membership is checked first, so non-members can't probe
+// whether a thread exists.
+func checkThreadAccess(db *gorm.DB, threadID, channelID, userID string) (int, error) {
+	allowed, err := models.UserCanAccessChannel(db, channelID, userID)
+	if err != nil {
+		return http.StatusInternalServerError, errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return http.StatusForbidden, errors.New("user is not a member of this channel")
+	}
+
+	var threadDoc models.ThreadDocument
+	if err := threadDoc.GetThreadById(threadID); err != nil || threadDoc.ChannelsID != channelID {
+		return http.StatusNotFound, errors.New("thread not found")
+	}
+
+	return http.StatusOK, nil
+}
+
 func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Context, logger *utility.Logger) (*[]models.MessageDocument, *elastic.PaginationResponse, int, error) {
 	var (
 		messages models.Message
@@ -284,7 +304,11 @@ func GetUserSingleThreads(threadID, channelID string, db *gorm.DB, c *gin.Contex
 		return nil, nil, code, err
 	}
 
-	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, threadID)
+	if code, err := checkThreadAccess(db, threadID, channelID, userID); err != nil {
+		return nil, nil, code, err
+	}
+
+	accessResp, paginationResponse, err := messages.GetAllMessagesByThreadID(c, threadID, channelID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &accessResp, nil, http.StatusNoContent, nil
@@ -384,9 +408,17 @@ func DeleteAThread(threadID, channelID string, db *gorm.DB, c *gin.Context, logg
 		return http.StatusNotFound, errors.New("channel does not exist")
 	}
 
+	allowed, err := models.UserCanAccessChannel(tx, channelID, userID)
+	if err != nil {
+		return http.StatusInternalServerError, errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return http.StatusForbidden, errors.New("user is not a member of this channel")
+	}
+
 	thread.ID = threadID
 	err = threadDoc.GetThreadById(threadID)
-	if err != nil {
+	if err != nil || threadDoc.ChannelsID != channelID {
 		return http.StatusNotFound, errors.New("thread not found")
 	}
 
@@ -467,6 +499,10 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 
 	if !(dmChanExist || chanExist) {
 		return threadResp, http.StatusNotFound, errors.New("channel does not exist")
+	}
+
+	if code, err := checkThreadAccess(db, req.ThreadId, req.ChannelId, userID); err != nil {
+		return threadResp, code, err
 	}
 
 	user, err = user.GetUserByID(db, userID, req.OrgId)

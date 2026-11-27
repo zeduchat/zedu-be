@@ -591,7 +591,7 @@ func (c *Message) DeleteMessageMediaFiles(logger *utility.Logger, db *gorm.DB, m
 	return c, firstErr
 }
 
-func (t *Message) GetAllMessagesByThreadID(c *gin.Context, ThreadID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
+func (t *Message) GetAllMessagesByThreadID(c *gin.Context, ThreadID, channelID string) ([]MessageDocument, *elastic.PaginationResponse, error) {
 	var (
 		messages []MessageDocument
 	)
@@ -601,15 +601,15 @@ func (t *Message) GetAllMessagesByThreadID(c *gin.Context, ThreadID string) ([]M
 
 	from := (page - 1) * limit
 
-	// Build the query
+	// Build the query. When channelID is set, replies must also belong to that channel.
+	must := []map[string]any{{"term": map[string]any{"thread_id": ThreadID}}}
+	if channelID != "" {
+		must = append(must, map[string]any{"term": map[string]any{"channels_id": channelID}})
+	}
 	query := map[string]any{
-		"query": map[string]any{
-			"term": map[string]any{
-				"thread_id": ThreadID,
-			},
-		},
-		"from": from,
-		"size": limit,
+		"query": map[string]any{"bool": map[string]any{"must": must}},
+		"from":  from,
+		"size":  limit,
 		"sort": []map[string]any{
 			{
 				"created_at": map[string]any{
