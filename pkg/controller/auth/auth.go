@@ -128,8 +128,13 @@ func (base *Controller) LoginUser(c *gin.Context) {
 	respData, code, err := auth.LoginUser(req, base.Db.Postgresql, c, base.ExtReq)
 	if err != nil {
 		base.Logger.Error("Error logging in user: ", err.Error())
+		// Send the service's status (401 bad credentials, 500 server fault) so
+		// the HTTP status matches status_code in the body.
+		if code < http.StatusBadRequest {
+			code = http.StatusInternalServerError
+		}
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
-		c.JSON(http.StatusBadRequest, rd)
+		c.JSON(code, rd)
 		return
 	}
 

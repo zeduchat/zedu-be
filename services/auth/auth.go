@@ -255,11 +255,11 @@ func LoginUser(req models.LoginRequestModel, db *gorm.DB, c *gin.Context, extReq
 
 	exists := postgresql.CheckExists(db, &user, "email = ?", email)
 	if !exists {
-		return responseData, 400, fmt.Errorf("invalid credentials")
+		return responseData, http.StatusUnauthorized, fmt.Errorf("invalid credentials")
 	}
 
 	if !utility.CompareHash(req.Password, user.Password) {
-		return responseData, 400, fmt.Errorf("invalid email and password supplied")
+		return responseData, http.StatusUnauthorized, fmt.Errorf("invalid email and password supplied")
 	}
 
 	// Update user active status and last login timestamp
