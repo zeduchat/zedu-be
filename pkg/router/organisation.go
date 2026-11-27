@@ -53,7 +53,7 @@ func Organisation(r *gin.Engine, ApiVersion string, validator *validator.Validat
 
 		// User management routes
 		organisationUrl.GET("/:org_id/users", organisationCtrl.GetUsersBotsInOrganisation)
-		organisationUrl.GET("/:org_id/users/search", organisationCtrl.SearchUsersInOrganisation)
+		organisationUrl.GET("/:org_id/users/search", middleware.RequireOrgMember(db.Postgresql), organisationCtrl.SearchUsersInOrganisation)
 		organisationUrl.POST("/:org_id/users", organisationCtrl.AddMemberToOrganisation)
 		organisationUrl.PUT("/:org_id/users/:user_id", organisationCtrl.UpdateMember)
 		organisationUrl.PATCH("/:org_id/users/:user_id/status", organisationCtrl.ChangeMemberActiveStatus)
