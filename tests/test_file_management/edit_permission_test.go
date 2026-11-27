@@ -177,6 +177,8 @@ func TestEditPermissionEnforcement(t *testing.T) {
 		shareReq := map[string]interface{}{
 			"access_type":     "private",
 			"permission_type": "edit",
+			"share_via_dm":    true,
+			"recipient_ids":   []string{recipient.ID},
 		}
 		var b bytes.Buffer
 		json.NewEncoder(&b).Encode(shareReq)
