@@ -965,7 +965,12 @@ func (r *DmChannels) FetchChannelParticipant(db *gorm.DB, req DmChannelsRequest)
 
 	exists := postgresql.CheckExists(db, &r, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId)
 	if !exists {
-		exists = postgresql.CheckExists(db, &r, "channel_id = ? AND channel_type = ?", req.ChannelId, "group_dm")
+		// A group DM member without their own dm_channels row passes only with a
+		// live channel_participants row; never look the group DM up by id alone.
+		var cp ChannelParticipant
+		if postgresql.CheckExists(db, &cp, "channel_id = ? AND user_id = ?", req.ChannelId, req.UserId) {
+			exists = postgresql.CheckExists(db, &r, "channel_id = ? AND channel_type = ?", req.ChannelId, "group_dm")
+		}
 	}
 
 	if !exists {
