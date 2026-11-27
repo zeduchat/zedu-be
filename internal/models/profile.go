@@ -29,7 +29,7 @@ type Profile struct {
 	UserName          string         `gorm:"column:user_name; type:text;" json:"username"`
 	Phone             string         `gorm:"type:varchar(255)" json:"phone"`
 	AvatarURL         string         `gorm:"type:varchar(255)" json:"avatar_url"`
-	Userid            string         `gorm:"type:uuid;index:idx_profiles_userid;uniqueIndex:idx_user_org" json:"user_id"`
+	Userid            string         `gorm:"type:uuid;index:idx_profiles_userid;uniqueIndex:idx_user_org;uniqueIndex:idx_profiles_user_base,where:organisation_id IS NULL" json:"user_id"`
 	OrganisationID    *string        `gorm:"type:uuid;null;index;uniqueIndex:idx_user_org" json:"organisation_id"`
 	CreatedAt         time.Time      `gorm:"column:created_at; not null; autoCreateTime" json:"created_at"`
 	UpdatedAt         time.Time      `gorm:"column:updated_at; null; autoUpdateTime" json:"updated_at"`
@@ -819,7 +819,13 @@ func CreateInitialDefaultProfile(db *gorm.DB, userID string, orgID string, appLo
 
 	var profile Profile
 	if createErr := db.Create(&newProfile).Error; createErr != nil {
-		if fetchErr := db.Where("userid = ? AND organisation_id = ?", userID, orgID).First(&profile).Error; fetchErr == nil {
+		// A concurrent request may have created the same profile first; base
+		// profiles (no org) are unique per user too, so look that row up by NULL.
+		fetchQuery := db.Where("userid = ? AND organisation_id = ?", userID, orgID)
+		if orgID == "" {
+			fetchQuery = db.Where("userid = ? AND organisation_id IS NULL", userID)
+		}
+		if fetchErr := fetchQuery.First(&profile).Error; fetchErr == nil {
 			utility.LogInfo(appLogger, "[createInitialDefaultProfile] Initial profile race condition resolved, found ID=%s for userID=%s", profile.ID, userID)
 			return profile, nil
 		}
