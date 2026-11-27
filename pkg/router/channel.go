@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -18,7 +19,8 @@ func Channels(r *gin.Engine, ApiVersion string, validator *validator.Validate, d
 	channel := channel.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
 	channelUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion), middleware.Authorize(db.Postgresql), middleware.CheckIsDeactivated(db.Postgresql), middleware.MonitorFreeSub(db.Postgresql))
-	channelQueueUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion))
+	channelQueueUrl := r.Group(fmt.Sprintf("%v/channels", ApiVersion),
+		middleware.RequireServiceSecret(middleware.ServiceSecretHeader, config.GetConfig().Server.ServiceCallbackSecret))
 
 	{
 		// POST routes
