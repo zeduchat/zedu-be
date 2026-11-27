@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -199,11 +200,7 @@ func GeneralInvitationCreate(db *gorm.DB, req models.ShareableInviteRequest, use
 }
 
 func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition, baseURL string) (int, error) {
-	var (
-		invites []models.Invitation
-		user    models.User
-		org     models.Organisation
-	)
+	var invites []models.Invitation
 
 	//parse the date
 	parsed_date, err := time.Parse("2006-01-02", req.TimeFrom)
@@ -211,8 +208,13 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 		return 400, fmt.Errorf("error parsing the time into the right format")
 	}
 
-	err = db.Where("email LIKE ? AND status = 'invited'  AND created_at BETWEEN ? AND ?",
-		"%"+req.Extension,
+	ext := strings.ToLower(strings.TrimSpace(req.Extension))
+	if !strings.HasPrefix(ext, "@") || len(ext) < 4 || strings.ContainsAny(ext, `%_\ `) {
+		return http.StatusBadRequest, fmt.Errorf("extension must be an email domain such as @example.com")
+	}
+
+	err = db.Where("LOWER(email) LIKE ? AND status = 'invited' AND created_at BETWEEN ? AND ?",
+		"%"+ext,
 		parsed_date,
 		time.Now().UTC(),
 	).Find(&invites).Error
@@ -221,19 +223,31 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 		return 500, fmt.Errorf("failed to fetch users: %w", err)
 	}
 
-	successful_reinvites := []string{}
-
-	err, _ = postgresql.SelectOneFromDb(db, &user, "id = ?", invites[0].InvitedBy)
-	if err != nil {
-		logger.Error("Failed to get user details", err)
+	if len(invites) == 0 {
+		return http.StatusOK, nil
 	}
 
-	err, _ = postgresql.SelectOneFromDb(db, &org, "id = ?", invites[0].OrganisationID)
-	if err != nil {
-		logger.Error("Failed to get organisation details", err)
-	}
+	resent := []string{} // invitation ids
+	users := map[string]models.User{}
+	orgs := map[string]models.Organisation{}
 
 	for _, invite := range invites {
+		user, ok := users[invite.InvitedBy]
+		if !ok {
+			if err, _ := postgresql.SelectOneFromDb(db, &user, "id = ?", invite.InvitedBy); err != nil {
+				logger.Error("Failed to get user details", err)
+			}
+			users[invite.InvitedBy] = user
+		}
+
+		org, ok := orgs[invite.OrganisationID]
+		if !ok {
+			if err, _ := postgresql.SelectOneFromDb(db, &org, "id = ?", invite.OrganisationID); err != nil {
+				logger.Error("Failed to get organisation details", err)
+			}
+			orgs[invite.OrganisationID] = org
+		}
+
 		invitation_link := utility.GenerateInvitationLink(baseURL, invite.OrganisationID, invite.Token)
 
 		err := SendEmail(invite.Email, invitation_link, org.Name, user.Name, user.Email)
@@ -241,15 +255,15 @@ func AdminResend(db *gorm.DB, logger *utility.Logger, req models.ResendCondition
 			continue
 		}
 
-		successful_reinvites = append(successful_reinvites, invite.Email)
+		resent = append(resent, invite.ID)
 	}
 
-	if len(successful_reinvites) > 0 {
+	if len(resent) > 0 {
 		err := db.Model(&models.Invitation{}).
-			Where("email IN ?", successful_reinvites).
+			Where("id IN ?", resent).
 			Updates(map[string]any{
 				"expires_at": time.Now().Add(48 * time.Hour),
-			})
+			}).Error
 
 		if err != nil {
 			logger.Error("error encountered updating reinvited emails expiration time")

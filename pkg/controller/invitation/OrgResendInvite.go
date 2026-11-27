@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
@@ -23,7 +24,7 @@ func (base *Controller) AdminResend(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -35,8 +36,8 @@ func (base *Controller) AdminResend(c *gin.Context) {
 
 	code, err := invitation.AdminResend(base.Db.Postgresql, base.Logger, req, url)
 	if err != nil {
-		base.Logger.Error("Request Validation failed", err)
-		rd := utility.BuildErrorResponse(code, "error", "Request Validation failed", utility.ValidationResponse(err, base.Validator), nil)
+		base.Logger.Error("Failed to resend invitations", err)
+		rd := utility.BuildErrorResponse(code, "error", "Failed to resend invitations", err.Error(), nil)
 		c.JSON(code, rd)
 		return
 	}

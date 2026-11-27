@@ -57,8 +57,8 @@ type InvitationResponse struct {
 }
 
 type ResendCondition struct {
-	Extension string `json:"extension" validate:"required"`
-	TimeFrom  string `json:"time_from"`
+	Extension string `json:"extension" validate:"required,startswith=@,min=4,max=100"`
+	TimeFrom  string `json:"time_from" validate:"required,datetime=2006-01-02"`
 }
 
 type ResendInvitationRequest struct {
