@@ -140,6 +140,14 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 	var threads models.Threads
 	var pinnedMessage models.PinnedMessage
 
+	allowed, err := models.UserCanAccessChannel(db.Postgresql, ids.ChannelID, ids.UserID)
+	if err != nil {
+		return errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return errors.New("pinned message not found")
+	}
+
 	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "type = ? AND channels_id = ? AND thread_id = ?", "thread", ids.ChannelID, ids.ThreadID)
 	if !exists {
 		return errors.New("thread not pinned")
@@ -163,7 +171,7 @@ func UnPinThreadMessage(db *storage.Database, logger *utility.Logger, ids models
 	}
 
 	threads.ID = ids.ThreadID
-	_, err := threads.UpdateThreadWithScript(db.Postgresql, script)
+	_, err = threads.UpdateThreadWithScript(db.Postgresql, script)
 	if err != nil {
 		return err
 	}
@@ -188,6 +196,14 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 	var message models.Message
 	var pinnedMessage models.PinnedMessage
 
+	allowed, err := models.UserCanAccessChannel(db.Postgresql, ids.ChannelID, ids.UserID)
+	if err != nil {
+		return errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return errors.New("pinned message not found")
+	}
+
 	exists := postgresql.CheckExists(db.Postgresql, &pinnedMessage, "type = ? AND channels_id = ? AND message_id = ?", "reply", ids.ChannelID, ids.MessageID)
 	if !exists {
 		return errors.New("reply message not pinned")
@@ -211,7 +227,7 @@ func UnPinReplyMessage(db *storage.Database, logger *utility.Logger, ids models.
 	}
 
 	message.ID = ids.MessageID
-	_, err := message.UpdateMessageWithScript(db.Postgresql, script)
+	_, err = message.UpdateMessageWithScript(db.Postgresql, script)
 	if err != nil {
 		return err
 	}

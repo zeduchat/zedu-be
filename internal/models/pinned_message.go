@@ -53,11 +53,17 @@ type PinnedDetails struct {
 
 func (m *PinnedMessage) CreatePinnedThreadRecord(db *gorm.DB) (int, error) {
 	var (
-		dmChannels    DmChannels
-		userChannels  UserChannels
 		pinnedMessage PinnedMessage
 		checkThread   ThreadDocument
 	)
+
+	allowed, err := UserCanAccessChannel(db, m.ChannelsID, m.UserID)
+	if err != nil {
+		return http.StatusInternalServerError, errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return http.StatusForbidden, errors.New("user not in channel")
+	}
 
 	checkThread.ID = m.ThreadID
 	checkThread.ChannelsID = m.ChannelsID
@@ -66,13 +72,6 @@ func (m *PinnedMessage) CreatePinnedThreadRecord(db *gorm.DB) (int, error) {
 
 	if !exist {
 		return http.StatusBadRequest, errors.New("thread does not exist")
-	}
-
-	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
-
-	if !(dmChanExist || userChanExist) {
-		return http.StatusBadRequest, errors.New("user not in channel")
 	}
 
 	exists := postgresql.CheckExists(db, &pinnedMessage, "type = ? AND channels_id = ? AND thread_id = ?", "thread", m.ChannelsID, m.ThreadID)
@@ -87,11 +86,17 @@ func (m *PinnedMessage) CreatePinnedThreadRecord(db *gorm.DB) (int, error) {
 
 func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) (int, error) {
 	var (
-		dmChannels        DmChannels
-		userChannels      UserChannels
 		pinnedMessage     PinnedMessage
 		checkReplyMessage MessageDocument
 	)
+
+	allowed, err := UserCanAccessChannel(db, m.ChannelsID, m.UserID)
+	if err != nil {
+		return http.StatusInternalServerError, errors.New("failed to verify channel access")
+	}
+	if !allowed {
+		return http.StatusForbidden, errors.New("user not in channel")
+	}
 
 	checkReplyMessage.ID = *m.MessageID
 	checkReplyMessage.ChannelsID = m.ChannelsID
@@ -99,13 +104,6 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) (int, error) {
 	exist, _, _ := checkReplyMessage.CheckExists()
 	if !exist {
 		return http.StatusBadRequest, errors.New("reply message does not exist")
-	}
-
-	userChanExist := postgresql.CheckExists(db, &userChannels, "channels_id = ? AND user_id = ?", m.ChannelsID, m.UserID)
-	dmChanExist := postgresql.CheckExists(db, &dmChannels, "channel_id = ?", m.ChannelsID)
-
-	if !(dmChanExist || userChanExist) {
-		return http.StatusBadRequest, errors.New("user not in channel")
 	}
 
 	exists := postgresql.CheckExists(db, &pinnedMessage, "type = ? AND thread_id = ? AND message_id = ?", "reply", m.ThreadID, m.MessageID)
@@ -121,14 +119,8 @@ func (m *PinnedMessage) CreatePinnedMessageRecord(db *gorm.DB) (int, error) {
 }
 
 func (m *PinnedMessage) GetAllPinnedMessagesForChannel(db *storage.Database, ids IDS) ([]PinnedMessageResponse, error) {
-	var (
-		userChannels UserChannels
-		dmChannels   DmChannels
-	)
-
-	userChanExist := postgresql.CheckExists(db.Postgresql, &userChannels, "channels_id = ? AND user_id = ?", ids.ChannelID, ids.UserID)
-	dmChanExist := postgresql.CheckExists(db.Postgresql, &dmChannels, "channel_id = ?", ids.ChannelID)
-	if !(dmChanExist || userChanExist) {
+	allowed, err := UserCanAccessChannel(db.Postgresql, ids.ChannelID, ids.UserID)
+	if err != nil || !allowed {
 		return nil, errors.New("user not in channel")
 	}
 
