@@ -22,7 +22,7 @@ func Slack(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *
 		slackUrl.POST("/slack/organisations/:orgId/token-exchg", slack.SlackOauth)
 		slackUrl.GET("/slack/organisations/:orgId", slack.GetSlackAccessToken)
 		slackUrl.GET("/slack/channels", slack.GetSlackChannels)
-		slackUrl.POST("/organisation/{org_id}/channels/mapping", slack.CreateTelexSlackChannelMapping)
+		slackUrl.POST("/organisation/:org_id/channels/mapping", middleware.RequireOrgMember(db.Postgresql), slack.CreateTelexSlackChannelMapping)
 	}
 
 	return r
