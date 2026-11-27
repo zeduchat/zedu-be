@@ -490,7 +490,41 @@ func ReplyThreadMessage(req models.CreateMessageRequest, db *storage.Database,
 func SaveIncomingQueueMsg(req models.FeedQueue, db *storage.Database,
 	logger *utility.Logger) error {
 
-	var err error
+	var (
+		err       error
+		channels  models.Channels
+		threadDoc models.ThreadDocument
+	)
+
+	if !postgresql.CheckExists(db.Postgresql, &channels, "id = ?", req.ChannelsId) {
+		return errors.New("channel does not exist")
+	}
+	// Never trust org_id from the body; profile and agent lookups use the
+	// channel's org.
+	req.OrgId = channels.OrganisationID
+
+	if req.UserId != "" {
+		ok, err := models.UserCanAccessChannel(db.Postgresql, req.ChannelsId, req.UserId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("sender is not a member of this channel")
+		}
+	} else if req.AgentId != "" {
+		// models.ValidateAgentIDs ignores its org argument, so scope the
+		// agent to the channel's organisation here.
+		var orgAgent models.OrganisationIntegrations
+		if !postgresql.CheckExists(db.Postgresql, &orgAgent, "org_id = ? AND integration_id = ?", channels.OrganisationID, req.AgentId) {
+			return errors.New("agent is not installed in this organisation")
+		}
+	}
+
+	// Both "message" and "message/thread" callbacks refer to a thread that
+	// was already created before the payload was queued.
+	if err := threadDoc.GetThreadById(req.ThreadId); err != nil || threadDoc.ChannelsID != req.ChannelsId {
+		return errors.New("thread does not belong to channel")
+	}
 
 	reqNew := models.CreateMessageRequest{
 		Content:    req.Content,

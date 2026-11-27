@@ -41,6 +41,7 @@ type BaseConfig struct {
 	TRUSTED_PROXIES                  string  `mapstructure:"TRUSTED_PROXIES"`
 	EXEMPT_FROM_THROTTLE             string  `mapstructure:"EXEMPT_FROM_THROTTLE"`
 	ENCRYPTION_KEY                   string  `mapstructure:"ENCRYPTION_KEY"`
+	SERVICE_CALLBACK_SECRET          string  `mapstructure:"SERVICE_CALLBACK_SECRET"`
 
 	APP_NAME                string `mapstructure:"APP_NAME"`
 	APP_MODE                string `mapstructure:"APP_MODE"`
@@ -176,6 +177,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 			TrustedProxies:            trustedProxies,
 			ExemptFromThrottle:        exemptFromThrottle,
 			EncryptionKey:             config.ENCRYPTION_KEY,
+			ServiceCallbackSecret:     config.SERVICE_CALLBACK_SECRET,
 		},
 		App: App{
 			Name:                  config.APP_NAME,
