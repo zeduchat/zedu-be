@@ -397,18 +397,30 @@ func (ch *Channels) GetUsersInChannel(c *gin.Context, db *gorm.DB, ids IDS) ([]C
 	return channelUsers, paginationResponse, nil
 }
 
-func (r *Channels) GetChannelsByName(db *gorm.DB, name string) ([]Channels, error) {
+// channelVisibleScope limits a channel query to the caller's organisation, excludes
+// archived channels, and only includes private channels the caller is a member of.
+// Its arguments are orgID, userID.
+const channelVisibleScope = "organisation_id = ? AND archived IS NOT TRUE AND (is_private IS NOT TRUE OR id IN (SELECT channels_id FROM user_channels WHERE user_id = ?))"
+
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+
+// escapeLike escapes LIKE wildcards so a search term only matches literally.
+func escapeLike(s string) string { return likeEscaper.Replace(s) }
+
+func (r *Channels) GetChannelsByName(db *gorm.DB, name, orgID, userID string) ([]Channels, error) {
 	var (
 		channels []Channels
 		ur       UserChannels
 	)
 
-	exists := postgresql.CheckExists(db, &channels, "name= ?", name)
+	const scope = "name = ? AND " + channelVisibleScope
+
+	exists := postgresql.CheckExists(db, &channels, scope, name, orgID, userID)
 	if !exists {
 		return channels, errors.New("channel not found")
 	}
 
-	err := postgresql.SelectAllFromDb(db, "", &channels, "name= ?", name)
+	err := postgresql.SelectAllFromDb(db, "", &channels, scope, name, orgID, userID)
 	if err != nil {
 		return channels, errors.New("could not get channel by name")
 	}
@@ -1178,19 +1190,19 @@ func (r *UserChannels) CheckUser(db *gorm.DB, userID, channelID string) (bool, s
 	return true, "user in channel"
 }
 
-func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name string) ([]Channels, postgresql.PaginationResponse, error) {
+func (r *Channels) SearchChannelssByName(db *gorm.DB, c *gin.Context, name, orgID, userID string) ([]Channels, postgresql.PaginationResponse, error) {
 	var channels []Channels
 
 	pagination := postgresql.GetPagination(c)
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(
-		db.Preload("Users"),
+		db,
 		"created_at",
 		"desc",
 		pagination,
 		&channels,
-		"name LIKE ?",
-		"%"+name+"%",
+		channelVisibleScope+` AND name LIKE ? ESCAPE '\'`,
+		orgID, userID, "%"+escapeLike(name)+"%",
 	)
 
 	if err != nil {
