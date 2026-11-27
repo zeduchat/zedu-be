@@ -426,6 +426,12 @@ func GetAllUsers(c *gin.Context, db *gorm.DB) ([]models.User, *postgresql.Pagina
 
 	var users []models.User
 	pagination := postgresql.GetPagination(c)
+	if pagination.Limit <= 0 || pagination.Limit > 100 {
+		pagination.Limit = 100
+	}
+	if pagination.Page <= 0 {
+		pagination.Page = 1
+	}
 
 	paginationResponse, err := postgresql.SelectAllFromDbOrderByPaginated(db, "created_at", "desc", pagination, &users, "deleted_at IS NULL")
 	if err != nil {

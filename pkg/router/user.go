@@ -19,7 +19,8 @@ func User(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	user := user.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	auth := auth.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 	userUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
-	adminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
+	// GET /users lists every account on the platform, so it is backoffice-only.
+	adminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
 		userUrl.GET("/users/:user_id", user.GetAUser)
 		userUrl.GET("/users/mentions/:user_id", user.GetAUserForMentions)
