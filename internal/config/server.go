@@ -9,6 +9,7 @@ type ServerConfiguration struct {
 	TrustedProxies            []string
 	ExemptFromThrottle        []string
 	EncryptionKey             string
+	ServiceCallbackSecret     string
 }
 
 type App struct {
