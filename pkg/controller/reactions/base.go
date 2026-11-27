@@ -44,6 +44,8 @@ func (base *Controller) CreateReaction(c *gin.Context) {
 
 	claims, exists := c.Get("userClaims")
 	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
 
@@ -57,6 +59,21 @@ func (base *Controller) CreateReaction(c *gin.Context) {
 		base.Logger.Error("Invalid Channel Id format", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid channel id format", errors.New("failed to parse channel id"), nil)
 		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
+	// Only members of the channel or DM may react in it. Non-members get 404 so the
+	// route doesn't confirm whether the channel or a thread in it exists.
+	allowed, err := models.UserCanAccessChannel(base.Db.Postgresql, req.ChannelsID, userId)
+	if err != nil {
+		base.Logger.Error("failed to check channel access", err)
+		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to add reaction", "failed to check channel access", nil)
+		c.JSON(http.StatusInternalServerError, rd)
+		return
+	}
+	if !allowed {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "Failed to add reaction", "channel not found", nil)
+		c.JSON(http.StatusNotFound, rd)
 		return
 	}
 
