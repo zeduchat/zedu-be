@@ -1028,12 +1028,14 @@ func (base *Controller) UpdateFileShare(c *gin.Context) {
 		return
 	}
 
-	_, exists := c.Get("userClaims")
+	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
 		c.JSON(http.StatusUnauthorized, rd)
 		return
 	}
+	userClaims := claims.(jwt.MapClaims)
+	userID, _ := userClaims["user_id"].(string)
 
 	var req models.UpdateFileShareRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1049,11 +1051,16 @@ func (base *Controller) UpdateFileShare(c *gin.Context) {
 		return
 	}
 
-	fileShare, err := services.UpdateFileShare(base.Db.Postgresql, base.Logger, shareID, req)
+	fileShare, err := services.UpdateFileShare(base.Db.Postgresql, base.Logger, shareID, userID, req)
 	if err != nil {
 		if errors.Is(err, services.ErrFileShareNotFound) {
 			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "File share not found", err.Error(), nil)
 			c.JSON(http.StatusNotFound, rd)
+			return
+		}
+		if errors.Is(err, services.ErrAccessDenied) {
+			rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "Access denied", "You don't have permission to update this share", nil)
+			c.JSON(http.StatusForbidden, rd)
 			return
 		}
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), "Failed to update file share", nil)

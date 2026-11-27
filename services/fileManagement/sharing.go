@@ -123,8 +123,9 @@ func generateUniqueShareLink(db *gorm.DB) (string, error) {
 	return "", errors.New("failed to generate unique share link after multiple attempts")
 }
 
-// UpdateFileShare updates an existing file share
-func UpdateFileShare(db *gorm.DB, logger *utility.Logger, shareID string, req models.UpdateFileShareRequest) (*models.FileShare, error) {
+// UpdateFileShare updates an existing file share. Only the user who created
+// the share or the owner of the shared file may change it.
+func UpdateFileShare(db *gorm.DB, logger *utility.Logger, shareID, userID string, req models.UpdateFileShareRequest) (*models.FileShare, error) {
 	var fileShare models.FileShare
 
 	if err := db.Where("id = ?", shareID).First(&fileShare).Error; err != nil {
@@ -132,6 +133,16 @@ func UpdateFileShare(db *gorm.DB, logger *utility.Logger, shareID string, req mo
 			return nil, ErrFileShareNotFound
 		}
 		return nil, fmt.Errorf("failed to fetch file share: %w", err)
+	}
+
+	if userID == "" {
+		return nil, ErrAccessDenied
+	}
+	if fileShare.SharedByUserID != userID {
+		var file models.File
+		if err := db.Unscoped().Select("user_id").Where("id = ?", fileShare.FileID).First(&file).Error; err != nil || file.UserID != userID {
+			return nil, ErrAccessDenied
+		}
 	}
 
 	// Validate and update fields
