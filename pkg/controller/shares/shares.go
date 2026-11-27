@@ -1,6 +1,7 @@
 package shares
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	service "github.com/hngprojects/telex_be/services/shares"
 	"github.com/hngprojects/telex_be/utility"
+	"gorm.io/gorm"
 )
 
 type Controller struct {
@@ -89,8 +91,21 @@ func (base *Controller) GetMyShares(c *gin.Context) {
 
 func (base *Controller) GetShare(c *gin.Context) {
 	id := c.Param("id")
+	if !utility.IsValidUUID(id) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid share id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	share, err := service.GetShareByID(base.Db.Postgresql, id)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	if err != nil {
+		base.Logger.Error("failed to get user: ", err)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	share, err := service.GetShareByID(base.Db.Postgresql, id, userID.(string))
 	if err != nil {
 		base.Logger.Error("share not found: ", err)
 		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "share not found", err, nil)
@@ -105,9 +120,27 @@ func (base *Controller) GetShare(c *gin.Context) {
 
 func (base *Controller) Delete(c *gin.Context) {
 	id := c.Param("id")
+	if !utility.IsValidUUID(id) {
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid share id", nil, nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
 
-	err := service.DeleteShares(base.Db.Postgresql, id)
+	userID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
 	if err != nil {
+		base.Logger.Error("failed to get user: ", err)
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", err.Error(), "failed to get user", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	err = service.DeleteShares(base.Db.Postgresql, id, userID.(string))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			rd := utility.BuildErrorResponse(http.StatusNotFound, "error", "share not found", nil, nil)
+			c.JSON(http.StatusNotFound, rd)
+			return
+		}
 		base.Logger.Error("failed to delete shares: ", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", err.Error(), "failed to delete share", nil)
 		c.JSON(http.StatusBadRequest, rd)

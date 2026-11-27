@@ -135,7 +135,7 @@ func TestDeleteShares(t *testing.T) {
 		{
 			Name:         "edge - delete non-existent share",
 			ShareID:      utility.GenerateUUID(),
-			ExpectedCode: http.StatusBadRequest,
+			ExpectedCode: http.StatusNotFound,
 		},
 		{
 			Name:         "edge - delete with invalid uuid",
