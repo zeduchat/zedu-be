@@ -310,14 +310,14 @@ func TestLogin(t *testing.T) {
 				Email:    utility.GenerateUUID(),
 				Password: userSignUpData.Password,
 			},
-			ExpectedCode: http.StatusBadRequest,
+			ExpectedCode: http.StatusUnauthorized,
 		}, {
 			Name: "incorrect password",
 			RequestBody: models.LoginRequestModel{
 				Email:    fmt.Sprintf("testuser%v@qa.team", currUUID),
 				Password: "incorrect",
 			},
-			ExpectedCode: http.StatusBadRequest,
+			ExpectedCode: http.StatusUnauthorized,
 		},
 	}
 
