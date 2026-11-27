@@ -492,7 +492,7 @@ func (o *Organisation) GetUsersAndBotsInOrganisation(c *gin.Context, db *gorm.DB
 	offset := (pagination.Page - 1) * pagination.Limit
 
 	if err := db.Table("users").
-		Select("users.id, users.email, profiles.phone as phone_number, profiles.username as username, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, profiles.status, COALESCE(profiles.is_deactivated, oum.is_deactivated, false) as is_deactivated").
+		Select("users.id, users.email, profiles.phone as phone_number, profiles.user_name as user_name, profiles.full_name as name, profiles.avatar_url as avatar_url, users.created_at, profiles.online, CASE WHEN COALESCE(profiles.is_deactivated, oum.is_deactivated, false) THEN 'inactive' ELSE 'active' END as status, COALESCE(profiles.is_deactivated, oum.is_deactivated, false) as is_deactivated").
 		Joins("JOIN user_organisations ON user_organisations.user_id = users.id").
 		Joins("LEFT JOIN org_user_managements oum ON oum.user_id = users.id AND oum.organisation_id = user_organisations.organisation_id").
 		Joins("LEFT JOIN profiles ON profiles.userid = users.id AND (profiles.organisation_id IS NULL OR profiles.organisation_id = user_organisations.organisation_id)").
