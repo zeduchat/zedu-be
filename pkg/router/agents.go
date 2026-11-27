@@ -85,7 +85,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.POST("/:org_id/agents/:agent_id/settings", agentsCtrl.AddAgentSetting)
 		organisationUrl.GET("/:org_id/settings/agents/:agent_id", agentsCtrl.GetAgentSettings)
 		organisationUrl.GET("/:org_id/agents/:agent_id/agent-api-key", agentsCtrl.GetAgentSettings)
-		organisationUrl.PATCH("/:org_id/agents/:agent_id/settings/:setting_id", agentsCtrl.UpdateAgentSetting)
+		organisationUrl.PATCH("/:org_id/agents/:agent_id/settings/:setting_id", agentsCtrl.RequireAgentManager, agentsCtrl.UpdateAgentSetting)
 
 		// Organisation channel agent settings routes
 		organisationUrl.POST("/:org_id/agents/:agent_id/channels/:channel_id/settings", agentsCtrl.AddChannelAgentSetting)

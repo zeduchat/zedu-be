@@ -136,7 +136,7 @@ func (is *CustomIntegrationsSetting) GetIntegrationApiKey(db *gorm.DB, ids map[s
 
 func (is *IntegrationSettings) UpdateIntegrationSetting(db *gorm.DB, ids map[string]string, req UpdateIntegrationSettingsRequest) error {
 
-	exists := postgresql.CheckExists(db, &is, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	exists := postgresql.CheckExists(db, &is, "id = ? AND org_id = ? AND integration_id = ?", ids["setting_id"], ids["org_id"], ids["agent_id"])
 	if !exists {
 		return fmt.Errorf("integration setting does not exist")
 	}
