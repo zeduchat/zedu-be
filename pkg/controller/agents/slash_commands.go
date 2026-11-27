@@ -8,6 +8,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/agents"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -179,13 +180,28 @@ func (base *Controller) DeleteAgentSlashCommand(c *gin.Context) {
 		return
 	}
 
+	// Deleting an agent's slash command needs the owner or can_manage_agents
+	// in that organisation.
+	rawUserID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	userID, ok := rawUserID.(string)
+	if err != nil || !ok || userID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", "unauthorized", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	if !organisation.UserCanOrOwner(base.Db.Postgresql, userID, org_id, models.PermManageAgents) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "you do not have permission to manage agents in this organisation", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	ids := map[string]string{
 		"org_id":     org_id,
 		"agent_id":   agent_id,
 		"command_id": command_id,
 	}
 
-	err := agents.DeleteAgentSlashCommand(base.Db.Postgresql, ids)
+	err = agents.DeleteAgentSlashCommand(base.Db.Postgresql, ids)
 	if err != nil {
 		base.Logger.Error("Failed to delete agent slashcommands", err)
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to delete agent slashcommands", err.Error(), nil)
