@@ -953,7 +953,6 @@ func CreateSystemAgent(req models.CustomIntegrationRequest, db *gorm.DB, extReq 
 	systemIntegration.ID = agentID
 	systemIntegration.IsActive = true
 	systemIntegration.IsSystem = true
-	systemIntegration.ID = utility.GenerateUUID()
 	systemIntegration.Name = data_r["name"].(string)
 	systemIntegration.AppDescription = data_r["description"].(string)
 	systemIntegration.AppUrl = data_r["url"].(string)
