@@ -10,9 +10,16 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 )
 
+const (
+	PurposePasswordReset     = "password_reset"
+	PurposeEmailVerification = "email_verification"
+)
+
 type PasswordReset struct {
 	ID        string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Email     string         `gorm:"index"`
+	Purpose   string         `gorm:"index;not null;default:'password_reset'" json:"-"`
+	Attempts  int            `gorm:"not null;default:0" json:"-"`
 	Token     string         `gorm:"uniqueIndex"`
 	ExpiresAt time.Time      `gorm:"column:expires_at" json:"expires_at"`
 	CreatedAt time.Time      `gorm:"column:created_at; autoCreateTime" json:"created_at"`
@@ -46,6 +53,7 @@ type ForgotPasswordRequestModel struct {
 }
 
 type ResetPasswordRequestModel struct {
+	Email       string `json:"email" validate:"required,email"`
 	Token       string `json:"token" validate:"required"`
 	NewPassword string `json:"new_password" validate:"required,min=7"`
 }
@@ -61,6 +69,7 @@ type VerifyEmailRequestModel struct {
 }
 
 type VerifyEmailTokenReqModel struct {
+	Email string `json:"email" validate:"required,email"`
 	Token string `json:"token" validate:"required"`
 }
 
@@ -100,23 +109,36 @@ func (p *PasswordReset) CreatePasswordReset(db *gorm.DB) error {
 	return nil
 }
 
-func (pr *PasswordReset) GetPasswordResetByToken(db *gorm.DB, token string) (PasswordReset, error) {
+func (pr *PasswordReset) GetActivePasswordReset(db *gorm.DB, email, purpose string) (PasswordReset, error) {
 	var reset PasswordReset
-	if err := db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&reset).Error; err != nil {
+	if err := db.Where("email = ? AND purpose = ? AND expires_at > ?", email, purpose, time.Now()).First(&reset).Error; err != nil {
 		return reset, err
 	}
 	return reset, nil
 }
 
-func (pr *PasswordReset) GetPasswordResetByEmail(db *gorm.DB, email string) (*PasswordReset, error) {
+func (pr *PasswordReset) GetPasswordResetByEmail(db *gorm.DB, email, purpose string) (*PasswordReset, error) {
 	var reset PasswordReset
-	if err := db.Where("email = ?", email).First(&reset).Error; err != nil {
+	if err := db.Where("email = ? AND purpose = ?", email, purpose).First(&reset).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
 	return &reset, nil
+}
+
+const MaxOTPAttempts = 5
+
+// RegisterFailedAttempt bumps the counter and deletes the code once it hits the cap.
+func (pr *PasswordReset) RegisterFailedAttempt(db *gorm.DB) error {
+	if err := db.Model(pr).UpdateColumn("attempts", gorm.Expr("attempts + 1")).Error; err != nil {
+		return err
+	}
+	if pr.Attempts+1 >= MaxOTPAttempts {
+		return pr.DeletePasswordReset(db)
+	}
+	return nil
 }
 
 func (pr *PasswordReset) DeletePasswordReset(db *gorm.DB) error {

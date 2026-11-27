@@ -56,6 +56,15 @@ func GenerateOTP(length int) (string, error) {
 	return string(b), nil
 }
 
+// GenerateSecureToken returns nBytes of crypto/rand data, hex-encoded.
+func GenerateSecureToken(nBytes int) (string, error) {
+	b := make([]byte, nBytes)
+	if _, err := crand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
 func GenerateInvitationToken() (string, error) {
 	bytes := make([]byte, 6)
 	_, err := crand.Read(bytes)

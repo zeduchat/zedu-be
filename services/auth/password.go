@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -84,7 +85,17 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 
 	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
 
-	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail)
+	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
+	if !exists {
+		return "error", http.StatusNotFound, fmt.Errorf("user not found")
+	}
+
+	if !middleware.AllowRate(storage.DB.Redis, "reset:cooldown:"+userEmail, 1, time.Minute) ||
+		!middleware.AllowRate(storage.DB.Redis, "reset:email:"+userEmail, 5, time.Hour) {
+		return "error", http.StatusTooManyRequests, errors.New("too many requests, please try again later")
+	}
+
+	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail, models.PurposePasswordReset)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err
 	}
@@ -93,11 +104,6 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 		if err := resetExist.DeletePasswordReset(db); err != nil {
 			return "error", http.StatusInternalServerError, err
 		}
-	}
-
-	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
-	if !exists {
-		return "error", http.StatusNotFound, fmt.Errorf("user not found")
 	}
 
 	resetToken, err := utility.GenerateOTP(6)
@@ -109,6 +115,7 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 	reset := models.PasswordReset{
 		ID:        utility.GenerateUUID(),
 		Email:     strings.ToLower(userEmail),
+		Purpose:   models.PurposePasswordReset,
 		Token:     resetToken,
 		ExpiresAt: time.Now().Add(time.Duration(config.App.ResetPasswordDuration) * time.Minute),
 	}
@@ -138,8 +145,13 @@ func VerifyPasswordResetToken(req models.ResetPasswordRequestModel, db *gorm.DB)
 		passReset = models.PasswordReset{}
 	)
 
-	resetExist, err := passReset.GetPasswordResetByToken(db, req.Token)
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	resetExist, err := passReset.GetActivePasswordReset(db, email, models.PurposePasswordReset)
 	if err != nil {
+		return nil, http.StatusUnauthorized, errors.New("invalid or expired token")
+	}
+	if subtle.ConstantTimeCompare([]byte(resetExist.Token), []byte(req.Token)) != 1 {
+		_ = resetExist.RegisterFailedAttempt(db)
 		return nil, http.StatusUnauthorized, errors.New("invalid or expired token")
 	}
 

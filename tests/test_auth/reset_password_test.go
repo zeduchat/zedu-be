@@ -95,6 +95,7 @@ func TestVerifyResetPassword(t *testing.T) {
 	passwordResetData := models.PasswordReset{
 		ID:        utility.GenerateUUID(),
 		Email:     adminData.Email,
+		Purpose:   models.PurposePasswordReset,
 		Token:     resetToken,
 		ExpiresAt: expirationTime,
 	}
@@ -102,6 +103,7 @@ func TestVerifyResetPassword(t *testing.T) {
 
 	t.Run("Successful Password Reset", func(t *testing.T) {
 		resetPasswordRequest := models.ResetPasswordRequestModel{
+			Email:       adminData.Email,
 			Token:       resetToken,
 			NewPassword: "newpassword",
 		}
@@ -119,6 +121,7 @@ func TestVerifyResetPassword(t *testing.T) {
 
 	t.Run("Invalid or Expired Token", func(t *testing.T) {
 		resetPasswordRequest := models.ResetPasswordRequestModel{
+			Email:       adminData.Email,
 			Token:       "invalidtoken",
 			NewPassword: "newpassword",
 		}
@@ -136,6 +139,7 @@ func TestVerifyResetPassword(t *testing.T) {
 
 	t.Run("Validation Error", func(t *testing.T) {
 		resetPasswordRequest := models.ResetPasswordRequestModel{
+			Email: adminData.Email,
 			Token: resetToken,
 		}
 		reqBody, _ := json.Marshal(resetPasswordRequest)

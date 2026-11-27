@@ -41,4 +41,5 @@ func SetupAuthRoutes(r *gin.Engine, authController *auth.Controller) {
 	r.POST("/api/v1/auth/password-reset/verify", authController.VerifyResetToken)
 	r.POST("/api/v1/auth/magick-link", authController.RequestMagicLink)
 	r.POST("/api/v1/auth/magick-link/verify", authController.VerifyMagicLink)
+	r.POST("/api/v1/auth/email-request/verify", authController.VerifyEmailToken)
 }
