@@ -88,10 +88,10 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 		organisationUrl.PATCH("/:org_id/agents/:agent_id/settings/:setting_id", agentsCtrl.UpdateAgentSetting)
 
 		// Organisation channel agent settings routes
-		organisationUrl.POST("/:org_id/agents/:agent_id/channels/:channel_id/settings", agentsCtrl.AddChannelAgentSetting)
-		organisationUrl.GET("/:org_id/agents/:agent_id/channels/:channel_id/settings", agentsCtrl.GetChannelAgentSetting)
-		organisationUrl.PATCH("/:org_id/agents/:agent_id/channels/:channel_id/settings/:setting_id", agentsCtrl.UpdateChannelAgentSetting)
-		organisationUrl.DELETE("/:org_id/agents/:agent_id/channels/:channel_id/settings/:setting_id", agentsCtrl.DeleteChannelAgentSetting)
+		organisationUrl.POST("/:org_id/agents/:agent_id/channels/:channel_id/settings", agentsCtrl.RequireAgentManager, agentsCtrl.AddChannelAgentSetting)
+		organisationUrl.GET("/:org_id/agents/:agent_id/channels/:channel_id/settings", middleware.RequireOrgMember(db.Postgresql), agentsCtrl.GetChannelAgentSetting)
+		organisationUrl.PATCH("/:org_id/agents/:agent_id/channels/:channel_id/settings/:setting_id", agentsCtrl.RequireAgentManager, agentsCtrl.UpdateChannelAgentSetting)
+		organisationUrl.DELETE("/:org_id/agents/:agent_id/channels/:channel_id/settings/:setting_id", agentsCtrl.RequireAgentManager, agentsCtrl.DeleteChannelAgentSetting)
 
 		// Agent slash commands routes
 		organisationUrl.POST("/:org_id/agents/:agent_id/slash-commands", agentsCtrl.AddAgentSlashCommand)

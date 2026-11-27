@@ -46,7 +46,10 @@ func GetChannelAgentSettings(db *gorm.DB, ids map[string]string) ([]models.Chann
 		return []models.ChannelIntegrationSettings{}, fmt.Errorf("agent does not exist")
 	}
 
-	exists = postgresql.CheckExists(db, &channel, "id = ?", ids["channel_id"])
+	exists = postgresql.CheckExists(db, &channel, "id = ? AND organisation_id = ?", ids["channel_id"], ids["org_id"])
+	if !exists {
+		return []models.ChannelIntegrationSettings{}, fmt.Errorf("channel does not exist in organisation")
+	}
 
 	settings, err := setting.GetChannelIntegrationSetting(db, ids)
 	if err != nil {
