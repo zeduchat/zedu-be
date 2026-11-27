@@ -867,24 +867,20 @@ func (i *Integrations) UpdateAgent(db *gorm.DB, ids map[string]string, req Updat
 	return updatedAgent, nil
 }
 
-// Delete general integration
+// ErrOrgAgentNotInstalled is returned when the agent is not installed in the
+// organisation.
+var ErrOrgAgentNotInstalled = errors.New("agent app does not exist")
+
+// DeleteAgent uninstalls an agent from one organisation. The global
+// integrations row and other organisations' installs are left alone; the
+// system agent itself is only deleted from the back office.
 func (i *Integrations) DeleteAgent(db *gorm.DB, ids map[string]string) error {
-	var agent Integrations
-
-	exists := postgresql.CheckExists(db, &agent, "id = ?", ids["agent_id"])
-	if !exists {
-		return errors.New("agent app does not exist")
+	res := db.Delete(&OrganisationIntegrations{}, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	if res.Error != nil {
+		return res.Error
 	}
-
-	err := db.Delete(&agent, "id = ?", ids["agent_id"]).Error
-	if err != nil {
-		return err
-	}
-
-	//also delete entries for the agent in the organisation agents table
-	err = db.Delete(&OrganisationIntegrations{}, "integration_id = ?", ids["agent_id"]).Error
-	if err != nil {
-		return err
+	if res.RowsAffected == 0 {
+		return ErrOrgAgentNotInstalled
 	}
 
 	return nil
