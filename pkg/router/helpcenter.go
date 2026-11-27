@@ -16,7 +16,9 @@ func HelpCenter(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	helpcenter := helpcenter.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
-	helpcenterAdminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.Authorize(db.Postgresql))
+	// Back-office only: every help-center write route belongs on this group.
+	// The content is served publicly, so ordinary user tokens must not reach it.
+	helpcenterAdminUrl := r.Group(fmt.Sprintf("%v", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	helpcenterUrl := r.Group(fmt.Sprintf("%v", ApiVersion))
 
 	{

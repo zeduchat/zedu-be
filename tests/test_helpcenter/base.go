@@ -9,10 +9,11 @@ import (
 
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/controller/admin"
 	"github.com/hngprojects/telex_be/pkg/controller/auth"
 	"github.com/hngprojects/telex_be/pkg/controller/helpcenter"
-	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/pkg/router"
 	tst "github.com/hngprojects/telex_be/tests"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -56,18 +57,13 @@ func SetupHelpCenterTestRouter() (*gin.Engine, *helpcenter.Controller) {
 	}
 
 	r := gin.Default()
-	SetupHelpCenterRoutes(r, helpcenterController)
+	// Mount the production route wiring so the tests cover its middleware.
+	router.HelpCenter(r, "/api/v1", validator, db, logger)
+	r.POST("/api/v1/backoffice/login", (&admin.Controller{
+		Db:        db,
+		Validator: validator,
+		Logger:    logger,
+		ExtReq:    request.ExternalRequest{Logger: logger, Test: true},
+	}).LoginAdmin)
 	return r, helpcenterController
-}
-
-func SetupHelpCenterRoutes(r *gin.Engine, helpcenterController *helpcenter.Controller) {
-	helpcenterAdminUrl := r.Group("/api/v1", middleware.Authorize(helpcenterController.Db.Postgresql))
-	helpcenterUrl := r.Group("/api/v1")
-
-	helpcenterAdminUrl.POST("/help-center/categories", helpcenterController.CreateHelpCenterCategory)
-	helpcenterAdminUrl.POST("/help-center/articles/:category-id", helpcenterController.CreateHelpCenterArticle)
-
-	helpcenterUrl.GET("/help-center/categories", helpcenterController.GetAllCategories)
-	helpcenterUrl.GET("/help-center/articles/categories/:category-id", helpcenterController.GetArticlesByCategoryID)
-	helpcenterUrl.GET("/help-center/articles/:id", helpcenterController.GetArticleByID)
 }
