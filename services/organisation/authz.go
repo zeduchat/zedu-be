@@ -28,19 +28,23 @@ func isUserOwnerOrOwnerRole(db *gorm.DB, userID, orgID string) bool {
 	return role.Name == models.OrgRoleNameOwner
 }
 
-// userCanOrOwner returns true if the user is the org owner OR has the given
-// permission via their org role. This replaces owner-only checks with a
-// permission-first approach while preserving the owner bypass.
-func userCanOrOwner(db *gorm.DB, userID, orgID, permission string) bool {
-	// Owner always passes
-	if isUserOwnerOrOwnerRole(db, userID, orgID) {
+// UserCanOrOwner reports whether userID is the owner of orgID, holds the
+// Owner role there, or holds `permission` through an active org role.
+// It fails closed: any lookup error, missing or deactivated membership,
+// or empty id returns false. Permission names are in internal/models/permissions.go.
+func UserCanOrOwner(db *gorm.DB, userID, orgID, permission string) bool {
+	if userID == "" || orgID == "" {
+		return false
+	}
+
+	var org models.Organisation
+	if isOwner, _ := org.IsOwnerOfOrganisation(db, userID, orgID); isOwner {
 		return true
 	}
 
-	// Check the user's role permission in this org
 	var oum models.OrgUserManagement
 	membership, err := oum.GetByIDs(db, userID, orgID)
-	if err != nil || membership.RoleID == "" {
+	if err != nil || membership.IsDeactivated || membership.RoleID == "" {
 		return false
 	}
 
@@ -50,5 +54,13 @@ func userCanOrOwner(db *gorm.DB, userID, orgID, permission string) bool {
 		return false
 	}
 
+	if role.Name == models.OrgRoleNameOwner {
+		return true
+	}
 	return models.OrgUserHasPermission(role.Permissions.PermissionList, permission)
+}
+
+// userCanOrOwner is kept for existing callers in this package.
+func userCanOrOwner(db *gorm.DB, userID, orgID, permission string) bool {
+	return UserCanOrOwner(db, userID, orgID, permission)
 }

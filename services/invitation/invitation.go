@@ -17,6 +17,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/repository/centrifuge"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -461,12 +462,35 @@ func ResendLinkGenerator(base *storage.Database, logger *utility.Logger, req mod
 	return invite, nil
 }
 
+// ErrInvitationNotFound is returned both when the invitation does not exist and
+// when the caller may not cancel it, so the response does not reveal which.
+var ErrInvitationNotFound = errors.New("invitation not found")
+
+// CancelInvitation deletes an invitation if userID is the organisation owner,
+// holds can_invite_members or can_manage_members there, or sent the invitation
+// and is still an active member.
 func CancelInvitation(db *gorm.DB, inviteID, userID string) error {
 	var (
-		i models.Invitation
+		i   models.Invitation
+		oum models.OrgUserManagement
 	)
 
-	return i.DeleteInvitation(db, inviteID)
+	invite, err := i.GetInvitationByID(db, inviteID)
+	if err != nil {
+		return ErrInvitationNotFound
+	}
+
+	allowed := organisation.UserCanOrOwner(db, userID, invite.OrganisationID, models.PermInviteMembers) ||
+		organisation.UserCanOrOwner(db, userID, invite.OrganisationID, models.PermManageMembers)
+	if !allowed && userID != "" && invite.InvitedBy == userID {
+		membership, err := oum.GetByIDs(db, userID, invite.OrganisationID)
+		allowed = err == nil && !membership.IsDeactivated
+	}
+	if !allowed {
+		return ErrInvitationNotFound
+	}
+
+	return i.DeleteInvitation(db, invite.ID, invite.OrganisationID)
 }
 
 // CountInvitesByUser returns the number of invitations sent by a specific user
