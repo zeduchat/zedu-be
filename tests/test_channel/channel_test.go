@@ -68,6 +68,10 @@ func TestChannelsEndpoints(t *testing.T) {
 
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
+	// Re-login after creating the organisation so the token carries the new
+	// current organisation. Channel lookups are scoped by org_id from the token.
+	token = tst.GetLoginToken(t, r, auth, loginData)
+
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
 		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
