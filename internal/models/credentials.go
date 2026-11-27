@@ -261,9 +261,15 @@ func (cred *Credential) GetSkillCredentials(db *gorm.DB) ([]SkillCredentialsResp
 func (cred *Credential) GetCredentialByID(db *gorm.DB) (*CredentialsResponse, int, error) {
 	res := CredentialsResponse{}
 
+	// Scope to the caller. Another user's or another org's id takes the
+	// not-found branch, so the response doesn't reveal that the id exists.
+	if cred.UserId == "" || cred.OrgId == "" {
+		return &res, http.StatusNotFound, fmt.Errorf("credential not found")
+	}
+
 	var dbCredential Credential
 	err := db.Model(&Credential{}).
-		Where("id = ?", cred.ID).
+		Where("id = ? AND user_id = ? AND org_id = ?", cred.ID, cred.UserId, cred.OrgId).
 		First(&dbCredential).Error
 
 	if err != nil {

@@ -33,15 +33,18 @@ func (base *Controller) CreateCredential(c *gin.Context) {
 		return
 	}
 
-	userClaims := claims.(jwt.MapClaims)
-	req.UserId = userClaims["user_id"].(string)
-
 	if err := c.ShouldBindJSON(&req); err != nil {
 		base.Logger.Info("error parsing request body")
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+
+	// The owner always comes from the token, never from the body, so the
+	// owner filter on GetCredentialByID can trust the stored user_id and org_id.
+	userClaims := claims.(jwt.MapClaims)
+	req.UserId, _ = userClaims["user_id"].(string)
+	req.OrgId, _ = userClaims["org_id"].(string)
 
 	err := base.Validator.Struct(&req)
 	if err != nil {
@@ -109,7 +112,22 @@ func (base *Controller) GetCredentialByID(c *gin.Context) {
 		return
 	}
 
-	resp, code, err := credentials.GetCredentialByIDService(credentialId, base.Db.Postgresql)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "error getting claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userClaims := claims.(jwt.MapClaims)
+	userId, _ := userClaims["user_id"].(string)
+	orgId, _ := userClaims["org_id"].(string)
+	if userId == "" || orgId == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "invalid token claims", nil, nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+
+	resp, code, err := credentials.GetCredentialByIDService(credentialId, userId, orgId, base.Db.Postgresql)
 	if err != nil {
 		base.Logger.Error("error fetching credential", err)
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

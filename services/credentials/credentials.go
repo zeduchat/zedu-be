@@ -27,9 +27,11 @@ func GetSkillCredentialsService(req models.CredentialRequest, db *gorm.DB) ([]mo
 	return res, code, err
 }
 
-func GetCredentialByIDService(credentialId string, db *gorm.DB) (*models.CredentialsResponse, int, error) {
+func GetCredentialByIDService(credentialId, userId, orgId string, db *gorm.DB) (*models.CredentialsResponse, int, error) {
 	var cred models.Credential
 	cred.ID = credentialId
+	cred.UserId = userId
+	cred.OrgId = orgId
 
 	res, code, err := cred.GetCredentialByID(db)
 	return res, code, err
