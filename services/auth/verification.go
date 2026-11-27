@@ -13,6 +13,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
 	"github.com/hngprojects/telex_be/services/actions"
@@ -30,6 +31,16 @@ func VerifyEmailReq(userEmail string, db *gorm.DB, extReq request.ExternalReques
 
 	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
 
+	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
+	if !exists {
+		return "error", http.StatusNotFound, fmt.Errorf("user not found")
+	}
+
+	if !middleware.AllowRate(storage.DB.Redis, "verify:cooldown:"+userEmail, 1, time.Minute) ||
+		!middleware.AllowRate(storage.DB.Redis, "verify:email:"+userEmail, 5, time.Hour) {
+		return "error", http.StatusTooManyRequests, errors.New("too many requests, please try again later")
+	}
+
 	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail, models.PurposeEmailVerification)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err
@@ -39,11 +50,6 @@ func VerifyEmailReq(userEmail string, db *gorm.DB, extReq request.ExternalReques
 		if err := resetExist.DeletePasswordReset(db); err != nil {
 			return "error", http.StatusInternalServerError, err
 		}
-	}
-
-	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
-	if !exists {
-		return "error", http.StatusNotFound, fmt.Errorf("user not found")
 	}
 
 	resetToken, err := utility.GenerateOTP(6)
@@ -87,7 +93,11 @@ func VerifyEmailToken(req models.VerifyEmailTokenReqModel, db *gorm.DB) (*models
 
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	resetExist, err := passReset.GetActivePasswordReset(db, email, models.PurposeEmailVerification)
-	if err != nil || subtle.ConstantTimeCompare([]byte(resetExist.Token), []byte(req.Token)) != 1 {
+	if err != nil {
+		return nil, http.StatusUnauthorized, errors.New("invalid or expired token")
+	}
+	if subtle.ConstantTimeCompare([]byte(resetExist.Token), []byte(req.Token)) != 1 {
+		_ = resetExist.RegisterFailedAttempt(db)
 		return nil, http.StatusUnauthorized, errors.New("invalid or expired token")
 	}
 

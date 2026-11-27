@@ -19,6 +19,7 @@ type PasswordReset struct {
 	ID        string         `gorm:"type:uuid;primaryKey;unique;not null" json:"id"`
 	Email     string         `gorm:"index"`
 	Purpose   string         `gorm:"index;not null;default:'password_reset'" json:"-"`
+	Attempts  int            `gorm:"not null;default:0" json:"-"`
 	Token     string         `gorm:"uniqueIndex"`
 	ExpiresAt time.Time      `gorm:"column:expires_at" json:"expires_at"`
 	CreatedAt time.Time      `gorm:"column:created_at; autoCreateTime" json:"created_at"`
@@ -125,6 +126,19 @@ func (pr *PasswordReset) GetPasswordResetByEmail(db *gorm.DB, email, purpose str
 		return nil, err
 	}
 	return &reset, nil
+}
+
+const MaxOTPAttempts = 5
+
+// RegisterFailedAttempt bumps the counter and deletes the code once it hits the cap.
+func (pr *PasswordReset) RegisterFailedAttempt(db *gorm.DB) error {
+	if err := db.Model(pr).UpdateColumn("attempts", gorm.Expr("attempts + 1")).Error; err != nil {
+		return err
+	}
+	if pr.Attempts+1 >= MaxOTPAttempts {
+		return pr.DeletePasswordReset(db)
+	}
+	return nil
 }
 
 func (pr *PasswordReset) DeletePasswordReset(db *gorm.DB) error {

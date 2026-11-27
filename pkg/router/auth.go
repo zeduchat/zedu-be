@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -17,16 +18,19 @@ func Auth(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 	extReq := request.ExternalRequest{Logger: logger, Test: false}
 	auth := auth.Controller{Db: db, Validator: validator, Logger: logger, ExtReq: extReq}
 
+	otpRequest := middleware.RateLimitByIP(db.Redis, "auth-otp-request", 10, time.Hour)
+	otpVerify := middleware.RateLimitByIP(db.Redis, "auth-otp-verify", 20, 15*time.Minute)
+
 	authUrl := r.Group(fmt.Sprintf("%v/auth", ApiVersion))
 	{
 		authUrl.POST("/register", auth.RegisterUser)
 		authUrl.POST("/login", auth.LoginUser)
-		authUrl.POST("/password-reset", auth.ResetPassword)
-		authUrl.POST("/password-reset/verify", auth.VerifyResetToken)
-		authUrl.POST("/magick-link", auth.RequestMagicLink)
-		authUrl.POST("/magick-link/verify", auth.VerifyMagicLink)
-		authUrl.POST("/email-request", auth.VerifyEmailReq)
-		authUrl.POST("/email-request/verify", auth.VerifyEmailToken)
+		authUrl.POST("/password-reset", otpRequest, auth.ResetPassword)
+		authUrl.POST("/password-reset/verify", otpVerify, auth.VerifyResetToken)
+		authUrl.POST("/magick-link", otpRequest, auth.RequestMagicLink)
+		authUrl.POST("/magick-link/verify", otpVerify, auth.VerifyMagicLink)
+		authUrl.POST("/email-request", otpRequest, auth.VerifyEmailReq)
+		authUrl.POST("/email-request/verify", otpVerify, auth.VerifyEmailToken)
 		authUrl.POST("/google", auth.GoogleLogin)
 		authUrl.POST("/apple", auth.AppleLogin)
 	}

@@ -35,6 +35,16 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 
 	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
 
+	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
+	if !exists {
+		return "error", http.StatusNotFound, fmt.Errorf("user not found")
+	}
+
+	if !middleware.AllowRate(storage.DB.Redis, "magic:cooldown:"+userEmail, 1, time.Minute) ||
+		!middleware.AllowRate(storage.DB.Redis, "magic:email:"+userEmail, 5, time.Hour) {
+		return "error", http.StatusTooManyRequests, errors.New("too many requests, please try again later")
+	}
+
 	magicExist, err := magicLink.GetMagicLinkByEmail(db, userEmail)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err
@@ -46,12 +56,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 		}
 	}
 
-	exists := postgresql.CheckExists(db, &user, "email = ?", userEmail)
-	if !exists {
-		return "error", http.StatusNotFound, fmt.Errorf("user not found")
-	}
-
-	resetToken, err := utility.GenerateOTP(6)
+	resetToken, err := utility.GenerateSecureToken(32)
 
 	if err != nil {
 		return "error", http.StatusInternalServerError, err
