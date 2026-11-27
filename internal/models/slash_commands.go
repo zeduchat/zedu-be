@@ -211,7 +211,7 @@ func (sc *SlashCommand) UpdateSlashCommand(db *gorm.DB, ids map[string]string, r
 }
 
 func (sc *SlashCommand) DeleteSlashCommand(db *gorm.DB, ids map[string]string) error {
-	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ?", ids["org_id"], ids["agent_id"])
+	exists := postgresql.CheckExists(db, &sc, "org_id = ? AND integration_id = ? AND id = ?", ids["org_id"], ids["agent_id"], ids["command_id"])
 	if !exists {
 		return fmt.Errorf("slash command does not exist")
 	}
