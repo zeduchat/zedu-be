@@ -76,7 +76,7 @@ func Agents(r *gin.Engine, ApiVersion string, validator *validator.Validate, db 
 
 		// Channel agents routes
 		organisationUrl.GET("/:org_id/channels/:channel_id/agents", agentsCtrl.GetOrganisationChannelAgents)
-		organisationUrl.PATCH("/:org_id/channels/:channel_id/agents/change-sendback-status", agentsCtrl.ChangeOrgChannelIntSendBackStatus)
+		organisationUrl.PATCH("/:org_id/channels/:channel_id/agents/change-sendback-status", agentsCtrl.RequireAgentManager, agentsCtrl.ChangeOrgChannelIntSendBackStatus)
 		organisationUrl.POST("/:org_id/agents/:agent_id/channels/:channel_id", agentsCtrl.ActivateDeactivateChannelAgent)
 		organisationUrl.GET("/:org_id/agents/:agent_id/channels", agentsCtrl.AgentChannels)
 		organisationUrl.GET("/:org_id/channels/agents/:agent_id/status", agentsCtrl.CheckAgentIsActive)
