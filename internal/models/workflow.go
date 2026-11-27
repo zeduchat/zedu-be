@@ -128,6 +128,7 @@ type AgentWorkFloNodeUpdateRequest struct {
 type ChannelWorkflowRequest struct {
 	ChannelID  string `json:"channel_id"`
 	WorkflowID string `json:"workflow_id"`
+	UserID     string `json:"-"`
 }
 
 type AgentsDetails struct {
