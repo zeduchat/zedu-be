@@ -447,6 +447,13 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 	if req.ThreadId == "00000000-0000-0000-0000-000000000000" {
 
 		var agent models.Integrations
+		var session models.UnauthenticatedUser
+
+		// Only marketplace chat channels created by SetupChatSession can
+		// receive zero-thread bot responses.
+		if !postgresql.CheckExists(db.Postgresql, &session, "channel_id = ?", req.ChannelID) {
+			return nil, http.StatusNotFound, fmt.Errorf("channel does not exist")
+		}
 
 		exists := postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", req.AgentId)
 		if !exists {
@@ -484,12 +491,23 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 
 	exists, err := channel.CheckChannelExists(db.Postgresql, req.ChannelID, "")
 	if !exists || err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("channel does not exist: %v", err)
+		return nil, http.StatusNotFound, fmt.Errorf("channel does not exist")
 	}
 
-	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ?", channel.ParticipantId)
+	// The agent comes from the channel, never from the body.
+	if channel.ParticipantId == nil || (req.AgentId != "" && req.AgentId != *channel.ParticipantId) {
+		return nil, http.StatusForbidden, errors.New("agent is not a participant of this channel")
+	}
+
+	exists = postgresql.CheckExists(db.Postgresql, &orgAgent, "integration_id = ? AND org_id = ?", *channel.ParticipantId, channel.OrgId)
 	if !exists {
-		return nil, http.StatusBadRequest, fmt.Errorf("agent does not exist in org, with integration_id = ?, %v", *channel.ParticipantId)
+		return nil, http.StatusForbidden, errors.New("agent is not installed in this organisation")
+	}
+
+	// Don't let a caller overwrite a thread that lives in another channel.
+	var existing models.ThreadDocument
+	if err := existing.GetThreadById(req.ThreadId); err == nil && existing.ChannelsID != req.ChannelID {
+		return nil, http.StatusForbidden, errors.New("thread does not belong to this channel")
 	}
 
 	if req.Type == models.NewBotMessage {
@@ -537,7 +555,7 @@ func BotResponse(req models.BotRequest, db *storage.Database, logger *utility.Lo
 		UserName:         orgAgent.AppName,
 		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
 		AvatarURL:        orgAgent.AppLogo,
-		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(req.AgentId),
+		DefaultAvatarUrl: avatar.GenerateDefaultAvatarURL(*channel.ParticipantId),
 		Type:             "message",
 		Content:          req.Content,
 		ThreadId:         req.ThreadId,

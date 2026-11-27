@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/pkg/controller/channel"
 	dm "github.com/hngprojects/telex_be/pkg/controller/directMessage"
 	"github.com/hngprojects/telex_be/pkg/controller/dm_filter"
@@ -38,7 +39,9 @@ func Dms(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *st
 
 	responseUrl := r.Group(fmt.Sprintf("%v/dms", ApiVersion), middleware.UnauthenticatedUserTracker(logger))
 	{
-		responseUrl.POST("/bot-dm-response", dmCtrl.BotDMResponse)
+		responseUrl.POST("/bot-dm-response",
+			middleware.RequireServiceSecret(middleware.ServiceSecretHeader, config.GetConfig().Server.ServiceCallbackSecret),
+			dmCtrl.BotDMResponse)
 		responseUrl.POST("/:channel_id", dmCtrl.AddAThreadDmFromMarketPlace)
 		responseUrl.GET("/setup", dmCtrl.SetupChatSession)
 	}
