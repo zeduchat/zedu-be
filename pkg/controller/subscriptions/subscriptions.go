@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/hngprojects/telex_be/external/request"
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
@@ -25,14 +26,8 @@ func (base *Controller) CreateSubscription(c *gin.Context) {
 
 	var (
 		req models.CreateSubscriptionRequest
-		url = c.Request.Header.Get("Referer")
+		url = config.FrontendBaseURL()
 	)
-
-	if url == "" {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "missing URL", "missing URL", nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
 
 	err := c.ShouldBind(&req)
 	if err != nil {
@@ -109,7 +104,7 @@ func (base *Controller) ModifySubscription(c *gin.Context) {
 
 	var (
 		req models.ModifySubscriptionRequest
-		url = c.Request.Header.Get("Referer")
+		url = config.FrontendBaseURL()
 	)
 
 	err := c.ShouldBind(&req)

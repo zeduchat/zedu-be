@@ -25,6 +25,12 @@ import (
 	"github.com/hngprojects/telex_be/utility/audit_utility"
 )
 
+// MagicLinkURL builds the emailed login link. base must end with a slash
+// (config.FrontendBaseURL) and must never come from a request header.
+func MagicLinkURL(base, token string) string {
+	return fmt.Sprintf("%vauth/login/magic-link?token=%v", base, token)
+}
+
 func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 
 	var (
@@ -69,7 +75,7 @@ func MagicLinkRequest(userEmail, url string, db *gorm.DB) (string, int, error) {
 		return "error", http.StatusInternalServerError, err
 	}
 
-	magic_link := fmt.Sprintf("%vauth/login/magic-link?token=%v", url, resetToken)
+	magic_link := MagicLinkURL(url, resetToken)
 
 	resetReq := models.SendMagicLink{
 		Email:     userEmail,

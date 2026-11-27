@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 
+	"github.com/hngprojects/telex_be/internal/config"
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/services/invitation"
@@ -45,7 +46,7 @@ func (base *Controller) GeneralInvitationCreate(c *gin.Context) {
 	}
 
 	//baseurl
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	response, code, err := invitation.GeneralInvitationCreate(base.Db.Postgresql, req, userID.(string), url)
 	if err != nil {
@@ -111,7 +112,7 @@ func (base *Controller) OrganisationInviteMany(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	inviteMap, errs, err := invitation.InvitationLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
@@ -210,7 +211,7 @@ func (base *Controller) OrganisationInviteFew(c *gin.Context) {
 		return
 	}
 
-	url := c.Request.Header.Get("Referer")
+	url := config.FrontendBaseURL()
 
 	inviteMap, errs, err := invitation.InviteFewLinkGenerator(base.Db, inviteReq, userId, url)
 	if err != nil {
