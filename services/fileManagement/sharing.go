@@ -250,12 +250,18 @@ func IncrementShareAccess(db *gorm.DB, logger *utility.Logger, shareID string) e
 func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, error) {
 	var file models.File
 
-	// First check if file exists
+	// First check if file exists. Soft-deleted files are not found.
 	if err := db.Where("id = ?", fileID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, "file_not_found", ErrFileShareNotFound
 		}
 		return false, "database_error", err
+	}
+
+	// A file never leaves its organisation. Answer the same as for a missing
+	// file, so a caller from another organisation cannot tell the id exists.
+	if file.OrganisationID != orgID {
+		return false, "other_organisation", ErrFileShareNotFound
 	}
 
 	// Check if user owns the file
@@ -271,7 +277,7 @@ func CheckFileAccess(db *gorm.DB, fileID, userID, orgID string) (bool, string, e
 	// Check if user has explicit share
 	var shareCount int64
 	if err := db.Model(&models.FileShare{}).
-		Where("file_id = ? AND (expires_at IS NULL OR expires_at > ?)", fileID, time.Now().UTC()).
+		Where("file_id = ? AND organisation_id = ? AND (expires_at IS NULL OR expires_at > ?)", fileID, orgID, time.Now().UTC()).
 		Count(&shareCount).Error; err != nil {
 		return false, "database_error", err
 	}
