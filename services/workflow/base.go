@@ -10,6 +10,7 @@ import (
 
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/repository/storage/postgresql"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -82,7 +83,49 @@ func UpdateWorkflowService(req models.WorkFlowRequest, db *gorm.DB) (int, error)
 	return http.StatusOK, nil
 }
 
+// authorizeChannelWorkflow checks that userID can manage workflows in the
+// channel's organisation and that the workflow belongs to that same
+// organisation. Callers outside the channel's organisation get 404, so the
+// response does not confirm that the channel exists.
+func authorizeChannelWorkflow(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	if !utility.IsValidUUID(req.ChannelID) || !utility.IsValidUUID(req.WorkflowID) {
+		return http.StatusBadRequest, errors.New("channel_id and workflow_id must be valid UUIDs")
+	}
+
+	var channel models.Channels
+	if err := db.Select("id", "organisation_id").Where("id = ?", req.ChannelID).First(&channel).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return http.StatusNotFound, errors.New("channel not found")
+		}
+		return http.StatusInternalServerError, err
+	}
+
+	if !organisation.UserCanOrOwner(db, req.UserID, channel.OrganisationID, models.PermManageWorkflows) {
+		var org models.Organisation
+		if isMember, _ := org.CheckUserIsMemberOfOrg(req.UserID, channel.OrganisationID, db); !isMember {
+			return http.StatusNotFound, errors.New("channel not found")
+		}
+		return http.StatusForbidden, errors.New("user does not have permission to manage workflows in this organisation")
+	}
+
+	var n int64
+	if err := db.Model(&models.Workflow{}).Where("id = ? AND org_id = ?", req.WorkflowID, channel.OrganisationID).Count(&n).Error; err != nil {
+		return http.StatusInternalServerError, err
+	}
+	if n == 0 {
+		return http.StatusNotFound, errors.New("workflow not found")
+	}
+	return http.StatusOK, nil
+}
+
 func AddWorkflowToChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	if code, err := authorizeChannelWorkflow(db, req); err != nil {
+		return code, err
+	}
+	return addWorkflowToChannel(db, req)
+}
+
+func addWorkflowToChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
 
 	cw := models.ChannelWorkflow{
 		ID:         utility.GenerateUUID(),
@@ -97,6 +140,13 @@ func AddWorkflowToChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, 
 }
 
 func RemoveWorkflowFromChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	if code, err := authorizeChannelWorkflow(db, req); err != nil {
+		return code, err
+	}
+	return removeWorkflowFromChannel(db, req)
+}
+
+func removeWorkflowFromChannel(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
 	cw := models.ChannelWorkflow{
 		ChannelID:  req.ChannelID,
 		WorkflowID: req.WorkflowID,
@@ -119,6 +169,10 @@ func GetChannelWorkflows(db *gorm.DB, channelID, orgId *string) ([]models.Workfl
 }
 
 func UpdateWorkflowStatus(db *gorm.DB, req models.ChannelWorkflowRequest) (int, error) {
+	if code, err := authorizeChannelWorkflow(db, req); err != nil {
+		return code, err
+	}
+
 	wc := models.ChannelWorkflow{
 		ChannelID:  req.ChannelID,
 		WorkflowID: req.WorkflowID,
@@ -127,10 +181,10 @@ func UpdateWorkflowStatus(db *gorm.DB, req models.ChannelWorkflowRequest) (int, 
 	exists, _ := wc.CheckChannelWorkflowExists(db)
 
 	if exists {
-		return RemoveWorkflowFromChannel(db, req)
+		return removeWorkflowFromChannel(db, req)
 	}
 
-	return AddWorkflowToChannel(db, req)
+	return addWorkflowToChannel(db, req)
 }
 
 func ListGeneralMarketPlaceWorkflows(db *gorm.DB, c *gin.Context) (*[]models.GeneralWorkflow, postgresql.PaginationResponse, int, error) {

@@ -236,12 +236,13 @@ func (base *Controller) UpdateWorkflow(c *gin.Context) {
 func (base *Controller) AddWorkflowToChannel(c *gin.Context) {
 	var req models.ChannelWorkflowRequest
 
-	_, exists := c.Get("userClaims")
+	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	userID, _ := claims.(jwt.MapClaims)["user_id"].(string)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
@@ -256,6 +257,7 @@ func (base *Controller) AddWorkflowToChannel(c *gin.Context) {
 		return
 	}
 
+	req.UserID = userID
 	code, err := workflow.UpdateWorkflowStatus(base.Db.Postgresql, req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
@@ -285,13 +287,15 @@ func (base *Controller) RemoveWorkflowFromChannel(c *gin.Context) {
 		return
 	}
 
-	_, exists := c.Get("userClaims")
+	claims, exists := c.Get("userClaims")
 	if !exists {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
+	userID, _ := claims.(jwt.MapClaims)["user_id"].(string)
 
+	req.UserID = userID
 	code, err := workflow.RemoveWorkflowFromChannel(base.Db.Postgresql, req)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)
