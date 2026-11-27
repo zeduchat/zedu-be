@@ -135,6 +135,13 @@ func (base *Controller) GetDmParticipants(c *gin.Context) {
 		return
 	}
 
+	if _, err := uuid.Parse(req.OrgId); err != nil {
+		base.Logger.Error("invalid organisation id format", err)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "invalid organisation id format", errors.New("failed to parse organisation id"), nil)
+		c.JSON(http.StatusBadRequest, rd)
+		return
+	}
+
 	claims, exists := c.Get("userClaims")
 
 	if !exists {

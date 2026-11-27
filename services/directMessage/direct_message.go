@@ -161,9 +161,19 @@ func GetDmParticipants(req models.DmChannelsRequest, db *storage.Database, c *gi
 		GroupsInCommon: []models.GroupInCommon{},
 	}
 
-	_, err := dmchannel.FetchChannelParticipant(db.Postgresql, req)
+	// 404 for every failure, so a non-member can't tell that a private DM exists.
+	canAccess, err := models.UserCanAccessChannel(db.Postgresql, req.ChannelId, req.UserId)
 	if err != nil {
-		return resp, http.StatusBadRequest, err
+		return resp, http.StatusInternalServerError, errors.New("could not verify channel access")
+	}
+	if !canAccess {
+		return resp, http.StatusNotFound, errors.New("channel does not exist")
+	}
+	if _, err := dmchannel.FetchChannelParticipant(db.Postgresql, req); err != nil {
+		return resp, http.StatusNotFound, errors.New("channel does not exist")
+	}
+	if dmchannel.OrgId != req.OrgId {
+		return resp, http.StatusNotFound, errors.New("channel does not exist")
 	}
 
 	excludeDeactivated := c != nil && c.Query("exclude_deactivated") == "true"
