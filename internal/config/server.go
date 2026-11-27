@@ -2,6 +2,7 @@ package config
 
 type ServerConfiguration struct {
 	Port                      string
+	ApiStatusSecret           string
 	Secret                    string
 	EncKey                    string
 	AccessTokenExpireDuration int
