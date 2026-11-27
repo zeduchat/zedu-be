@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,7 @@ import (
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/services/agents"
+	"github.com/hngprojects/telex_be/services/organisation"
 	"github.com/hngprojects/telex_be/utility"
 )
 
@@ -123,12 +125,32 @@ func (base *Controller) DeleteAgentApp(c *gin.Context) {
 		return
 	}
 
+	// Removing an agent from an organisation needs the owner or
+	// can_manage_agents in that organisation.
+	rawUserID, err := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	userID, ok := rawUserID.(string)
+	if err != nil || !ok || userID == "" {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "user context required", "unauthorized", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	if !organisation.UserCanOrOwner(base.Db.Postgresql, userID, org_id, models.PermManageAgents) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "you do not have permission to manage agents in this organisation", "forbidden", nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
+
 	ids := map[string]string{
 		"org_id":   org_id,
 		"agent_id": agent_id,
 	}
 
-	err := agents.DeleteAgentApp(ids, base.Db.Postgresql)
+	err = agents.DeleteAgentApp(ids, base.Db.Postgresql)
+	if errors.Is(err, models.ErrOrgAgentNotInstalled) {
+		rd := utility.BuildErrorResponse(http.StatusNotFound, "error", err.Error(), "Failed to delete agent app", nil)
+		c.JSON(http.StatusNotFound, rd)
+		return
+	}
 	if err != nil {
 		base.Logger.Error("Failed to delete agent app", err)
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete agent app", err, nil)
