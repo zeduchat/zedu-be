@@ -41,7 +41,7 @@ func UpdateUserPassword(c *gin.Context, req models.ChangePasswordRequestModel, d
 	}
 
 	if !utility.CompareHash(req.OldPassword, userDataExist.Password) && userDataExist.Password != "" {
-		logger.Error("user with old hash " + userDataExist.Password + " wants to update with wrong entry")
+		logger.Error("change-password: old password mismatch for user %s", userID)
 		return nil, http.StatusBadRequest, fmt.Errorf("old password is incorrect")
 	}
 
