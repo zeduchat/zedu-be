@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -84,7 +85,7 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 
 	userEmail = strings.ToLower(strings.TrimSpace(userEmail))
 
-	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail)
+	resetExist, err := passReset.GetPasswordResetByEmail(db, userEmail, models.PurposePasswordReset)
 	if err != nil {
 		return "error", http.StatusUnauthorized, err
 	}
@@ -109,6 +110,7 @@ func PasswordReset(userEmail string, db *gorm.DB, extReq request.ExternalRequest
 	reset := models.PasswordReset{
 		ID:        utility.GenerateUUID(),
 		Email:     strings.ToLower(userEmail),
+		Purpose:   models.PurposePasswordReset,
 		Token:     resetToken,
 		ExpiresAt: time.Now().Add(time.Duration(config.App.ResetPasswordDuration) * time.Minute),
 	}
@@ -138,8 +140,9 @@ func VerifyPasswordResetToken(req models.ResetPasswordRequestModel, db *gorm.DB)
 		passReset = models.PasswordReset{}
 	)
 
-	resetExist, err := passReset.GetPasswordResetByToken(db, req.Token)
-	if err != nil {
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	resetExist, err := passReset.GetActivePasswordReset(db, email, models.PurposePasswordReset)
+	if err != nil || subtle.ConstantTimeCompare([]byte(resetExist.Token), []byte(req.Token)) != 1 {
 		return nil, http.StatusUnauthorized, errors.New("invalid or expired token")
 	}
 
