@@ -64,9 +64,11 @@ func UpdateCronJobInterval(extReq request.ExternalRequest, db storage.Database, 
 	case "week":
 		interval = time.Hour * time.Duration(number*7*24)
 	case "month":
-		interval = time.Hour * time.Duration(number*4*7*24)
+		// A month is a fixed 30-day period.
+		interval = time.Hour * time.Duration(number*30*24)
 	case "year":
-		interval = time.Hour * time.Duration(number*52*4*7*24)
+		// A year is a fixed 365-day period.
+		interval = time.Hour * time.Duration(number*365*24)
 	default:
 		return fmt.Errorf("base does not exist")
 	}
