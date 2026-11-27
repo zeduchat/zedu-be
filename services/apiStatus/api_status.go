@@ -12,11 +12,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// maxStatusExecutions caps how many executions one report may carry.
+const maxStatusExecutions = 5000
+
 func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 	var request models.StatusRequest
 	err := json.Unmarshal(data, &request)
 	if err != nil {
 		return err
+	}
+
+	if len(request.Run.Executions) > maxStatusExecutions {
+		return fmt.Errorf("too many executions (max %d)", maxStatusExecutions)
 	}
 
 	responseTimes := make(map[string][]int)
@@ -51,16 +58,18 @@ func UpdateAPIStatus(db *gorm.DB, data []byte) error {
 			details = "API not responding (HTTP 503)"
 		}
 
-		apistatus := models.APIStatus{
-			ID:             utility.GenerateUUID(),
-			APIGroup:       fmt.Sprintf("%s API", apiGroup),
-			Status:         status,
-			LastChecked:    time.Now().UTC(),
-			ResponseTimeMs: fmt.Sprintf("%dms", averageResponseTime),
-			Details:        details,
-		}
-
-		err := apistatus.Create(db)
+		// One current row per API group: update it in place instead of
+		// inserting a new row on every report.
+		var row models.APIStatus
+		err := db.Where(models.APIStatus{APIGroup: fmt.Sprintf("%s API", apiGroup)}).
+			Attrs(models.APIStatus{ID: utility.GenerateUUID()}).
+			Assign(models.APIStatus{
+				Status:         status,
+				LastChecked:    time.Now().UTC(),
+				ResponseTimeMs: fmt.Sprintf("%dms", averageResponseTime),
+				Details:        details,
+			}).
+			FirstOrCreate(&row).Error
 		if err != nil {
 			return err
 		}

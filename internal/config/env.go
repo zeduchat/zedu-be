@@ -34,6 +34,7 @@ type Configuration struct {
 
 type BaseConfig struct {
 	SERVER_PORT                      string  `mapstructure:"SERVER_PORT"`
+	API_STATUS_SECRET                string  `mapstructure:"API_STATUS_SECRET"`
 	SERVER_SECRET                    string  `mapstructure:"SERVER_SECRET"`
 	SERVER_ENCKEY                    string  `mapstructure:"SERVER_ENCKEY"`
 	SERVER_ACCESSTOKENEXPIREDURATION int     `mapstructure:"SERVER_ACCESSTOKENEXPIREDURATION"`
@@ -169,6 +170,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 	return &Configuration{
 		Server: ServerConfiguration{
 			Port:                      config.SERVER_PORT,
+			ApiStatusSecret:           config.API_STATUS_SECRET,
 			Secret:                    config.SERVER_SECRET,
 			EncKey:                    config.SERVER_ENCKEY,
 			AccessTokenExpireDuration: config.SERVER_ACCESSTOKENEXPIREDURATION,

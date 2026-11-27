@@ -3,8 +3,6 @@ package apistatus
 import (
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -21,15 +19,17 @@ type Controller struct {
 	ExtReq    request.ExternalRequest
 }
 
+const maxStatusFileBytes = 10 << 20
+
 func (base *Controller) UpdateAPIStatus(c *gin.Context) {
-	err := c.Request.ParseMultipartForm(10 << 20)
+	err := c.Request.ParseMultipartForm(maxStatusFileBytes)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to parse request body", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
-	file, header, err := c.Request.FormFile("result_file")
+	file, _, err := c.Request.FormFile("result_file")
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to retrieve file", err, nil)
 		c.JSON(http.StatusBadRequest, rd)
@@ -37,61 +37,18 @@ func (base *Controller) UpdateAPIStatus(c *gin.Context) {
 	}
 	defer file.Close()
 
-	tempDir := "./tmp"
-	err = os.MkdirAll(tempDir, os.ModePerm)
+	// Read the report in memory: nothing is written to disk, so the client's
+	// file name is never used as a path and error paths leave nothing behind.
+	data, err := io.ReadAll(io.LimitReader(file, maxStatusFileBytes))
 	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to create temp directory", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	tempFilePath := filepath.Join(tempDir, header.Filename)
-
-	tempFile, err := os.Create(tempFilePath)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to save file", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-	defer tempFile.Close()
-
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read file", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	_, err = tempFile.Write(fileContent)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to write to temp file", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	err = tempFile.Close()
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to close temp file", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	data, err := os.ReadFile(tempFilePath)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to read file", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
+		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "Failed to read file", err, nil)
+		c.JSON(http.StatusBadRequest, rd)
 		return
 	}
 
 	err = service.UpdateAPIStatus(base.Db.Postgresql, data)
 	if err != nil {
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to store api status", err, nil)
-		c.JSON(http.StatusInternalServerError, rd)
-		return
-	}
-
-	err = os.Remove(tempFilePath)
-	if err != nil {
-		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", "Failed to delete file", err, nil)
 		c.JSON(http.StatusInternalServerError, rd)
 		return
 	}
