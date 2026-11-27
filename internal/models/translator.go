@@ -18,8 +18,8 @@ type StepRequests []StepReq
 
 type Prompts struct {
 	ID        string    `json:"id" gorm:"primaryKey"`
-	Name      string    `json:"name" gorm:"not null"`
-	Template  string    `json:"template" gorm:"type:text;not null"`
+	Name      string    `json:"name" gorm:"not null" validate:"required,max=100"`
+	Template  string    `json:"template" gorm:"type:text;not null" validate:"required,max=50000"`
 	Version   int       `json:"version" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 }

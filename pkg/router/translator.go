@@ -11,6 +11,7 @@ import (
 	"github.com/hngprojects/telex_be/external/request"
 	"github.com/hngprojects/telex_be/pkg/assets"
 	"github.com/hngprojects/telex_be/pkg/controller/translator"
+	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -28,9 +29,9 @@ func Translator(r *gin.Engine, ApiVersion string, validator *validator.Validate,
 		// translatorURL.GET("/tester", transCtrl.TranslationTester)
 	}
 
-	promptURL := r.Group(fmt.Sprintf("%v/prompts", ApiVersion))
+	promptURL := r.Group(fmt.Sprintf("%v/prompts", ApiVersion), middleware.AdminAuthorize(db.Postgresql))
 	{
-		promptURL.POST("/", transCtrl.CreatePrompt)
+		promptURL.POST("/", middleware.RequireSuperAdmin(), transCtrl.CreatePrompt)
 		promptURL.GET("/", transCtrl.GetPrompts)
 		promptURL.GET("/:prompt_name", transCtrl.GetPrompt)
 		promptURL.GET("/steps", transCtrl.FetchUniqueSteps)
