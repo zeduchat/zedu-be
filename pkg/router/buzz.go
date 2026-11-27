@@ -47,8 +47,8 @@ func Buzz(r *gin.Engine, ApiVersion string, validator *validator.Validate, db *s
 		buzzGroup.POST("/invitation/respond", ctrl.RespondToInvitation)
 		buzzGroup.POST("/:id/respond", ctrl.RespondToCall)
 		buzzGroup.GET("/invitations/pending", ctrl.GetPendingInvitations)
-
-		buzzGroup.POST("/:id/force-end", ctrl.ForceEndBuzz)
+		// ForceEndBuzz skips every permission check and is for tests only:
+		// tests/test_buzz registers it on its own router. Don't mount it here.
 		buzzGroup.POST("/:id/message", ctrl.SendBuzzMessage)
 		buzzGroup.POST("/:id/recording/start", ctrl.StartRecording)
 		buzzGroup.POST("/:id/recording/stop", ctrl.StopRecording)
