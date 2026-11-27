@@ -427,7 +427,15 @@ func (base *Controller) GetChannelCountInfo(c *gin.Context) {
 		return
 	}
 
-	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db, orgID, days)
+	claims, exists := c.Get("userClaims")
+	if !exists {
+		rd := utility.BuildErrorResponse(http.StatusUnauthorized, "error", "Unauthorized", "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, rd)
+		return
+	}
+	userID, _ := claims.(jwt.MapClaims)["user_id"].(string)
+
+	usersData, channelMetrics, err := service.ChannelCountInfo(c, base.Db, orgID, userID, days)
 	if err != nil {
 		base.Logger.Error("an error occurred while getting channel count metrics: " + err.Error())
 		rd := utility.BuildErrorResponse(http.StatusInternalServerError, "error", err.Error(), nil, nil)

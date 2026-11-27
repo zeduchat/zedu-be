@@ -527,14 +527,14 @@ func UpdateThreadMessage(req models.UpdateThreadMessage, db *gorm.DB, c *gin.Con
 	return threadResp, http.StatusOK, nil
 }
 
-func ChannelCountInfo(c *gin.Context, db *storage.Database, org_id string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
+func ChannelCountInfo(c *gin.Context, db *storage.Database, org_id, userID string, days int) (models.ChannelCountInfo, []models.ChannelMetrics, error) {
 	var (
 		channel models.ChannelCountInfo
 		t       models.Threads
 		cm      []models.ChannelMetrics
 	)
 
-	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id, days)
+	response, channelInfoMetrics, err := t.GetChannelCountInfo(db, org_id, userID, days)
 	if err != nil {
 		return channel, cm, err
 	}

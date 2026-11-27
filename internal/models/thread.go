@@ -373,14 +373,26 @@ type UserOrgThreadsResponse struct {
 	Threads           []ThreadWithMessagesResponse `json:"threads"`
 }
 
-func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
+// VisibleOrgChannelIDs returns the ids of the organisation's channels that userID may
+// see in org-wide metrics: every public channel plus the private channels userID is in.
+func VisibleOrgChannelIDs(db *gorm.DB, orgID, userID string) ([]string, error) {
+	channelIDs := make([]string, 0)
+	err := db.Model(&Channels{}).
+		Select("channels.id").
+		Where("channels.organisation_id = ?", orgID).
+		Where("channels.is_private = ? OR channels.id IN (?)", false,
+			db.Model(&UserChannels{}).Select("channels_id").Where("user_id = ?", userID)).
+		Find(&channelIDs).Error
+	return channelIDs, err
+}
+
+func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId, userID string, days int) (ChannelCountInfo, []ChannelMetrics, error) {
 	var (
-		CC         ChannelCountInfo
-		CTI        []ChannelMetrics
-		org        Organisation
-		startTime  = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
-		endTime    = time.Now().Format(time.RFC3339)
-		channelIDs = make([]string, 0)
+		CC        ChannelCountInfo
+		CTI       []ChannelMetrics
+		org       Organisation
+		startTime = time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
+		endTime   = time.Now().Format(time.RFC3339)
 	)
 
 	exists := postgresql.CheckExists(db.Postgresql, &org, "id = ?", orgId)
@@ -388,11 +400,7 @@ func (t *Threads) GetChannelCountInfo(db *storage.Database, orgId string, days i
 		return CC, nil, fmt.Errorf("organisation does not exist")
 	}
 
-	err := db.Postgresql.Model(&Channels{}).
-		Select("channels.id").
-		Where("channels.organisation_id = ?", orgId).
-		Find(&channelIDs).Error
-
+	channelIDs, err := VisibleOrgChannelIDs(db.Postgresql, orgId, userID)
 	if err != nil {
 		return CC, nil, fmt.Errorf("error fetching channel IDs: %v", err)
 	}
