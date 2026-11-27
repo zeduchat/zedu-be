@@ -68,6 +68,10 @@ func TestChannelsEndpoints(t *testing.T) {
 
 	orgId, _, _ := tst.CreateOrganisation(t, r, db, org, createOrgData, token)
 
+	// Channel lookups by name are scoped to the token's organisation, so log in
+	// again to get a token for the organisation just created.
+	orgToken := tst.GetLoginToken(t, r, auth, loginData)
+
 	createChannelsData := models.CreateChannelsRequest{
 		Name:           fmt.Sprintf("TestChannels%s", utility.GenerateUUID()),
 		Username:       fmt.Sprintf("Mr%sChannels", utility.GenerateUUID()),
@@ -186,7 +190,7 @@ func TestChannelsEndpoints(t *testing.T) {
 			RequestURI: url.URL{Path: fmt.Sprintf("/api/v1/channels/name/%s", "Test-Channels")},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
+				"Authorization": "Bearer " + orgToken,
 			},
 		}, {
 			Name:         "Search Channels by Name Action",
@@ -196,7 +200,7 @@ func TestChannelsEndpoints(t *testing.T) {
 			RequestURI:   url.URL{Path: fmt.Sprintf("/api/v1/channels/search/%s", channelName)},
 			Headers: map[string]string{
 				"Content-Type":  "application/json",
-				"Authorization": "Bearer " + token,
+				"Authorization": "Bearer " + orgToken,
 			},
 		},
 		{
