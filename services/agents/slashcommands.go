@@ -99,22 +99,29 @@ func ProcessSlashCommand(db *gorm.DB, req models.ProcessSlashCommandRequest) (in
 		return nil, err
 	}
 
+	// Usernames are resolved only among members of the caller's organisation.
+	// The controller sets org_id from the token.
+	orgID, _ := req.Context["org_id"].(string)
+	if orgID == "" {
+		return nil, fmt.Errorf("organization context is required")
+	}
+
 	// Route to appropriate handler
 	switch commandType {
 	case "add-to-channel":
-		return handleAddToChannel(db, args)
+		return handleAddToChannel(db, args, orgID)
 	case "remove-from-channel":
-		return handleRemoveFromChannel(db, args)
+		return handleRemoveFromChannel(db, args, orgID)
 	case "banish-from-channel":
-		return handleBanishFromChannel(db, args)
+		return handleBanishFromChannel(db, args, orgID)
 	case "restore-channels":
-		return handleRestoreChannels(db, args)
+		return handleRestoreChannels(db, args, orgID)
 	case "export-members":
 		return handleExportMembers(db, args)
 	case "promote":
-		return handlePromote(db, args)
+		return handlePromote(db, args, orgID)
 	case "demote":
-		return handleDemote(db, args)
+		return handleDemote(db, args, orgID)
 	case "add-to-all-org-channels":
 		return handleAddToAllOrgChannels(db, req, args)
 	default:
@@ -205,16 +212,30 @@ func getChannelByName(db *gorm.DB, channelName, orgID string) (*models.Channels,
 	return &channel, nil
 }
 
-// getUserByUsername retrieves a user by their username
-func getUserByUsername(db *gorm.DB, username string) (*models.User, error) {
-	var profile models.Profile
-	err := db.Where("user_name = ?", username).First(&profile).Error
+// getUserByUsername resolves a username to exactly one member of orgID. A
+// username that belongs to no member of the organisation, or to more than one,
+// is refused.
+func getUserByUsername(db *gorm.DB, orgID, username string) (*models.User, error) {
+	var userIDs []string
+	err := db.Model(&models.Profile{}).
+		Joins("JOIN user_organisations uo ON uo.user_id = profiles.userid AND uo.organisation_id = ?", orgID).
+		Where("profiles.user_name = ?", username).
+		Where("(profiles.organisation_id = ? OR profiles.organisation_id IS NULL)", orgID).
+		Distinct("profiles.userid").
+		Pluck("profiles.userid", &userIDs).Error
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %s", username)
+		return nil, fmt.Errorf("failed to look up user: %s", username)
+	}
+	switch len(userIDs) {
+	case 0:
+		return nil, fmt.Errorf("user not found in this organisation: %s", username)
+	case 1:
+	default:
+		return nil, fmt.Errorf("username is ambiguous in this organisation: %s", username)
 	}
 
 	var user models.User
-	err = db.Where("id = ?", profile.Userid).First(&user).Error
+	err = db.Where("id = ?", userIDs[0]).First(&user).Error
 	if err != nil {
 		return nil, fmt.Errorf("user not found for profile: %s", username)
 	}
@@ -222,7 +243,7 @@ func getUserByUsername(db *gorm.DB, username string) (*models.User, error) {
 }
 
 // handleAddToChannel adds users to a channel
-func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChannelResponse, error) {
+func handleAddToChannel(db *gorm.DB, args map[string]string, orgID string) (models.AddToChannelResponse, error) {
 	channelName := args["target_channel"]
 	usersStr := args["users"]
 
@@ -251,7 +272,7 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChanne
 	failedUsers := []models.FailedUser{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			failedUsers = append(failedUsers, models.FailedUser{
 				Username: username,
@@ -302,7 +323,7 @@ func handleAddToChannel(db *gorm.DB, args map[string]string) (models.AddToChanne
 }
 
 // handleRemoveFromChannel removes users from a channel
-func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (models.RemoveFromChannelResponse, error) {
+func handleRemoveFromChannel(db *gorm.DB, args map[string]string, orgID string) (models.RemoveFromChannelResponse, error) {
 	channelName := args["target_channel"]
 	usersStr := args["users"]
 
@@ -325,7 +346,7 @@ func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (models.Remove
 	failedUsers := []models.FailedUser{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			failedUsers = append(failedUsers, models.FailedUser{
 				Username: username,
@@ -359,7 +380,7 @@ func handleRemoveFromChannel(db *gorm.DB, args map[string]string) (models.Remove
 }
 
 // handleBanishFromChannel removes users from specified channels and adds them to a target channel
-func handleBanishFromChannel(db *gorm.DB, args map[string]string) (models.BanishFromChannelResponse, error) {
+func handleBanishFromChannel(db *gorm.DB, args map[string]string, orgID string) (models.BanishFromChannelResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
@@ -387,7 +408,7 @@ func handleBanishFromChannel(db *gorm.DB, args map[string]string) (models.Banish
 	results := []models.BanishResult{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			results = append(results, models.BanishResult{
 				Username: username,
@@ -462,7 +483,7 @@ func handleBanishFromChannel(db *gorm.DB, args map[string]string) (models.Banish
 }
 
 // handleRestoreChannels restores channel access for users by re-adding them to previously banished channels
-func handleRestoreChannels(db *gorm.DB, args map[string]string) (models.RestoreChannelsResponse, error) {
+func handleRestoreChannels(db *gorm.DB, args map[string]string, orgID string) (models.RestoreChannelsResponse, error) {
 	usersStr := args["users"]
 
 	if usersStr == "" {
@@ -473,7 +494,7 @@ func handleRestoreChannels(db *gorm.DB, args map[string]string) (models.RestoreC
 	results := []models.RestoreResult{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			results = append(results, models.RestoreResult{
 				Username: username,
@@ -636,7 +657,7 @@ func getRoleString(role int) string {
 }
 
 // handlePromote promotes users from specified channels to a target channel
-func handlePromote(db *gorm.DB, args map[string]string) (models.PromoteResponse, error) {
+func handlePromote(db *gorm.DB, args map[string]string, orgID string) (models.PromoteResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
@@ -663,7 +684,7 @@ func handlePromote(db *gorm.DB, args map[string]string) (models.PromoteResponse,
 	results := []models.PromoteDemoteResult{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			results = append(results, models.PromoteDemoteResult{
 				Username: username,
@@ -731,7 +752,7 @@ func handlePromote(db *gorm.DB, args map[string]string) (models.PromoteResponse,
 }
 
 // handleDemote demotes users from specified channels to a target channel
-func handleDemote(db *gorm.DB, args map[string]string) (models.DemoteResponse, error) {
+func handleDemote(db *gorm.DB, args map[string]string, orgID string) (models.DemoteResponse, error) {
 	targetChannelName := args["target_channel"]
 	sourceChannelsStr := args["source_channels"]
 	usersStr := args["users"]
@@ -758,7 +779,7 @@ func handleDemote(db *gorm.DB, args map[string]string) (models.DemoteResponse, e
 	results := []models.PromoteDemoteResult{}
 
 	for _, username := range users {
-		user, err := getUserByUsername(db, username)
+		user, err := getUserByUsername(db, orgID, username)
 		if err != nil {
 			results = append(results, models.PromoteDemoteResult{
 				Username: username,
@@ -852,7 +873,7 @@ func handleAddToAllOrgChannels(db *gorm.DB, req models.ProcessSlashCommandReques
 	}
 
 	// Get the user to be added
-	user, err := getUserByUsername(db, username)
+	user, err := getUserByUsername(db, orgID, username)
 	if err != nil {
 		return models.AddToAllOrgChannelsResponse{}, err
 	}
