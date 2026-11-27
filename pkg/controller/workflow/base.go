@@ -350,16 +350,8 @@ func (base *Controller) GetGeneralMarketPlaceWorkflowByID(c *gin.Context) {
 		return
 	}
 
-	claims, exists := c.Get("userClaims")
-	if !exists {
-		rd := utility.BuildErrorResponse(http.StatusBadRequest, "error", "unable to get user claims", errors.New("user not authorized"), nil)
-		c.JSON(http.StatusBadRequest, rd)
-		return
-	}
-
-	userClaims := claims.(jwt.MapClaims)
-	req.UserId = userClaims["user_id"].(string)
-
+	// This route is public (no Authorize middleware), so it must not require
+	// userClaims; the marketplace lookup does not use the caller's id.
 	resp, code, err := workflow.GetGeneralMarketPlaceWorkflowId(req, base.Db.Postgresql)
 	if err != nil {
 		rd := utility.BuildErrorResponse(code, "error", err.Error(), err, nil)

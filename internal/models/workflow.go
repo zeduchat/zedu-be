@@ -654,7 +654,7 @@ func (cw *ChannelWorkflow) GetWorkflowsByChannel(db *gorm.DB) ([]Workflow, error
 func (cw *GeneralWorkflow) GetMarketPlaceWorkflowById(db *gorm.DB) (*[]GeneralWorkflow, error) {
 	workflows := []GeneralWorkflow{}
 	err := db.Table("general_workflows").
-		Where("general_workflow.id = ?", cw.ID).
+		Where("general_workflows.id = ?", cw.ID).
 		Scan(&workflows).Error
 	return &workflows, err
 }
