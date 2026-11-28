@@ -371,8 +371,10 @@ func (m *SavedMessage) UpdateSavedMessageCompletion(db *gorm.DB, logger *utility
 		return http.StatusNotFound, errors.New("saved message not found")
 	}
 
-	if savedMessage.Completed {
-		logger.Info("Saved message %s for user %s is already marked as complete", req.SavedMessageID, req.UserId)
+	// Only skip the write when the message is already in the requested state,
+	// so a completed message can still be marked incomplete again.
+	if req.Completed != nil && savedMessage.Completed == *req.Completed {
+		logger.Info("Saved message %s for user %s is already marked as completed=%t", req.SavedMessageID, req.UserId, *req.Completed)
 		return http.StatusOK, nil
 	}
 
