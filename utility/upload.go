@@ -5,16 +5,26 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"strings"
 )
 
+// allowedPictureTypes maps the image types accepted for uploaded pictures,
+// as sniffed from the file content, to the extension they are stored with.
+var allowedPictureTypes = map[string]string{
+	"image/png":  ".png",
+	"image/jpeg": ".jpeg",
+	"image/gif":  ".gif",
+	"image/webp": ".webp",
+}
+
+// ValidatePicture decodes a base64 data URL and checks that its content is a
+// png, jpeg, gif or webp image of at most 5MB. The type is sniffed from the
+// decoded bytes, never taken from the data URL's declared MIME type, so a
+// renamed or relabelled non-image is rejected. Empty values, remote URLs and
+// other non-data-URL strings return no file and no error.
 func ValidatePicture(base64Image string) ([]byte, string, error) {
 	const maxImageSize = 5 * 1024 * 1024 // 5MB
-
-	var (
-		imageData []byte
-		ext       string
-	)
 
 	if base64Image == "" {
 		return nil, "", nil
@@ -24,31 +34,32 @@ func ValidatePicture(base64Image string) ([]byte, string, error) {
 		return nil, "", nil
 	}
 
-	switch {
-	case strings.HasPrefix(base64Image, "data:image/jpeg;base64,"):
-		ext = ".jpeg"
-	case strings.HasPrefix(base64Image, "data:image/jpg;base64,"):
-		ext = ".jpg"
-	case strings.HasPrefix(base64Image, "data:image/png;base64,"):
-		ext = ".png"
-	default:
+	if !strings.HasPrefix(base64Image, "data:") {
 		return nil, "", nil
 	}
 
-	if len(imageData) > maxImageSize {
-		return imageData, ext, fmt.Errorf("image size exceeds 5MB limit")
-	}
-
 	parts := strings.SplitN(base64Image, ",", 2)
-
-	if len(parts) < 2 {
-		return imageData, ext, fmt.Errorf("invalid data URL")
+	if len(parts) < 2 || !strings.HasSuffix(parts[0], ";base64") {
+		return nil, "", fmt.Errorf("invalid data URL")
 	}
-	base64ImageData := parts[1]
 
-	imageData, err := base64.StdEncoding.DecodeString(base64ImageData)
+	if len(parts[1]) > base64.StdEncoding.EncodedLen(maxImageSize) {
+		return nil, "", fmt.Errorf("image size exceeds 5MB limit")
+	}
+
+	imageData, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return imageData, ext, fmt.Errorf("failed to decode base64 string: %w", err)
+		return nil, "", fmt.Errorf("failed to decode base64 string: %w", err)
+	}
+
+	if len(imageData) > maxImageSize {
+		return nil, "", fmt.Errorf("image size exceeds 5MB limit")
+	}
+
+	mimeType := http.DetectContentType(imageData)
+	ext, ok := allowedPictureTypes[mimeType]
+	if !ok {
+		return nil, "", fmt.Errorf("invalid image type %s: allowed types are png, jpeg, gif and webp", mimeType)
 	}
 
 	return imageData, ext, nil
