@@ -14,6 +14,7 @@ type ServerConfiguration struct {
 type App struct {
 	Name                  string
 	Mode                  string
+	SwaggerEnabled        bool
 	Url                   string
 	MagicLinkDuration     int
 	ResetPasswordDuration int

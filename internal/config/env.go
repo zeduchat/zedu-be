@@ -44,6 +44,7 @@ type BaseConfig struct {
 
 	APP_NAME                string `mapstructure:"APP_NAME"`
 	APP_MODE                string `mapstructure:"APP_MODE"`
+	SWAGGER_ENABLED         bool   `mapstructure:"SWAGGER_ENABLED"`
 	APP_URL                 string `mapstructure:"APP_URL"`
 	MAGIC_LINK_DURATION     int    `mapstructure:"MAGIC_LINK_DURATION"`
 	RESET_PASSWORD_DURATION int    `mapstructure:"RESET_PASSWORD_DURATION"`
@@ -180,6 +181,7 @@ func (config *BaseConfig) SetupConfigurationn() *Configuration {
 		App: App{
 			Name:                  config.APP_NAME,
 			Mode:                  config.APP_MODE,
+			SwaggerEnabled:        config.SWAGGER_ENABLED,
 			Url:                   config.APP_URL,
 			MagicLinkDuration:     config.MAGIC_LINK_DURATION,
 			ResetPasswordDuration: config.RESET_PASSWORD_DURATION,

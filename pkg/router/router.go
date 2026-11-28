@@ -104,12 +104,17 @@ func Setup(logger *utility.Logger, validator *validator.Validate, db *storage.Da
 		})
 	})
 
-	r.StaticFile("/swagger.yaml", "static/swagger.yaml")
-	url := ginSwagger.URL("/swagger.yaml")
-	r.GET("/api/docs/*any", func(c *gin.Context) {
-		c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-2TOI2ugkuROHHfKZr6kdGv+XxhrVUI8uHycXqXUIR4g='; img-src 'self' data:;")
-		ginSwagger.WrapHandler(swaggerFiles.Handler, url)(c)
-	})
+	// The API docs list every route, so only serve them where they are
+	// switched on (local/dev APP_NAME or SWAGGER_ENABLED=true). Elsewhere these
+	// paths fall through to the JSON 404 above.
+	if appConfiguration.DocsEnabled() {
+		r.StaticFile("/swagger.yaml", "static/swagger.yaml")
+		url := ginSwagger.URL("/swagger.yaml")
+		r.GET("/api/docs/*any", func(c *gin.Context) {
+			c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'sha256-2TOI2ugkuROHHfKZr6kdGv+XxhrVUI8uHycXqXUIR4g='; img-src 'self' data:;")
+			ginSwagger.WrapHandler(swaggerFiles.Handler, url)(c)
+		})
+	}
 
 	handler, err := SetupRiverUI(db)
 	if err != nil {
