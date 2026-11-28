@@ -10,6 +10,7 @@ import (
 	"github.com/hngprojects/telex_be/internal/models"
 	"github.com/hngprojects/telex_be/pkg/middleware"
 	"github.com/hngprojects/telex_be/pkg/repository/storage"
+	"github.com/hngprojects/telex_be/services/organisation"
 	service "github.com/hngprojects/telex_be/services/subscription"
 	"github.com/hngprojects/telex_be/utility"
 )
@@ -143,6 +144,16 @@ func (base *Controller) DeleteSubscription(c *gin.Context) {
 	var (
 		org_id = c.Param("org_id")
 	)
+
+	// Only the organisation's owner, or a member whose role can manage
+	// billing, may cancel its plan.
+	userID, _ := middleware.GetUserClaims(c, base.Db.Postgresql, "user_id")
+	userIDStr, _ := userID.(string)
+	if !organisation.UserCanOrOwner(base.Db.Postgresql, userIDStr, org_id, models.PermManageBilling) {
+		rd := utility.BuildErrorResponse(http.StatusForbidden, "error", "You do not have permission to cancel this organisation's subscription", nil, nil)
+		c.JSON(http.StatusForbidden, rd)
+		return
+	}
 
 	code, err := service.DeleteSubscription(org_id, base.Db.Postgresql)
 	if err != nil {
